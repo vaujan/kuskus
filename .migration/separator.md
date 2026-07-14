@@ -7,6 +7,7 @@
 - `src/renderer/src/components/ui/separator.tsx:1`: replaced the Radix separator import with `@base-ui/react/separator`.
 - `src/renderer/src/components/ui/separator.tsx:5`: removed the Radix-only `decorative` prop and used Base UI's callable separator primitive.
 - Leftover scan is clean: `rg -n "radix-ui|@radix-ui" src/renderer/src/components/ui/separator.tsx` returned no matches.
+- Whole-renderer consumer sweep found no remaining `asChild`, Radix imports, or stale Radix CSS variables.
 
 ## Left alone
 

@@ -9,6 +9,7 @@
 - `src/renderer/src/components/ui/button.tsx:1`: replaced Radix Slot with `@base-ui/react/button`.
 - `src/renderer/src/components/ui/button.tsx:43`: changed the wrapper API from `asChild` to Base UI's `render`-capable `ButtonPrimitive.Props` while preserving variants and sizes.
 - Leftover scan is clean: `rg -n "radix-ui|@radix-ui" src/renderer/src/components/ui/button.tsx` returned no matches.
+- Whole-renderer consumer sweep found no remaining `asChild`, Radix imports, or stale Radix CSS variables.
 
 ## Left alone
 

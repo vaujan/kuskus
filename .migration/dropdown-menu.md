@@ -9,6 +9,7 @@
 - `src/renderer/src/components/ui/dropdown-menu.tsx:125`: mapped submenus to `SubmenuRoot` and `SubmenuTrigger`, preserving the shadcn submenu positioning defaults.
 - `src/renderer/src/components/ui/dropdown-menu.tsx:170`: mapped checkbox and radio indicators to their Base UI-specific parts.
 - Leftover scan is clean: `rg -n "radix-ui|@radix-ui" src/renderer/src/components/ui/dropdown-menu.tsx` returned no matches.
+- Whole-renderer consumer sweep found no remaining `asChild`, Radix imports, or stale Radix CSS variables.
 
 ## Left alone
 

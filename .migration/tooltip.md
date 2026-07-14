@@ -9,6 +9,7 @@
 - `src/renderer/src/components/ui/tooltip.tsx:26`: moved positioning props onto `Positioner` and content into `Popup`, with Base UI transform variables and arrow positioning.
 - `src/renderer/src/App.tsx:339`: migrated the Show in Explorer trigger from `asChild` to `render={<Button />}`.
 - Leftover scan is clean: `rg -n "radix-ui|@radix-ui" src/renderer/src/components/ui/tooltip.tsx src/renderer/src/App.tsx` returned no matches.
+- Whole-renderer consumer sweep found no remaining `asChild`, Radix imports, or stale Radix CSS variables.
 
 ## Left alone
 

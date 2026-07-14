@@ -7,6 +7,7 @@
 - `src/renderer/src/components/ui/badge.tsx:1`: replaced Radix Slot with Base UI `mergeProps` and `useRender`.
 - `src/renderer/src/components/ui/badge.tsx:30`: changed polymorphic composition from `asChild` to `render` while preserving all badge variants and classes.
 - Leftover scan is clean: `rg -n "radix-ui|@radix-ui" src/renderer/src/components/ui/badge.tsx` returned no matches.
+- Whole-renderer consumer sweep found no remaining `asChild`, Radix imports, or stale Radix CSS variables.
 
 ## Left alone
 
