@@ -1,0 +1,4 @@
+interface:
+  display_name: "Commit Skills"
+  short_description: "Write concise, useful Git commit messages"
+  default_prompt: "Use $commit-skills to write a clear Git commit message for the current staged changes."
