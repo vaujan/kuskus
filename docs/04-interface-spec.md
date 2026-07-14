@@ -28,7 +28,8 @@ The shell supports two explicit states.
 
 ### Expanded sidebar
 
-- Sidebar appears on the left at a stable, resizable or fixed initial width.
+- Sidebar appears on the left at a stable, resizable or fixed initial width and spans the full application height.
+- The action toolbar and title bar begin to the right of the sidebar; the sidebar must not sit below them.
 - Menu and Hide Sidebar controls remain accessible near the top.
 - Inbox, collections, and Trash are displayed in the sidebar.
 - The toolbar and content occupy the remaining width.

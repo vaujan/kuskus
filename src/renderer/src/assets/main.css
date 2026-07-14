@@ -88,6 +88,10 @@
 }
 
 :root {
+  --content-card-min-width: 15rem;
+  --content-max-width: 93.75rem;
+  --composer-card-height: 22.5rem;
+  --composer-editor-height: 15.625rem;
   --background: oklch(1 0 0);
 
   --foreground: oklch(0.148 0.004 228.8);
@@ -268,8 +272,8 @@
   }
 
   .titlebar-close:hover {
-    background: #e81123;
-    color: white;
+    background: var(--destructive);
+    color: var(--primary-foreground);
   }
 
   .sidebar-tooltip {

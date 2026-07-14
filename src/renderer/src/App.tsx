@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Archive,
   BookOpen,
@@ -22,10 +22,33 @@ import {
   X
 } from 'lucide-react'
 
+import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import {
+  Sidebar as AppSidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupAction,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarSeparator,
+  SidebarTrigger
+} from '@/components/ui/sidebar'
+import { Spinner } from '@/components/ui/spinner'
+import { Textarea } from '@/components/ui/textarea'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import type { LibraryDto, LibraryState, NoteItemDto } from '../../shared/kuskus'
 
@@ -66,7 +89,7 @@ function WindowControls(): React.JSX.Element | null {
   if (isMac) return null
 
   return (
-    <div className="window-no-drag -mr-3 flex h-full self-stretch">
+    <div className="window-no-drag flex h-full self-stretch">
       <button
         className="titlebar-control"
         type="button"
@@ -81,11 +104,7 @@ function WindowControls(): React.JSX.Element | null {
         aria-label={isMaximized ? 'Restore window' : 'Maximize window'}
         onClick={window.electron.window.toggleMaximize}
       >
-        {isMaximized ? (
-          <Copy className="rotate-180" aria-hidden="true" />
-        ) : (
-          <Square aria-hidden="true" />
-        )}
+        {isMaximized ? <Copy aria-hidden="true" /> : <Square aria-hidden="true" />}
       </button>
       <button
         className="titlebar-control titlebar-close"
@@ -103,8 +122,8 @@ function LoadingScreen(): React.JSX.Element {
   return (
     <div className="flex h-screen items-center justify-center bg-background text-foreground">
       <div className="flex items-center gap-3 text-sm text-muted-foreground">
-        <span className="size-2 animate-pulse rounded-full bg-primary" />
-        Opening Kuskus
+        <Spinner aria-label="Opening Kuskus" />
+        Opening Kuskus…
       </div>
     </div>
   )
@@ -148,62 +167,77 @@ function SetupScreen({ initialState }: { initialState: LibraryState }): React.JS
         </div>
         <WindowControls />
       </header>
-
       <main className="flex flex-1 items-center justify-center overflow-auto p-6">
-        <Card className="w-full max-w-lg overflow-hidden">
+        <Card className="w-full max-w-lg">
           <CardHeader className="gap-3 border-b">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <Library className="size-5" aria-hidden="true" />
-            </div>
-            <div>
-              <CardTitle className="text-xl">Create your local library</CardTitle>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                Kuskus stores readable notes and metadata in a folder you control. Choose a parent
-                folder and Kuskus will create the named library inside it.
+            <Library
+              className="size-10 rounded-xl bg-primary p-2 text-primary-foreground"
+              aria-hidden="true"
+            />
+            <div className="flex flex-col gap-1">
+              <CardTitle>Create Your Local Library</CardTitle>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Kuskus stores readable notes and metadata in a folder you control.
               </p>
             </div>
           </CardHeader>
           <form onSubmit={createLibrary}>
-            <CardContent className="space-y-4 py-5">
-              {initialState.status === 'unavailable' && (
-                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm">
-                  <p className="font-medium">Previous library unavailable</p>
-                  <p className="mt-1 break-all text-xs text-muted-foreground">
-                    {initialState.path}
-                  </p>
-                </div>
-              )}
-              <label className="grid gap-2 text-sm font-medium" htmlFor="library-name">
-                Library name
-                <input
-                  id="library-name"
-                  className="h-10 rounded-lg border bg-background px-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring"
-                  value={name}
-                  maxLength={80}
-                  onChange={(event) => setName(event.target.value)}
-                  disabled={busy}
-                />
-              </label>
-              {error && (
-                <p className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-                  {error}
-                </p>
-              )}
+            <CardContent className="py-5">
+              <FieldGroup>
+                {initialState.status === 'unavailable' && (
+                  <LibraryAlert
+                    title="Previous Library Unavailable"
+                    description={initialState.path}
+                  />
+                )}
+                <Field data-disabled={busy}>
+                  <FieldLabel htmlFor="library-name">Library Name</FieldLabel>
+                  <Input
+                    id="library-name"
+                    name="libraryName"
+                    autoComplete="off"
+                    value={name}
+                    maxLength={80}
+                    disabled={busy}
+                    onChange={(event) => setName(event.target.value)}
+                  />
+                </Field>
+                {error && <LibraryAlert title="Unable to Continue" description={error} />}
+              </FieldGroup>
             </CardContent>
             <CardFooter className="justify-between gap-3 border-t">
               <Button type="button" variant="ghost" disabled={busy} onClick={openLibrary}>
-                <FolderOpen aria-hidden="true" />
-                Open existing
+                <FolderOpen data-icon="inline-start" aria-hidden="true" />
+                Open Existing
               </Button>
               <Button type="submit" disabled={busy || !name.trim()}>
-                <Plus aria-hidden="true" />
-                {busy ? 'Working...' : 'Create library'}
+                {busy ? (
+                  <Spinner data-icon="inline-start" />
+                ) : (
+                  <Plus data-icon="inline-start" aria-hidden="true" />
+                )}
+                {busy ? 'Working…' : 'Create Library'}
               </Button>
             </CardFooter>
           </form>
         </Card>
       </main>
     </div>
+  )
+}
+
+function LibraryAlert({
+  title,
+  description
+}: {
+  title: string
+  description: string
+}): React.JSX.Element {
+  return (
+    <Alert variant="destructive">
+      <AlertTitle>{title}</AlertTitle>
+      <AlertDescription className="break-all">{description}</AlertDescription>
+    </Alert>
   )
 }
 
@@ -232,12 +266,7 @@ function AddItemComposer({
     onError('')
     const result = await window.kuskus.createNote(draft)
     setSaving(false)
-
-    if (!result.ok) {
-      onError(result.error)
-      return
-    }
-
+    if (!result.ok) return onError(result.error)
     setDraft('')
     onCreated(result.data)
     onExpandedChange(false)
@@ -253,27 +282,26 @@ function AddItemComposer({
 
   if (!expanded) {
     return (
-      <button
-        className="group flex min-h-56 flex-col rounded-xl border border-dashed bg-card p-5 text-left text-card-foreground transition-colors hover:border-primary/60 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      <Button
+        className="min-h-56 w-full flex-col items-start justify-between border-dashed text-left"
+        variant="outline"
         type="button"
         onClick={() => onExpandedChange(true)}
       >
-        <span className="flex size-9 items-center justify-center rounded-lg border bg-background text-muted-foreground transition-colors group-hover:text-foreground">
-          <Plus className="size-4" aria-hidden="true" />
+        <Plus data-icon="inline-start" aria-hidden="true" />
+        <span className="flex flex-col gap-1">
+          <span>Add Item</span>
+          <span className="text-xs text-muted-foreground">Paste or Start Typing…</span>
         </span>
-        <span className="mt-auto">
-          <span className="block text-sm font-medium">Add item</span>
-          <span className="mt-1 block text-xs text-muted-foreground">Paste or start typing...</span>
-        </span>
-      </button>
+      </Button>
     )
   }
 
   return (
-    <Card className="relative z-20 min-h-[360px] overflow-hidden md:col-span-2">
+    <Card className="relative z-20 min-h-(--composer-card-height) md:col-span-2">
       <CardHeader className="flex-row items-center justify-between gap-3 border-b py-3">
         <div className="flex items-center gap-2">
-          <Badge variant="secondary">New quick note</Badge>
+          <Badge variant="secondary">New Quick Note</Badge>
           <span className="text-xs text-muted-foreground">Markdown</span>
         </div>
         <Button
@@ -290,11 +318,11 @@ function AddItemComposer({
         </Button>
       </CardHeader>
       <CardContent className="flex flex-1 p-0">
-        <textarea
+        <Textarea
           ref={editorRef}
-          className="min-h-[250px] w-full resize-none bg-transparent p-5 text-[15px] leading-7 outline-none placeholder:text-muted-foreground"
+          className="min-h-(--composer-editor-height) resize-none border-0 p-5 shadow-none"
           aria-label="New note content"
-          placeholder="Paste or start typing..."
+          placeholder="Paste or Start Typing…"
           value={draft}
           disabled={saving}
           onChange={(event) => setDraft(event.target.value)}
@@ -302,10 +330,14 @@ function AddItemComposer({
         />
       </CardContent>
       <CardFooter className="justify-between border-t py-3">
-        <span className="text-xs text-muted-foreground">Ctrl+Enter to save</span>
+        <span className="text-xs text-muted-foreground">Ctrl+Enter to Save</span>
         <Button size="sm" disabled={!draft.trim() || saving} onClick={() => void save()}>
-          <Check aria-hidden="true" />
-          {saving ? 'Saving...' : 'Save note'}
+          {saving ? (
+            <Spinner data-icon="inline-start" />
+          ) : (
+            <Check data-icon="inline-start" aria-hidden="true" />
+          )}
+          {saving ? 'Saving…' : 'Save Note'}
         </Button>
       </CardFooter>
     </Card>
@@ -323,28 +355,29 @@ function NoteCard({
     const result = await window.kuskus.showItemInExplorer(item.id)
     if (!result.ok) onError(result.error)
   }
-
   return (
-    <Card className="group min-h-56 overflow-hidden transition-colors hover:border-foreground/20">
+    <Card className="min-h-56">
       <CardHeader className="flex-row items-start justify-between gap-3 border-b py-3">
-        <div className="min-w-0">
-          <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            <FileText className="size-3.5" aria-hidden="true" />
+        <div className="min-w-0 flex flex-col gap-1">
+          <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <FileText aria-hidden="true" />
             Note
           </div>
           <CardTitle className="truncate text-sm">{item.title}</CardTitle>
         </div>
         <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              aria-label={`Show ${item.title} in Explorer`}
-              onClick={() => void reveal()}
-            >
-              <FolderOpen aria-hidden="true" />
-            </Button>
-          </TooltipTrigger>
+          <TooltipTrigger
+            render={
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                aria-label={`Show ${item.title} in Explorer`}
+                onClick={() => void reveal()}
+              >
+                <FolderOpen aria-hidden="true" />
+              </Button>
+            }
+          />
           <TooltipContent>Show in Explorer</TooltipContent>
         </Tooltip>
       </CardHeader>
@@ -352,12 +385,101 @@ function NoteCard({
         {item.missingContent ? (
           <p className="text-sm text-destructive">The note file is missing from the library.</p>
         ) : (
-          <p className="line-clamp-[9] whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+          <p className="line-clamp-6 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
             {item.body}
           </p>
         )}
       </CardContent>
     </Card>
+  )
+}
+
+function LibrarySidebar({
+  library,
+  theme,
+  onHide,
+  onToggleTheme
+}: {
+  library: LibraryDto
+  theme: Theme
+  onHide: () => void
+  onToggleTheme: () => void
+}): React.JSX.Element {
+  return (
+    <AppSidebar collapsible="offcanvas">
+      <SidebarHeader className="window-no-drag">
+        <div className="flex items-center gap-3 px-2 py-2">
+          <Library
+            className="size-8 rounded-lg bg-primary p-2 text-primary-foreground"
+            aria-hidden="true"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold">{library.name}</p>
+            <p className="truncate text-xs text-muted-foreground">Local Library</p>
+          </div>
+          <Button size="icon-sm" variant="ghost" aria-label="Hide sidebar" onClick={onHide}>
+            <PanelLeftClose aria-hidden="true" />
+          </Button>
+        </div>
+      </SidebarHeader>
+      <SidebarSeparator />
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu aria-label="Library navigation">
+              <SidebarMenuItem>
+                <SidebarMenuButton isActive>
+                  <Inbox aria-hidden="true" />
+                  <span>Inbox</span>
+                  <Badge className="ml-auto" variant="outline">
+                    {library.items.length}
+                  </Badge>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton disabled>
+                  <BookOpen aria-hidden="true" />
+                  <span>All Items</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>Collections</SidebarGroupLabel>
+          <SidebarGroupAction disabled aria-label="New collection">
+            <Plus aria-hidden="true" />
+          </SidebarGroupAction>
+          <SidebarGroupContent>
+            <p className="px-2 text-xs leading-relaxed text-muted-foreground">
+              Collections arrive after the capture workflow is reliable.
+            </p>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton disabled>
+              <Archive aria-hidden="true" />
+              <span>Trash</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton disabled>
+              <Settings aria-hidden="true" />
+              <span>Settings</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={onToggleTheme}>
+              {theme === 'dark' ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
+              <span>{theme === 'dark' ? 'Light Theme' : 'Dark Theme'}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </AppSidebar>
   )
 }
 
@@ -370,141 +492,88 @@ function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): React.JS
   const [search, setSearch] = useState('')
   const [message, setMessage] = useState('')
   const [theme, toggleTheme] = useTheme()
+  const deferredSearch = useDeferredValue(search)
 
   useEffect(() => {
     localStorage.setItem('kuskus-sidebar-hidden', String(sidebarHidden))
   }, [sidebarHidden])
 
   const visibleItems = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase()
-    if (!query) return library.items
-    return library.items.filter(
-      (item) =>
-        item.title.toLocaleLowerCase().includes(query) ||
-        item.body.toLocaleLowerCase().includes(query)
-    )
-  }, [library.items, search])
-
+    const query = deferredSearch.trim().toLocaleLowerCase()
+    return query
+      ? library.items.filter(
+          (item) =>
+            item.title.toLocaleLowerCase().includes(query) ||
+            item.body.toLocaleLowerCase().includes(query)
+        )
+      : library.items
+  }, [deferredSearch, library.items])
   const addCreatedItem = (item: NoteItemDto): void => {
     setLibrary((current) => ({ ...current, items: [item, ...current.items] }))
     setMessage('')
   }
 
   return (
-    <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-background text-foreground">
-      <header className="window-drag flex h-12 shrink-0 items-center gap-2 border-b bg-background/95 px-3">
-        <div className="window-no-drag flex items-center gap-1">
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            aria-label={sidebarHidden ? 'Show sidebar' : 'Hide sidebar'}
-            onClick={() => setSidebarHidden((current) => !current)}
-          >
-            {sidebarHidden ? (
-              <PanelLeftOpen aria-hidden="true" />
-            ) : (
-              <PanelLeftClose aria-hidden="true" />
-            )}
-          </Button>
-        </div>
-
-        <div className="window-no-drag relative min-w-40 max-w-xl flex-1">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <input
-            className="h-8 w-full rounded-lg border bg-muted/50 pl-9 pr-3 text-sm outline-none transition-shadow placeholder:text-muted-foreground focus:bg-background focus:ring-2 focus:ring-ring"
-            type="search"
-            placeholder="Search Inbox"
-            aria-label="Search Inbox"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-        </div>
-
-        <div className="window-no-drag ml-auto flex items-center gap-1">
-          <Button size="sm" variant="ghost" disabled>
-            <Filter aria-hidden="true" />
-            Filter
-          </Button>
-          <Button size="sm" variant="secondary">
-            <LayoutGrid aria-hidden="true" />
-            Visual
-          </Button>
-        </div>
-        <WindowControls />
-      </header>
-
-      <div className="flex min-h-0 flex-1">
-        {!sidebarHidden && (
-          <aside className="flex w-60 shrink-0 flex-col border-r bg-sidebar/70 p-3 text-sidebar-foreground">
-            <div className="flex items-center gap-3 px-2 py-2">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Library className="size-4" aria-hidden="true" />
-              </div>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold">{library.name}</p>
-                <p className="truncate text-[11px] text-muted-foreground">Local library</p>
-              </div>
+    <SidebarProvider
+      open={!sidebarHidden}
+      onOpenChange={(open) => setSidebarHidden(!open)}
+      className="h-screen min-h-0 overflow-hidden bg-background text-foreground"
+    >
+      <LibrarySidebar
+        library={library}
+        theme={theme}
+        onHide={() => setSidebarHidden(true)}
+        onToggleTheme={toggleTheme}
+      />
+      <SidebarInset>
+        <header className="window-drag flex h-12 shrink-0 items-center gap-2 border-b bg-background px-3">
+          {sidebarHidden && (
+            <div className="window-no-drag">
+              <SidebarTrigger aria-label="Show sidebar">
+                <PanelLeftOpen aria-hidden="true" />
+              </SidebarTrigger>
             </div>
-
-            <Separator className="my-3" />
-            <nav className="space-y-1" aria-label="Library navigation">
-              <Button className="w-full justify-start" variant="secondary">
-                <Inbox aria-hidden="true" />
-                Inbox
-                <Badge className="ml-auto" variant="outline">
-                  {library.items.length}
-                </Badge>
-              </Button>
-              <Button className="w-full justify-start" variant="ghost" disabled>
-                <BookOpen aria-hidden="true" />
-                All Items
-              </Button>
-            </nav>
-
-            <div className="mt-6 flex items-center justify-between px-2">
-              <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                Collections
-              </span>
-              <Button size="icon-sm" variant="ghost" disabled aria-label="New collection">
-                <Plus aria-hidden="true" />
-              </Button>
-            </div>
-            <p className="px-2 py-3 text-xs leading-relaxed text-muted-foreground">
-              Collections arrive after the capture workflow is reliable.
-            </p>
-
-            <div className="mt-auto space-y-1">
-              <Button className="w-full justify-start" variant="ghost" disabled>
-                <Archive aria-hidden="true" />
-                Trash
-              </Button>
-              <Button className="w-full justify-start" variant="ghost" disabled>
-                <Settings aria-hidden="true" />
-                Settings
-              </Button>
-              <Button className="w-full justify-start" variant="ghost" onClick={toggleTheme}>
-                {theme === 'dark' ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
-                {theme === 'dark' ? 'Light theme' : 'Dark theme'}
-              </Button>
-            </div>
-          </aside>
-        )}
-
+          )}
+          <div className="window-no-drag relative min-w-40 max-w-xl flex-1">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Input
+              className="pl-9"
+              type="search"
+              name="search"
+              autoComplete="off"
+              placeholder="Search Inbox…"
+              aria-label="Search Inbox"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </div>
+          <div className="window-no-drag ml-auto flex items-center gap-1">
+            <Button size="sm" variant="ghost" disabled>
+              <Filter data-icon="inline-start" aria-hidden="true" />
+              Filter
+            </Button>
+            <ToggleGroup value={['visual']} aria-label="View selection" spacing={0}>
+              <ToggleGroupItem value="visual" variant="outline" aria-label="Visual view">
+                <LayoutGrid data-icon="inline-start" aria-hidden="true" />
+                Visual
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+          <WindowControls />
+        </header>
         <main className="relative min-w-0 flex-1 overflow-auto">
           {composerExpanded && (
-            <button
-              className="absolute inset-0 z-10 cursor-default bg-background/65 backdrop-blur-[2px]"
-              type="button"
-              aria-label="Composer background"
-              onClick={() => undefined}
+            <div
+              className="pointer-events-none absolute inset-0 z-10 bg-background/65 backdrop-blur-sm"
+              aria-hidden="true"
             />
           )}
-          <div className="mx-auto min-h-full max-w-[1500px] p-5 lg:p-7">
+          <div className="mx-auto min-h-full max-w-(--content-max-width) p-5 lg:p-7">
             <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-              <div>
+              <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <h1 className="text-xl font-medium tracking-tight">Inbox</h1>
                   <Badge variant="outline">{library.items.length}</Badge>
@@ -513,24 +582,25 @@ function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): React.JS
                   {library.path}
                 </p>
               </div>
-              <span className="text-xs text-muted-foreground">Newest first</span>
+              <span className="text-xs text-muted-foreground">Newest First</span>
             </div>
-
             {message && (
-              <div className="relative z-30 mb-4 flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                <span>{message}</span>
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  aria-label="Dismiss error"
-                  onClick={() => setMessage('')}
-                >
-                  <X aria-hidden="true" />
-                </Button>
-              </div>
+              <Alert className="relative z-30 mb-4" variant="destructive">
+                <AlertTitle>Unable to Complete Action</AlertTitle>
+                <AlertDescription>{message}</AlertDescription>
+                <AlertAction>
+                  <Button
+                    size="icon-xs"
+                    variant="ghost"
+                    aria-label="Dismiss error"
+                    onClick={() => setMessage('')}
+                  >
+                    <X aria-hidden="true" />
+                  </Button>
+                </AlertAction>
+              </Alert>
             )}
-
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] items-start gap-4">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(var(--content-card-min-width),1fr))] items-start gap-4">
               <AddItemComposer
                 expanded={composerExpanded}
                 onExpandedChange={setComposerExpanded}
@@ -541,33 +611,38 @@ function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): React.JS
                 <NoteCard key={item.id} item={item} onError={setMessage} />
               ))}
             </div>
-
             {!composerExpanded && visibleItems.length === 0 && search && (
-              <div className="mt-10 text-center text-sm text-muted-foreground">
-                No notes match “{search}”.
-              </div>
+              <Empty className="mt-10 border">
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <Search aria-hidden="true" />
+                  </EmptyMedia>
+                  <EmptyTitle>No Matching Notes</EmptyTitle>
+                  <EmptyDescription>Try a different search term.</EmptyDescription>
+                </EmptyHeader>
+              </Empty>
             )}
           </div>
         </main>
-      </div>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }
 
 function App(): React.JSX.Element {
   const [state, setState] = useState<LibraryState | null>(null)
-
   useEffect(() => {
     let mounted = true
     void window.kuskus.getState().then((result) => {
-      if (!mounted) return
-      setState(result.ok ? result.data : { status: 'unavailable', path: '', message: result.error })
+      if (mounted)
+        setState(
+          result.ok ? result.data : { status: 'unavailable', path: '', message: result.error }
+        )
     })
     return () => {
       mounted = false
     }
   }, [])
-
   return (
     <TooltipProvider>
       {!state ? (
