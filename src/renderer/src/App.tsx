@@ -335,15 +335,17 @@ function NoteCard({
           <CardTitle className="truncate text-sm">{item.title}</CardTitle>
         </div>
         <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              aria-label={`Show ${item.title} in Explorer`}
-              onClick={() => void reveal()}
-            >
-              <FolderOpen aria-hidden="true" />
-            </Button>
+          <TooltipTrigger
+            render={
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                aria-label={`Show ${item.title} in Explorer`}
+                onClick={() => void reveal()}
+              />
+            }
+          >
+            <FolderOpen aria-hidden="true" />
           </TooltipTrigger>
           <TooltipContent>Show in Explorer</TooltipContent>
         </Tooltip>
