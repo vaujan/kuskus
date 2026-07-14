@@ -5,9 +5,8 @@ import eslintPluginReact from 'eslint-plugin-react'
 import eslintPluginReactHooks from 'eslint-plugin-react-hooks'
 import eslintPluginReactRefresh from 'eslint-plugin-react-refresh'
 
-
 export default defineConfig(
-  { ignores: ['**/node_modules', '**/dist', '**/out'] },
+  { ignores: ['**/node_modules', '**/dist', '**/out', '**/build', '.agents/**', 'tmp/**'] },
   tseslint.configs.recommended,
   eslintPluginReact.configs.flat.recommended,
   eslintPluginReact.configs.flat['jsx-runtime'],
@@ -34,6 +33,12 @@ export default defineConfig(
     rules: {
       '@typescript-eslint/explicit-function-return-type': 'off',
       'react-refresh/only-export-components': 'off'
+    }
+  },
+  {
+    files: ['tests/**/*.cjs'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off'
     }
   },
   eslintConfigPrettier

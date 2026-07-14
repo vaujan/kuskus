@@ -1,5 +1,5 @@
-appId: com.electron.app
-productName: electron-shadcn-app
+appId: app.kuskus.desktop
+productName: Kuskus
 directories:
   buildResources: build
 files:
@@ -12,7 +12,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: electron-shadcn-app
+  executableName: kuskus
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}

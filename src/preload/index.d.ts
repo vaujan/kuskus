@@ -1,3 +1,5 @@
+import type { KuskusLibraryApi } from '../shared/kuskus'
+
 type DesktopPlatform =
   | 'aix'
   | 'android'
@@ -25,6 +27,7 @@ declare global {
     electron: {
       window: ElectronWindowApi
     }
+    kuskus: KuskusLibraryApi
   }
 }
 

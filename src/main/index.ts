@@ -1,7 +1,9 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { join } from 'path'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { KUSKUS_CHANNELS, type ApiErrorCode, type ApiResult } from '../shared/kuskus'
+import { LibraryService } from './library-service'
 
 const channels = {
   minimize: 'window:minimize',
@@ -31,6 +33,104 @@ function registerWindowIpc(): void {
   })
   ipcMain.on(channels.close, (event) => windowFromEvent(event)?.close())
   ipcMain.handle(channels.isMaximized, (event) => windowFromEvent(event)?.isMaximized() ?? false)
+}
+
+function errorResult(error: unknown, code: ApiErrorCode = 'io-error'): ApiResult<never> {
+  return {
+    ok: false,
+    code,
+    error:
+      error instanceof Error && error.message
+        ? error.message
+        : 'The operation could not be completed.'
+  }
+}
+
+function registerLibraryIpc(libraryService: LibraryService): void {
+  ipcMain.handle(KUSKUS_CHANNELS.getLibraryState, async () => {
+    try {
+      return { ok: true, data: await libraryService.getState() }
+    } catch (error) {
+      return errorResult(error)
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.createLibrary, async (event, requestedName: unknown) => {
+    if (typeof requestedName !== 'string') {
+      return errorResult(new Error('Enter a valid library name.'), 'invalid-input')
+    }
+
+    const owner = windowFromEvent(event)
+    const options: Electron.OpenDialogOptions = {
+      title: 'Choose where to create your Kuskus library',
+      buttonLabel: 'Choose folder',
+      properties: ['openDirectory', 'createDirectory']
+    }
+    const selection = owner
+      ? await dialog.showOpenDialog(owner, options)
+      : await dialog.showOpenDialog(options)
+
+    if (selection.canceled || !selection.filePaths[0]) {
+      return errorResult(new Error('Library creation was cancelled.'), 'cancelled')
+    }
+
+    try {
+      return {
+        ok: true,
+        data: await libraryService.createIn(selection.filePaths[0], requestedName)
+      }
+    } catch (error) {
+      return errorResult(error)
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.openLibrary, async (event) => {
+    const owner = windowFromEvent(event)
+    const options: Electron.OpenDialogOptions = {
+      title: 'Open a Kuskus library',
+      buttonLabel: 'Open library',
+      properties: ['openDirectory']
+    }
+    const selection = owner
+      ? await dialog.showOpenDialog(owner, options)
+      : await dialog.showOpenDialog(options)
+
+    if (selection.canceled || !selection.filePaths[0]) {
+      return errorResult(new Error('Opening a library was cancelled.'), 'cancelled')
+    }
+
+    try {
+      return { ok: true, data: await libraryService.openAt(selection.filePaths[0]) }
+    } catch (error) {
+      return errorResult(error)
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.createNote, async (_event, markdown: unknown) => {
+    if (typeof markdown !== 'string') {
+      return errorResult(new Error('The note content is invalid.'), 'invalid-input')
+    }
+
+    try {
+      return { ok: true, data: await libraryService.createNote(markdown) }
+    } catch (error) {
+      return errorResult(error)
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.showItemInExplorer, async (_event, itemId: unknown) => {
+    if (typeof itemId !== 'string') {
+      return errorResult(new Error('The item identifier is invalid.'), 'invalid-input')
+    }
+
+    try {
+      const contentPath = await libraryService.getItemContentPath(itemId)
+      shell.showItemInFolder(contentPath)
+      return { ok: true, data: null }
+    } catch (error) {
+      return errorResult(error, 'not-found')
+    }
+  })
 }
 
 function createWindow(): void {
@@ -78,9 +178,12 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
-  electronApp.setAppUserModelId('com.example.electron-shadcn-app')
+app.whenReady().then(async () => {
+  electronApp.setAppUserModelId('app.kuskus.desktop')
+  const libraryService = new LibraryService(join(app.getPath('userData'), 'kuskus-settings.json'))
+  await libraryService.initialize()
   registerWindowIpc()
+  registerLibraryIpc(libraryService)
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)

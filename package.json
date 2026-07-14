@@ -1,13 +1,12 @@
 {
-  "name": "electron-shadcn-app",
+  "name": "kuskus",
   "version": "1.0.0",
-  "description": "An Electron application with React and TypeScript",
+  "description": "A private visual library for project references, stored on your computer",
   "main": "./out/main/index.js",
-  "author": "example.com",
-  "homepage": "https://electron-vite.org",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",
+    "test": "node --test tests/library-service.test.cjs",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",

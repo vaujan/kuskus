@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import { KUSKUS_CHANNELS, type KuskusLibraryApi } from '../shared/kuskus'
 
 const channels = {
   minimize: 'window:minimize',
@@ -24,4 +25,13 @@ const windowApi = {
   }
 }
 
+const libraryApi: KuskusLibraryApi = {
+  getState: () => ipcRenderer.invoke(KUSKUS_CHANNELS.getLibraryState),
+  create: (name) => ipcRenderer.invoke(KUSKUS_CHANNELS.createLibrary, name),
+  open: () => ipcRenderer.invoke(KUSKUS_CHANNELS.openLibrary),
+  createNote: (markdown) => ipcRenderer.invoke(KUSKUS_CHANNELS.createNote, markdown),
+  showItemInExplorer: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.showItemInExplorer, itemId)
+}
+
 contextBridge.exposeInMainWorld('electron', { window: windowApi })
+contextBridge.exposeInMainWorld('kuskus', libraryApi)

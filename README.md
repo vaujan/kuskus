@@ -1,34 +1,44 @@
-# Electron Shadcn Starter
+# Kuskus
 
-A desktop application starter built with Electron, React, TypeScript, Tailwind CSS, and shadcn/ui.
+Kuskus is a private visual library for project references, stored on your computer. It is currently a Windows-first personal MVP built with Electron, React, and TypeScript.
+
+The first implemented vertical slice supports:
+
+- Creating or opening a local Kuskus library.
+- Writing Markdown through the inline Add Item composer.
+- Persisting readable `note.md` and `item.json` files.
+- Reloading saved notes from disk.
+- Revealing a note in Windows File Explorer.
+
+## Product context
+
+Start with [the product brief](docs/00-product-brief.md) and [the active build plan](docs/07-build-plan.md). Repository conventions and required reading live in [AGENTS.md](AGENTS.md).
 
 ## Prerequisites
 
-- Node.js 22 or later
-- pnpm
+- Node.js 22 or later.
+- pnpm.
 
-## Getting started
+## Development
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-## Commands
+## Verification
 
 ```bash
-# Check TypeScript
+pnpm test
 pnpm typecheck
-
-# Build the application
+pnpm lint
 pnpm build
+```
 
-# Create platform packages
+## Packaging
+
+```bash
 pnpm build:win
 pnpm build:mac
 pnpm build:linux
 ```
-
-## Recommended editor
-
-[VS Code](https://code.visualstudio.com/) with the ESLint and Prettier extensions.

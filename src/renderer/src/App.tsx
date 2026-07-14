@@ -1,19 +1,22 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  AppWindow,
-  Bell,
+  Archive,
+  BookOpen,
   Check,
-  ChevronDown,
   Copy,
-  FolderKanban,
-  Gauge,
-  Laptop,
+  FileText,
+  Filter,
+  FolderOpen,
+  Inbox,
+  LayoutGrid,
+  Library,
   Minus,
   Moon,
-  PanelLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
+  Search,
   Settings,
-  Sparkles,
   Square,
   Sun,
   X
@@ -21,67 +24,28 @@ import {
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu'
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { cn } from '@/lib/utils'
+import type { LibraryDto, LibraryState, NoteItemDto } from '../../shared/kuskus'
 
-type Theme = 'dark' | 'light' | 'system'
+type Theme = 'dark' | 'light'
 
-const navItems = [
-  { label: 'Overview', icon: Gauge, active: true },
-  { label: 'Projects', icon: FolderKanban },
-  { label: 'Activity', icon: Bell },
-  { label: 'Settings', icon: Settings }
-]
-
-const themeOptions: Array<{ value: Theme; label: string; icon: typeof Sun }> = [
-  { value: 'dark', label: 'Dark', icon: Moon },
-  { value: 'light', label: 'Light', icon: Sun },
-  { value: 'system', label: 'System', icon: Laptop }
-]
-
-function useTheme(): [Theme, (theme: Theme) => void] {
-  const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem('theme')
-    return saved === 'light' || saved === 'system' || saved === 'dark' ? saved : 'dark'
-  })
+function useTheme(): [Theme, () => void] {
+  const [theme, setTheme] = useState<Theme>(() =>
+    localStorage.getItem('kuskus-theme') === 'light' ? 'light' : 'dark'
+  )
 
   useEffect(() => {
-    const media = window.matchMedia('(prefers-color-scheme: dark)')
-    const updateDocumentTheme = (): void => {
-      const isDark = theme === 'dark' || (theme === 'system' && media.matches)
-      document.documentElement.classList.toggle('dark', isDark)
-      document.documentElement.style.colorScheme = isDark ? 'dark' : 'light'
-    }
-
-    localStorage.setItem('theme', theme)
-    updateDocumentTheme()
-    media.addEventListener('change', updateDocumentTheme)
-    return () => media.removeEventListener('change', updateDocumentTheme)
+    document.documentElement.classList.toggle('dark', theme === 'dark')
+    document.documentElement.style.colorScheme = theme
+    localStorage.setItem('kuskus-theme', theme)
   }, [theme])
 
-  return [theme, setTheme]
+  return [theme, () => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))]
 }
 
-function TitleBar(): React.JSX.Element {
+function WindowControls(): React.JSX.Element | null {
   const isMac = window.electron.window.platform === 'darwin'
   const [isMaximized, setIsMaximized] = useState(false)
 
@@ -93,256 +57,526 @@ function TitleBar(): React.JSX.Element {
       if (mounted) setIsMaximized(value)
     })
     const unsubscribe = window.electron.window.onMaximizedChange(setIsMaximized)
-
     return () => {
       mounted = false
       unsubscribe()
     }
   }, [isMac])
 
+  if (isMac) return null
+
   return (
-    <header
-      className={cn(
-        'window-drag flex h-10 shrink-0 items-center border-b bg-background/95',
-        isMac && 'pl-20'
-      )}
-    >
-      <div className="flex min-w-0 flex-1 items-center gap-2 px-3">
-        <AppWindow className="size-4 text-primary" aria-hidden="true" />
-        <span className="truncate text-xs font-medium text-muted-foreground">
-          Electron shadcn Starter
-        </span>
-      </div>
-      {!isMac && (
-        <div className="window-no-drag flex h-full">
-          <button
-            className="titlebar-control"
-            type="button"
-            aria-label="Minimize window"
-            onClick={window.electron.window.minimize}
-          >
-            <Minus aria-hidden="true" />
-          </button>
-          <button
-            className="titlebar-control"
-            type="button"
-            aria-label={isMaximized ? 'Restore window' : 'Maximize window'}
-            onClick={window.electron.window.toggleMaximize}
-          >
-            {isMaximized ? (
-              <Copy className="rotate-180" aria-hidden="true" />
-            ) : (
-              <Square aria-hidden="true" />
-            )}
-          </button>
-          <button
-            className="titlebar-control titlebar-close"
-            type="button"
-            aria-label="Close window"
-            onClick={window.electron.window.close}
-          >
-            <X aria-hidden="true" />
-          </button>
-        </div>
-      )}
-    </header>
+    <div className="window-no-drag -mr-3 flex h-full self-stretch">
+      <button
+        className="titlebar-control"
+        type="button"
+        aria-label="Minimize window"
+        onClick={window.electron.window.minimize}
+      >
+        <Minus aria-hidden="true" />
+      </button>
+      <button
+        className="titlebar-control"
+        type="button"
+        aria-label={isMaximized ? 'Restore window' : 'Maximize window'}
+        onClick={window.electron.window.toggleMaximize}
+      >
+        {isMaximized ? (
+          <Copy className="rotate-180" aria-hidden="true" />
+        ) : (
+          <Square aria-hidden="true" />
+        )}
+      </button>
+      <button
+        className="titlebar-control titlebar-close"
+        type="button"
+        aria-label="Close window"
+        onClick={window.electron.window.close}
+      >
+        <X aria-hidden="true" />
+      </button>
+    </div>
   )
 }
 
-function ThemeMenu({
-  theme,
-  onThemeChange
-}: {
-  theme: Theme
-  onThemeChange: (theme: Theme) => void
-}): React.JSX.Element {
-  const current = useMemo(
-    () => themeOptions.find((option) => option.value === theme) ?? themeOptions[0],
-    [theme]
+function LoadingScreen(): React.JSX.Element {
+  return (
+    <div className="flex h-screen items-center justify-center bg-background text-foreground">
+      <div className="flex items-center gap-3 text-sm text-muted-foreground">
+        <span className="size-2 animate-pulse rounded-full bg-primary" />
+        Opening Kuskus
+      </div>
+    </div>
   )
-  const CurrentIcon = current.icon
+}
+
+function SetupScreen({ initialState }: { initialState: LibraryState }): React.JSX.Element {
+  const [name, setName] = useState('My Kuskus Library')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(
+    initialState.status === 'unavailable' ? initialState.message : ''
+  )
+
+  const createLibrary = async (event: React.FormEvent): Promise<void> => {
+    event.preventDefault()
+    if (!name.trim() || busy) return
+
+    setBusy(true)
+    setError('')
+    const result = await window.kuskus.create(name)
+    setBusy(false)
+    if (!result.ok && result.code !== 'cancelled') setError(result.error)
+    if (result.ok) window.location.reload()
+  }
+
+  const openLibrary = async (): Promise<void> => {
+    if (busy) return
+    setBusy(true)
+    setError('')
+    const result = await window.kuskus.open()
+    setBusy(false)
+    if (!result.ok && result.code !== 'cancelled') setError(result.error)
+    if (result.ok) window.location.reload()
+  }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button className="w-full justify-start gap-2 px-2 sidebar-button" variant="ghost">
-          <CurrentIcon aria-hidden="true" />
-          <span className="nav-label flex-1 text-left">{current.label} theme</span>
-          <ChevronDown className="nav-label size-3.5 text-muted-foreground" aria-hidden="true" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" side="right" className="w-44">
-        <DropdownMenuLabel>Appearance</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuRadioGroup
-          value={theme}
-          onValueChange={(value) => onThemeChange(value as Theme)}
+    <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-background text-foreground">
+      <header className="window-drag flex h-11 shrink-0 items-center border-b px-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <Library className="size-4 text-primary" aria-hidden="true" />
+          <span className="text-xs font-medium text-muted-foreground">Kuskus</span>
+        </div>
+        <WindowControls />
+      </header>
+
+      <main className="flex flex-1 items-center justify-center overflow-auto p-6">
+        <Card className="w-full max-w-lg overflow-hidden">
+          <CardHeader className="gap-3 border-b">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+              <Library className="size-5" aria-hidden="true" />
+            </div>
+            <div>
+              <CardTitle className="text-xl">Create your local library</CardTitle>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                Kuskus stores readable notes and metadata in a folder you control. Choose a parent
+                folder and Kuskus will create the named library inside it.
+              </p>
+            </div>
+          </CardHeader>
+          <form onSubmit={createLibrary}>
+            <CardContent className="space-y-4 py-5">
+              {initialState.status === 'unavailable' && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm">
+                  <p className="font-medium">Previous library unavailable</p>
+                  <p className="mt-1 break-all text-xs text-muted-foreground">
+                    {initialState.path}
+                  </p>
+                </div>
+              )}
+              <label className="grid gap-2 text-sm font-medium" htmlFor="library-name">
+                Library name
+                <input
+                  id="library-name"
+                  className="h-10 rounded-lg border bg-background px-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-ring"
+                  value={name}
+                  maxLength={80}
+                  onChange={(event) => setName(event.target.value)}
+                  disabled={busy}
+                />
+              </label>
+              {error && (
+                <p className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                  {error}
+                </p>
+              )}
+            </CardContent>
+            <CardFooter className="justify-between gap-3 border-t">
+              <Button type="button" variant="ghost" disabled={busy} onClick={openLibrary}>
+                <FolderOpen aria-hidden="true" />
+                Open existing
+              </Button>
+              <Button type="submit" disabled={busy || !name.trim()}>
+                <Plus aria-hidden="true" />
+                {busy ? 'Working...' : 'Create library'}
+              </Button>
+            </CardFooter>
+          </form>
+        </Card>
+      </main>
+    </div>
+  )
+}
+
+function AddItemComposer({
+  expanded,
+  onExpandedChange,
+  onCreated,
+  onError
+}: {
+  expanded: boolean
+  onExpandedChange: (expanded: boolean) => void
+  onCreated: (item: NoteItemDto) => void
+  onError: (message: string) => void
+}): React.JSX.Element {
+  const [draft, setDraft] = useState('')
+  const [saving, setSaving] = useState(false)
+  const editorRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (expanded) editorRef.current?.focus()
+  }, [expanded])
+
+  const save = async (): Promise<void> => {
+    if (!draft.trim() || saving) return
+    setSaving(true)
+    onError('')
+    const result = await window.kuskus.createNote(draft)
+    setSaving(false)
+
+    if (!result.ok) {
+      onError(result.error)
+      return
+    }
+
+    setDraft('')
+    onCreated(result.data)
+    onExpandedChange(false)
+  }
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>): void => {
+    if (event.key === 'Enter' && event.ctrlKey) {
+      event.preventDefault()
+      void save()
+    }
+    if (event.key === 'Escape' && !draft.trim() && !saving) onExpandedChange(false)
+  }
+
+  if (!expanded) {
+    return (
+      <button
+        className="group flex min-h-56 flex-col rounded-xl border border-dashed bg-card p-5 text-left text-card-foreground transition-colors hover:border-primary/60 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        type="button"
+        onClick={() => onExpandedChange(true)}
+      >
+        <span className="flex size-9 items-center justify-center rounded-lg border bg-background text-muted-foreground transition-colors group-hover:text-foreground">
+          <Plus className="size-4" aria-hidden="true" />
+        </span>
+        <span className="mt-auto">
+          <span className="block text-sm font-medium">Add item</span>
+          <span className="mt-1 block text-xs text-muted-foreground">Paste or start typing...</span>
+        </span>
+      </button>
+    )
+  }
+
+  return (
+    <Card className="relative z-20 min-h-[360px] overflow-hidden md:col-span-2">
+      <CardHeader className="flex-row items-center justify-between gap-3 border-b py-3">
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary">New quick note</Badge>
+          <span className="text-xs text-muted-foreground">Markdown</span>
+        </div>
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          type="button"
+          aria-label="Close composer"
+          disabled={saving}
+          onClick={() => {
+            if (!draft.trim()) onExpandedChange(false)
+          }}
         >
-          {themeOptions.map((option) => {
-            const Icon = option.icon
-            return (
-              <DropdownMenuRadioItem key={option.value} value={option.value}>
-                <Icon aria-hidden="true" />
-                {option.label}
-              </DropdownMenuRadioItem>
-            )
-          })}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <X aria-hidden="true" />
+        </Button>
+      </CardHeader>
+      <CardContent className="flex flex-1 p-0">
+        <textarea
+          ref={editorRef}
+          className="min-h-[250px] w-full resize-none bg-transparent p-5 text-[15px] leading-7 outline-none placeholder:text-muted-foreground"
+          aria-label="New note content"
+          placeholder="Paste or start typing..."
+          value={draft}
+          disabled={saving}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={handleKeyDown}
+        />
+      </CardContent>
+      <CardFooter className="justify-between border-t py-3">
+        <span className="text-xs text-muted-foreground">Ctrl+Enter to save</span>
+        <Button size="sm" disabled={!draft.trim() || saving} onClick={() => void save()}>
+          <Check aria-hidden="true" />
+          {saving ? 'Saving...' : 'Save note'}
+        </Button>
+      </CardFooter>
+    </Card>
+  )
+}
+
+function NoteCard({
+  item,
+  onError
+}: {
+  item: NoteItemDto
+  onError: (error: string) => void
+}): React.JSX.Element {
+  const reveal = async (): Promise<void> => {
+    const result = await window.kuskus.showItemInExplorer(item.id)
+    if (!result.ok) onError(result.error)
+  }
+
+  return (
+    <Card className="group min-h-56 overflow-hidden transition-colors hover:border-foreground/20">
+      <CardHeader className="flex-row items-start justify-between gap-3 border-b py-3">
+        <div className="min-w-0">
+          <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            <FileText className="size-3.5" aria-hidden="true" />
+            Note
+          </div>
+          <CardTitle className="truncate text-sm">{item.title}</CardTitle>
+        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              aria-label={`Show ${item.title} in Explorer`}
+              onClick={() => void reveal()}
+            >
+              <FolderOpen aria-hidden="true" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Show in Explorer</TooltipContent>
+        </Tooltip>
+      </CardHeader>
+      <CardContent className="py-4">
+        {item.missingContent ? (
+          <p className="text-sm text-destructive">The note file is missing from the library.</p>
+        ) : (
+          <p className="line-clamp-[9] whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+            {item.body}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): React.JSX.Element {
+  const [library, setLibrary] = useState(initialLibrary)
+  const [sidebarHidden, setSidebarHidden] = useState(
+    () => localStorage.getItem('kuskus-sidebar-hidden') === 'true'
+  )
+  const [composerExpanded, setComposerExpanded] = useState(false)
+  const [search, setSearch] = useState('')
+  const [message, setMessage] = useState('')
+  const [theme, toggleTheme] = useTheme()
+
+  useEffect(() => {
+    localStorage.setItem('kuskus-sidebar-hidden', String(sidebarHidden))
+  }, [sidebarHidden])
+
+  const visibleItems = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase()
+    if (!query) return library.items
+    return library.items.filter(
+      (item) =>
+        item.title.toLocaleLowerCase().includes(query) ||
+        item.body.toLocaleLowerCase().includes(query)
+    )
+  }, [library.items, search])
+
+  const addCreatedItem = (item: NoteItemDto): void => {
+    setLibrary((current) => ({ ...current, items: [item, ...current.items] }))
+    setMessage('')
+  }
+
+  return (
+    <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-background text-foreground">
+      <header className="window-drag flex h-12 shrink-0 items-center gap-2 border-b bg-background/95 px-3">
+        <div className="window-no-drag flex items-center gap-1">
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label={sidebarHidden ? 'Show sidebar' : 'Hide sidebar'}
+            onClick={() => setSidebarHidden((current) => !current)}
+          >
+            {sidebarHidden ? (
+              <PanelLeftOpen aria-hidden="true" />
+            ) : (
+              <PanelLeftClose aria-hidden="true" />
+            )}
+          </Button>
+        </div>
+
+        <div className="window-no-drag relative min-w-40 max-w-xl flex-1">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <input
+            className="h-8 w-full rounded-lg border bg-muted/50 pl-9 pr-3 text-sm outline-none transition-shadow placeholder:text-muted-foreground focus:bg-background focus:ring-2 focus:ring-ring"
+            type="search"
+            placeholder="Search Inbox"
+            aria-label="Search Inbox"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </div>
+
+        <div className="window-no-drag ml-auto flex items-center gap-1">
+          <Button size="sm" variant="ghost" disabled>
+            <Filter aria-hidden="true" />
+            Filter
+          </Button>
+          <Button size="sm" variant="secondary">
+            <LayoutGrid aria-hidden="true" />
+            Visual
+          </Button>
+        </div>
+        <WindowControls />
+      </header>
+
+      <div className="flex min-h-0 flex-1">
+        {!sidebarHidden && (
+          <aside className="flex w-60 shrink-0 flex-col border-r bg-sidebar/70 p-3 text-sidebar-foreground">
+            <div className="flex items-center gap-3 px-2 py-2">
+              <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <Library className="size-4" aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{library.name}</p>
+                <p className="truncate text-[11px] text-muted-foreground">Local library</p>
+              </div>
+            </div>
+
+            <Separator className="my-3" />
+            <nav className="space-y-1" aria-label="Library navigation">
+              <Button className="w-full justify-start" variant="secondary">
+                <Inbox aria-hidden="true" />
+                Inbox
+                <Badge className="ml-auto" variant="outline">
+                  {library.items.length}
+                </Badge>
+              </Button>
+              <Button className="w-full justify-start" variant="ghost" disabled>
+                <BookOpen aria-hidden="true" />
+                All Items
+              </Button>
+            </nav>
+
+            <div className="mt-6 flex items-center justify-between px-2">
+              <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Collections
+              </span>
+              <Button size="icon-sm" variant="ghost" disabled aria-label="New collection">
+                <Plus aria-hidden="true" />
+              </Button>
+            </div>
+            <p className="px-2 py-3 text-xs leading-relaxed text-muted-foreground">
+              Collections arrive after the capture workflow is reliable.
+            </p>
+
+            <div className="mt-auto space-y-1">
+              <Button className="w-full justify-start" variant="ghost" disabled>
+                <Archive aria-hidden="true" />
+                Trash
+              </Button>
+              <Button className="w-full justify-start" variant="ghost" disabled>
+                <Settings aria-hidden="true" />
+                Settings
+              </Button>
+              <Button className="w-full justify-start" variant="ghost" onClick={toggleTheme}>
+                {theme === 'dark' ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
+                {theme === 'dark' ? 'Light theme' : 'Dark theme'}
+              </Button>
+            </div>
+          </aside>
+        )}
+
+        <main className="relative min-w-0 flex-1 overflow-auto">
+          {composerExpanded && (
+            <button
+              className="absolute inset-0 z-10 cursor-default bg-background/65 backdrop-blur-[2px]"
+              type="button"
+              aria-label="Composer background"
+              onClick={() => undefined}
+            />
+          )}
+          <div className="mx-auto min-h-full max-w-[1500px] p-5 lg:p-7">
+            <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl font-medium tracking-tight">Inbox</h1>
+                  <Badge variant="outline">{library.items.length}</Badge>
+                </div>
+                <p className="mt-1 max-w-2xl truncate text-xs text-muted-foreground">
+                  {library.path}
+                </p>
+              </div>
+              <span className="text-xs text-muted-foreground">Newest first</span>
+            </div>
+
+            {message && (
+              <div className="relative z-30 mb-4 flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <span>{message}</span>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label="Dismiss error"
+                  onClick={() => setMessage('')}
+                >
+                  <X aria-hidden="true" />
+                </Button>
+              </div>
+            )}
+
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] items-start gap-4">
+              <AddItemComposer
+                expanded={composerExpanded}
+                onExpandedChange={setComposerExpanded}
+                onCreated={addCreatedItem}
+                onError={setMessage}
+              />
+              {visibleItems.map((item) => (
+                <NoteCard key={item.id} item={item} onError={setMessage} />
+              ))}
+            </div>
+
+            {!composerExpanded && visibleItems.length === 0 && search && (
+              <div className="mt-10 text-center text-sm text-muted-foreground">
+                No notes match “{search}”.
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+    </div>
   )
 }
 
 function App(): React.JSX.Element {
-  const [theme, setTheme] = useTheme()
+  const [state, setState] = useState<LibraryState | null>(null)
+
+  useEffect(() => {
+    let mounted = true
+    void window.kuskus.getState().then((result) => {
+      if (!mounted) return
+      setState(result.ok ? result.data : { status: 'unavailable', path: '', message: result.error })
+    })
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   return (
     <TooltipProvider>
-      <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-background text-foreground">
-        <TitleBar />
-        <div className="flex min-h-0 flex-1">
-          <aside className="desktop-sidebar flex w-56 shrink-0 flex-col border-r bg-sidebar/70 p-3 text-sidebar-foreground">
-            <div className="flex h-10 items-center gap-2 px-2">
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-                <Sparkles className="size-4" aria-hidden="true" />
-              </div>
-              <div className="nav-label min-w-0">
-                <p className="truncate text-sm font-semibold">Vega Desktop</p>
-                <p className="truncate text-[11px] text-muted-foreground">Starter workspace</p>
-              </div>
-            </div>
-
-            <Separator className="my-3" />
-            <nav className="flex flex-1 flex-col gap-1" aria-label="Primary navigation">
-              {navItems.map((item) => {
-                const Icon = item.icon
-                const button = (
-                  <Button
-                    key={item.label}
-                    className={cn(
-                      'w-full justify-start px-2 sidebar-button',
-                      item.active && 'bg-sidebar-accent text-sidebar-accent-foreground'
-                    )}
-                    variant="ghost"
-                  >
-                    <Icon aria-hidden="true" />
-                    <span className="nav-label">{item.label}</span>
-                  </Button>
-                )
-
-                return (
-                  <Tooltip key={item.label}>
-                    <TooltipTrigger asChild>{button}</TooltipTrigger>
-                    <TooltipContent className="sidebar-tooltip" side="right">
-                      {item.label}
-                    </TooltipContent>
-                  </Tooltip>
-                )
-              })}
-            </nav>
-
-            <Separator className="my-3" />
-            <ThemeMenu theme={theme} onThemeChange={setTheme} />
-          </aside>
-
-          <main className="min-w-0 flex-1 overflow-auto">
-            <div className="mx-auto flex min-h-full max-w-5xl flex-col gap-6 p-6 lg:p-8">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <div className="mb-2 flex items-center gap-2">
-                    <Badge variant="secondary">Desktop starter</Badge>
-                    <span className="text-xs text-muted-foreground">Electron + React + shadcn</span>
-                  </div>
-                  <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">
-                    Welcome to your workspace
-                  </h1>
-                  <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                    A secure, dark-first foundation with native window controls and the cyan Vega
-                    design system.
-                  </p>
-                </div>
-                <Button>
-                  <Plus data-icon="inline-start" aria-hidden="true" />
-                  New project
-                </Button>
-              </div>
-
-              <Card className="relative overflow-hidden">
-                <div className="pointer-events-none absolute -top-24 right-0 size-64 rounded-full bg-primary/15 blur-3xl" />
-                <CardHeader className="relative">
-                  <CardTitle>Everything is wired up</CardTitle>
-                  <CardDescription>
-                    Start building renderer features while Electron stays behind a narrow, typed
-                    preload boundary.
-                  </CardDescription>
-                  <CardAction>
-                    <Badge className="gap-1" variant="outline">
-                      <Check className="size-3" aria-hidden="true" /> Ready
-                    </Badge>
-                  </CardAction>
-                </CardHeader>
-                <CardContent className="relative grid gap-3 sm:grid-cols-3">
-                  {[
-                    ['Secure bridge', 'Context isolation on, Node access off.'],
-                    ['Theme aware', 'Dark, light, and system modes persist.'],
-                    ['Desktop ready', 'Responsive shell with native-feeling chrome.']
-                  ].map(([title, description]) => (
-                    <div key={title} className="rounded-lg border bg-background/60 p-4">
-                      <p className="text-sm font-medium">{title}</p>
-                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                        {description}
-                      </p>
-                    </div>
-                  ))}
-                </CardContent>
-                <CardFooter className="relative gap-2 border-t">
-                  <Button size="sm">Primary action</Button>
-                  <Button size="sm" variant="outline">
-                    Secondary
-                  </Button>
-                  <Button size="sm" variant="ghost">
-                    Learn more
-                  </Button>
-                </CardFooter>
-              </Card>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <Card size="sm">
-                  <CardHeader>
-                    <CardTitle>Project activity</CardTitle>
-                    <CardDescription>Your starter is ready for its first feature.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-3 rounded-lg border border-dashed p-3">
-                      <PanelLeft className="size-5 text-primary" aria-hidden="true" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium">Desktop shell created</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          Responsive sidebar and dashboard
-                        </p>
-                      </div>
-                      <Badge variant="outline">Now</Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card size="sm">
-                  <CardHeader>
-                    <CardTitle>Preset details</CardTitle>
-                    <CardDescription>b7BYMJXFK applied through the shadcn CLI.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex flex-wrap gap-2">
-                    {['Vega', 'Mist', 'Cyan', 'Inter', 'Lucide'].map((detail) => (
-                      <Badge key={detail} variant="secondary">
-                        {detail}
-                      </Badge>
-                    ))}
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </main>
-        </div>
-      </div>
+      {!state ? (
+        <LoadingScreen />
+      ) : state.status === 'ready' ? (
+        <Workspace initialLibrary={state.library} />
+      ) : (
+        <SetupScreen initialState={state} />
+      )}
     </TooltipProvider>
   )
 }
