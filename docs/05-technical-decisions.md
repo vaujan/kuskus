@@ -190,3 +190,32 @@ Dogfooding demonstrates that one view is unnecessary or the masonry behavior mak
 - Search tokenization and supported languages.
 - Multi-window policy.
 - Auto-update policy before any public distribution.
+
+## DEC-007: Use Base UI for shadcn primitives
+
+Date: 2026-07-14
+Status: Accepted
+
+### Context
+
+The initial interface used shadcn's `radix-vega` component base and the bundled `radix-ui`
+package. The application only depended on five Radix-backed wrappers, and shadcn provides
+matching `base-vega` variants that preserve the established Vega styling while using Base UI.
+
+### Decision
+
+Use shadcn's `base-vega` component base and `@base-ui/react` for interface primitives. Keep
+the local shadcn wrappers as the application-facing API and adopt Base UI's `render` composition
+model instead of Radix's `asChild` model.
+
+### Consequences
+
+- New shadcn components resolve to Base UI variants.
+- Polymorphic wrapper consumers use the `render` prop.
+- Base UI behavior differences remain visible and documented rather than being silently patched.
+- The Electron renderer security model, storage contract, and native-operation boundaries are unchanged.
+
+### Revisit when
+
+A Base UI limitation blocks a required golden workflow or creates a demonstrated accessibility,
+behavior, or maintenance problem that cannot be addressed in the local wrapper.
