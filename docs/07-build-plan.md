@@ -47,6 +47,13 @@ Exit criteria:
 - Original external files remain unchanged.
 - Library copies survive restart and missing previews.
 
+### Image slice acceptance criteria
+
+- Clipboard bitmap and image-file paste/drop create exactly one image item through the universal composer or focused content canvas.
+- The authoritative image is copied into the library via a temporary directory and survives restart.
+- Invalid image data, missing stored content, and unsafe item IDs produce visible errors without exposing arbitrary filesystem paths.
+- Image cards show a natural-ratio preview and can open or reveal the stored copy in Explorer.
+
 ## Milestone 3: URL capture
 
 Deliverables:

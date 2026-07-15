@@ -1,26 +1,5 @@
-import type { KuskusLibraryApi } from '../shared/kuskus'
-
-type DesktopPlatform =
-  | 'aix'
-  | 'android'
-  | 'darwin'
-  | 'freebsd'
-  | 'haiku'
-  | 'linux'
-  | 'openbsd'
-  | 'sunos'
-  | 'win32'
-  | 'cygwin'
-  | 'netbsd'
-
-interface ElectronWindowApi {
-  platform: DesktopPlatform
-  minimize: () => void
-  toggleMaximize: () => void
-  close: () => void
-  isMaximized: () => Promise<boolean>
-  onMaximizedChange: (callback: (isMaximized: boolean) => void) => () => void
-}
+import type { KuskusLibraryApi } from '../shared/library-contract'
+import type { ElectronWindowApi } from '../shared/window-contract'
 
 declare global {
   interface Window {

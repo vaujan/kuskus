@@ -219,3 +219,80 @@ model instead of Radix's `asChild` model.
 
 A Base UI limitation blocks a required golden workflow or creates a demonstrated accessibility,
 behavior, or maintenance problem that cannot be addressed in the local wrapper.
+
+## DEC-008: Import image bytes through the narrow library bridge
+
+Date: 2026-07-15
+Status: Accepted
+
+### Context
+
+The renderer can receive clipboard and drag-and-drop image data, but it must not receive arbitrary filesystem access or decide where library content is written.
+
+### Decision
+
+The renderer sends image bytes, declared media type, and optional source filename through a typed preload API. The main-process library service validates the binary signature and dimensions, then writes the content to a temporary directory inside the library before atomically finalizing the item.
+
+### Consequences
+
+- Clipboard images and image-file imports use the same durable storage path.
+- The renderer cannot supply a destination path.
+- The initial image slice supports PNG, JPEG, GIF, WebP, and BMP; PDFs and generic files remain deferred.
+
+## DEC-009: Retain quick-note drafts in renderer-local storage
+
+Date: 2026-07-15
+Status: Accepted
+
+### Context
+
+The universal composer must let users leave unfinished text without losing it, including across an app restart. Draft text is presentation state and does not become authoritative library content until the user saves it.
+
+### Decision
+
+Store one quick-note draft per library path in renderer-local storage. Close and Escape collapse the composer while retaining non-empty text. A successful note save clears the draft. Image import attempts remain in renderer memory because retry requires the original `File`; failed attempts expose Retry and Remove without widening the preload API.
+
+### Consequences
+
+- Draft recovery does not create partial authoritative item files.
+- Switching libraries does not mix drafts because the library path scopes the storage key.
+- Failed image imports survive composer collapse during the current session but not a full app restart.
+- Preload, IPC, storage contracts, and main-process permissions remain unchanged.
+
+### Revisit when
+
+Kuskus adds multiple simultaneous destinations, draft synchronization, or a requirement to recover binary import attempts after restart.
+
+## DEC-010: Use a feature-oriented modular monolith
+
+Date: 2026-07-15
+Status: Accepted
+
+### Context
+
+The first note and image vertical slices concentrated application lifecycle, IPC registration,
+filesystem persistence, item validation, and renderer features into a few large files. The process
+security boundaries were sound, but adding the remaining MVP item types and collection workflows
+would make those files harder to change and verify safely.
+
+### Decision
+
+Keep Kuskus as one Electron application while organizing each process by responsibility. Shared
+modules own typed IPC contracts; the preload remains a thin adapter; main-process IPC, window,
+library orchestration, storage, and item parsing are separate modules; and renderer code is grouped
+by application, capture, item, library, and shell features. UI primitives remain separate from
+application feature components.
+
+### Consequences
+
+- Process and IPC boundaries remain explicit without introducing additional runtimes or services.
+- Library workflows coordinate storage through a focused store while pure item modules can be
+  tested independently.
+- Saved-item variants compose a shared frame instead of accumulating format flags in one component.
+- New modules are introduced for working behavior, not as empty placeholders for deferred features.
+- Imports target concrete modules rather than broad barrel files.
+
+### Revisit when
+
+Measured complexity requires independently deployable processes, or multiple renderer surfaces need
+a shared application-state layer that shallow feature ownership cannot support.

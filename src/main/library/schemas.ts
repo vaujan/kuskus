@@ -1,0 +1,88 @@
+import type { SupportedImageMediaType } from '../../shared/library-contract'
+import { IMAGE_EXTENSIONS, NOTE_FILENAME } from './constants'
+
+export interface PersistedLibrary {
+  schemaVersion: 1
+  id: string
+  name: string
+  createdAt: string
+}
+
+export interface PersistedNoteItem {
+  schemaVersion: 1
+  id: string
+  type: 'note'
+  title: string
+  createdAt: string
+  updatedAt: string
+  sourceUrl: null
+  sourceFilename: null
+  contentFilename: 'note.md'
+  note: ''
+  originalCollectionId: null
+}
+
+export interface PersistedImageItem {
+  schemaVersion: 1
+  id: string
+  type: 'image'
+  title: string
+  createdAt: string
+  updatedAt: string
+  sourceUrl: null
+  sourceFilename: string | null
+  contentFilename: string
+  mediaType: SupportedImageMediaType
+  width: number
+  height: number
+  note: ''
+  originalCollectionId: null
+}
+
+export type PersistedItem = PersistedNoteItem | PersistedImageItem
+
+export interface PersistedSettings {
+  schemaVersion: 1
+  lastLibraryPath: string | null
+}
+
+export function isPersistedLibrary(value: unknown): value is PersistedLibrary {
+  if (!value || typeof value !== 'object') return false
+  const library = value as Record<string, unknown>
+  return (
+    library.schemaVersion === 1 &&
+    typeof library.id === 'string' &&
+    typeof library.name === 'string' &&
+    typeof library.createdAt === 'string'
+  )
+}
+
+export function isPersistedItem(value: unknown, itemId: string): value is PersistedItem {
+  if (!value || typeof value !== 'object') return false
+  const item = value as Record<string, unknown>
+  if (
+    item.schemaVersion !== 1 ||
+    item.id !== itemId ||
+    typeof item.title !== 'string' ||
+    typeof item.createdAt !== 'string' ||
+    typeof item.updatedAt !== 'string'
+  ) {
+    return false
+  }
+
+  if (item.type === 'note') return item.contentFilename === NOTE_FILENAME
+  if (item.type !== 'image' || typeof item.mediaType !== 'string') return false
+  if (!(item.mediaType in IMAGE_EXTENSIONS)) return false
+
+  const mediaType = item.mediaType as SupportedImageMediaType
+  return (
+    item.contentFilename === `image.${IMAGE_EXTENSIONS[mediaType]}` &&
+    (typeof item.sourceFilename === 'string' || item.sourceFilename === null) &&
+    typeof item.width === 'number' &&
+    Number.isSafeInteger(item.width) &&
+    item.width > 0 &&
+    typeof item.height === 'number' &&
+    Number.isSafeInteger(item.height) &&
+    item.height > 0
+  )
+}

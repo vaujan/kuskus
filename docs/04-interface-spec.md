@@ -142,7 +142,7 @@ The expanded surface should be large enough for comfortable note writing but mus
 - Multiple files show the detected count and per-import or aggregate progress.
 - Text remains editable as Markdown.
 - Unsupported or ambiguous pasted text defaults to a note whenever preserving it is safe.
-- Errors appear inside the composer and do not erase its contents.
+- Errors appear inside the composer and do not erase its contents. Failed image imports retain the selected file for explicit **Retry** or **Remove** actions during the session.
 
 ### Completion
 
@@ -162,8 +162,8 @@ The expanded surface should be large enough for comfortable note writing but mus
 
 ### Cancellation and draft safety
 
-- `Escape` collapses an empty composer.
-- Closing a composer containing an uncommitted note retains a draft or asks before discarding it.
+- `Escape` and Close collapse the composer when no save or import is active.
+- Closing a composer containing an uncommitted note retains the draft per library across composer reopen and app restart. The compact Add Item card indicates that a draft is waiting.
 - A failed import remains visible with Retry and Remove actions.
 - Changing collections while a draft or import is active must resolve, preserve, or explicitly cancel that work; it must not silently lose it.
 
