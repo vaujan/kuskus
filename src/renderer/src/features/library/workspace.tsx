@@ -2,17 +2,17 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { FileImage, Inbox, Search, X } from 'lucide-react'
 
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AddItemComposer, type ImportRequest } from '@/features/capture/add-item-composer'
 import { SavedItemCard } from '@/features/items/saved-item-card'
+import { ItemDetailDialog } from '@/features/items/item-detail-dialog'
 import { AppToolbar } from '@/features/shell/app-toolbar'
 import { LibrarySidebar } from '@/features/shell/library-sidebar'
 import { useTheme } from '@/hooks/use-theme'
-import { cn } from '@/lib/utils'
 import type { LibraryDto, LibraryItemDto } from '../../../../shared/library-contract'
 
 export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): React.JSX.Element {
@@ -26,10 +26,12 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
   const [search, setSearch] = useState('')
   const [message, setMessage] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
+  const [selectedItem, setSelectedItem] = useState<LibraryItemDto | null>(null)
   const [theme, toggleTheme] = useTheme()
   const deferredSearch = useDeferredValue(search)
   const importRequestId = useRef(0)
   const dragDepth = useRef(0)
+  const enrichingUrlIds = useRef(new Set<string>())
   const draftStorageKey = `kuskus-note-draft:${initialLibrary.path}`
 
   const announceStatus = useCallback((message: string): void => {
@@ -52,10 +54,29 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
       : library.items
   }, [deferredSearch, library.items])
 
-  const addCreatedItem = (item: LibraryItemDto): void => {
+  const addCreatedItem = useCallback((item: LibraryItemDto): void => {
     setLibrary((current) => ({ ...current, items: [item, ...current.items] }))
     setMessage('')
-  }
+  }, [])
+
+  useEffect(() => {
+    const pending = library.items.filter(
+      (item) => item.type === 'url' && item.metadataStatus === 'pending'
+    )
+    pending.forEach((item) => {
+      if (enrichingUrlIds.current.has(item.id)) return
+      enrichingUrlIds.current.add(item.id)
+      void window.kuskus.enrichUrl(item.id).then((result) => {
+        enrichingUrlIds.current.delete(item.id)
+        if (!result.ok) return
+        setLibrary((current) => ({
+          ...current,
+          items: current.items.map((entry) => (entry.id === item.id ? result.data : entry))
+        }))
+        setSelectedItem((current) => (current?.id === item.id ? result.data : current))
+      })
+    })
+  }, [library.items])
 
   const requestImageImport = useCallback((file: File): void => {
     if (!file.type.startsWith('image/')) {
@@ -67,8 +88,14 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
     setComposerExpanded(true)
   }, [])
 
+  const requestUrlCapture = useCallback((url: string): void => {
+    importRequestId.current += 1
+    setImportRequest({ id: importRequestId.current, url })
+    setComposerExpanded(true)
+  }, [])
+
   useEffect(() => {
-    const capturePastedImage = (event: ClipboardEvent): void => {
+    const capturePastedContent = (event: ClipboardEvent): void => {
       if (event.defaultPrevented) return
       const target = event.target as HTMLElement | null
       if (target?.closest('input, textarea, [contenteditable="true"]')) return
@@ -76,13 +103,25 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
         entry.type.startsWith('image/')
       )
       const file = item?.getAsFile()
-      if (!file) return
-      event.preventDefault()
-      requestImageImport(file)
+      if (file) {
+        event.preventDefault()
+        requestImageImport(file)
+        return
+      }
+      const text = event.clipboardData?.getData('text/plain').trim() ?? ''
+      try {
+        const url = new URL(text)
+        if (['http:', 'https:'].includes(url.protocol) && url.toString() === text) {
+          event.preventDefault()
+          requestUrlCapture(text)
+        }
+      } catch {
+        /* ordinary text belongs to the composer */
+      }
     }
-    window.addEventListener('paste', capturePastedImage)
-    return () => window.removeEventListener('paste', capturePastedImage)
-  }, [requestImageImport])
+    window.addEventListener('paste', capturePastedContent)
+    return () => window.removeEventListener('paste', capturePastedContent)
+  }, [requestImageImport, requestUrlCapture])
 
   const captureDroppedImage = (event: React.DragEvent<HTMLElement>): void => {
     const files = Array.from(event.dataTransfer.files)
@@ -103,46 +142,31 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
       <LibrarySidebar
         library={library}
         theme={theme}
-        onHide={() => setSidebarHidden(true)}
         onToggleTheme={toggleTheme}
+        onLibraryChange={setLibrary}
+        onError={setMessage}
       />
       <SidebarInset>
-        <AppToolbar sidebarHidden={sidebarHidden} search={search} onSearchChange={setSearch} />
-        <main
-          className="relative min-w-0 flex-1 overflow-auto"
-          onDragEnter={(event) => {
-            if (!Array.from(event.dataTransfer.types).includes('Files')) return
-            event.preventDefault()
-            dragDepth.current += 1
-            setIsDragging(true)
-          }}
-          onDragOver={(event) => {
-            if (Array.from(event.dataTransfer.types).includes('Files')) event.preventDefault()
-          }}
-          onDragLeave={() => {
-            dragDepth.current = Math.max(0, dragDepth.current - 1)
-            if (dragDepth.current === 0) setIsDragging(false)
-          }}
-          onDrop={captureDroppedImage}
-        >
-          <div className="mx-auto min-h-full max-w-(--content-max-width) p-5 lg:p-7">
-            <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h1 className="text-balance text-xl font-medium tracking-tight">Inbox</h1>
-                  <Badge className="tabular-nums" variant="outline">
-                    {search ? visibleItems.length : library.items.length}
-                  </Badge>
-                </div>
-                <p
-                  className="mt-1 max-w-2xl truncate text-xs text-muted-foreground"
-                  title={library.path}
-                >
-                  {library.path}
-                </p>
-              </div>
-              <Badge variant="secondary">Newest first</Badge>
-            </div>
+        <AppToolbar search={search} onSearchChange={setSearch} />
+        <ScrollArea className="min-h-0 min-w-0 flex-1">
+          <main
+            className="relative min-h-full"
+            onDragEnter={(event) => {
+              if (!Array.from(event.dataTransfer.types).includes('Files')) return
+              event.preventDefault()
+              dragDepth.current += 1
+              setIsDragging(true)
+            }}
+            onDragOver={(event) => {
+              if (Array.from(event.dataTransfer.types).includes('Files')) event.preventDefault()
+            }}
+            onDragLeave={() => {
+              dragDepth.current = Math.max(0, dragDepth.current - 1)
+              if (dragDepth.current === 0) setIsDragging(false)
+            }}
+            onDrop={captureDroppedImage}
+          >
+            <div className="min-h-full p-5 lg:p-7">
             {message && (
               <Alert className="mb-4" variant="destructive">
                 <AlertTitle>Unable to Complete Action</AlertTitle>
@@ -177,8 +201,8 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                 </EmptyHeader>
               </Empty>
             ) : (
-              <div className={cn('visual-canvas', composerExpanded && 'visual-canvas-composing')}>
-                <div className="visual-entry visual-entry-composer">
+              <div className="columns-[15rem] gap-4">
+                <div className="mb-4 min-w-0 break-inside-avoid">
                   <AddItemComposer
                     expanded={composerExpanded}
                     draftStorageKey={draftStorageKey}
@@ -192,13 +216,20 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                   />
                 </div>
                 {visibleItems.map((item) => (
-                  <div className="visual-entry" key={item.id}>
-                    <SavedItemCard item={item} onError={setMessage} />
+                  <div
+                    className="mb-4 break-inside-avoid"
+                    key={item.id}
+                  >
+                    <SavedItemCard
+                      item={item}
+                      onError={setMessage}
+                      onOpen={() => setSelectedItem(item)}
+                    />
                   </div>
                 ))}
               </div>
             )}
-            {!isDragging && !composerExpanded && visibleItems.length === 0 && search && (
+            {!isDragging && visibleItems.length === 0 && search && (
               <Empty className="mt-8 border">
                 <EmptyHeader>
                   <EmptyMedia variant="icon">
@@ -209,7 +240,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                 </EmptyHeader>
               </Empty>
             )}
-            {!isDragging && !composerExpanded && library.items.length === 0 && !search && (
+            {!isDragging && library.items.length === 0 && !search && (
               <Empty className="mt-6">
                 <EmptyHeader>
                   <EmptyMedia variant="icon">
@@ -222,11 +253,19 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                 </EmptyHeader>
               </Empty>
             )}
-          </div>
-          <p className="sr-only" aria-live="polite" aria-atomic="true">
-            {statusMessage}
-          </p>
-        </main>
+            </div>
+          </main>
+        </ScrollArea>
+        <p className="sr-only" aria-live="polite" aria-atomic="true">
+          {statusMessage}
+        </p>
+        <ItemDetailDialog
+          item={selectedItem}
+          onOpenChange={(open) => {
+            if (!open) setSelectedItem(null)
+          }}
+          onError={setMessage}
+        />
       </SidebarInset>
     </SidebarProvider>
   )

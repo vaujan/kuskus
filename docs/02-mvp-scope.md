@@ -59,7 +59,7 @@ The MVP is complete when all golden workflows work against a real local library 
 - Filter by item type.
 - Open an item using its primary action.
 - Open a URL in the default browser.
-- Show local content in Windows File Explorer.
+- Open saved links in the default browser and show item details in Kuskus.
 - Copy a file path or source URL where applicable.
 
 ### Reliability

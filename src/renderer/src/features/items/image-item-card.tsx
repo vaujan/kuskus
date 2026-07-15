@@ -1,29 +1,26 @@
-import { FileImage, FolderOpen, ImageOff } from 'lucide-react'
+import { FileImage, ImageOff } from 'lucide-react'
 
-import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ItemCard, ItemCardFooter, ItemCardPrimaryAction } from '@/features/items/item-card'
 import { useImagePreview } from '@/features/items/use-image-preview'
-import { useItemActions } from '@/features/items/use-item-actions'
 import type { ImageItemDto } from '../../../../shared/library-contract'
 
 export function ImageItemCard({
   item,
-  onError
+  onOpen
 }: {
   item: ImageItemDto
-  onError: (error: string) => void
+  onOpen: () => void
 }): React.JSX.Element {
   const { preview, previewError } = useImagePreview(item.id, item.missingContent)
-  const { open, reveal } = useItemActions(item.id, onError)
 
   return (
-    <ItemCard className="image-card group">
+    <ItemCard>
       <ItemCardPrimaryAction
         aria-label={`Open image ${item.title}`}
         disabled={item.missingContent}
-        onClick={() => void open()}
+        onClick={onOpen}
       />
       {item.missingContent || previewError ? (
         <div className="pointer-events-none flex aspect-video flex-col items-center justify-center gap-2 bg-muted text-sm text-destructive">
@@ -39,7 +36,7 @@ export function ImageItemCard({
           width={item.width}
           height={item.height}
           loading="lazy"
-          className="item-image pointer-events-none max-h-96 w-full bg-muted object-contain"
+          className="pointer-events-none max-h-[22rem] w-full bg-muted object-contain outline outline-1 outline-white/10"
         />
       ) : (
         <Skeleton
@@ -47,24 +44,12 @@ export function ImageItemCard({
           aria-label="Loading image preview"
         />
       )}
-      <ItemCardFooter className="flex items-center gap-2">
-        <FileImage data-item-type-icon className="shrink-0 text-primary" aria-hidden="true" />
+      <ItemCardFooter className="justify-between gap-2">
+        <Badge variant="secondary">
+          <FileImage data-icon="inline-start" aria-hidden="true" />
+          Image
+        </Badge>
         <p className="min-w-0 flex-1 truncate text-sm font-medium">{item.title}</p>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                size="icon-xs"
-                variant="ghost"
-                aria-label={`Show ${item.title} in Explorer`}
-                onClick={() => void reveal()}
-              >
-                <FolderOpen aria-hidden="true" />
-              </Button>
-            }
-          />
-          <TooltipContent>Show in Explorer</TooltipContent>
-        </Tooltip>
       </ItemCardFooter>
     </ItemCard>
   )

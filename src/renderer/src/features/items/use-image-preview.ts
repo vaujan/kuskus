@@ -4,8 +4,11 @@ export function useImagePreview(
   itemId: string,
   missingContent: boolean
 ): { preview: string | null; previewError: string } {
-  const [preview, setPreview] = useState<string | null>(null)
-  const [previewError, setPreviewError] = useState('')
+  const [state, setState] = useState<{ itemId: string; preview: string | null; error: string }>({
+    itemId: '',
+    preview: null,
+    error: ''
+  })
 
   useEffect(() => {
     if (missingContent) return
@@ -14,14 +17,13 @@ export function useImagePreview(
     void window.kuskus.getImagePreview(itemId).then((result) => {
       if (!active) return
       if (!result.ok) {
-        setPreviewError(result.error)
+        setState({ itemId, preview: null, error: result.error })
         return
       }
       objectUrl = URL.createObjectURL(
         new Blob([result.data.bytes], { type: result.data.mediaType })
       )
-      setPreviewError('')
-      setPreview(objectUrl)
+      setState({ itemId, preview: objectUrl, error: '' })
     })
     return () => {
       active = false
@@ -29,5 +31,8 @@ export function useImagePreview(
     }
   }, [itemId, missingContent])
 
-  return { preview, previewError }
+  return {
+    preview: state.itemId === itemId ? state.preview : null,
+    previewError: state.itemId === itemId ? state.error : ''
+  }
 }

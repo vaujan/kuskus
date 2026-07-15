@@ -3,10 +3,14 @@ export const KUSKUS_CHANNELS = {
   createLibrary: 'library:create',
   openLibrary: 'library:open',
   createNote: 'library:create-note',
+  createUrl: 'library:create-url',
+  enrichUrl: 'library:enrich-url',
   importImage: 'library:import-image',
+  createCollection: 'library:create-collection',
+  renameCollection: 'library:rename-collection',
+  deleteCollection: 'library:delete-collection',
   getImagePreview: 'library:get-image-preview',
-  openItem: 'library:open-item',
-  showItemInExplorer: 'library:show-item-in-explorer'
+  openExternalUrl: 'library:open-external-url'
 } as const
 
 export type ApiErrorCode = 'cancelled' | 'invalid-input' | 'not-found' | 'io-error'
@@ -39,7 +43,23 @@ export interface ImageItemDto {
   missingContent: boolean
 }
 
-export type LibraryItemDto = NoteItemDto | ImageItemDto
+export interface UrlItemDto {
+  schemaVersion: 1
+  id: string
+  type: 'url'
+  title: string
+  createdAt: string
+  updatedAt: string
+  sourceUrl: string
+  domain: string
+  description: string | null
+  faviconUrl: string | null
+  previewImageUrl: string | null
+  metadataStatus: 'pending' | 'ready' | 'unavailable'
+  metadataError: string | null
+}
+
+export type LibraryItemDto = NoteItemDto | ImageItemDto | UrlItemDto
 
 export type SupportedImageMediaType =
   'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp' | 'image/bmp'
@@ -62,6 +82,14 @@ export interface LibraryDto {
   path: string
   createdAt: string
   items: LibraryItemDto[]
+  collections: CollectionDto[]
+}
+
+export interface CollectionDto {
+  schemaVersion: 1
+  id: string
+  name: string
+  createdAt: string
 }
 
 export type LibraryState =
@@ -74,8 +102,12 @@ export interface KuskusLibraryApi {
   create: (name: string) => Promise<ApiResult<LibraryState>>
   open: () => Promise<ApiResult<LibraryState>>
   createNote: (markdown: string) => Promise<ApiResult<NoteItemDto>>
+  createUrl: (url: string) => Promise<ApiResult<UrlItemDto>>
+  enrichUrl: (itemId: string) => Promise<ApiResult<UrlItemDto>>
   importImage: (input: ImageImportInput) => Promise<ApiResult<ImageItemDto>>
+  createCollection: (name: string) => Promise<ApiResult<CollectionDto>>
+  renameCollection: (id: string, name: string) => Promise<ApiResult<CollectionDto>>
+  deleteCollection: (id: string) => Promise<ApiResult<null>>
   getImagePreview: (itemId: string) => Promise<ApiResult<ImagePreviewDto>>
-  openItem: (itemId: string) => Promise<ApiResult<null>>
-  showItemInExplorer: (itemId: string) => Promise<ApiResult<null>>
+  openExternalUrl: (url: string) => Promise<ApiResult<null>>
 }

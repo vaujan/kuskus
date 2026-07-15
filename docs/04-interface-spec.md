@@ -45,6 +45,9 @@ Sidebar visibility should persist between launches.
 
 ## Sidebar contents
 
+- Inbox is a primary destination, visually separate from user-created folders.
+- The **Folders** heading's add action is revealed on hover or keyboard focus. Each folder's overflow action follows the same behavior and opens a menu with rename and remove controls; removal is confirmed and permitted only for an empty folder.
+
 Minimum structure:
 
 ```text
@@ -65,6 +68,7 @@ Requirements:
 - The selected destination has a clear active state.
 - Item counts are optional and must not create visual noise.
 - Collection rename and deletion are available from a context menu.
+- Creating a folder can be canceled without saving its entered name.
 - Deleting a non-empty collection requires a clear choice for its items.
 - Nested collections are not required in the MVP.
 
@@ -206,7 +210,6 @@ Metadata should remain subordinate to the content in Visual view.
 Minimum context menu:
 
 - Open.
-- Show in Explorer.
 - Open source URL, when applicable.
 - Move to collection.
 - Rename or edit details.
@@ -223,7 +226,7 @@ The MVP may use a side panel or focused dialog. It should expose:
 - Source URL or stored filename.
 - Collection.
 - Created date.
-- Open and Show in Explorer actions.
+- A validated **Open link** action for URL items.
 
 The detail interface must not become a general-purpose knowledge-management property editor.
 

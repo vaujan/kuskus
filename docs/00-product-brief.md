@@ -42,7 +42,7 @@ The initial user is the creator of Kuskus: a Windows desktop user who collects m
 6. **Visual retrieval.** Rich previews and format-aware cards are preferred over treating everything as a generic note.
 7. **Useful without configuration.** The basic workflow must not require templates, schemas, plugins, or property design.
 8. **No mandatory account, cloud, or AI.** These are not prerequisites for using the core product.
-9. **Desktop-native affordances.** Opening files, revealing them in the system explorer, drag-and-drop, keyboard actions, and standard window behavior are first-class capabilities.
+9. **Desktop-native affordances.** Opening links in the default browser, drag-and-drop, keyboard actions, and standard window behavior are first-class capabilities.
 
 ## Experience direction
 
@@ -58,7 +58,7 @@ During that period, the user must be able to:
 - Organize them into collections or leave them in Inbox.
 - Browse different formats together.
 - Search for and reopen previously saved items.
-- Reveal local content in Windows File Explorer.
+- Reopen saved links and inspect saved content without leaving Kuskus.
 - Close and reopen Kuskus without losing or corrupting content.
 - Back up the library by copying its folder.
 

@@ -1,6 +1,7 @@
 import type { SupportedImageMediaType } from '../../shared/library-contract'
 
 export const LIBRARY_FILENAME = 'library.json'
+export const COLLECTION_FILENAME = 'collection.json'
 export const ITEM_FILENAME = 'item.json'
 export const NOTE_FILENAME = 'note.md'
 export const ITEM_ID_PATTERN =

@@ -22,12 +22,12 @@ Deliverables:
 - Write `library.json`, `item.json`, and `note.md` according to the storage contract.
 - Read saved notes back into the interface after reload or restart.
 - Insert a newly saved note card immediately after Add Item.
-- Reveal `note.md` in Windows File Explorer.
+- Show `note.md` content in the in-app detail view.
 - Show actionable states for missing, invalid, or unwritable libraries.
 
 Exit criteria:
 
-- A real note can be created, found on disk, reopened after restart, and revealed in Explorer.
+- A real note can be created, found on disk, reopened after restart, and viewed in its detail view.
 - The external filesystem is never accessible through an arbitrary renderer-supplied path.
 - Typecheck, lint, and production build pass.
 
@@ -39,7 +39,7 @@ Deliverables:
 - File paste and drag-and-drop.
 - Safe copy into the library with progress and collision protection.
 - Image, PDF, and general-file cards.
-- Open and Show in Explorer actions.
+- In-app detail actions.
 - Interrupted-import recovery.
 
 Exit criteria:
@@ -52,7 +52,7 @@ Exit criteria:
 - Clipboard bitmap and image-file paste/drop create exactly one image item through the universal composer or focused content canvas.
 - The authoritative image is copied into the library via a temporary directory and survives restart.
 - Invalid image data, missing stored content, and unsafe item IDs produce visible errors without exposing arbitrary filesystem paths.
-- Image cards show a natural-ratio preview and can open or reveal the stored copy in Explorer.
+- Image cards show a natural-ratio preview and open a larger in-app preview.
 
 ## Milestone 3: URL capture
 

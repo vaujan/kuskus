@@ -23,10 +23,14 @@ const libraryApi: KuskusLibraryApi = {
   create: (name) => ipcRenderer.invoke(KUSKUS_CHANNELS.createLibrary, name),
   open: () => ipcRenderer.invoke(KUSKUS_CHANNELS.openLibrary),
   createNote: (markdown) => ipcRenderer.invoke(KUSKUS_CHANNELS.createNote, markdown),
+  createUrl: (url) => ipcRenderer.invoke(KUSKUS_CHANNELS.createUrl, url),
+  enrichUrl: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.enrichUrl, itemId),
   importImage: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.importImage, input),
+  createCollection: (name) => ipcRenderer.invoke(KUSKUS_CHANNELS.createCollection, name),
+  renameCollection: (id, name) => ipcRenderer.invoke(KUSKUS_CHANNELS.renameCollection, id, name),
+  deleteCollection: (id) => ipcRenderer.invoke(KUSKUS_CHANNELS.deleteCollection, id),
   getImagePreview: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.getImagePreview, itemId),
-  openItem: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.openItem, itemId),
-  showItemInExplorer: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.showItemInExplorer, itemId)
+  openExternalUrl: (url) => ipcRenderer.invoke(KUSKUS_CHANNELS.openExternalUrl, url)
 }
 
 contextBridge.exposeInMainWorld('electron', { window: windowApi })

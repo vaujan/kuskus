@@ -125,7 +125,7 @@ Rules:
 - `item.json` stores the source URL and available metadata.
 - A URL item does not promise an offline webpage copy in the MVP.
 - Failure to retrieve metadata leaves a valid item containing the original URL.
-- **Show in Explorer** selects the URL item's folder or metadata file.
+- URL item details are presented in Kuskus; the source URL remains available to open in the default browser.
 
 ### Image, PDF, and general file
 
@@ -133,13 +133,13 @@ Rules:
 - The stored copy keeps a recognizable extension.
 - The original filename is retained in metadata even if the stored filename must be made unique or safe.
 - Deleting the Kuskus item never deletes the external source file.
-- **Show in Explorer** selects the stored content file.
+- Image details are presented in Kuskus with a larger preview when content is available.
 
 ### Note
 
 - The note body is stored as `note.md` or another documented UTF-8 text filename.
 - Metadata may store derived title and timestamps but must not be the only copy of the note body.
-- **Show in Explorer** selects the note file.
+- Note details are presented in Kuskus.
 
 ## Import safety
 
@@ -164,16 +164,9 @@ Rules:
 - Permanent deletion removes the library copy and generated derivatives only after confirmation.
 - Permanent deletion never targets an external import source.
 
-## Show in system explorer
+## In-app item details
 
-Every item exposes **Show in Explorer**:
-
-- File-backed item: open Windows File Explorer and select the stored content file.
-- Note: select the note text file.
-- URL-only item: select the local item folder or `item.json`.
-- Missing content: reveal the item folder and show the missing-content warning in Kuskus.
-
-The Electron main process must validate paths before asking the operating system to reveal them.
+Cards open a read-only in-app detail view. URL details expose a validated **Open link** action; images and notes remain readable from their user-controlled library folder outside the app. Missing content remains visible as a Kuskus warning rather than being silently removed.
 
 ## Migration policy
 

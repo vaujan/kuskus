@@ -26,6 +26,7 @@ const {
   safeSourceFilename
 } = require('../src/main/library/items/image-item.ts')
 const { createNoteMetadata, deriveNoteTitle } = require('../src/main/library/items/note-item.ts')
+const { createUrlMetadata, validateWebUrl } = require('../src/main/library/items/url-item.ts')
 const { isPersistedItem } = require('../src/main/library/schemas.ts')
 const { LibraryStore } = require('../src/main/library/storage/library-store.ts')
 
@@ -133,6 +134,37 @@ test('imports, persists, previews, and detects a missing clipboard image', async
   const missing = await reopened.getState()
   assert.equal(missing.status, 'ready')
   assert.equal(missing.library.items[0].missingContent, true)
+})
+
+test('creates a durable URL item before metadata enrichment', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-url-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  await service.createIn(root, 'Link Library')
+
+  const link = await service.createUrl('https://example.com/path?value=1')
+  assert.equal(link.type, 'url')
+  assert.equal(link.sourceUrl, 'https://example.com/path?value=1')
+  assert.equal(link.domain, 'example.com')
+  assert.equal(link.metadataStatus, 'pending')
+
+  const reopened = new LibraryService(join(root, 'settings.json'))
+  await reopened.initialize()
+  const state = await reopened.getState()
+  assert.equal(state.status, 'ready')
+  assert.equal(state.library.items[0].type, 'url')
+  assert.equal(state.library.items[0].sourceUrl, link.sourceUrl)
+})
+
+test('rejects non-web URLs and validates URL metadata shape', () => {
+  assert.throws(() => validateWebUrl('file:///C:/secret.txt'), /http or https/i)
+  assert.throws(() => validateWebUrl('not a url'))
+  const metadata = createUrlMetadata(
+    '00000000-0000-4000-8000-000000000001',
+    'https://example.com',
+    '2026-07-15T00:00:00.000Z'
+  )
+  assert.equal(isPersistedItem(metadata, metadata.id), true)
 })
 
 test('rejects invalid image content and unsafe preview identifiers', async (context) => {

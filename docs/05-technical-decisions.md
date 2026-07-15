@@ -296,3 +296,41 @@ application feature components.
 
 Measured complexity requires independently deployable processes, or multiple renderer surfaces need
 a shared application-state layer that shallow feature ownership cannot support.
+
+## DEC-011: Store collection identity separately from its display name
+
+Date: 2026-07-15
+Status: Accepted
+
+### Context
+
+Folder names are user-facing and need safe renaming without changing identity or relying on a path derived from renderer input.
+
+### Decision
+
+Each collection has a UUID-named directory in `collections/` with a readable `collection.json`. Rename updates only that metadata; deletion is allowed only after the main process confirms its `items/` directory is empty.
+
+### Consequences
+
+- A renamed folder keeps its stable identity.
+- The renderer requests only typed CRUD operations through the preload bridge.
+- Future item moves have a stable folder target without accepting arbitrary paths.
+
+## DEC-012: Use in-app item details instead of Explorer reveal actions
+
+Date: 2026-07-15
+Status: Accepted
+
+### Context
+
+The card-level Explorer controls interrupted visual browsing and made ordinary item clicks feel like file-manager actions.
+
+### Decision
+
+Remove Explorer reveal and native local-file opening APIs from the product UI. Cards open read-only in-app details; URL items retain a narrow, validated main-process action for opening their original `http` or `https` URL in the default browser.
+
+### Consequences
+
+- Library files remain user-readable and accessible outside Kuskus, but the renderer no longer requests native filesystem actions.
+- URL metadata is saved in `item.json`; failed enrichment remains a valid bookmark.
+- URL metadata fetching is bounded and rejects local/private network destinations before loading page metadata.

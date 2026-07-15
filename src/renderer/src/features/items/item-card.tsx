@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 
 export function ItemCard({ className, ...props }: ComponentProps<typeof Card>): React.JSX.Element {
   return (
-    <Card className={cn('item-card relative min-h-0 overflow-hidden py-0', className)} {...props} />
+    <Card size="sm" className={cn('relative min-h-0 max-h-[28rem] py-0', className)} {...props} />
   )
 }
 
@@ -15,7 +15,10 @@ export function ItemCardPrimaryAction({
 }: ComponentProps<'button'>): React.JSX.Element {
   return (
     <button
-      className={cn('item-card-primary absolute inset-0 rounded-[inherit] outline-none', className)}
+      className={cn(
+        'absolute inset-0 rounded-[inherit] outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/50 disabled:cursor-default',
+        className
+      )}
       type="button"
       {...props}
     />

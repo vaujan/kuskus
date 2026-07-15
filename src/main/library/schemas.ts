@@ -8,6 +8,13 @@ export interface PersistedLibrary {
   createdAt: string
 }
 
+export interface PersistedCollection {
+  schemaVersion: 1
+  id: string
+  name: string
+  createdAt: string
+}
+
 export interface PersistedNoteItem {
   schemaVersion: 1
   id: string
@@ -39,7 +46,27 @@ export interface PersistedImageItem {
   originalCollectionId: null
 }
 
-export type PersistedItem = PersistedNoteItem | PersistedImageItem
+export interface PersistedUrlItem {
+  schemaVersion: 1
+  id: string
+  type: 'url'
+  title: string
+  createdAt: string
+  updatedAt: string
+  sourceUrl: string
+  sourceFilename: null
+  contentFilename: null
+  domain: string
+  description: string | null
+  faviconUrl: string | null
+  previewImageUrl: string | null
+  metadataStatus: 'pending' | 'ready' | 'unavailable'
+  metadataError: string | null
+  note: ''
+  originalCollectionId: null
+}
+
+export type PersistedItem = PersistedNoteItem | PersistedImageItem | PersistedUrlItem
 
 export interface PersistedSettings {
   schemaVersion: 1
@@ -57,6 +84,20 @@ export function isPersistedLibrary(value: unknown): value is PersistedLibrary {
   )
 }
 
+export function isPersistedCollection(
+  value: unknown,
+  collectionId: string
+): value is PersistedCollection {
+  if (!value || typeof value !== 'object') return false
+  const collection = value as Record<string, unknown>
+  return (
+    collection.schemaVersion === 1 &&
+    collection.id === collectionId &&
+    typeof collection.name === 'string' &&
+    typeof collection.createdAt === 'string'
+  )
+}
+
 export function isPersistedItem(value: unknown, itemId: string): value is PersistedItem {
   if (!value || typeof value !== 'object') return false
   const item = value as Record<string, unknown>
@@ -71,6 +112,18 @@ export function isPersistedItem(value: unknown, itemId: string): value is Persis
   }
 
   if (item.type === 'note') return item.contentFilename === NOTE_FILENAME
+  if (item.type === 'url') {
+    return (
+      item.contentFilename === null &&
+      typeof item.sourceUrl === 'string' &&
+      typeof item.domain === 'string' &&
+      (item.description === null || typeof item.description === 'string') &&
+      (item.faviconUrl === null || typeof item.faviconUrl === 'string') &&
+      (item.previewImageUrl === null || typeof item.previewImageUrl === 'string') &&
+      ['pending', 'ready', 'unavailable'].includes(String(item.metadataStatus)) &&
+      (item.metadataError === null || typeof item.metadataError === 'string')
+    )
+  }
   if (item.type !== 'image' || typeof item.mediaType !== 'string') return false
   if (!(item.mediaType in IMAGE_EXTENSIONS)) return false
 

@@ -1,54 +1,39 @@
-import { LayoutGrid, PanelLeftOpen, Search } from 'lucide-react'
+import { LayoutGrid, Search } from 'lucide-react'
 
 import { Input } from '@/components/ui/input'
-import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
+import { SidebarTrigger } from '@/components/ui/sidebar'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { WindowControls } from '@/features/shell/window-controls'
 
-function ShellSidebarTrigger({
-  sidebarHidden
-}: {
-  sidebarHidden: boolean
-}): React.JSX.Element | null {
-  const { isMobile } = useSidebar()
-  if (!sidebarHidden && !isMobile) return null
-
+function ShellSidebarTrigger(): React.JSX.Element {
   return (
-    <div className="window-no-drag">
+    <div className="[-webkit-app-region:no-drag]">
       <Tooltip>
-        <TooltipTrigger
-          render={
-            <SidebarTrigger aria-label="Show sidebar">
-              <PanelLeftOpen aria-hidden="true" />
-            </SidebarTrigger>
-          }
-        />
-        <TooltipContent>Show sidebar</TooltipContent>
+        <TooltipTrigger render={<SidebarTrigger aria-label="Toggle sidebar" />} />
+        <TooltipContent>Toggle sidebar</TooltipContent>
       </Tooltip>
     </div>
   )
 }
 
 export function AppToolbar({
-  sidebarHidden,
   search,
   onSearchChange
 }: {
-  sidebarHidden: boolean
   search: string
   onSearchChange: (value: string) => void
 }): React.JSX.Element {
   return (
-    <header className="window-drag flex h-12 shrink-0 items-center gap-2 border-b bg-background px-3">
-      <ShellSidebarTrigger sidebarHidden={sidebarHidden} />
-      <div className="window-no-drag relative min-w-0 max-w-xl flex-1">
+    <header className="flex h-12 shrink-0 select-none items-center gap-2 bg-background pl-4 [-webkit-app-region:drag]">
+      <ShellSidebarTrigger />
+      <div className="relative min-w-0 max-w-xl flex-1 [-webkit-app-region:no-drag]">
         <Search
-          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground/50"
           aria-hidden="true"
         />
         <Input
-          className="h-9 border-0 pl-9"
+          className="h-8 border-0 pl-9"
           type="search"
           name="search"
           autoComplete="off"
@@ -58,19 +43,19 @@ export function AppToolbar({
           onChange={(event) => onSearchChange(event.target.value)}
         />
       </div>
-      <div className="window-no-drag ml-auto flex items-center gap-1">
+      <div className="ml-auto flex items-center gap-1 [-webkit-app-region:no-drag]">
         <ToggleGroup value={['visual']} aria-label="View selection" spacing={0}>
           <Tooltip>
             <TooltipTrigger
               render={
                 <ToggleGroupItem
-                  className="h-10 min-w-10"
+                  className="min-w-10"
                   value="visual"
-                  variant="outline"
                   aria-label="Visual view"
+                  size={'sm'}
                 >
                   <LayoutGrid data-icon="inline-start" aria-hidden="true" />
-                  <span className="toolbar-label">Visual</span>
+                  <span className="hidden md:inline">Visual</span>
                 </ToggleGroupItem>
               }
             />

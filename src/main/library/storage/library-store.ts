@@ -1,11 +1,19 @@
 import { access, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import type { LibraryDto, LibraryItemDto } from '../../../shared/library-contract'
-import { ITEM_FILENAME, ITEM_ID_PATTERN, LIBRARY_FILENAME, NOTE_FILENAME } from '../constants'
+import type { CollectionDto, LibraryDto, LibraryItemDto } from '../../../shared/library-contract'
+import {
+  COLLECTION_FILENAME,
+  ITEM_FILENAME,
+  ITEM_ID_PATTERN,
+  LIBRARY_FILENAME,
+  NOTE_FILENAME
+} from '../constants'
 import {
   isPersistedItem,
   isPersistedLibrary,
+  isPersistedCollection,
+  type PersistedCollection,
   type PersistedItem,
   type PersistedLibrary
 } from '../schemas'
@@ -88,7 +96,65 @@ export class LibraryStore {
 
   async buildLibraryDto(libraryPath: string): Promise<LibraryDto> {
     const library = await this.readPersistedLibrary(libraryPath)
-    return { ...library, path: libraryPath, items: await this.readInboxItems(libraryPath) }
+    return {
+      ...library,
+      path: libraryPath,
+      items: await this.readInboxItems(libraryPath),
+      collections: await this.readCollections(libraryPath)
+    }
+  }
+
+  async createCollection(libraryPath: string, collection: PersistedCollection): Promise<void> {
+    const directory = join(libraryPath, 'collections', collection.id)
+    await mkdir(directory, { recursive: false })
+    try {
+      await mkdir(join(directory, 'items'), { recursive: false })
+      await writeJsonAtomic(join(directory, COLLECTION_FILENAME), collection)
+    } catch (error) {
+      await rm(directory, { recursive: true, force: true })
+      throw error
+    }
+  }
+
+  async readCollections(libraryPath: string): Promise<CollectionDto[]> {
+    const collectionsPath = join(libraryPath, 'collections')
+    await mkdir(collectionsPath, { recursive: true })
+    const entries = await readdir(collectionsPath, { withFileTypes: true })
+    const collections = await Promise.all(
+      entries
+        .filter((entry) => entry.isDirectory() && ITEM_ID_PATTERN.test(entry.name))
+        .map(async (entry) => {
+          try {
+            const collection = await readJson<unknown>(
+              join(collectionsPath, entry.name, COLLECTION_FILENAME)
+            )
+            return isPersistedCollection(collection, entry.name) ? collection : null
+          } catch {
+            return null
+          }
+        })
+    )
+    return collections
+      .filter((collection): collection is CollectionDto => collection !== null)
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }
+
+  async updateCollection(libraryPath: string, collection: PersistedCollection): Promise<void> {
+    await writeJsonAtomic(
+      join(libraryPath, 'collections', collection.id, COLLECTION_FILENAME),
+      collection
+    )
+  }
+
+  async updateInboxItem(libraryPath: string, item: PersistedItem): Promise<void> {
+    await writeJsonAtomic(join(libraryPath, 'inbox', item.id, ITEM_FILENAME), item)
+  }
+
+  async deleteCollection(libraryPath: string, collectionId: string): Promise<void> {
+    const directory = join(libraryPath, 'collections', collectionId)
+    const items = await readdir(join(directory, 'items'))
+    if (items.length > 0) throw new Error('Move this folder’s items before removing it.')
+    await rm(directory, { recursive: true, force: false })
   }
 
   async readInboxItems(libraryPath: string): Promise<LibraryItemDto[]> {
@@ -104,6 +170,8 @@ export class LibraryStore {
           try {
             const metadata = await readJson<unknown>(join(itemDirectory, ITEM_FILENAME))
             if (!isPersistedItem(metadata, entry.name)) return null
+
+            if (metadata.type === 'url') return metadata
 
             try {
               if (metadata.type === 'note') {
@@ -137,12 +205,15 @@ export class LibraryStore {
 
   async getItemContentPath(libraryPath: string, itemId: string): Promise<string> {
     const metadata = await this.readPersistedItem(libraryPath, itemId)
-    const contentPath = join(libraryPath, 'inbox', itemId, metadata.contentFilename)
+    const filename = metadata.contentFilename
+    if (!filename) throw new Error('This item has no local content file.')
+    const contentPath = join(libraryPath, 'inbox', itemId, filename)
     await access(contentPath)
     return contentPath
   }
 
   async readItemContent(libraryPath: string, metadata: PersistedItem): Promise<Buffer> {
+    if (!metadata.contentFilename) throw new Error('This item has no local content file.')
     return readFile(join(libraryPath, 'inbox', metadata.id, metadata.contentFilename))
   }
 }

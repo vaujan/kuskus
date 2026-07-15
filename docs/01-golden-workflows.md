@@ -12,7 +12,7 @@ These workflows define the behavior Kuskus must preserve as its implementation e
 - Optional metadata must never block saving.
 - A saved item must survive an application restart.
 - Failures must be visible and recoverable; Kuskus must not silently discard content.
-- Files controlled by Kuskus must be revealable in the system explorer.
+- Files controlled by Kuskus remain ordinary, user-readable files in the selected library.
 
 ## 1. Create or open a library
 
@@ -119,7 +119,7 @@ The user finds a useful webpage and copies its URL.
 - The card always shows at least the URL and domain.
 - Double-clicking opens the URL in the default browser.
 - **Open source URL** is available from the item menu.
-- **Show in Explorer** reveals the item's local metadata location.
+- Opening the card shows its saved details; **Open link** launches the source in the default browser.
 - The MVP saves a reference and metadata, not a guaranteed offline copy of the webpage.
 
 ## 4. Capture an image or screenshot
@@ -142,7 +142,7 @@ The user has an image in the clipboard or an image file on the desktop.
 - Kuskus does not modify the original source file.
 - The card respects the image's natural aspect ratio in Visual view.
 - Double-clicking opens a preview or the operating system's default image application.
-- **Show in Explorer** opens File Explorer with the stored image selected.
+- Opening the card shows a larger in-app image preview.
 
 ## 5. Capture a local file
 
@@ -164,7 +164,7 @@ The user drags a PDF or another local file into Kuskus.
 - Filename collisions do not overwrite existing content.
 - An unsupported preview does not prevent importing or opening the file.
 - Double-clicking opens the stored copy with the operating system's default application.
-- **Show in Explorer** selects the stored copy.
+- Opening the card shows its available in-app preview and details.
 
 ## 6. Create a quick note
 
@@ -187,7 +187,7 @@ The user wants to save a short observation beside other project references.
 - Markdown is stored as entered; the card may render a safe preview without changing the source text.
 - A note can be saved with only a body; a title may be derived from its first meaningful line.
 - Editing does not require a rich-text editor in the MVP.
-- **Show in Explorer** selects the note file.
+- Opening the card shows the full note in Kuskus.
 
 ## 7. Organize Inbox
 

@@ -56,7 +56,7 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
 
   return (
     <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-background text-foreground">
-      <header className="window-drag flex h-11 shrink-0 items-center border-b px-3">
+      <header className="flex h-11 shrink-0 select-none items-center border-b px-3 [-webkit-app-region:drag]">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <Library className="size-4 text-primary" aria-hidden="true" />
           <span className="text-xs font-medium text-muted-foreground">Kuskus</span>
