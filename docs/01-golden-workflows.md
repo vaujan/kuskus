@@ -35,6 +35,8 @@ The user launches Kuskus for the first time.
 - Kuskus never overwrites a non-Kuskus folder without explicit confirmation.
 - A missing, moved, or unreadable library produces a recovery screen rather than an empty library.
 - The library can be copied as one folder for backup.
+- From an open workspace, the library actions allow creating or opening another library.
+- A library switch keeps library-scoped note drafts and is unavailable while a save or image import has transient in-memory work.
 
 ## 2. Use the universal capture composer
 
@@ -91,6 +93,7 @@ The user wants one obvious place to add any supported kind of content without ch
 ### Acceptance criteria
 
 - The user never has to choose **URL**, **Image**, **File**, or **Note** before pasting.
+- The expanded composer visibly communicates Markdown support and provides a keyboard-reachable picker for supported image files.
 - Opening the composer does not navigate away from the current collection.
 - At most one universal composer is expanded in a window.
 - A successful save produces exactly one item per detected URL, image, note, or imported file.
@@ -205,6 +208,9 @@ The user has captured several items without organizing them.
 ### Acceptance criteria
 
 - Capture never requires choosing a collection first.
+- A new collection may use the default folder icon or an optional chosen icon.
+- The user can search for and change a collection icon later without changing its identity or name.
+- Invalid or unavailable icon metadata falls back to the default folder icon without hiding the collection.
 - Moving an item preserves its stable identity and metadata.
 - Moving files must not create duplicate content unless explicitly requested.
 - An interrupted move must not lose the item.
@@ -227,8 +233,13 @@ The user returns to a project and wants to rediscover a saved reference.
 
 - The active collection is always visible in the content header or breadcrumb.
 - Search covers at least title, note text, domain, and filename.
+- Search and item-type filters combine within the active context and can be cleared without navigating away.
+- `Ctrl+F` or `Ctrl+K` focuses the scoped search; `Escape` clears an active query before leaving search.
 - Changing view does not change item order or selection.
+- The most recently selected Visual, Grid, or List view is restored on the next launch.
 - Hiding the sidebar gives the content area more space without hiding Search, Filter, or View.
+- The standard keyboard zoom shortcuts resize the complete application interface, including the sidebar, toolbar, content, and dialogs, without adding permanent toolbar controls.
+- The selected zoom level is restored on the next launch; `Ctrl+-`, `Ctrl++`, and `Ctrl+0` remain available as keyboard equivalents.
 
 ## 9. Delete and recover an item
 

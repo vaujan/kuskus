@@ -334,3 +334,26 @@ Remove Explorer reveal and native local-file opening APIs from the product UI. C
 - Library files remain user-readable and accessible outside Kuskus, but the renderer no longer requests native filesystem actions.
 - URL metadata is saved in `item.json`; failed enrichment remains a valid bookmark.
 - URL metadata fetching is bounded and rejects local/private network destinations before loading page metadata.
+
+## DEC-013: Standardize interface icons and persist collection icon keys
+
+Date: 2026-07-17
+Status: Accepted
+
+### Context
+
+The renderer mixed Lucide and Tabler icons even though shadcn was configured for Tabler. User-created
+collections also shared one folder glyph, making similarly named project destinations harder to scan.
+
+### Decision
+
+Use Tabler for all application icons. Collections may persist an optional icon key from a curated,
+application-owned allow-list. The main process validates renderer requests, and the renderer maps
+validated keys to imported Tabler component objects.
+
+### Consequences
+
+- Existing collections without an icon remain schema-version-1 compatible and display the default folder.
+- Unknown icon values fall back safely without hiding or rewriting collection metadata.
+- Arbitrary SVG, icon component names, custom colors, and the full upstream catalog are not persisted or exposed.
+- Changing icon libraries later requires updating one renderer registry while keeping stable stored keys.

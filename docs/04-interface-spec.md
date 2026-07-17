@@ -45,8 +45,9 @@ Sidebar visibility should persist between launches.
 
 ## Sidebar contents
 
+- The current library is shown as non-interactive context at the top of the sidebar. A separate overflow action provides **Open Another Library**, **Create New Library**, and **Copy Library Path** without presenting the identity row itself as a selector.
 - Inbox is a primary destination, visually separate from user-created folders.
-- The **Folders** heading's add action is revealed on hover or keyboard focus. Each folder's overflow action follows the same behavior and opens a menu with rename and remove controls; removal is confirmed and permitted only for an empty folder.
+- The **Folders** heading's add action is revealed on hover or keyboard focus. Each folder's overflow action follows the same behavior and opens a menu with change-icon, rename, and remove controls; removal is confirmed and permitted only for an empty folder.
 
 Minimum structure:
 
@@ -68,6 +69,11 @@ Requirements:
 - The selected destination has a clear active state.
 - Item counts are optional and must not create visual noise.
 - Collection rename and deletion are available from a context menu.
+- Folder creation includes an optional icon button. The default remains the standard folder glyph.
+- A searchable dialog offers a curated, keyboard-accessible set of folder icons. Icon choices use
+  the interface foreground colors rather than user-defined colors.
+- Changing an icon persists immediately; a failed save leaves the previous icon intact and keeps
+  the picker available for recovery.
 - Creating a folder can be canceled without saving its entered name.
 - Deleting a non-empty collection requires a clear choice for its items.
 - Nested collections are not required in the MVP.
@@ -90,6 +96,9 @@ Rules:
 - Interactive controls must be excluded from the draggable title-bar region.
 - The active context must remain understandable when the sidebar is hidden.
 - Narrow layouts may collapse labels into icons with tooltips, but core actions remain reachable.
+- Standard keyboard zoom shortcuts resize the complete application interface in fixed steps from 80% to 125% without adding permanent toolbar controls.
+- The selected zoom level persists between launches; `Ctrl+0` resets the interface to 100% without requiring a persistent percentage readout.
+- `Ctrl+-`, `Ctrl++`, and `Ctrl+0` perform Zoom Out, Zoom In, and Reset Zoom respectively; the equivalent Command shortcuts work on macOS.
 
 ## Content views
 
@@ -183,6 +192,15 @@ All cards may include:
 - Optional overflow menu.
 - Selected, focused, loading, failed, and missing-content states.
 
+Visual and Grid cards use a preview-first hierarchy:
+
+- The shared outer frame is transparent; media previews and text excerpts are the visible surfaces.
+- Image and URL titles appear in compact captions below their previews, with source metadata kept quiet.
+- Note excerpts retain a restrained text surface so they remain readable beside media.
+- Visual view preserves natural content heights. Grid view aligns type-specific preview surfaces without distorting media.
+- Hover, press, and keyboard focus feedback apply to the visible surface rather than adding permanent chrome around the full item.
+- Loading, failed, and missing-content placeholders preserve the expected surface dimensions.
+
 Type-specific rendering:
 
 | Type         | Visual content                           | Supporting information    |
@@ -202,7 +220,7 @@ Metadata should remain subordinate to the content in Visual view.
 - Ctrl-click toggles an item in multi-selection.
 - Shift-click selects a range where ordering is stable.
 - Double-click performs the primary action.
-- Enter opens the selected item or item detail, according to the final prototype decision.
+- Enter opens the selected item's focused detail dialog.
 - Space opens quick preview when implemented.
 - Delete moves selected items to Trash after appropriate confirmation.
 - Right-click and the overflow control expose the same context menu.
@@ -219,14 +237,33 @@ Minimum context menu:
 
 ## Item detail
 
-The MVP may use a side panel or focused dialog. It should expose:
+The MVP uses one focused, read-only dialog rather than a permanent application side panel. The
+dialog uses most of the available window so content remains the dominant surface without squeezing
+the library canvas between two sidebars.
+
+At ordinary desktop widths, the dialog has two panes:
+
+- A flexible preview pane for a large image, URL preview, or complete Markdown note.
+- A stable right inspector for the full title, type-specific metadata, timestamps, status, and
+  available actions.
+
+Below the two-pane breakpoint, the preview and inspector stack vertically inside one scrollable
+dialog. The inspector is not manually collapsible and its visibility is not persisted.
+
+The detail dialog exposes:
 
 - Larger preview when supported.
-- Editable title and note.
+- The complete read-only note body without card-style clipping.
 - Source URL or stored filename.
-- Collection.
-- Created date.
+- Created and updated dates.
+- Dimensions and media format for images.
+- Metadata availability for URLs.
 - A validated **Open link** action for URL items.
+- Previous and next controls that follow the current visible, filtered item order without wrapping.
+
+`Left Arrow` and `Right Arrow` perform the same previous and next actions. `Escape` closes the
+dialog and focus returns to the card that opened it. Missing local content remains openable: the
+preview shows an explicit warning while the inspector preserves all available metadata.
 
 The detail interface must not become a general-purpose knowledge-management property editor.
 

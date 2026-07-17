@@ -100,6 +100,18 @@ Use this for a specific problem worth preserving.
 - At what collection size does visual browsing become difficult?
 - Which operation feels slow enough to interrupt the capture flow?
 
+### F-001: Mixed item cards are difficult to scan cleanly
+
+- Date: 2026-07-17
+- What I was trying to do: Browse a mixed set of saved notes, links, images, and documents visually.
+- What I expected: Content previews should lead, with titles and source details easy to scan without competing with the content.
+- What happened: Repeated card containers and inconsistent metadata placement made the canvas feel busier than the content required.
+- Workaround: None recorded.
+- Pain: 3
+- Frequency: First occurrence
+- Evidence: User feedback with an attached visual reference for a cleaner, preview-led layout.
+- Possible change, if obvious: Use transparent item frames, visible preview or text surfaces, and compact captions in Visual and Grid views.
+
 ## Trial summary template
 
 ```markdown

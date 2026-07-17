@@ -85,11 +85,14 @@ Proposed minimum `collection.json`:
   "schemaVersion": 1,
   "id": "stable-collection-id",
   "name": "Productivity SaaS",
+  "icon": "rocket",
   "createdAt": "2026-07-14T12:00:00Z"
 }
 ```
 
 Collection folder names may include stable IDs so renaming a collection does not require unsafe path assumptions.
+`icon` is an optional stable key from Kuskus's documented curated icon set. Missing or unknown
+keys render as the default folder icon without invalidating or rewriting the collection.
 
 ## Item metadata
 
