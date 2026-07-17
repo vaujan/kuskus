@@ -1,5 +1,9 @@
 import { useState } from 'react'
-import { FolderOpen, Library, Plus } from 'lucide-react'
+import {
+  IconFolderOpen as FolderOpen,
+  IconLibrary as Library,
+  IconPlus as Plus
+} from '@tabler/icons-react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'

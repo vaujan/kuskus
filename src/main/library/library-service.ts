@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 
 import type {
+  CollectionIconKey,
+  CreateCollectionInput,
   ImageImportInput,
   ImageItemDto,
   ImagePreviewDto,
@@ -19,11 +21,13 @@ import {
 } from './items/image-item'
 import { createNoteMetadata, toNoteDto } from './items/note-item'
 import { createUrlMetadata, extractUrlMetadata, toUrlDto, validateWebUrl } from './items/url-item'
-import type {
-  PersistedCollection,
-  PersistedLibrary,
-  PersistedSettings,
-  PersistedUrlItem
+import {
+  isCollectionIconKey,
+  toCollectionDto,
+  type PersistedCollection,
+  type PersistedLibrary,
+  type PersistedSettings,
+  type PersistedUrlItem
 } from './schemas'
 import { readJson, writeJsonAtomic } from './storage/json-file'
 import { LibraryStore } from './storage/library-store'
@@ -174,32 +178,49 @@ export class LibraryService {
     }
   }
 
-  async createCollection(requestedName: string): Promise<CollectionDto> {
+  async createCollection(input: CreateCollectionInput): Promise<CollectionDto> {
     const libraryPath = this.requireCurrentLibrary()
-    const name = this.validateCollectionName(requestedName)
+    const name = this.validateCollectionName(input.name)
+    const icon = input.icon === undefined ? undefined : this.validateCollectionIcon(input.icon)
     const collection: PersistedCollection = {
       schemaVersion: 1,
       id: randomUUID(),
       name,
+      ...(icon ? { icon } : {}),
       createdAt: new Date().toISOString()
     }
     await this.store.createCollection(libraryPath, collection)
-    return collection
+    return toCollectionDto(collection)
   }
 
   async renameCollection(collectionId: string, requestedName: string): Promise<CollectionDto> {
     const libraryPath = this.requireCurrentLibrary()
-    const collection = (await this.store.readCollections(libraryPath)).find(
+    const collection = (await this.store.readPersistedCollections(libraryPath)).find(
       (entry) => entry.id === collectionId
     )
     if (!collection) throw new Error('This folder no longer exists.')
     const renamed = { ...collection, name: this.validateCollectionName(requestedName) }
     await this.store.updateCollection(libraryPath, renamed)
-    return renamed
+    return toCollectionDto(renamed)
+  }
+
+  async setCollectionIcon(
+    collectionId: string,
+    requestedIcon: CollectionIconKey
+  ): Promise<CollectionDto> {
+    this.validateCollectionId(collectionId)
+    const libraryPath = this.requireCurrentLibrary()
+    const collection = (await this.store.readPersistedCollections(libraryPath)).find(
+      (entry) => entry.id === collectionId
+    )
+    if (!collection) throw new Error('This folder no longer exists.')
+    const updated = { ...collection, icon: this.validateCollectionIcon(requestedIcon) }
+    await this.store.updateCollection(libraryPath, updated)
+    return toCollectionDto(updated)
   }
 
   async deleteCollection(collectionId: string): Promise<void> {
-    if (!/^[0-9a-f-]{36}$/i.test(collectionId)) throw new Error('The folder identifier is invalid.')
+    this.validateCollectionId(collectionId)
     await this.store.deleteCollection(this.requireCurrentLibrary(), collectionId)
   }
 
@@ -303,6 +324,17 @@ export class LibraryService {
       throw new Error('Enter a valid folder name.')
     }
     return name
+  }
+
+  private validateCollectionIcon(icon: unknown): CollectionIconKey {
+    if (!isCollectionIconKey(icon)) throw new Error('Choose a supported folder icon.')
+    return icon
+  }
+
+  private validateCollectionId(collectionId: string): void {
+    if (!/^[0-9a-f-]{36}$/i.test(collectionId)) {
+      throw new Error('The folder identifier is invalid.')
+    }
   }
 
   private async readLastLibraryPathSafely(): Promise<string | null> {

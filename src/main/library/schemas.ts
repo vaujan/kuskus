@@ -1,4 +1,9 @@
-import type { SupportedImageMediaType } from '../../shared/library-contract'
+import {
+  COLLECTION_ICON_KEYS,
+  type CollectionDto,
+  type CollectionIconKey,
+  type SupportedImageMediaType
+} from '../../shared/library-contract'
 import { IMAGE_EXTENSIONS, NOTE_FILENAME } from './constants'
 
 export interface PersistedLibrary {
@@ -12,7 +17,18 @@ export interface PersistedCollection {
   schemaVersion: 1
   id: string
   name: string
+  icon?: CollectionIconKey
   createdAt: string
+}
+
+const COLLECTION_ICON_KEY_SET = new Set<string>(COLLECTION_ICON_KEYS)
+
+export function isCollectionIconKey(value: unknown): value is CollectionIconKey {
+  return typeof value === 'string' && COLLECTION_ICON_KEY_SET.has(value)
+}
+
+export function toCollectionDto(collection: PersistedCollection): CollectionDto {
+  return { ...collection, icon: collection.icon ?? 'folder' }
 }
 
 export interface PersistedNoteItem {
@@ -84,18 +100,27 @@ export function isPersistedLibrary(value: unknown): value is PersistedLibrary {
   )
 }
 
-export function isPersistedCollection(
+export function parsePersistedCollection(
   value: unknown,
   collectionId: string
-): value is PersistedCollection {
-  if (!value || typeof value !== 'object') return false
+): PersistedCollection | null {
+  if (!value || typeof value !== 'object') return null
   const collection = value as Record<string, unknown>
-  return (
-    collection.schemaVersion === 1 &&
-    collection.id === collectionId &&
-    typeof collection.name === 'string' &&
-    typeof collection.createdAt === 'string'
-  )
+  if (
+    collection.schemaVersion !== 1 ||
+    collection.id !== collectionId ||
+    typeof collection.name !== 'string' ||
+    typeof collection.createdAt !== 'string'
+  ) {
+    return null
+  }
+  return {
+    schemaVersion: 1,
+    id: collection.id,
+    name: collection.name,
+    createdAt: collection.createdAt,
+    ...(isCollectionIconKey(collection.icon) ? { icon: collection.icon } : {})
+  }
 }
 
 export function isPersistedItem(value: unknown, itemId: string): value is PersistedItem {

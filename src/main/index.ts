@@ -1,11 +1,16 @@
 import { app, BrowserWindow } from 'electron'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 
 import { registerLibraryIpc } from './ipc/library-handlers'
 import { registerWindowIpc } from './ipc/window-handlers'
 import { LibraryService } from './library/library-service'
 import { createMainWindow } from './window/create-main-window'
+
+const demoUserDataPath = process.env.KUSKUS_DEMO_USER_DATA
+if (demoUserDataPath && !app.isPackaged) {
+  app.setPath('userData', resolve(demoUserDataPath))
+}
 
 app.whenReady().then(async () => {
   electronApp.setAppUserModelId('app.kuskus.desktop')

@@ -8,8 +8,10 @@ export const KUSKUS_CHANNELS = {
   importImage: 'library:import-image',
   createCollection: 'library:create-collection',
   renameCollection: 'library:rename-collection',
+  setCollectionIcon: 'library:set-collection-icon',
   deleteCollection: 'library:delete-collection',
   getImagePreview: 'library:get-image-preview',
+  copyLibraryPath: 'library:copy-library-path',
   openExternalUrl: 'library:open-external-url'
 } as const
 
@@ -85,10 +87,53 @@ export interface LibraryDto {
   collections: CollectionDto[]
 }
 
+export const COLLECTION_ICON_KEYS = [
+  'folder',
+  'briefcase',
+  'palette',
+  'code',
+  'rocket',
+  'bulb',
+  'bookmark',
+  'book',
+  'school',
+  'flask',
+  'chart',
+  'finance',
+  'shopping',
+  'home',
+  'heart',
+  'star',
+  'music',
+  'photo',
+  'video',
+  'camera',
+  'gaming',
+  'travel',
+  'map',
+  'calendar',
+  'team',
+  'person',
+  'building',
+  'tools',
+  'archive',
+  'nature',
+  'fitness',
+  'notes'
+] as const
+
+export type CollectionIconKey = (typeof COLLECTION_ICON_KEYS)[number]
+
+export interface CreateCollectionInput {
+  name: string
+  icon?: CollectionIconKey
+}
+
 export interface CollectionDto {
   schemaVersion: 1
   id: string
   name: string
+  icon: CollectionIconKey
   createdAt: string
 }
 
@@ -105,9 +150,11 @@ export interface KuskusLibraryApi {
   createUrl: (url: string) => Promise<ApiResult<UrlItemDto>>
   enrichUrl: (itemId: string) => Promise<ApiResult<UrlItemDto>>
   importImage: (input: ImageImportInput) => Promise<ApiResult<ImageItemDto>>
-  createCollection: (name: string) => Promise<ApiResult<CollectionDto>>
+  createCollection: (input: CreateCollectionInput) => Promise<ApiResult<CollectionDto>>
   renameCollection: (id: string, name: string) => Promise<ApiResult<CollectionDto>>
+  setCollectionIcon: (id: string, icon: CollectionIconKey) => Promise<ApiResult<CollectionDto>>
   deleteCollection: (id: string) => Promise<ApiResult<null>>
   getImagePreview: (itemId: string) => Promise<ApiResult<ImagePreviewDto>>
+  copyLibraryPath: () => Promise<ApiResult<null>>
   openExternalUrl: (url: string) => Promise<ApiResult<null>>
 }

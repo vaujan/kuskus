@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { is } from '@electron-toolkit/utils'
 
 import icon from '../../../resources/icon.png?asset'
-import { WINDOW_CHANNELS } from '../../shared/window-contract'
+import { WINDOW_CHANNELS, type AppZoomShortcut } from '../../shared/window-contract'
 
 export function createMainWindow(): BrowserWindow {
   const isMac = process.platform === 'darwin'
@@ -41,6 +41,27 @@ export function createMainWindow(): BrowserWindow {
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url)
     return { action: 'deny' }
+  })
+
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown' || !(input.control || input.meta) || input.alt) return
+
+    let shortcut: AppZoomShortcut | null = null
+    if (input.key === '+' || input.key === '=' || ['Equal', 'NumpadAdd'].includes(input.code)) {
+      shortcut = 'in'
+    } else if (
+      input.key === '-' ||
+      input.key === '_' ||
+      ['Minus', 'NumpadSubtract'].includes(input.code)
+    ) {
+      shortcut = 'out'
+    } else if (input.key === '0' || ['Digit0', 'Numpad0'].includes(input.code)) {
+      shortcut = 'reset'
+    }
+
+    if (!shortcut) return
+    event.preventDefault()
+    mainWindow.webContents.send(WINDOW_CHANNELS.zoomShortcut, shortcut)
   })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {

@@ -1,6 +1,11 @@
-import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 
-import { KUSKUS_CHANNELS, type ImageImportInput } from '../../shared/library-contract'
+import {
+  KUSKUS_CHANNELS,
+  type CollectionIconKey,
+  type CreateCollectionInput,
+  type ImageImportInput
+} from '../../shared/library-contract'
 import { LibraryService } from '../library/library-service'
 import { errorResult } from './api-result'
 
@@ -103,13 +108,23 @@ export function registerLibraryIpc(libraryService: LibraryService): void {
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.createCollection, async (_event, name: unknown) => {
-    if (typeof name !== 'string')
+  ipcMain.handle(KUSKUS_CHANNELS.createCollection, async (_event, input: unknown) => {
+    if (
+      !input ||
+      typeof input !== 'object' ||
+      typeof (input as Record<string, unknown>).name !== 'string' ||
+      ((input as Record<string, unknown>).icon !== undefined &&
+        typeof (input as Record<string, unknown>).icon !== 'string')
+    ) {
       return errorResult(new Error('Enter a valid folder name.'), 'invalid-input')
+    }
     try {
-      return { ok: true, data: await libraryService.createCollection(name) }
+      return {
+        ok: true,
+        data: await libraryService.createCollection(input as CreateCollectionInput)
+      }
     } catch (error) {
-      return errorResult(error)
+      return errorResult(error, 'invalid-input')
     }
   })
 
@@ -120,6 +135,20 @@ export function registerLibraryIpc(libraryService: LibraryService): void {
       return { ok: true, data: await libraryService.renameCollection(id, name) }
     } catch (error) {
       return errorResult(error)
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.setCollectionIcon, async (_event, id: unknown, icon: unknown) => {
+    if (typeof id !== 'string' || typeof icon !== 'string') {
+      return errorResult(new Error('Choose a valid folder icon.'), 'invalid-input')
+    }
+    try {
+      return {
+        ok: true,
+        data: await libraryService.setCollectionIcon(id, icon as CollectionIconKey)
+      }
+    } catch (error) {
+      return errorResult(error, 'invalid-input')
     }
   })
 
@@ -142,6 +171,17 @@ export function registerLibraryIpc(libraryService: LibraryService): void {
       return { ok: true, data: await libraryService.getImagePreview(itemId) }
     } catch (error) {
       return errorResult(error, 'not-found')
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.copyLibraryPath, async () => {
+    try {
+      const state = await libraryService.getState()
+      if (state.status !== 'ready') throw new Error('Open a library before copying its path.')
+      clipboard.writeText(state.library.path)
+      return { ok: true, data: null }
+    } catch (error) {
+      return errorResult(error)
     }
   })
 

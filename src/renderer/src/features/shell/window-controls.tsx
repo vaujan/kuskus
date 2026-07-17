@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Copy, Minus, Square, X } from 'lucide-react'
+import {
+  IconCopy as Copy,
+  IconMinus as Minus,
+  IconSquare as Square,
+  IconX as X
+} from '@tabler/icons-react'
 
 import { Button } from '@/components/ui/button'
 

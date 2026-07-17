@@ -12,7 +12,8 @@ import {
 import {
   isPersistedItem,
   isPersistedLibrary,
-  isPersistedCollection,
+  parsePersistedCollection,
+  toCollectionDto,
   type PersistedCollection,
   type PersistedItem,
   type PersistedLibrary
@@ -117,6 +118,10 @@ export class LibraryStore {
   }
 
   async readCollections(libraryPath: string): Promise<CollectionDto[]> {
+    return (await this.readPersistedCollections(libraryPath)).map(toCollectionDto)
+  }
+
+  async readPersistedCollections(libraryPath: string): Promise<PersistedCollection[]> {
     const collectionsPath = join(libraryPath, 'collections')
     await mkdir(collectionsPath, { recursive: true })
     const entries = await readdir(collectionsPath, { withFileTypes: true })
@@ -128,14 +133,14 @@ export class LibraryStore {
             const collection = await readJson<unknown>(
               join(collectionsPath, entry.name, COLLECTION_FILENAME)
             )
-            return isPersistedCollection(collection, entry.name) ? collection : null
+            return parsePersistedCollection(collection, entry.name)
           } catch {
             return null
           }
         })
     )
     return collections
-      .filter((collection): collection is CollectionDto => collection !== null)
+      .filter((collection): collection is PersistedCollection => collection !== null)
       .sort((a, b) => a.name.localeCompare(b.name))
   }
 

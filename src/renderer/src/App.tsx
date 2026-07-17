@@ -4,10 +4,12 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { LoadingScreen } from '@/app/loading-screen'
 import { SetupScreen } from '@/features/library/setup-screen'
 import { Workspace } from '@/features/library/workspace'
+import { useAppZoom } from '@/hooks/use-app-zoom'
 import type { LibraryState } from '../../shared/library-contract'
 
 function App(): React.JSX.Element {
   const [state, setState] = useState<LibraryState | null>(null)
+  useAppZoom()
 
   useEffect(() => {
     let mounted = true

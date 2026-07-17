@@ -1,6 +1,6 @@
 import { BrowserWindow, ipcMain, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
 
-import { WINDOW_CHANNELS } from '../../shared/window-contract'
+import { APP_ZOOM_FACTORS, WINDOW_CHANNELS } from '../../shared/window-contract'
 
 function windowFromEvent(event: IpcMainEvent | IpcMainInvokeEvent): BrowserWindow | null {
   return BrowserWindow.fromWebContents(event.sender)
@@ -19,4 +19,17 @@ export function registerWindowIpc(): void {
     WINDOW_CHANNELS.isMaximized,
     (event) => windowFromEvent(event)?.isMaximized() ?? false
   )
+  ipcMain.handle(WINDOW_CHANNELS.setZoomFactor, (event, zoomFactor: unknown) => {
+    if (
+      typeof zoomFactor !== 'number' ||
+      !APP_ZOOM_FACTORS.some((allowedFactor) => allowedFactor === zoomFactor)
+    ) {
+      throw new Error('Unsupported zoom factor.')
+    }
+
+    const window = windowFromEvent(event)
+    if (!window) throw new Error('The app window is unavailable.')
+    window.webContents.setZoomFactor(zoomFactor)
+    return zoomFactor
+  })
 }
