@@ -46,6 +46,7 @@ const libraryApi: KuskusLibraryApi = {
   deleteCollection: (id) => ipcRenderer.invoke(KUSKUS_CHANNELS.deleteCollection, id),
   getImagePreview: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.getImagePreview, itemId),
   copyLibraryPath: () => ipcRenderer.invoke(KUSKUS_CHANNELS.copyLibraryPath),
+  showItemInExplorer: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.showItemInExplorer, itemId),
   openExternalUrl: (url) => ipcRenderer.invoke(KUSKUS_CHANNELS.openExternalUrl, url)
 }
 

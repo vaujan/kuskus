@@ -169,7 +169,7 @@ Rules:
 
 ## In-app item details
 
-Cards open a read-only in-app detail view. URL details expose a validated **Open link** action; images and notes remain readable from their user-controlled library folder outside the app. Missing content remains visible as a Kuskus warning rather than being silently removed.
+Cards open a read-only in-app detail view. URL details expose a validated **Open link** action. Every item detail exposes **Show in Explorer** through an item-ID-based main-process operation; local content is revealed when present, otherwise Kuskus reveals the item's authoritative `item.json`. Missing content remains visible as a Kuskus warning rather than being silently removed.
 
 ## Migration policy
 

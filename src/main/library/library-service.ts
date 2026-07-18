@@ -228,6 +228,10 @@ export class LibraryService {
     return this.store.getItemContentPath(this.requireCurrentLibrary(), itemId)
   }
 
+  async getItemRevealPath(itemId: string): Promise<string> {
+    return this.store.getItemRevealPath(this.requireCurrentLibrary(), itemId)
+  }
+
   async getImagePreview(itemId: string): Promise<ImagePreviewDto> {
     const libraryPath = this.requireCurrentLibrary()
     const metadata = await this.store.readPersistedItem(libraryPath, itemId)

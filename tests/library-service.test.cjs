@@ -64,6 +64,7 @@ test('creates, persists, reopens, and reveals a Markdown note path', async (cont
 
   const notePath = await service.getItemContentPath(note.id)
   assert.equal(await readFile(notePath, 'utf8'), note.body)
+  assert.equal(await service.getItemRevealPath(note.id), notePath)
   assert.equal(existsSync(join(root, 'Research Library', 'inbox', note.id, 'item.json')), true)
 
   const reopenedService = new LibraryService(settingsPath)
@@ -84,6 +85,7 @@ test('rejects unsafe library names and arbitrary item identifiers', async (conte
 
   await service.createIn(root, 'Safe Library')
   await assert.rejects(() => service.getItemContentPath('..\\outside'), /identifier is invalid/i)
+  await assert.rejects(() => service.getItemRevealPath('..\\outside'), /identifier is invalid/i)
 })
 
 test('retains metadata when a note file is missing', async (context) => {
@@ -149,6 +151,10 @@ test('creates a durable URL item before metadata enrichment', async (context) =>
   assert.equal(link.sourceUrl, 'https://example.com/path?value=1')
   assert.equal(link.domain, 'example.com')
   assert.equal(link.metadataStatus, 'pending')
+  assert.equal(
+    await service.getItemRevealPath(link.id),
+    join(root, 'Link Library', 'inbox', link.id, 'item.json')
+  )
 
   const reopened = new LibraryService(join(root, 'settings.json'))
   await reopened.initialize()

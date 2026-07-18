@@ -185,6 +185,18 @@ export function registerLibraryIpc(libraryService: LibraryService): void {
     }
   })
 
+  ipcMain.handle(KUSKUS_CHANNELS.showItemInExplorer, async (_event, itemId: unknown) => {
+    if (typeof itemId !== 'string') {
+      return errorResult(new Error('The item identifier is invalid.'), 'invalid-input')
+    }
+    try {
+      shell.showItemInFolder(await libraryService.getItemRevealPath(itemId))
+      return { ok: true, data: null }
+    } catch (error) {
+      return errorResult(error, 'not-found')
+    }
+  })
+
   ipcMain.handle(KUSKUS_CHANNELS.openExternalUrl, async (_event, url: unknown) => {
     if (typeof url !== 'string')
       return errorResult(new Error('The link is invalid.'), 'invalid-input')

@@ -123,6 +123,7 @@ The user finds a useful webpage and copies its URL.
 - Double-clicking opens the URL in the default browser.
 - **Open source URL** is available from the item menu.
 - Opening the card shows its saved details; **Open link** launches the source in the default browser.
+- Every saved item detail exposes **Show in Explorer** for its validated library copy or metadata file.
 - The MVP saves a reference and metadata, not a guaranteed offline copy of the webpage.
 
 ## 4. Capture an image or screenshot
@@ -146,6 +147,7 @@ The user has an image in the clipboard or an image file on the desktop.
 - The card respects the image's natural aspect ratio in Visual view.
 - Double-clicking opens a preview or the operating system's default image application.
 - Opening the card shows a larger in-app image preview.
+- **Show in Explorer** reveals the imported library copy without exposing an arbitrary renderer path.
 
 ## 5. Capture a local file
 

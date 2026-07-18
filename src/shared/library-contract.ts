@@ -12,6 +12,7 @@ export const KUSKUS_CHANNELS = {
   deleteCollection: 'library:delete-collection',
   getImagePreview: 'library:get-image-preview',
   copyLibraryPath: 'library:copy-library-path',
+  showItemInExplorer: 'library:show-item-in-explorer',
   openExternalUrl: 'library:open-external-url'
 } as const
 
@@ -156,5 +157,6 @@ export interface KuskusLibraryApi {
   deleteCollection: (id: string) => Promise<ApiResult<null>>
   getImagePreview: (itemId: string) => Promise<ApiResult<ImagePreviewDto>>
   copyLibraryPath: () => Promise<ApiResult<null>>
+  showItemInExplorer: (itemId: string) => Promise<ApiResult<null>>
   openExternalUrl: (url: string) => Promise<ApiResult<null>>
 }

@@ -217,6 +217,19 @@ export class LibraryStore {
     return contentPath
   }
 
+  async getItemRevealPath(libraryPath: string, itemId: string): Promise<string> {
+    const metadata = await this.readPersistedItem(libraryPath, itemId)
+    const itemDirectory = join(libraryPath, 'inbox', itemId)
+    if (metadata.contentFilename) {
+      const contentPath = join(itemDirectory, metadata.contentFilename)
+      if (await this.pathExists(contentPath)) return contentPath
+    }
+
+    const metadataPath = join(itemDirectory, ITEM_FILENAME)
+    await access(metadataPath)
+    return metadataPath
+  }
+
   async readItemContent(libraryPath: string, metadata: PersistedItem): Promise<Buffer> {
     if (!metadata.contentFilename) throw new Error('This item has no local content file.')
     return readFile(join(libraryPath, 'inbox', metadata.id, metadata.contentFilename))

@@ -357,3 +357,29 @@ validated keys to imported Tabler component objects.
 - Unknown icon values fall back safely without hiding or rewriting collection metadata.
 - Arbitrary SVG, icon component names, custom colors, and the full upstream catalog are not persisted or exposed.
 - Changing icon libraries later requires updating one renderer registry while keeping stable stored keys.
+
+## DEC-014: Restore validated Explorer reveal from item details
+
+Date: 2026-07-18
+Status: Accepted
+
+### Context
+
+DEC-012 removed Explorer actions to keep card browsing focused, but Kuskus's local-first promise
+requires users to reach each item's authoritative library files. The detail viewer provides a
+contained place for this secondary native action without adding file-manager chrome to cards.
+
+### Decision
+
+Supersede DEC-012 only for Explorer reveal. Every item detail exposes **Show in Explorer** through
+a narrow item-ID IPC operation. The main process validates the item ID against the open library,
+resolves the path itself, and reveals local content when it exists. URL items and missing-content
+items reveal their authoritative `item.json`. Cards remain free of Explorer controls, and local
+files are not opened directly from the renderer.
+
+### Consequences
+
+- Users can move from an in-app detail to the corresponding user-controlled library file.
+- The renderer never supplies or receives an arbitrary filesystem path.
+- Missing-content items still reveal useful metadata for inspection and repair.
+- URL opening remains a separate validated `http` or `https` operation.

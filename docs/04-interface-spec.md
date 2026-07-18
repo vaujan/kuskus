@@ -241,11 +241,18 @@ The MVP uses one focused, read-only dialog rather than a permanent application s
 dialog uses most of the available window so content remains the dominant surface without squeezing
 the library canvas between two sidebars.
 
-At ordinary desktop widths, the dialog has two panes:
+The dialog has no dedicated header. Previous, next, and close actions use a compact floating
+control group in its upper-right corner while retaining 40-pixel desktop hit areas.
 
-- A flexible preview pane for a large image, URL preview, or complete Markdown note.
-- A stable right inspector for the full title, type-specific metadata, timestamps, status, and
-  available actions.
+At ordinary desktop widths, images and URLs use two panes:
+
+- A flexible preview pane for the large image or URL preview.
+- A compact right inspector containing the title, a borderless property list, and the available
+  primary action. Property rows use field-specific icons with aligned label and value columns;
+  image format and dimensions remain separate, independently scannable fields.
+
+Notes use a single, centered reading pane without a right inspector or nested card surface. Their
+accessible dialog title remains available to assistive technology without adding visible chrome.
 
 Below the two-pane breakpoint, the preview and inspector stack vertically inside one scrollable
 dialog. The inspector is not manually collapsible and its visibility is not persisted.
@@ -255,15 +262,16 @@ The detail dialog exposes:
 - Larger preview when supported.
 - The complete read-only note body without card-style clipping.
 - Source URL or stored filename.
-- Created and updated dates.
+- Added date for image and URL items.
 - Dimensions and media format for images.
-- Metadata availability for URLs.
 - A validated **Open link** action for URL items.
+- A compact, icon-led **Show in Explorer** action for every item. The action reveals local content when present and falls back to the authoritative item metadata for links or missing content.
 - Previous and next controls that follow the current visible, filtered item order without wrapping.
 
 `Left Arrow` and `Right Arrow` perform the same previous and next actions. `Escape` closes the
 dialog and focus returns to the card that opened it. Missing local content remains openable: the
-preview shows an explicit warning while the inspector preserves all available metadata.
+preview shows an explicit warning. Healthy availability and metadata states are implicit; the
+interface only presents a status message when something is missing or unavailable.
 
 The detail interface must not become a general-purpose knowledge-management property editor.
 
