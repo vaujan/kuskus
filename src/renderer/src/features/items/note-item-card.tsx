@@ -14,7 +14,7 @@ export function NoteItemCard({
   item: NoteItemDto
   onError: (error: string) => void
   onOpen: () => void
-  view: Exclude<LibraryView, 'list'>
+  view: Exclude<LibraryView, 'table'>
 }): React.JSX.Element {
   return (
     <ItemCard>
@@ -28,6 +28,8 @@ export function NoteItemCard({
         ) : (
           <MarkdownPreview
             value={item.body}
+            itemId={item.id}
+            attachments={item.attachments}
             onOpenLink={async (url) => {
               const result = await window.kuskus.openExternalUrl(url)
               if (!result.ok) onError(result.error)

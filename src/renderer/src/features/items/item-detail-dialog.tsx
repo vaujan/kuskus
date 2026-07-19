@@ -19,6 +19,7 @@ import {
 } from '@tabler/icons-react'
 
 import { Button } from '@/components/ui/button'
+import { Kbd } from '@/components/ui/kbd'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { MarkdownPreview } from '@/features/items/markdown-preview'
 import { useImagePreview } from '@/features/items/use-image-preview'
@@ -116,7 +117,7 @@ function FloatingControls({
   onError: (message: string) => void
 }): React.JSX.Element {
   return (
-    <div className="absolute top-3 right-3 z-20 flex rounded-lg bg-popover/85 p-0.5 shadow-md ring-1 ring-foreground/8 backdrop-blur-md">
+    <div className="absolute top-3 right-3 z-20 flex rounded-full bg-popover/85 p-0.5 shadow-md ring-1 ring-foreground/8 backdrop-blur-md">
       <DetailControl
         label="Previous item (Left arrow)"
         disabled={!hasPrevious}
@@ -270,6 +271,8 @@ function NoteCanvas({
           <article className="w-full">
             <MarkdownPreview
               value={item.body}
+              itemId={item.id}
+              attachments={item.attachments}
               presentation="detail"
               onOpenLink={async (url) => {
                 const result = await window.kuskus.openExternalUrl(url)
@@ -315,10 +318,10 @@ function ImageInspector({
 
 function UrlInspector({
   item,
-  onError
+  onOpenLink
 }: {
   item: Extract<LibraryItemDto, { type: 'url' }>
-  onError: (message: string) => void
+  onOpenLink: () => void
 }): React.JSX.Element {
   return (
     <aside className="min-w-0 border-t bg-popover min-[860px]:min-h-0 min-[860px]:overflow-y-auto min-[860px]:border-t-0 min-[860px]:border-l">
@@ -342,13 +345,17 @@ function UrlInspector({
         <Button
           size="lg"
           className="w-full active:scale-[0.96] transition-[scale,background-color,color]"
-          onClick={async () => {
-            const result = await window.kuskus.openExternalUrl(item.sourceUrl)
-            if (!result.ok) onError(result.error)
-          }}
+          aria-keyshortcuts="Control+Enter"
+          onClick={onOpenLink}
         >
           <ExternalLink data-icon="inline-start" aria-hidden="true" />
           Open link
+          <Kbd
+            className="ml-1 hidden bg-primary-foreground/15 text-primary-foreground sm:inline-flex"
+            aria-hidden="true"
+          >
+            Ctrl+Enter
+          </Kbd>
         </Button>
       </div>
     </aside>
@@ -372,9 +379,29 @@ export function ItemDetailDialog({
   onOpenChange: (open: boolean) => void
   onError: (message: string) => void
 }): React.JSX.Element {
+  const openLink = async (): Promise<void> => {
+    if (item?.type !== 'url') return
+
+    const result = await window.kuskus.openExternalUrl(item.sourceUrl)
+    if (!result.ok) onError(result.error)
+  }
+
   const handleKeyDown = (event: React.KeyboardEvent): void => {
-    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey)
+    if (event.defaultPrevented) return
+    if (
+      event.key === 'Enter' &&
+      event.ctrlKey &&
+      !event.altKey &&
+      !event.metaKey &&
+      !event.shiftKey &&
+      !event.repeat &&
+      item?.type === 'url'
+    ) {
+      event.preventDefault()
+      void openLink()
       return
+    }
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
     if (event.key === 'ArrowLeft' && hasPrevious) {
       event.preventDefault()
       onPrevious()
@@ -387,7 +414,7 @@ export function ItemDetailDialog({
   return (
     <Dialog.Root open={item !== null} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/55 backdrop-blur-[2px] transition-opacity duration-200 ease-out data-ending-style:opacity-0 data-starting-style:opacity-0" />
+        <Dialog.Backdrop className="fixed inset-0 z-50 bg-[var(--backdrop-strong)] backdrop-blur-[2px] transition-opacity duration-200 ease-out data-ending-style:opacity-0 data-starting-style:opacity-0" />
         <Dialog.Popup
           onKeyDown={handleKeyDown}
           className="fixed top-1/2 left-1/2 z-50 flex h-[calc(100vh-2rem)] max-h-[60rem] w-[calc(100vw-2rem)] max-w-[90rem] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-xl bg-popover text-popover-foreground shadow-2xl ring-1 ring-white/10 outline-none transition-[opacity,translate] duration-200 ease-out data-ending-style:translate-y-[calc(-50%+0.75rem)] data-ending-style:opacity-0 data-starting-style:translate-y-[calc(-50%+0.75rem)] data-starting-style:opacity-0"
@@ -426,7 +453,7 @@ export function ItemDetailDialog({
                 ) : (
                   <>
                     <UrlCanvas item={item} />
-                    <UrlInspector item={item} onError={onError} />
+                    <UrlInspector item={item} onOpenLink={() => void openLink()} />
                   </>
                 )}
               </div>

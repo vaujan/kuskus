@@ -3,6 +3,7 @@ import { BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
 import {
   KUSKUS_CHANNELS,
   type CollectionIconKey,
+  type CreateNoteInput,
   type CreateCollectionInput,
   type ImageImportInput
 } from '../../shared/library-contract'
@@ -69,16 +70,86 @@ export function registerLibraryIpc(libraryService: LibraryService): void {
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.createNote, async (_event, markdown: unknown) => {
-    if (typeof markdown !== 'string') {
+  ipcMain.handle(KUSKUS_CHANNELS.createNote, async (_event, input: unknown) => {
+    if (
+      !input ||
+      typeof input !== 'object' ||
+      typeof (input as Record<string, unknown>).markdown !== 'string' ||
+      !Array.isArray((input as Record<string, unknown>).attachmentIds)
+    ) {
       return errorResult(new Error('The note content is invalid.'), 'invalid-input')
     }
     try {
-      return { ok: true, data: await libraryService.createNote(markdown) }
+      return { ok: true, data: await libraryService.createNote(input as CreateNoteInput) }
+    } catch (error) {
+      return errorResult(error, 'invalid-input')
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.listNoteDraftImages, async () => {
+    try {
+      return { ok: true, data: await libraryService.listNoteDraftImages() }
     } catch (error) {
       return errorResult(error)
     }
   })
+
+  ipcMain.handle(KUSKUS_CHANNELS.stageNoteDraftImage, async (_event, input: unknown) => {
+    try {
+      return { ok: true, data: await libraryService.stageNoteDraftImage(input as ImageImportInput) }
+    } catch (error) {
+      return errorResult(error, 'invalid-input')
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.removeNoteDraftImage, async (_event, id: unknown) => {
+    if (typeof id !== 'string') {
+      return errorResult(new Error('The attachment identifier is invalid.'), 'invalid-input')
+    }
+    try {
+      await libraryService.removeNoteDraftImage(id)
+      return { ok: true, data: null }
+    } catch (error) {
+      return errorResult(error)
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.discardNoteDraft, async () => {
+    try {
+      await libraryService.discardNoteDraft()
+      return { ok: true, data: null }
+    } catch (error) {
+      return errorResult(error)
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.getNoteDraftImagePreview, async (_event, id: unknown) => {
+    if (typeof id !== 'string') {
+      return errorResult(new Error('The attachment identifier is invalid.'), 'invalid-input')
+    }
+    try {
+      return { ok: true, data: await libraryService.getNoteDraftImagePreview(id) }
+    } catch (error) {
+      return errorResult(error, 'not-found')
+    }
+  })
+
+  ipcMain.handle(
+    KUSKUS_CHANNELS.getNoteAttachmentPreview,
+    async (_event, itemId: unknown, attachmentId: unknown) => {
+      if (typeof itemId !== 'string' || typeof attachmentId !== 'string') {
+        return errorResult(new Error('The item identifier is invalid.'), 'invalid-input')
+      }
+      try {
+        return {
+          ok: true,
+          data: await libraryService.getNoteAttachmentPreview(itemId, attachmentId)
+        }
+      } catch (error) {
+        return errorResult(error, 'not-found')
+      }
+    }
+  )
 
   ipcMain.handle(KUSKUS_CHANNELS.createUrl, async (_event, url: unknown) => {
     if (typeof url !== 'string')

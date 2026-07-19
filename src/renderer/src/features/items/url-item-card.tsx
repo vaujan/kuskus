@@ -21,7 +21,7 @@ export function UrlItemCard({
 }: {
   item: UrlItemDto
   onOpen: () => void
-  view: Exclude<LibraryView, 'list'>
+  view: Exclude<LibraryView, 'table'>
 }): React.JSX.Element {
   const [failedPreviewUrl, setFailedPreviewUrl] = useState<string | null>(null)
   const [failedFaviconUrl, setFailedFaviconUrl] = useState<string | null>(null)

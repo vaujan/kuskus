@@ -91,7 +91,7 @@ Use this for a specific problem worth preserving.
 
 - Does Inbox reduce capture friction, or does it create an organization backlog?
 - Are collections sufficient without tags or nested folders?
-- Which view is actually used: Visual, Grid, or List?
+- Which view is actually used: Masonry, Grid, or Table?
 - Is the Add Item card useful after direct paste and drag-and-drop are learned?
 - How often is **Show in Explorer** used, and for which item types?
 - Are copied files preferable to linked files in daily use?

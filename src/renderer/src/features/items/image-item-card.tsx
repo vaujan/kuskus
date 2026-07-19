@@ -19,7 +19,7 @@ export function ImageItemCard({
 }: {
   item: ImageItemDto
   onOpen: () => void
-  view: Exclude<LibraryView, 'list'>
+  view: Exclude<LibraryView, 'table'>
 }): React.JSX.Element {
   const { preview, previewError } = useImagePreview(item.id, item.missingContent)
   const [failedPreview, setFailedPreview] = useState<string | null>(null)

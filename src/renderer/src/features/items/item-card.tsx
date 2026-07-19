@@ -3,22 +3,12 @@ import type { ComponentProps } from 'react'
 import { Card, CardFooter } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 
-export function ItemCard({
-  className,
-  presentation = 'preview',
-  ...props
-}: ComponentProps<typeof Card> & {
-  presentation?: 'preview' | 'list'
-}): React.JSX.Element {
+export function ItemCard({ className, ...props }: ComponentProps<typeof Card>): React.JSX.Element {
   return (
     <Card
       size="sm"
       className={cn(
-        'group/item-card relative min-h-0 gap-0 py-0',
-        presentation === 'preview' &&
-          'overflow-visible rounded-none bg-transparent shadow-none ring-0',
-        presentation === 'list' &&
-          'overflow-hidden rounded-2xl bg-card shadow-[0_0_0_1px_rgba(0,0,0,0.06),0_1px_2px_-1px_rgba(0,0,0,0.06),0_2px_4px_rgba(0,0,0,0.04)] ring-0 transition-[box-shadow,background-color] duration-150 ease-out hover:bg-card/95 hover:shadow-[0_0_0_1px_rgba(0,0,0,0.1),0_2px_4px_-1px_rgba(0,0,0,0.08),0_8px_20px_-8px_rgba(0,0,0,0.14)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08)] dark:hover:shadow-[0_0_0_1px_rgba(255,255,255,0.14)]',
+        'group/item-card relative min-h-0 gap-0 overflow-visible rounded-none bg-transparent py-0 shadow-none ring-0',
         className
       )}
       {...props}
@@ -53,7 +43,7 @@ export function ItemCardSurface({ className, ...props }: ComponentProps<'div'>):
     <div
       data-slot="item-card-surface"
       className={cn(
-        'relative overflow-hidden rounded-lg bg-card shadow-[0_0_0_1px_rgba(0,0,0,0.06),0_1px_2px_-1px_rgba(0,0,0,0.06),0_2px_4px_rgba(0,0,0,0.04)] ring-inset transition-[scale,box-shadow,background-color] duration-150 ease-out group-hover/item-card:bg-card/95 group-hover/item-card:shadow-[0_0_0_1px_rgba(0,0,0,0.1),0_2px_4px_-1px_rgba(0,0,0,0.08),0_8px_20px_-8px_rgba(0,0,0,0.14)] peer-focus-visible:ring-3 peer-focus-visible:ring-ring/60 peer-active:scale-[0.96] peer-disabled:scale-100 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08)] dark:group-hover/item-card:shadow-[0_0_0_1px_rgba(255,255,255,0.14)]',
+        'relative overflow-hidden rounded-2xl bg-card shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_1px_2px_-1px_rgba(0,0,0,0.04),0_2px_4px_rgba(0,0,0,0.03)] ring-inset transition-[scale,box-shadow,background-color] duration-150 ease-out group-hover/item-card:bg-card/95 group-hover/item-card:shadow-[0_0_0_1px_rgba(0,0,0,0.07),0_1px_2px_-1px_rgba(0,0,0,0.05),0_4px_10px_-6px_rgba(0,0,0,0.08)] peer-focus-visible:ring-3 peer-focus-visible:ring-ring/60 peer-active:scale-[0.96] peer-disabled:scale-100 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06)] dark:group-hover/item-card:shadow-[0_0_0_1px_rgba(255,255,255,0.1)]',
         className
       )}
       {...props}

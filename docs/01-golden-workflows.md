@@ -38,7 +38,7 @@ The user launches Kuskus for the first time.
 - From an open workspace, the library actions allow creating or opening another library.
 - A library switch keeps library-scoped note drafts and is unavailable while a save or image import has transient in-memory work.
 
-## 2. Use the universal capture composer
+## 2. Use the summoned New Item card
 
 ### Scenario
 
@@ -46,60 +46,61 @@ The user wants one obvious place to add any supported kind of content without ch
 
 ### Resting state
 
-- **Add item** is the first card in the active content view.
-- The compact card contains a prompt such as **Paste or start typing...**.
-- The card remains in the first position while saved items flow after it.
+- A primary **New item** action remains available in the toolbar.
+- The content canvas contains saved items only; no permanent capture tile consumes its first slot.
+- A retained draft is indicated by the toolbar action and can be continued or explicitly discarded.
 
 ### Flow
 
-1. The user clicks **Add item**.
-2. The card expands in place into a large editor and receives keyboard focus.
-3. The surrounding saved-content canvas remains visible but is visually subdued so the capture surface is clear.
+1. The user clicks **New item**.
+2. A normal-width draft card appears at the beginning of the active content view and receives keyboard focus.
+3. The surrounding saved-content canvas remains visible and interactive.
 4. The user does one of the following without selecting a content type:
    - Pastes one URL.
    - Pastes an image from the clipboard.
    - Pastes or drops one or more files.
    - Types or pastes plain text or Markdown.
-5. Kuskus detects the input type using the rules below and begins saving.
-6. The expanded composer shows a visible saving or import state.
-7. When the save succeeds, the composer resets to its compact state.
-8. The new card is inserted immediately after the Add Item card, visually beside it when the layout has room.
-9. Existing items reflow around the new card without navigating away or opening a separate result screen.
+5. Kuskus detects the input type using the rules below and begins saving or staging it.
+6. The draft card shows saving, staging, retry, or recovery state in place.
+7. When the save succeeds, the draft card morphs into the saved format-aware card.
+8. Existing items reflow around the new card without navigating away or opening a separate result screen.
 
 ### Type-detection rules
 
 - A single valid web URL with no other meaningful content becomes a URL item.
-- Clipboard bitmap data or a pasted image file becomes an image item.
+- Clipboard bitmap data or a pasted image file in an empty card becomes an image item.
+- An image pasted after note text has begun becomes a local Markdown attachment.
 - Dropped or pasted files become one item per file.
 - Plain text, Markdown, or mixed prose containing one or more links becomes a note; links inside it remain clickable.
+- A URL pasted after note text has begun remains part of the Markdown note.
 - Ambiguous text defaults to a note so the user's original content is preserved.
 - Detection failure leaves the content in the composer and explains what could not be saved.
 
 ### Commit behavior
 
 - A recognized URL, clipboard image, or file import begins saving immediately after paste or drop.
-- Typed notes maintain a recoverable draft while the composer is open.
+- Typed notes and their staged local images maintain a recoverable library-scoped draft.
 - A note is committed with an explicit **Save** action or `Ctrl+Enter`.
-- `Escape` collapses an empty composer. If it contains an uncommitted note, Kuskus retains the draft or asks before discarding it.
-- After a successful commit, keyboard focus returns to the compact Add Item card unless the user has started another action.
+- `Escape` hides the card and retains unfinished content; discard is a separate explicit action.
+- After a successful commit, keyboard focus returns to **New item** unless the user has started another action.
 
 ### Destination and ordering
 
 - In Inbox or a collection, the item is saved into that active context.
 - From All Items, search results, or Trash, capture defaults to Inbox unless the user explicitly chooses a collection.
-- Newly saved items appear immediately after the Add Item card, newest first.
+- Newly saved items appear first, newest first.
 - Metadata loading may continue after the initial card appears and must not change the item's position unexpectedly.
 
 ### Acceptance criteria
 
 - The user never has to choose **URL**, **Image**, **File**, or **Note** before pasting.
-- The expanded composer visibly communicates Markdown support and provides a keyboard-reachable picker for supported image files.
-- Opening the composer does not navigate away from the current collection.
-- At most one universal composer is expanded in a window.
+- The draft card visibly communicates Markdown support and provides a keyboard-reachable picker for supported image files.
+- Opening the card does not navigate away from the current collection.
+- At most one New Item card exists in a window.
 - A successful save produces exactly one item per detected URL, image, note, or imported file.
 - Repeated paste events cannot accidentally create duplicates because one event was handled twice.
-- Failed input remains recoverable in the composer.
-- The composer and new card work in Visual, Grid, and List views, even if their presentation differs.
+- Failed input remains recoverable in the card.
+- The draft and saved item work in Masonry, Grid, and Table views, even if their presentation differs.
 
 ## 3. Capture a URL
 
@@ -109,9 +110,9 @@ The user finds a useful webpage and copies its URL.
 
 ### Flow
 
-1. The user expands the universal composer and pastes one URL, or pastes directly while the content view has focus.
+1. The user summons New Item and pastes one URL, or pastes directly while the content view has focus.
 2. Kuskus recognizes the clipboard value as a URL and immediately begins saving it.
-3. A provisional URL card appears immediately after the Add Item card.
+3. The draft card morphs into a provisional URL card at the beginning of the view.
 4. Kuskus retrieves the title, domain, favicon, description, and preview image in the background.
 5. The provisional card progressively updates with available metadata without moving to a different position.
 
@@ -134,17 +135,17 @@ The user has an image in the clipboard or an image file on the desktop.
 
 ### Flow
 
-1. The user expands the universal composer and pastes the clipboard image, or drops an image into the composer or content view.
-2. The composer shows a preview and an import state.
+1. The user summons New Item and pastes the clipboard image, or drops an image into the card or content view.
+2. The draft card shows a preview and an import state.
 3. Kuskus copies the image into the active library.
-4. The composer collapses and a visual image card appears immediately after it.
+4. The draft morphs into a visual image card.
 5. The user may add a title, caption, or source URL later.
 
 ### Acceptance criteria
 
 - The stored image is an ordinary file in the library.
 - Kuskus does not modify the original source file.
-- The card respects the image's natural aspect ratio in Visual view.
+- The card respects the image's natural aspect ratio in Masonry view.
 - Double-clicking opens a preview or the operating system's default image application.
 - Opening the card shows a larger in-app image preview.
 - **Show in Explorer** reveals the imported library copy without exposing an arbitrary renderer path.
@@ -157,10 +158,10 @@ The user drags a PDF or another local file into Kuskus.
 
 ### Flow
 
-1. The user drops or pastes one or more files into the expanded composer or content view.
-2. The composer reports the number of detected files and shows import progress.
+1. The user drops or pastes one or more files into the New Item card or content view.
+2. The card reports the number of detected files and shows import progress.
 3. Kuskus copies each file into the active library.
-4. Each file receives a separate item record and card immediately after Add Item.
+4. Each file receives a separate item record and newest-first card.
 5. Supported formats receive a preview; other formats receive a file-type card.
 
 ### Acceptance criteria
@@ -179,17 +180,17 @@ The user wants to save a short observation beside other project references.
 
 ### Flow
 
-1. The user expands the universal composer.
+1. The user summons the New Item card.
 2. The user types or pastes plain text or Markdown directly into it.
 3. Kuskus maintains a recoverable draft while the user types.
 4. The user commits with **Save** or `Ctrl+Enter`.
-5. The composer collapses to its compact state.
-6. A readable note card appears immediately after it in the current view.
+5. The draft card morphs into a readable note card in the current view.
 
 ### Acceptance criteria
 
 - Notes use a durable, human-readable text format.
-- Markdown is stored as entered; the card may render a safe preview without changing the source text.
+- Markdown is stored as entered; local pasted images use portable relative references and render inline.
+- A note with images remains an ordinary `note.md` plus an `assets/` folder.
 - A note can be saved with only a body; a title may be derived from its first meaningful line.
 - Editing does not require a rich-text editor in the MVP.
 - Opening the card shows the full note in Kuskus.
@@ -227,7 +228,7 @@ The user returns to a project and wants to rediscover a saved reference.
 
 1. The user selects a collection in the sidebar.
 2. Kuskus displays mixed-format items together.
-3. The user browses in Visual, Grid, or List view.
+3. The user browses in Masonry, Grid, or Table view.
 4. The user optionally searches or filters the current context.
 5. The user opens, previews, or reveals the desired item.
 
@@ -238,8 +239,9 @@ The user returns to a project and wants to rediscover a saved reference.
 - Search and item-type filters combine within the active context and can be cleared without navigating away.
 - `Ctrl+F` or `Ctrl+K` focuses the scoped search; `Escape` clears an active query before leaving search.
 - Changing view does not change item order or selection.
-- The most recently selected Visual, Grid, or List view is restored on the next launch.
+- The most recently selected Masonry, Grid, or Table view is restored on the next launch.
 - Hiding the sidebar gives the content area more space without hiding Search, Filter, or View.
+- The expanded sidebar can be resized from 208 to 384 pixels with a pointer or keyboard, and its width is restored on the next launch.
 - The standard keyboard zoom shortcuts resize the complete application interface, including the sidebar, toolbar, content, and dialogs, without adding permanent toolbar controls.
 - The selected zoom level is restored on the next launch; `Ctrl+-`, `Ctrl++`, and `Ctrl+0` remain available as keyboard equivalents.
 

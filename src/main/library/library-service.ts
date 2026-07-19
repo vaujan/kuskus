@@ -3,6 +3,7 @@ import { join } from 'node:path'
 
 import type {
   CollectionIconKey,
+  CreateNoteInput,
   CreateCollectionInput,
   ImageImportInput,
   ImageItemDto,
@@ -10,16 +11,23 @@ import type {
   CollectionDto,
   LibraryState,
   NoteItemDto,
+  NoteDraftImageDto,
   UrlItemDto
 } from '../../shared/library-contract'
-import { NOTE_FILENAME, RESERVED_WINDOWS_NAMES } from './constants'
+import {
+  ITEM_ID_PATTERN,
+  NOTE_ASSETS_DIRECTORY,
+  NOTE_FILENAME,
+  RESERVED_WINDOWS_NAMES
+} from './constants'
 import {
   createImageMetadata,
   detectImage,
+  safeSourceFilename,
   toImageDto,
   validateImageInput
 } from './items/image-item'
-import { createNoteMetadata, toNoteDto } from './items/note-item'
+import { createNoteMetadata, noteAttachmentFilename, toNoteDto } from './items/note-item'
 import { createUrlMetadata, extractUrlMetadata, toUrlDto, validateWebUrl } from './items/url-item'
 import {
   isCollectionIconKey,
@@ -102,18 +110,106 @@ export class LibraryService {
     return this.getState()
   }
 
-  async createNote(markdown: string): Promise<NoteItemDto> {
+  async createNote(input: CreateNoteInput): Promise<NoteItemDto> {
     const libraryPath = this.requireCurrentLibrary()
+    const { markdown, attachmentIds } = input
     if (!markdown.trim()) throw new Error('Write something before saving the note.')
+    if (!Array.isArray(attachmentIds) || attachmentIds.some((id) => !ITEM_ID_PATTERN.test(id))) {
+      throw new Error('The note attachment list is invalid.')
+    }
+    if (new Set(attachmentIds).size !== attachmentIds.length) {
+      throw new Error('The note attachment list contains duplicates.')
+    }
     await this.store.readPersistedLibrary(libraryPath)
 
     const id = randomUUID()
     const timestamp = new Date().toISOString()
-    const metadata = createNoteMetadata(id, markdown, timestamp)
+    const staged = await Promise.all(
+      attachmentIds.map((attachmentId) =>
+        this.store.readNoteDraftAttachment(libraryPath, attachmentId)
+      )
+    )
+    const attachments = staged.map(({ attachment }) => attachment)
+    const metadata = createNoteMetadata(id, markdown, timestamp, attachments)
     await this.store.finalizeInboxItem(libraryPath, metadata, [
-      { filename: NOTE_FILENAME, data: markdown }
+      { filename: NOTE_FILENAME, data: markdown },
+      ...staged.map(({ attachment, bytes }) => ({
+        filename: `${NOTE_ASSETS_DIRECTORY}/${attachment.filename}`,
+        data: bytes
+      }))
     ])
-    return toNoteDto(metadata, markdown)
+    await this.store.discardNoteDraft(libraryPath)
+    return toNoteDto(
+      metadata,
+      markdown,
+      attachments.map((attachment) => ({ ...attachment, missingContent: false }))
+    )
+  }
+
+  async listNoteDraftImages(): Promise<NoteDraftImageDto[]> {
+    const libraryPath = this.requireCurrentLibrary()
+    const attachments = await this.store.readNoteDraftAttachments(libraryPath)
+    return Promise.all(
+      attachments.map(async (attachment) => ({
+        ...attachment,
+        missingContent: !(await this.store.pathExists(
+          join(libraryPath, '.kuskus', 'temp', 'note-draft', attachment.filename)
+        ))
+      }))
+    )
+  }
+
+  async stageNoteDraftImage(input: ImageImportInput): Promise<NoteDraftImageDto> {
+    const libraryPath = this.requireCurrentLibrary()
+    const bytes = validateImageInput(input)
+    const detected = detectImage(bytes)
+    if (!detected) throw new Error('Kuskus supports PNG, JPEG, GIF, WebP, and BMP images.')
+    const existing = await this.store.readNoteDraftAttachments(libraryPath)
+    const filename = noteAttachmentFilename(
+      input.sourceFilename,
+      detected,
+      new Set(existing.map((attachment) => attachment.filename.toLocaleLowerCase()))
+    )
+    const attachment = {
+      id: randomUUID(),
+      filename,
+      relativePath: `./${NOTE_ASSETS_DIRECTORY}/${filename}`,
+      sourceFilename: safeSourceFilename(input.sourceFilename),
+      mediaType: detected.mediaType,
+      width: detected.width,
+      height: detected.height
+    }
+    await this.store.stageNoteDraftAttachment(libraryPath, attachment, bytes)
+    return { ...attachment, missingContent: false }
+  }
+
+  async removeNoteDraftImage(attachmentId: string): Promise<void> {
+    this.validateItemId(attachmentId, 'attachment')
+    await this.store.removeNoteDraftAttachment(this.requireCurrentLibrary(), attachmentId)
+  }
+
+  async discardNoteDraft(): Promise<void> {
+    await this.store.discardNoteDraft(this.requireCurrentLibrary())
+  }
+
+  async getNoteDraftImagePreview(attachmentId: string): Promise<ImagePreviewDto> {
+    this.validateItemId(attachmentId, 'attachment')
+    const { attachment, bytes } = await this.store.readNoteDraftAttachment(
+      this.requireCurrentLibrary(),
+      attachmentId
+    )
+    return this.toValidatedImagePreview(attachment.mediaType, bytes)
+  }
+
+  async getNoteAttachmentPreview(itemId: string, attachmentId: string): Promise<ImagePreviewDto> {
+    this.validateItemId(itemId, 'item')
+    this.validateItemId(attachmentId, 'attachment')
+    const { attachment, bytes } = await this.store.readNoteAttachment(
+      this.requireCurrentLibrary(),
+      itemId,
+      attachmentId
+    )
+    return this.toValidatedImagePreview(attachment.mediaType, bytes)
   }
 
   async importImage(input: ImageImportInput): Promise<ImageItemDto> {
@@ -251,6 +347,23 @@ export class LibraryService {
     }
   }
 
+  private toValidatedImagePreview(
+    mediaType: ImagePreviewDto['mediaType'],
+    bytes: Uint8Array
+  ): ImagePreviewDto {
+    const detected = detectImage(bytes)
+    if (!detected || detected.mediaType !== mediaType) {
+      throw new Error('The saved image content is invalid.')
+    }
+    return {
+      bytes: bytes.buffer.slice(
+        bytes.byteOffset,
+        bytes.byteOffset + bytes.byteLength
+      ) as ArrayBuffer,
+      mediaType
+    }
+  }
+
   private async fetchPublicPage(url: URL): Promise<Response> {
     this.assertPublicUrl(url)
     const response = await fetch(url, {
@@ -339,6 +452,10 @@ export class LibraryService {
     if (!/^[0-9a-f-]{36}$/i.test(collectionId)) {
       throw new Error('The folder identifier is invalid.')
     }
+  }
+
+  private validateItemId(id: string, label: 'item' | 'attachment'): void {
+    if (!ITEM_ID_PATTERN.test(id)) throw new Error(`The ${label} identifier is invalid.`)
   }
 
   private async readLastLibraryPathSafely(): Promise<string | null> {

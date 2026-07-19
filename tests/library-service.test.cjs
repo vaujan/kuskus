@@ -29,7 +29,7 @@ const { createNoteMetadata, deriveNoteTitle } = require('../src/main/library/ite
 const { createUrlMetadata, validateWebUrl } = require('../src/main/library/items/url-item.ts')
 const { isPersistedItem } = require('../src/main/library/schemas.ts')
 const { LibraryStore } = require('../src/main/library/storage/library-store.ts')
-const { seedDemoEnvironment } = require('../scripts/create-demo-library.cjs')
+const { LIBRARY_NAME, seedDemoEnvironment } = require('../scripts/create-demo-library.cjs')
 const { COLLECTION_ICON_KEYS } = require('../src/shared/library-contract.ts')
 
 const onePixelPng = Buffer.from(
@@ -58,7 +58,10 @@ test('creates, persists, reopens, and reveals a Markdown note path', async (cont
   assert.equal(createdState.library.name, 'Research Library')
   assert.equal(createdState.library.items.length, 0)
 
-  const note = await service.createNote('# First reference\n\nA useful local note.')
+  const note = await service.createNote({
+    markdown: '# First reference\n\nA useful local note.',
+    attachmentIds: []
+  })
   assert.equal(note.title, 'First reference')
   assert.equal(note.body, '# First reference\n\nA useful local note.')
 
@@ -96,7 +99,7 @@ test('retains metadata when a note file is missing', async (context) => {
   const createdState = await service.createIn(root, 'Missing Content Library')
   assert.equal(createdState.status, 'ready')
 
-  const note = await service.createNote('Keep my metadata')
+  const note = await service.createNote({ markdown: 'Keep my metadata', attachmentIds: [] })
   const notePath = await service.getItemContentPath(note.id)
   await unlink(notePath)
 
@@ -138,6 +141,118 @@ test('imports, persists, previews, and detects a missing clipboard image', async
   const missing = await reopened.getState()
   assert.equal(missing.status, 'ready')
   assert.equal(missing.library.items[0].missingContent, true)
+})
+
+test('recovers staged images and atomically commits a portable Markdown bundle', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-note-assets-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const settingsPath = join(root, 'settings.json')
+  const service = new LibraryService(settingsPath)
+  const created = await service.createIn(root, 'Attached Notes')
+  assert.equal(created.status, 'ready')
+
+  const first = await service.stageNoteDraftImage({
+    bytes: arrayBuffer(onePixelPng),
+    mediaType: 'image/png',
+    sourceFilename: 'Sketch.png'
+  })
+  const second = await service.stageNoteDraftImage({
+    bytes: arrayBuffer(onePixelPng),
+    mediaType: 'image/png',
+    sourceFilename: 'Sketch.png'
+  })
+  assert.equal(first.filename, 'Sketch.png')
+  assert.equal(second.filename, 'Sketch-2.png')
+  assert.equal(first.relativePath, './assets/Sketch.png')
+
+  const reopened = new LibraryService(settingsPath)
+  await reopened.initialize()
+  const recovered = await reopened.listNoteDraftImages()
+  assert.deepEqual(
+    recovered.map((attachment) => attachment.id),
+    [first.id, second.id]
+  )
+  const stagedPreview = await reopened.getNoteDraftImagePreview(first.id)
+  assert.deepEqual(Buffer.from(stagedPreview.bytes), onePixelPng)
+
+  const markdown = [
+    '# Visual note',
+    '',
+    `![Sketch](${first.relativePath})`,
+    '',
+    `![Second sketch](${second.relativePath})`
+  ].join('\n')
+  const note = await reopened.createNote({
+    markdown,
+    attachmentIds: recovered.map((attachment) => attachment.id)
+  })
+  assert.equal(note.attachments.length, 2)
+  assert.equal(
+    note.attachments.every((attachment) => !attachment.missingContent),
+    true
+  )
+  assert.equal((await reopened.listNoteDraftImages()).length, 0)
+
+  const libraryPath = created.library.path
+  assert.equal(await readFile(join(libraryPath, 'inbox', note.id, 'note.md'), 'utf8'), markdown)
+  assert.deepEqual(
+    await readFile(join(libraryPath, 'inbox', note.id, 'assets', first.filename)),
+    onePixelPng
+  )
+  const savedPreview = await reopened.getNoteAttachmentPreview(note.id, second.id)
+  assert.deepEqual(Buffer.from(savedPreview.bytes), onePixelPng)
+
+  await unlink(join(libraryPath, 'inbox', note.id, 'assets', first.filename))
+  const state = await reopened.getState()
+  assert.equal(state.status, 'ready')
+  const savedNote = state.library.items.find((item) => item.id === note.id)
+  assert.equal(savedNote.missingContent, false)
+  assert.equal(
+    savedNote.attachments.find((attachment) => attachment.id === first.id).missingContent,
+    true
+  )
+})
+
+test('keeps staged images recoverable when note commit validation fails', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-note-draft-failure-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  await service.createIn(root, 'Recoverable Draft')
+  const staged = await service.stageNoteDraftImage({
+    bytes: arrayBuffer(onePixelPng),
+    mediaType: 'image/png',
+    sourceFilename: '../unsafe.png'
+  })
+  assert.equal(staged.filename.includes('..'), false)
+  await assert.rejects(
+    () => service.createNote({ markdown: 'Do not lose this', attachmentIds: ['..\\outside'] }),
+    /attachment list is invalid/i
+  )
+  assert.equal((await service.listNoteDraftImages()).length, 1)
+  await assert.rejects(() => service.removeNoteDraftImage('..\\outside'), /identifier is invalid/i)
+  await service.removeNoteDraftImage(staged.id)
+  assert.equal((await service.listNoteDraftImages()).length, 0)
+})
+
+test('rejects unsafe persisted note attachment metadata', () => {
+  const id = '70000000-0000-4000-8000-000000000001'
+  const timestamp = new Date().toISOString()
+  const metadata = createNoteMetadata(id, 'Attached note', timestamp, [
+    {
+      id: '70000000-0000-4000-8000-000000000002',
+      filename: 'safe.png',
+      relativePath: './assets/safe.png',
+      sourceFilename: 'safe.png',
+      mediaType: 'image/png',
+      width: 1,
+      height: 1
+    }
+  ])
+
+  assert.equal(isPersistedItem(metadata, id), true)
+  metadata.attachments[0].filename = 'unsafe:stream.png'
+  metadata.attachments[0].relativePath = './assets/unsafe:stream.png'
+  assert.equal(isPersistedItem(metadata, id), false)
 })
 
 test('creates a durable URL item before metadata enrichment', async (context) => {
@@ -290,7 +405,7 @@ test('validates metadata and atomically finalizes an Inbox item', async (context
   assert.equal(existsSync(join(root, '.kuskus', 'temp', `${id}.pending`)), false)
 })
 
-test('seeds an isolated demo profile with realistic library states', async (context) => {
+test('seeds and resets a cultivated isolated demo profile', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-demo-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
 
@@ -301,13 +416,40 @@ test('seeds an isolated demo profile with realistic library states', async (cont
 
   assert.equal(state.status, 'ready')
   assert.equal(state.library.path, libraryPath)
+  assert.equal(state.library.name, LIBRARY_NAME)
   assert.equal(state.library.items.length, 12)
   assert.equal(state.library.collections.length, 4)
+  assert.deepEqual(
+    state.library.collections.map((collection) => collection.name),
+    ['Interface references', 'Kuskus', 'Research', 'Writing']
+  )
   assert.deepEqual(
     new Set(state.library.items.map((item) => item.type)),
     new Set(['note', 'image', 'url'])
   )
-  assert.equal(state.library.items.filter((item) => item.missingContent).length, 2)
+  assert.equal(state.library.items.filter((item) => item.missingContent).length, 0)
+  assert.equal(
+    state.library.items.every((item) => Number.isFinite(Date.parse(item.createdAt))),
+    true
+  )
+  assert.equal(
+    state.library.items.every((item) => Date.parse(item.createdAt) <= Date.now()),
+    true
+  )
+
+  const attachedNote = state.library.items.find(
+    (item) => item.type === 'note' && item.attachments.length > 0
+  )
+  assert.ok(attachedNote)
+  assert.equal(attachedNote.title, 'This week \u2014 close the capture loop')
+  assert.equal(attachedNote.attachments.length, 1)
+  assert.equal(attachedNote.attachments[0].missingContent, false)
+  assert.equal(
+    existsSync(
+      join(libraryPath, 'inbox', attachedNote.id, 'assets', attachedNote.attachments[0].filename)
+    ),
+    true
+  )
   assert.equal(
     existsSync(
       join(
@@ -325,4 +467,18 @@ test('seeds an isolated demo profile with realistic library states', async (cont
     existsSync(join(libraryPath, 'trash', '50000000-0000-4000-8000-000000000001', 'note.md')),
     true
   )
+
+  const librarySentinel = join(libraryPath, 'preserve-without-reset.txt')
+  const profileSentinel = join(userDataPath, 'stale-profile-state')
+  await writeFile(librarySentinel, 'keep')
+  await writeFile(profileSentinel, 'stale')
+  await seedDemoEnvironment({ root })
+  assert.equal(existsSync(librarySentinel), true)
+  assert.equal(existsSync(profileSentinel), true)
+
+  const reset = await seedDemoEnvironment({ root, reset: true })
+  assert.equal(reset.libraryPath, libraryPath)
+  assert.equal(existsSync(librarySentinel), false)
+  assert.equal(existsSync(profileSentinel), false)
+  assert.equal(existsSync(join(reset.libraryPath, 'library.json')), true)
 })

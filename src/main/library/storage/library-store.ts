@@ -1,5 +1,5 @@
 import { access, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 import type { CollectionDto, LibraryDto, LibraryItemDto } from '../../../shared/library-contract'
 import {
@@ -7,16 +7,20 @@ import {
   ITEM_FILENAME,
   ITEM_ID_PATTERN,
   LIBRARY_FILENAME,
+  NOTE_DRAFT_DIRECTORY,
+  NOTE_DRAFT_MANIFEST,
   NOTE_FILENAME
 } from '../constants'
 import {
   isPersistedItem,
+  isPersistedNoteAttachment,
   isPersistedLibrary,
   parsePersistedCollection,
   toCollectionDto,
   type PersistedCollection,
   type PersistedItem,
-  type PersistedLibrary
+  type PersistedLibrary,
+  type PersistedNoteAttachment
 } from '../schemas'
 import { readJson, writeJsonAtomic } from './json-file'
 
@@ -81,17 +85,105 @@ export class LibraryStore {
     await mkdir(temporaryDirectory, { recursive: false })
     try {
       await Promise.all(
-        files.map(({ filename, data }) =>
-          typeof data === 'string'
-            ? writeFile(join(temporaryDirectory, filename), data, 'utf8')
-            : writeFile(join(temporaryDirectory, filename), data)
-        )
+        files.map(async ({ filename, data }) => {
+          if (!/^[^\\/:*?"<>|]+$/.test(filename) && !/^assets[\\/][^\\/]+$/.test(filename)) {
+            throw new Error('The item content filename is invalid.')
+          }
+          const target = join(temporaryDirectory, filename)
+          await mkdir(dirname(target), { recursive: true })
+          await (typeof data === 'string'
+            ? writeFile(target, data, 'utf8')
+            : writeFile(target, data))
+        })
       )
       await writeJsonAtomic(join(temporaryDirectory, ITEM_FILENAME), metadata)
       await rename(temporaryDirectory, finalDirectory)
     } catch (error) {
       await rm(temporaryDirectory, { recursive: true, force: true })
       throw error
+    }
+  }
+
+  private noteDraftDirectory(libraryPath: string): string {
+    return join(libraryPath, '.kuskus', 'temp', NOTE_DRAFT_DIRECTORY)
+  }
+
+  async readNoteDraftAttachments(libraryPath: string): Promise<PersistedNoteAttachment[]> {
+    const manifestPath = join(this.noteDraftDirectory(libraryPath), NOTE_DRAFT_MANIFEST)
+    if (!(await this.pathExists(manifestPath))) return []
+    try {
+      const value = await readJson<unknown>(manifestPath)
+      if (!Array.isArray(value) || !value.every(isPersistedNoteAttachment)) {
+        throw new Error('The saved note draft attachments are invalid.')
+      }
+      return value
+    } catch (error) {
+      throw new Error(
+        error instanceof Error && error.message
+          ? error.message
+          : 'The saved note draft attachments could not be read.'
+      )
+    }
+  }
+
+  async stageNoteDraftAttachment(
+    libraryPath: string,
+    attachment: PersistedNoteAttachment,
+    bytes: Uint8Array
+  ): Promise<void> {
+    const directory = this.noteDraftDirectory(libraryPath)
+    await mkdir(directory, { recursive: true })
+    const attachments = await this.readNoteDraftAttachments(libraryPath)
+    const contentPath = join(directory, attachment.filename)
+    await writeFile(contentPath, bytes)
+    try {
+      await writeJsonAtomic(join(directory, NOTE_DRAFT_MANIFEST), [...attachments, attachment])
+    } catch (error) {
+      await rm(contentPath, { force: true })
+      throw error
+    }
+  }
+
+  async removeNoteDraftAttachment(libraryPath: string, attachmentId: string): Promise<void> {
+    const attachments = await this.readNoteDraftAttachments(libraryPath)
+    const attachment = attachments.find((entry) => entry.id === attachmentId)
+    if (!attachment) throw new Error('This draft image no longer exists.')
+    const remaining = attachments.filter((entry) => entry.id !== attachmentId)
+    const directory = this.noteDraftDirectory(libraryPath)
+    await writeJsonAtomic(join(directory, NOTE_DRAFT_MANIFEST), remaining)
+    await rm(join(directory, attachment.filename), { force: true })
+  }
+
+  async discardNoteDraft(libraryPath: string): Promise<void> {
+    await rm(this.noteDraftDirectory(libraryPath), { recursive: true, force: true })
+  }
+
+  async readNoteDraftAttachment(
+    libraryPath: string,
+    attachmentId: string
+  ): Promise<{ attachment: PersistedNoteAttachment; bytes: Buffer }> {
+    const attachment = (await this.readNoteDraftAttachments(libraryPath)).find(
+      (entry) => entry.id === attachmentId
+    )
+    if (!attachment) throw new Error('This draft image no longer exists.')
+    return {
+      attachment,
+      bytes: await readFile(join(this.noteDraftDirectory(libraryPath), attachment.filename))
+    }
+  }
+
+  async readNoteAttachment(
+    libraryPath: string,
+    itemId: string,
+    attachmentId: string
+  ): Promise<{ attachment: PersistedNoteAttachment; bytes: Buffer }> {
+    const metadata = await this.readPersistedItem(libraryPath, itemId)
+    if (metadata.type !== 'note') throw new Error('The saved item is not a note.')
+    const attachment = (metadata.attachments ?? []).find((entry) => entry.id === attachmentId)
+    if (!attachment) throw new Error('This note image no longer exists.')
+    return {
+      attachment,
+      bytes: await readFile(join(libraryPath, 'inbox', itemId, 'assets', attachment.filename))
     }
   }
 
@@ -178,17 +270,28 @@ export class LibraryStore {
 
             if (metadata.type === 'url') return metadata
 
-            try {
-              if (metadata.type === 'note') {
+            if (metadata.type === 'note') {
+              const attachments = await Promise.all(
+                (metadata.attachments ?? []).map(async (attachment) => ({
+                  ...attachment,
+                  missingContent: !(await this.pathExists(
+                    join(itemDirectory, 'assets', attachment.filename)
+                  ))
+                }))
+              )
+              try {
                 const body = await readFile(join(itemDirectory, NOTE_FILENAME), 'utf8')
-                return { ...metadata, body, missingContent: false }
+                return { ...metadata, body, missingContent: false, attachments }
+              } catch {
+                return { ...metadata, body: '', missingContent: true, attachments }
               }
+            }
+
+            try {
               await access(join(itemDirectory, metadata.contentFilename))
               return { ...metadata, missingContent: false }
             } catch {
-              return metadata.type === 'note'
-                ? { ...metadata, body: '', missingContent: true }
-                : { ...metadata, missingContent: true }
+              return { ...metadata, missingContent: true }
             }
           } catch {
             return null

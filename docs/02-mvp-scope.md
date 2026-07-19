@@ -33,22 +33,23 @@ The MVP is complete when all golden workflows work against a real local library 
 
 ### Capture
 
-- A compact Add Item card fixed at the beginning of the active content view.
-- An inline universal composer that expands from the Add Item card instead of navigating to a separate capture screen.
+- A primary New Item toolbar action that summons one inline draft card at the beginning of the active content view.
+- No permanent capture tile or separate capture dialog.
 - Automatic input detection without requiring the user to choose a format first.
 - URL capture by paste, with a provisional card followed by background metadata enrichment.
-- Clipboard image capture through the same composer.
+- Clipboard image capture through the same draft card.
 - Drag-and-drop or paste import for images, PDFs, and general files.
-- Plain-text or Markdown quick notes with draft recovery and explicit commit.
-- A newly saved card inserted immediately after Add Item, newest first.
+- Plain-text or Markdown quick notes with text-and-image draft recovery and explicit commit.
+- Local images embedded in notes as relative Markdown assets.
+- A draft card that morphs into the newly saved, newest-first card.
 - Direct paste into the focused content view using the same detection and saving pipeline.
 - Visible progress and failure feedback.
 
 ### Browsing
 
-- Responsive Visual view with format-aware cards and natural card heights.
+- Responsive Masonry view with format-aware cards and natural card heights.
 - Uniform Grid view.
-- Compact List view.
+- Compact Table view with Name, Type, and Added columns.
 - Expandable and hideable folder sidebar.
 - Active collection title or breadcrumb.
 - Responsive column count based on available width rather than a fixed number.

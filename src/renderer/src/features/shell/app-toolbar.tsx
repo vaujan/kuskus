@@ -5,9 +5,11 @@ import {
   IconLayoutDashboard,
   IconLayoutGrid,
   IconLink,
-  IconList,
   IconPhoto,
+  IconPlus,
   IconSearch,
+  IconTable,
+  IconTrash,
   IconX,
   type TablerIcon
 } from '@tabler/icons-react'
@@ -32,8 +34,8 @@ import {
   InputGroupButton,
   InputGroupInput
 } from '@/components/ui/input-group'
-import { Kbd, KbdGroup } from '@/components/ui/kbd'
-import { SidebarTrigger } from '@/components/ui/sidebar'
+import { Kbd } from '@/components/ui/kbd'
+import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   ITEM_TYPE_FILTERS,
@@ -44,9 +46,9 @@ import { WindowControls } from '@/features/shell/window-controls'
 import { cn } from '@/lib/utils'
 
 const VIEW_OPTIONS: Array<{ value: LibraryView; label: string; icon: TablerIcon }> = [
-  { value: 'visual', label: 'Visual', icon: IconLayoutDashboard },
+  { value: 'visual', label: 'Masonry', icon: IconLayoutDashboard },
   { value: 'grid', label: 'Grid', icon: IconLayoutGrid },
-  { value: 'list', label: 'List', icon: IconList }
+  { value: 'table', label: 'Table', icon: IconTable }
 ]
 
 const TYPE_OPTIONS: Record<ItemTypeFilter, { label: string; icon: TablerIcon }> = {
@@ -56,17 +58,26 @@ const TYPE_OPTIONS: Record<ItemTypeFilter, { label: string; icon: TablerIcon }> 
 }
 
 function ShellSidebarTrigger(): React.JSX.Element {
+  const { isMobile, openMobile, state } = useSidebar()
+  const isOpen = isMobile ? openMobile : state === 'expanded'
+  const label = isOpen ? 'Hide sidebar' : 'Show sidebar'
+
   return (
     <div className="[-webkit-app-region:no-drag]">
       <Tooltip>
-        <TooltipTrigger render={<SidebarTrigger aria-label="Toggle sidebar" />} />
-        <TooltipContent>Toggle sidebar</TooltipContent>
+        <TooltipTrigger render={<SidebarTrigger aria-label={label} />} />
+        <TooltipContent>{label}</TooltipContent>
       </Tooltip>
     </div>
   )
 }
 
 export function AppToolbar({
+  newItemOpen,
+  hasDraft,
+  newItemFocusRequest,
+  onNewItem,
+  onDiscardDraft,
   search,
   onSearchChange,
   searchPending,
@@ -78,6 +89,11 @@ export function AppToolbar({
   onTypeFilterChange,
   onClearFilters
 }: {
+  newItemOpen: boolean
+  hasDraft: boolean
+  newItemFocusRequest: number
+  onNewItem: () => void
+  onDiscardDraft: () => void
   search: string
   onSearchChange: (value: string) => void
   searchPending: boolean
@@ -90,6 +106,7 @@ export function AppToolbar({
   onClearFilters: () => void
 }): React.JSX.Element {
   const searchRef = useRef<HTMLInputElement>(null)
+  const newItemRef = useRef<HTMLButtonElement>(null)
   const activeView = VIEW_OPTIONS.find((option) => option.value === view) ?? VIEW_OPTIONS[0]
   const ActiveViewIcon = activeView.icon
   const hasSearch = search.trim().length > 0
@@ -112,11 +129,50 @@ export function AppToolbar({
     return () => window.removeEventListener('keydown', focusSearch)
   }, [])
 
+  useEffect(() => {
+    if (newItemFocusRequest > 0) newItemRef.current?.focus()
+  }, [newItemFocusRequest])
+
   return (
     <header className="flex h-12 shrink-0 select-none items-center gap-2 bg-background pl-4 [-webkit-app-region:drag]">
       <ShellSidebarTrigger />
+      <div className="flex items-center gap-1 [-webkit-app-region:no-drag]">
+        <Button
+          ref={newItemRef}
+          data-new-item-button
+          aria-expanded={newItemOpen}
+          aria-label={hasDraft && !newItemOpen ? 'Continue New item draft' : 'Create new item'}
+          className="active:scale-[0.96] transition-transform"
+          onClick={onNewItem}
+        >
+          <IconPlus data-icon="inline-start" aria-hidden="true" />
+          <span className="hidden min-[720px]:inline">
+            {hasDraft && !newItemOpen ? 'Continue draft' : 'New item'}
+          </span>
+          {hasDraft ? (
+            <span className="size-1.5 rounded-full bg-primary-foreground" aria-hidden="true" />
+          ) : null}
+        </Button>
+        {hasDraft ? (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label="Discard New item draft"
+                  onClick={onDiscardDraft}
+                />
+              }
+            >
+              <IconTrash aria-hidden="true" />
+            </TooltipTrigger>
+            <TooltipContent>Discard draft</TooltipContent>
+          </Tooltip>
+        ) : null}
+      </div>
       <div className="min-w-36 max-w-xl flex-1 px-1 [-webkit-app-region:no-drag]">
-        <InputGroup className="h-8 rounded-lg border-transparent bg-muted/60 shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--border)_70%,transparent),0_1px_2px_rgb(0_0_0/0.04)] transition-[background-color,box-shadow] duration-200 hover:bg-muted/80 has-[[data-slot=input-group-control]:focus-visible]:bg-background has-[[data-slot=input-group-control]:focus-visible]:shadow-[inset_0_0_0_1px_var(--ring),0_4px_14px_rgb(0_0_0/0.08)] has-[[data-slot=input-group-control]:focus-visible]:ring-0">
+        <InputGroup className="h-8 border-transparent transition-[background-color,box-shadow] duration-200 hover:bg-muted/80 has-[[data-slot=input-group-control]:focus-visible]:bg-background has-[[data-slot=input-group-control]:focus-visible]:shadow-[inset_0_0_0_1px_var(--ring),0_4px_14px_rgb(0_0_0/0.08)] has-[[data-slot=input-group-control]:focus-visible]:ring-0">
           <InputGroupInput
             ref={searchRef}
             className="h-8 text-sm [&::-webkit-search-cancel-button]:hidden md:text-sm"
@@ -150,16 +206,15 @@ export function AppToolbar({
               {hasSearch ? searchStatus : ''}
             </span>
             <span className="relative flex h-6 w-14 shrink-0 items-center justify-end">
-              <KbdGroup
+              <Kbd
                 className={cn(
                   'absolute right-0 transition-[opacity,filter,scale] duration-300 [transition-timing-function:cubic-bezier(0.2,0,0,1)]',
                   hasSearch ? 'scale-[0.25] opacity-0 blur-[4px]' : 'scale-100 opacity-100 blur-0'
                 )}
                 aria-hidden="true"
               >
-                <Kbd>Ctrl</Kbd>
-                <Kbd>K</Kbd>
-              </KbdGroup>
+                Ctrl+K
+              </Kbd>
               <InputGroupButton
                 size="icon-xs"
                 aria-label="Clear search"
@@ -187,7 +242,6 @@ export function AppToolbar({
             render={
               <Button
                 variant={typeFilters.length > 0 ? 'secondary' : 'ghost'}
-                size="sm"
                 aria-label="Filter Inbox by item type"
               />
             }
@@ -229,9 +283,7 @@ export function AppToolbar({
           </DropdownMenuContent>
         </DropdownMenu>
         <DropdownMenu>
-          <DropdownMenuTrigger
-            render={<Button variant="ghost" size="sm" aria-label="Change view" />}
-          >
+          <DropdownMenuTrigger render={<Button variant="ghost" aria-label="Change view" />}>
             <ActiveViewIcon data-icon="inline-start" aria-hidden="true" />
             <span className="hidden md:inline">{activeView.label}</span>
           </DropdownMenuTrigger>

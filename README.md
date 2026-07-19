@@ -34,7 +34,7 @@ Run Kuskus with a populated, repository-local profile:
 pnpm dev:demo
 ```
 
-The command creates `.demo/Kuskus Demo Library` and `.demo/user-data` on first use. This profile is completely separate from the normal development and packaged-app profiles. Changes made while testing persist between demo launches.
+The command creates `.demo/Fauzan\u2019s Library` and `.demo/user-data` on first use. This profile is completely separate from the normal development and packaged-app profiles. Changes made while testing persist between demo launches.
 
 After closing the demo app, restore the original mock folders and data at any time:
 
@@ -42,7 +42,7 @@ After closing the demo app, restore the original mock folders and data at any ti
 pnpm demo:reset
 ```
 
-Use `pnpm demo:seed` to create a missing demo library without resetting existing demo changes. The fixture includes notes, multiple image proportions, URL metadata states, missing-content states, collections, a populated collection, and a Trash item.
+Use `pnpm demo:seed` to create a missing demo library without resetting existing demo changes. The fixture represents a designer-developer actively dogfooding Kuskus, with recent working notes, original local visuals in several proportions, healthy URL references, a portable note attachment, partially populated folders, and one Trash item.
 
 ## Verification
 

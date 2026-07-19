@@ -21,6 +21,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AddItemComposer, type ImportRequest } from '@/features/capture/add-item-composer'
 import { SavedItemCard } from '@/features/items/saved-item-card'
+import { SavedItemsTable } from '@/features/items/saved-items-table'
 import { ItemDetailDialog } from '@/features/items/item-detail-dialog'
 import { type ItemTypeFilter, type LibraryView } from '@/features/items/item-view'
 import { AppToolbar } from '@/features/shell/app-toolbar'
@@ -29,12 +30,45 @@ import { useTheme } from '@/hooks/use-theme'
 import { cn } from '@/lib/utils'
 import type { LibraryDto, LibraryItemDto } from '../../../../shared/library-contract'
 
+const DEFAULT_SIDEBAR_WIDTH = 256
+const MIN_SIDEBAR_WIDTH = 208
+const MAX_SIDEBAR_WIDTH = 384
+
+function itemMatchesRetrieval(
+  item: LibraryItemDto,
+  query: string,
+  typeFilters: ItemTypeFilter[]
+): boolean {
+  if (typeFilters.length > 0 && !typeFilters.includes(item.type)) return false
+  if (!query) return true
+  const searchableText = [
+    item.title,
+    item.type === 'note' ? item.body : '',
+    item.type === 'image' ? (item.sourceFilename ?? item.contentFilename) : '',
+    item.type === 'url' ? `${item.domain} ${item.sourceUrl} ${item.description ?? ''}` : ''
+  ]
+    .join(' ')
+    .toLocaleLowerCase()
+  return searchableText.includes(query)
+}
+
 export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): React.JSX.Element {
   const [library, setLibrary] = useState(initialLibrary)
   const [sidebarHidden, setSidebarHidden] = useState(
     () => localStorage.getItem('kuskus-sidebar-hidden') === 'true'
   )
-  const [composerExpanded, setComposerExpanded] = useState(false)
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const storedValue = localStorage.getItem('kuskus-sidebar-width')
+    if (storedValue === null) return DEFAULT_SIDEBAR_WIDTH
+    const storedWidth = Number(storedValue)
+    if (!Number.isFinite(storedWidth)) return DEFAULT_SIDEBAR_WIDTH
+    return Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, storedWidth))
+  })
+  const [composerOpen, setComposerOpen] = useState(false)
+  const [composerHasDraft, setComposerHasDraft] = useState(false)
+  const [composerFocusRequest, setComposerFocusRequest] = useState(0)
+  const [composerDiscardRequest, setComposerDiscardRequest] = useState(0)
+  const [newItemFocusRequest, setNewItemFocusRequest] = useState(0)
   const [importRequest, setImportRequest] = useState<ImportRequest | null>(null)
   const [composerHasTransientWork, setComposerHasTransientWork] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
@@ -42,7 +76,8 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
   const [typeFilters, setTypeFilters] = useState<ItemTypeFilter[]>([])
   const [view, setView] = useState<LibraryView>(() => {
     const stored = localStorage.getItem('kuskus-library-view')
-    return stored === 'grid' || stored === 'list' ? stored : 'visual'
+    if (stored === 'list') return 'table'
+    return stored === 'grid' || stored === 'table' ? stored : 'visual'
   })
   const [message, setMessage] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
@@ -64,26 +99,16 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
   }, [sidebarHidden])
 
   useEffect(() => {
+    localStorage.setItem('kuskus-sidebar-width', String(sidebarWidth))
+  }, [sidebarWidth])
+
+  useEffect(() => {
     localStorage.setItem('kuskus-library-view', view)
   }, [view])
 
   const visibleItems = useMemo(() => {
     const query = deferredSearch.trim().toLocaleLowerCase()
-    return library.items.filter((item) => {
-      if (typeFilters.length > 0 && !typeFilters.includes(item.type)) return false
-      if (!query) return true
-
-      const searchableText = [
-        item.title,
-        item.type === 'note' ? item.body : '',
-        item.type === 'image' ? (item.sourceFilename ?? item.contentFilename) : '',
-        item.type === 'url' ? `${item.domain} ${item.sourceUrl} ${item.description ?? ''}` : ''
-      ]
-        .join(' ')
-        .toLocaleLowerCase()
-
-      return searchableText.includes(query)
-    })
+    return library.items.filter((item) => itemMatchesRetrieval(item, query, typeFilters))
   }, [deferredSearch, library.items, typeFilters])
 
   const selectedItem = useMemo(
@@ -119,9 +144,23 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
     )
   }, [])
 
-  const addCreatedItem = useCallback((item: LibraryItemDto): void => {
-    setLibrary((current) => ({ ...current, items: [item, ...current.items] }))
-    setMessage('')
+  const addCreatedItem = useCallback(
+    (item: LibraryItemDto): boolean => {
+      setLibrary((current) => ({ ...current, items: [item, ...current.items] }))
+      setMessage('')
+      return itemMatchesRetrieval(item, search.trim().toLocaleLowerCase(), typeFilters)
+    },
+    [search, typeFilters]
+  )
+
+  const openComposer = useCallback((): void => {
+    setComposerOpen(true)
+    setComposerFocusRequest((request) => request + 1)
+  }, [])
+
+  const changeComposerOpen = useCallback((open: boolean): void => {
+    setComposerOpen(open)
+    if (!open) setNewItemFocusRequest((request) => request + 1)
   }, [])
 
   useEffect(() => {
@@ -142,21 +181,36 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
     })
   }, [library.items])
 
-  const requestImageImport = useCallback((file: File): void => {
-    if (!file.type.startsWith('image/')) {
-      setMessage('Only image files can be imported here right now.')
-      return
-    }
-    importRequestId.current += 1
-    setImportRequest({ id: importRequestId.current, file })
-    setComposerExpanded(true)
-  }, [])
+  const requestImageImport = useCallback(
+    (file: File): void => {
+      if (!file.type.startsWith('image/')) {
+        setMessage('Only image files can be imported here right now.')
+        return
+      }
+      importRequestId.current += 1
+      setImportRequest({ id: importRequestId.current, file })
+      openComposer()
+    },
+    [openComposer]
+  )
 
-  const requestUrlCapture = useCallback((url: string): void => {
-    importRequestId.current += 1
-    setImportRequest({ id: importRequestId.current, url })
-    setComposerExpanded(true)
-  }, [])
+  const requestUrlCapture = useCallback(
+    (url: string): void => {
+      importRequestId.current += 1
+      setImportRequest({ id: importRequestId.current, url })
+      openComposer()
+    },
+    [openComposer]
+  )
+
+  const requestTextCapture = useCallback(
+    (value: string): void => {
+      importRequestId.current += 1
+      setImportRequest({ id: importRequestId.current, text: value })
+      openComposer()
+    },
+    [openComposer]
+  )
 
   useEffect(() => {
     const capturePastedContent = (event: ClipboardEvent): void => {
@@ -173,19 +227,23 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
         return
       }
       const text = event.clipboardData?.getData('text/plain').trim() ?? ''
+      if (!text) return
       try {
         const url = new URL(text)
         if (['http:', 'https:'].includes(url.protocol) && url.toString() === text) {
           event.preventDefault()
           requestUrlCapture(text)
+          return
         }
       } catch {
-        /* ordinary text belongs to the composer */
+        /* Preserve ambiguous text as a note below. */
       }
+      event.preventDefault()
+      requestTextCapture(text)
     }
     window.addEventListener('paste', capturePastedContent)
     return () => window.removeEventListener('paste', capturePastedContent)
-  }, [requestImageImport, requestUrlCapture])
+  }, [requestImageImport, requestTextCapture, requestUrlCapture])
 
   const captureDroppedImage = (event: React.DragEvent<HTMLElement>): void => {
     const files = Array.from(event.dataTransfer.files)
@@ -197,10 +255,33 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
     else if (files.length > 0) setMessage('Only image files can be imported here right now.')
   }
 
+  const addItemComposer = (
+    <AddItemComposer
+      open={composerOpen}
+      focusRequest={composerFocusRequest}
+      discardRequest={composerDiscardRequest}
+      draftStorageKey={draftStorageKey}
+      importRequest={importRequest}
+      view={view}
+      onOpenChange={changeComposerOpen}
+      onImportRequestHandled={(id) =>
+        setImportRequest((current) => (current?.id === id ? null : current))
+      }
+      onCreated={addCreatedItem}
+      onStatus={announceStatus}
+      onDraftStateChange={setComposerHasDraft}
+      onTransientWorkChange={setComposerHasTransientWork}
+    />
+  )
+
   return (
     <SidebarProvider
       open={!sidebarHidden}
       onOpenChange={(open) => setSidebarHidden(!open)}
+      width={sidebarWidth}
+      onWidthChange={setSidebarWidth}
+      minWidth={MIN_SIDEBAR_WIDTH}
+      maxWidth={MAX_SIDEBAR_WIDTH}
       className="h-screen min-h-0 overflow-hidden bg-background text-foreground"
     >
       <LibrarySidebar
@@ -214,6 +295,11 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
       />
       <SidebarInset>
         <AppToolbar
+          newItemOpen={composerOpen}
+          hasDraft={composerHasDraft}
+          newItemFocusRequest={newItemFocusRequest}
+          onNewItem={openComposer}
+          onDiscardDraft={() => setComposerDiscardRequest((request) => request + 1)}
           search={search}
           onSearchChange={setSearch}
           searchPending={search !== deferredSearch}
@@ -277,33 +363,31 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                     <EmptyDescription>The original file stays untouched.</EmptyDescription>
                   </EmptyHeader>
                 </Empty>
+              ) : view === 'table' ? (
+                <div className="flex flex-col gap-4">
+                  <div className={cn('min-w-0', !composerOpen && 'hidden')}>{addItemComposer}</div>
+                  {visibleItems.length > 0 ? (
+                    <SavedItemsTable
+                      items={visibleItems}
+                      onOpen={(itemId) => setSelectedItemId(itemId)}
+                    />
+                  ) : null}
+                </div>
               ) : (
                 <div
                   className={cn(
                     view === 'visual' && 'columns-[16rem] gap-4',
-                    view === 'grid' && 'grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-4',
-                    view === 'list' && 'flex flex-col gap-2'
+                    view === 'grid' && 'grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-4'
                   )}
                 >
                   <div
                     className={cn(
                       'min-w-0',
                       view === 'visual' && 'mb-4 break-inside-avoid',
-                      view === 'list' && 'mb-3'
+                      !composerOpen && 'hidden'
                     )}
                   >
-                    <AddItemComposer
-                      expanded={composerExpanded}
-                      draftStorageKey={draftStorageKey}
-                      importRequest={importRequest}
-                      onExpandedChange={setComposerExpanded}
-                      onImportRequestHandled={(id) =>
-                        setImportRequest((current) => (current?.id === id ? null : current))
-                      }
-                      onCreated={addCreatedItem}
-                      onStatus={announceStatus}
-                      onTransientWorkChange={setComposerHasTransientWork}
-                    />
+                    {addItemComposer}
                   </div>
                   {visibleItems.map((item) => (
                     <div

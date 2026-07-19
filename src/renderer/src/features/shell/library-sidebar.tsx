@@ -1,5 +1,4 @@
 import {
-  IconCheck,
   IconCopy,
   IconDots,
   IconFolder,
@@ -11,8 +10,7 @@ import {
   IconPlus,
   IconSun,
   IconTag,
-  IconTrash,
-  IconX
+  IconTrash
 } from '@tabler/icons-react'
 import { useState } from 'react'
 
@@ -43,19 +41,22 @@ import {
   SidebarGroupAction,
   SidebarGroupContent,
   SidebarGroupLabel,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuAction,
   SidebarMenuButton,
-  SidebarMenuItem
+  SidebarMenuItem,
+  SidebarRail,
+  SidebarSeparator
 } from '@/components/ui/sidebar'
 import { Spinner } from '@/components/ui/spinner'
 import { CollectionIcon } from '@/features/collections/collection-icons'
 import { FolderIconPickerDialog } from '@/features/collections/folder-icon-picker-dialog'
+import { FolderNameDialog } from '@/features/collections/folder-name-dialog'
 import type { Theme } from '@/hooks/use-theme'
 import type { CollectionIconKey, LibraryDto } from '../../../../shared/library-contract'
 
 type IconPickerTarget = { type: 'new' } | { type: 'folder'; id: string } | null
+type FolderDialogState = { type: 'create' } | { type: 'rename'; id: string } | null
 
 export function LibrarySidebar({
   library,
@@ -74,11 +75,10 @@ export function LibrarySidebar({
   onStatus: (message: string) => void
   librarySwitchBlocked: boolean
 }): React.JSX.Element {
-  const [newFolderName, setNewFolderName] = useState('')
   const [newFolderIcon, setNewFolderIcon] = useState<CollectionIconKey>('folder')
-  const [addingFolder, setAddingFolder] = useState(false)
-  const [editingFolderId, setEditingFolderId] = useState<string | null>(null)
-  const [editingFolderName, setEditingFolderName] = useState('')
+  const [folderDialog, setFolderDialog] = useState<FolderDialogState>(null)
+  const [folderName, setFolderName] = useState('')
+  const [folderOperationBusy, setFolderOperationBusy] = useState(false)
   const [creatingLibrary, setCreatingLibrary] = useState(false)
   const [newLibraryName, setNewLibraryName] = useState('')
   const [libraryOperationBusy, setLibraryOperationBusy] = useState(false)
@@ -87,28 +87,19 @@ export function LibrarySidebar({
   const sorted = (folders: LibraryDto['collections']): LibraryDto['collections'] =>
     [...folders].sort((a, b) => a.name.localeCompare(b.name))
 
-  const createFolder = async (): Promise<void> => {
+  const createFolder = async (name: string): Promise<void> => {
     const result = await window.kuskus.createCollection({
-      name: newFolderName,
+      name,
       ...(newFolderIcon === 'folder' ? {} : { icon: newFolderIcon })
     })
     if (!result.ok) return onError(result.error)
     onLibraryChange({ ...library, collections: sorted([...library.collections, result.data]) })
-    setNewFolderName('')
     setNewFolderIcon('folder')
-    setAddingFolder(false)
+    setFolderName('')
+    setFolderDialog(null)
   }
-  const cancelFolderCreation = (): void => {
-    setNewFolderName('')
-    setNewFolderIcon('folder')
-    setAddingFolder(false)
-  }
-  const cancelFolderRename = (): void => {
-    setEditingFolderName('')
-    setEditingFolderId(null)
-  }
-  const renameFolder = async (id: string): Promise<void> => {
-    const result = await window.kuskus.renameCollection(id, editingFolderName)
+  const renameFolder = async (id: string, name: string): Promise<void> => {
+    const result = await window.kuskus.renameCollection(id, name)
     if (!result.ok) return onError(result.error)
     onLibraryChange({
       ...library,
@@ -116,7 +107,28 @@ export function LibrarySidebar({
         library.collections.map((folder) => (folder.id === id ? result.data : folder))
       )
     })
-    setEditingFolderId(null)
+    setFolderName('')
+    setFolderDialog(null)
+  }
+  const submitFolderName = async (name: string): Promise<void> => {
+    if (!folderDialog || folderOperationBusy) return
+    setFolderOperationBusy(true)
+    try {
+      if (folderDialog.type === 'create') {
+        await createFolder(name)
+      } else {
+        await renameFolder(folderDialog.id, name)
+      }
+    } finally {
+      setFolderOperationBusy(false)
+    }
+  }
+  const closeFolderDialog = (): void => {
+    if (folderOperationBusy) return
+    setFolderDialog(null)
+    setFolderName('')
+    setNewFolderIcon('folder')
+    if (iconPickerTarget?.type === 'new') setIconPickerTarget(null)
   }
   const deleteFolder = async (id: string, name: string): Promise<void> => {
     if (!window.confirm(`Remove “${name}”? This only removes an empty folder.`)) return
@@ -182,24 +194,132 @@ export function LibrarySidebar({
 
   return (
     <>
-      <AppSidebar collapsible="offcanvas">
-        <SidebarHeader className="[-webkit-app-region:no-drag]">
+      <AppSidebar>
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu aria-label="Library navigation">
+                <SidebarMenuItem>
+                  <SidebarMenuButton isActive>
+                    <IconInbox aria-hidden="true" />
+                    <span>Inbox</span>
+                    <span className="ml-auto font-mono text-xs tabular-nums text-sidebar-foreground/60">
+                      {library.items.length}
+                    </span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+          <SidebarGroup className="group/folder-group">
+            <SidebarGroupLabel>Folders</SidebarGroupLabel>
+            <SidebarGroupAction
+              aria-label="Add folder"
+              title="Add folder"
+              className="opacity-0 transition-opacity group-focus-within/folder-group:opacity-100 group-hover/folder-group:opacity-100 focus-visible:opacity-100"
+              onClick={() => {
+                setFolderName('')
+                setNewFolderIcon('folder')
+                setFolderDialog({ type: 'create' })
+              }}
+            >
+              <IconPlus aria-hidden="true" />
+            </SidebarGroupAction>
+            <SidebarGroupContent>
+              <SidebarMenu aria-label="Folders">
+                {library.collections.map((folder) => {
+                  return (
+                    <SidebarMenuItem key={folder.id}>
+                      <SidebarMenuButton>
+                        <CollectionIcon icon={folder.icon} aria-hidden="true" />
+                        <span>{folder.name}</span>
+                      </SidebarMenuButton>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          render={
+                            <SidebarMenuAction
+                              showOnHover
+                              aria-label={`Manage ${folder.name}`}
+                              title={`Manage ${folder.name}`}
+                            />
+                          }
+                        >
+                          <IconDots aria-hidden="true" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          className="w-36"
+                          side="right"
+                          sideOffset={6}
+                        >
+                          <DropdownMenuGroup>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setFolderName(folder.name)
+                                setFolderDialog({ type: 'rename', id: folder.id })
+                              }}
+                            >
+                              <IconPencil data-icon="inline-start" aria-hidden="true" />
+                              Rename
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setIconPickerTarget({ type: 'folder', id: folder.id })}
+                            >
+                              <IconIcons data-icon="inline-start" aria-hidden="true" />
+                              Change icon
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => void deleteFolder(folder.id, folder.name)}
+                            >
+                              <IconTrash aria-hidden="true" />
+                              Remove
+                            </DropdownMenuItem>
+                          </DropdownMenuGroup>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+          <SidebarGroup>
+            <SidebarGroupLabel>Tags</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <p className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground">
+                <IconTag className="size-3.5" aria-hidden="true" />
+                No tags yet
+              </p>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+        <SidebarFooter className="[-webkit-app-region:no-drag]">
           <SidebarMenu>
             <SidebarMenuItem>
-              <div
-                className="flex h-8 min-w-0 items-center gap-2 rounded-[calc(var(--radius-sm)+2px)] p-2 pr-8 text-xs font-medium"
-                title={library.path}
-              >
-                <IconFolder className="size-4 shrink-0" aria-hidden="true" />
-                <span className="truncate">{library.name}</span>
-              </div>
+              <SidebarMenuButton onClick={onToggleTheme}>
+                {theme === 'dark' ? (
+                  <IconSun aria-hidden="true" />
+                ) : (
+                  <IconMoon aria-hidden="true" />
+                )}
+                <span>{theme === 'dark' ? 'Light theme' : 'Dark theme'}</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+          <SidebarSeparator className="mx-1" />
+          <SidebarMenu>
+            <SidebarMenuItem>
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
-                    <SidebarMenuAction aria-label="Library actions" title="Library actions" />
+                    <SidebarMenuButton
+                      aria-label={`Library actions for ${library.name}`}
+                      title={library.path}
+                    />
                   }
                 >
-                  <IconDots aria-hidden="true" />
+                  <IconFolder aria-hidden="true" />
+                  <span className="min-w-0 flex-1 truncate">{library.name}</span>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-64" side="right" sideOffset={8}>
                   <DropdownMenuGroup>
@@ -242,224 +362,28 @@ export function LibrarySidebar({
               </DropdownMenu>
             </SidebarMenuItem>
           </SidebarMenu>
-        </SidebarHeader>
-        <SidebarContent>
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu aria-label="Library navigation">
-                <SidebarMenuItem>
-                  <SidebarMenuButton isActive>
-                    <IconInbox aria-hidden="true" />
-                    <span>Inbox</span>
-                    <span className="ml-auto font-mono text-xs tabular-nums text-sidebar-foreground/60">
-                      {library.items.length}
-                    </span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-          <SidebarGroup className="group/folder-group">
-            <SidebarGroupLabel>Folders</SidebarGroupLabel>
-            <SidebarGroupAction
-              aria-label="Add folder"
-              title="Add folder"
-              className="opacity-0 transition-opacity group-focus-within/folder-group:opacity-100 group-hover/folder-group:opacity-100 focus-visible:opacity-100"
-              onClick={() => setAddingFolder(true)}
-            >
-              <IconPlus aria-hidden="true" />
-            </SidebarGroupAction>
-            <SidebarGroupContent>
-              <SidebarMenu aria-label="Folders">
-                {library.collections.map((folder) => {
-                  return (
-                    <SidebarMenuItem key={folder.id}>
-                      {editingFolderId === folder.id ? (
-                        <form
-                          className="flex h-8 items-center gap-1 px-1"
-                          onSubmit={(event) => {
-                            event.preventDefault()
-                            void renameFolder(folder.id)
-                          }}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Escape') {
-                              event.preventDefault()
-                              cancelFolderRename()
-                            }
-                          }}
-                        >
-                          <div className="relative min-w-0 flex-1">
-                            <Input
-                              aria-label={`Rename ${folder.name}`}
-                              className="h-8 pr-14 text-sm"
-                              autoFocus
-                              value={editingFolderName}
-                              onChange={(event) => setEditingFolderName(event.target.value)}
-                            />
-                            <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-0.5">
-                              <Button
-                                size="icon-xs"
-                                type="button"
-                                variant="ghost"
-                                aria-label="Cancel renaming folder"
-                                title="Cancel"
-                                onClick={cancelFolderRename}
-                              >
-                                <IconX aria-hidden="true" />
-                              </Button>
-                              <Button
-                                size="icon-xs"
-                                type="submit"
-                                aria-label="Save folder name"
-                                title="Save folder name"
-                              >
-                                <IconCheck aria-hidden="true" />
-                              </Button>
-                            </div>
-                          </div>
-                        </form>
-                      ) : (
-                        <>
-                          <SidebarMenuButton>
-                            <CollectionIcon icon={folder.icon} aria-hidden="true" />
-                            <span>{folder.name}</span>
-                          </SidebarMenuButton>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger
-                              render={
-                                <SidebarMenuAction
-                                  showOnHover
-                                  aria-label={`Manage ${folder.name}`}
-                                  title={`Manage ${folder.name}`}
-                                />
-                              }
-                            >
-                              <IconDots aria-hidden="true" />
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent
-                              align="end"
-                              className="w-36"
-                              side="right"
-                              sideOffset={6}
-                            >
-                              <DropdownMenuGroup>
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setEditingFolderId(folder.id)
-                                    setEditingFolderName(folder.name)
-                                  }}
-                                >
-                                  <IconPencil data-icon="inline-start" aria-hidden="true" />
-                                  Rename
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    setIconPickerTarget({ type: 'folder', id: folder.id })
-                                  }
-                                >
-                                  <IconIcons data-icon="inline-start" aria-hidden="true" />
-                                  Change icon
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => void deleteFolder(folder.id, folder.name)}
-                                >
-                                  <IconTrash aria-hidden="true" />
-                                  Remove
-                                </DropdownMenuItem>
-                              </DropdownMenuGroup>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </>
-                      )}
-                    </SidebarMenuItem>
-                  )
-                })}
-                {addingFolder && (
-                  <SidebarMenuItem>
-                    <form
-                      className="flex h-8 items-center gap-1 px-1"
-                      onSubmit={(event) => {
-                        event.preventDefault()
-                        void createFolder()
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Escape') {
-                          event.preventDefault()
-                          cancelFolderCreation()
-                        }
-                      }}
-                    >
-                      <Button
-                        size="icon"
-                        type="button"
-                        variant="ghost"
-                        aria-label="Choose folder icon"
-                        title="Choose folder icon"
-                        onClick={() => setIconPickerTarget({ type: 'new' })}
-                      >
-                        <CollectionIcon icon={newFolderIcon} aria-hidden="true" />
-                      </Button>
-                      <div className="relative min-w-0 flex-1">
-                        <Input
-                          aria-label="Folder name"
-                          className="h-8 pr-14 text-sm"
-                          autoFocus
-                          placeholder="Folder name"
-                          value={newFolderName}
-                          onChange={(event) => setNewFolderName(event.target.value)}
-                        />
-                        <div className="absolute top-1/2 right-1 flex -translate-y-1/2 items-center gap-0.5">
-                          <Button
-                            size="icon-xs"
-                            type="button"
-                            variant="ghost"
-                            aria-label="Cancel adding folder"
-                            title="Cancel"
-                            onClick={cancelFolderCreation}
-                          >
-                            <IconX aria-hidden="true" />
-                          </Button>
-                          <Button
-                            size="icon-xs"
-                            type="submit"
-                            aria-label="Add folder"
-                            title="Add folder"
-                          >
-                            <IconCheck aria-hidden="true" />
-                          </Button>
-                        </div>
-                      </div>
-                    </form>
-                  </SidebarMenuItem>
-                )}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-          <SidebarGroup>
-            <SidebarGroupLabel>Tags</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <p className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground">
-                <IconTag className="size-3.5" aria-hidden="true" />
-                No tags yet
-              </p>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
-        <SidebarFooter>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton onClick={onToggleTheme}>
-                {theme === 'dark' ? (
-                  <IconSun aria-hidden="true" />
-                ) : (
-                  <IconMoon aria-hidden="true" />
-                )}
-                <span>{theme === 'dark' ? 'Light theme' : 'Dark theme'}</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
         </SidebarFooter>
+        <SidebarRail />
       </AppSidebar>
+      <FolderNameDialog
+        open={folderDialog !== null}
+        mode={
+          folderDialog?.type === 'create'
+            ? {
+                type: 'create',
+                icon: newFolderIcon,
+                onChooseIcon: () => setIconPickerTarget({ type: 'new' })
+              }
+            : folderDialog
+        }
+        name={folderName}
+        busy={folderOperationBusy}
+        onOpenChange={(open) => {
+          if (!open) closeFolderDialog()
+        }}
+        onNameChange={setFolderName}
+        onSubmit={(name) => void submitFolderName(name)}
+      />
       <FolderIconPickerDialog
         open={iconPickerTarget !== null}
         value={selectedPickerIcon}

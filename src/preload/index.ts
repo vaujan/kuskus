@@ -36,7 +36,16 @@ const libraryApi: KuskusLibraryApi = {
   getState: () => ipcRenderer.invoke(KUSKUS_CHANNELS.getLibraryState),
   create: (name) => ipcRenderer.invoke(KUSKUS_CHANNELS.createLibrary, name),
   open: () => ipcRenderer.invoke(KUSKUS_CHANNELS.openLibrary),
-  createNote: (markdown) => ipcRenderer.invoke(KUSKUS_CHANNELS.createNote, markdown),
+  createNote: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.createNote, input),
+  listNoteDraftImages: () => ipcRenderer.invoke(KUSKUS_CHANNELS.listNoteDraftImages),
+  stageNoteDraftImage: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.stageNoteDraftImage, input),
+  removeNoteDraftImage: (attachmentId) =>
+    ipcRenderer.invoke(KUSKUS_CHANNELS.removeNoteDraftImage, attachmentId),
+  discardNoteDraft: () => ipcRenderer.invoke(KUSKUS_CHANNELS.discardNoteDraft),
+  getNoteDraftImagePreview: (attachmentId) =>
+    ipcRenderer.invoke(KUSKUS_CHANNELS.getNoteDraftImagePreview, attachmentId),
+  getNoteAttachmentPreview: (itemId, attachmentId) =>
+    ipcRenderer.invoke(KUSKUS_CHANNELS.getNoteAttachmentPreview, itemId, attachmentId),
   createUrl: (url) => ipcRenderer.invoke(KUSKUS_CHANNELS.createUrl, url),
   enrichUrl: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.enrichUrl, itemId),
   importImage: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.importImage, input),

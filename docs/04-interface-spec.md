@@ -28,7 +28,7 @@ The shell supports two explicit states.
 
 ### Expanded sidebar
 
-- Sidebar appears on the left at a stable, resizable or fixed initial width and spans the full application height.
+- Sidebar appears on the left at a 256-pixel initial width, can be resized from 208 to 384 pixels, and spans the full application height.
 - The action toolbar and title bar begin to the right of the sidebar; the sidebar must not sit below them.
 - Menu and Hide Sidebar controls remain accessible near the top.
 - Inbox, collections, and Trash are displayed in the sidebar.
@@ -41,11 +41,13 @@ The shell supports two explicit states.
 - Search, Filter, View, active context, and window controls remain visible.
 - Hiding the sidebar never changes the active collection.
 
-Sidebar visibility should persist between launches.
+Sidebar visibility and the most recently selected width should persist between launches. The resize handle supports pointer dragging and keyboard adjustment.
 
 ## Sidebar contents
 
-- The current library is shown as non-interactive context at the top of the sidebar. A separate overflow action provides **Open Another Library**, **Create New Library**, and **Copy Library Path** without presenting the identity row itself as a selector.
+- The current library is shown as context in the final row at the bottom of the sidebar. Clicking
+  anywhere on that row opens **Open Another Library**, **Create New Library**, and **Copy Library
+  Path** actions without presenting the identity row as a destination selector.
 - Inbox is a primary destination, visually separate from user-created folders.
 - The **Folders** heading's add action is revealed on hover or keyboard focus. Each folder's overflow action follows the same behavior and opens a menu with change-icon, rename, and remove controls; removal is confirmed and permitted only for an empty folder.
 
@@ -69,12 +71,13 @@ Requirements:
 - The selected destination has a clear active state.
 - Item counts are optional and must not create visual noise.
 - Collection rename and deletion are available from a context menu.
-- Folder creation includes an optional icon button. The default remains the standard folder glyph.
+- Folder creation and rename open focused dialogs instead of editing inline in the sidebar. Both
+  can be canceled without saving, and creation includes an optional icon button whose default is
+  the standard folder glyph.
 - A searchable dialog offers a curated, keyboard-accessible set of folder icons. Icon choices use
   the interface foreground colors rather than user-defined colors.
 - Changing an icon persists immediately; a failed save leaves the previous icon intact and keeps
   the picker available for recovery.
-- Creating a folder can be canceled without saving its entered name.
 - Deleting a non-empty collection requires a clear choice for its items.
 - Nested collections are not required in the MVP.
 
@@ -102,7 +105,7 @@ Rules:
 
 ## Content views
 
-### Visual view - default
+### Masonry view - default
 
 - Responsive masonry-style columns.
 - Cards use natural heights and format-aware presentation.
@@ -116,71 +119,69 @@ Rules:
 - Content uses `object-fit` or appropriate clipping without distorting previews.
 - Additional text is truncated predictably.
 
-### List view
+### Table view
 
-- Compact rows optimized for filenames, domains, dates, paths, and bulk operations.
-- Columns may include Type, Title, Collection, Added, and Size.
+- Compact semantic table rows optimized for scanning saved items.
+- Columns are Name, Type, and Added; sorting and row action menus are not required.
+- Rows open the existing item detail and remain keyboard accessible.
 - Horizontal overflow should be avoided at ordinary desktop widths.
 
 Changing views must preserve scroll context where practical, item selection, filter state, and item ordering.
 
-## Add Item
+## New Item
 
-The first position in the active content view contains a visually quiet **Add item** card. It is a universal inline composer, not a launcher for separate content-type forms.
+A primary **New item** button appears before Search in the action toolbar. The resting content canvas contains saved items only; activating the button summons one temporary draft card at the beginning of the active view.
 
-### Compact state
+### Toolbar state
 
-- Occupies the first item position.
-- Shows a prompt such as **Paste or start typing...**.
-- Uses the dimensions of an ordinary compact card and does not dominate saved content.
-- Remains visible when saved items are present.
+- The action uses a plus icon and visible label at ordinary widths, collapsing to an accessible icon at narrow widths.
+- When a hidden draft exists, the action reads **Continue draft**, shows a quiet indicator, and exposes explicit discard.
+- Repeated activation scrolls to and focuses the existing card rather than creating another draft.
 
-### Expanded state
+### Draft card
 
-When activated:
-
-- The card expands in place into a large writing and paste surface anchored to its original area.
-- Keyboard focus enters the editor immediately.
-- The saved-content canvas remains visible behind it but is dimmed or softly blurred to emphasize capture.
-- The composer accepts URLs, clipboard images, dropped or pasted files, plain text, and Markdown through the same surface.
-- The composer does not ask the user to select an item type before entry.
-- At most one composer is expanded in the window.
-
-The expanded surface should be large enough for comfortable note writing but must not appear to be a separate page. The active collection remains visible or otherwise understandable.
+- Uses a normal Masonry or Grid card width and grows vertically to a capped editing height.
+- Appears as a standalone full-width card above Table.
+- Receives keyboard focus without dimming, blurring, or disabling the saved-content canvas.
+- Accepts URLs, clipboard images, dropped or selected images, plain text, and Markdown without a type picker.
+- Keeps the active destination visible; the current implementation saves to Inbox until collection item persistence is available.
+- Uses a short interruptible opacity/scale entrance and an instant reduced-motion alternative.
 
 ### Detection and feedback
 
 - A single URL shows a URL-saving state and may display the recognized domain.
-- An image shows an immediate local preview before or during import.
+- An image in an empty card shows an immediate local preview and saves as an image item.
+- An image added after Markdown has begun is staged as a local note attachment, receives a collision-safe readable filename, and inserts a relative Markdown reference at the cursor.
+- A URL added after Markdown has begun remains part of the note.
 - Multiple files show the detected count and per-import or aggregate progress.
 - Text remains editable as Markdown.
 - Unsupported or ambiguous pasted text defaults to a note whenever preserving it is safe.
-- Errors appear inside the composer and do not erase its contents. Failed image imports retain the selected file for explicit **Retry** or **Remove** actions during the session.
+- Staged note images appear as compact thumbnails with progress, Retry, and Remove actions.
+- Errors appear inside the card and do not erase its contents.
 
 ### Completion
 
 - Recognized URLs, images, and files begin saving immediately after paste or drop.
 - Notes expose **Save** and support `Ctrl+Enter`; typed content is retained as a draft until committed or discarded.
-- On success, the composer collapses and clears its committed content.
-- The saved card is inserted immediately after Add Item, visually beside it when space allows.
+- On success, the draft cross-fades into the format-aware saved card in the same position.
+- If retrieval filters exclude the new item, success remains visible briefly before the card dismisses with an explanation.
 - Existing cards reflow without changing pages or losing the user's current scroll context.
 - URL metadata can continue loading on the new card after the local URL record is safe.
 
 ### Direct capture
 
 - Pasting while the content canvas has focus invokes the same detection and saving pipeline without requiring a preliminary click.
-- Direct paste may briefly expand or highlight the composer so the destination and progress are visible.
-- Dragging valid files over the window reveals a clear drop target connected to Add Item.
+- Direct paste summons the draft card so its destination and progress are visible.
+- Dragging valid files over the window reveals a clear drop target connected to New Item.
 - Paste and drop events are ignored by the global capture handler when a different text field intentionally owns them.
 
 ### Cancellation and draft safety
 
-- `Escape` and Close collapse the composer when no save or import is active.
-- Closing a composer containing an uncommitted note retains the draft per library across composer reopen and app restart. The compact Add Item card indicates that a draft is waiting.
+- `Escape` and Close hide the card when no save, stage, or import is active.
+- Hidden Markdown and staged local images remain recoverable per library across card reopen and app restart.
+- Discard is explicit and removes both the renderer-local text and controlled staged assets.
 - A failed import remains visible with Retry and Remove actions.
 - Changing collections while a draft or import is active must resolve, preserve, or explicitly cancel that work; it must not silently lose it.
-
-In List view, Add Item may render as a full-width composer row rather than a card, but it follows the same lifecycle and detection rules.
 
 ## Card anatomy
 
@@ -192,18 +193,18 @@ All cards may include:
 - Optional overflow menu.
 - Selected, focused, loading, failed, and missing-content states.
 
-Visual and Grid cards use a preview-first hierarchy:
+Masonry and Grid cards use a preview-first hierarchy:
 
 - The shared outer frame is transparent; media previews and text excerpts are the visible surfaces.
 - Image and URL titles appear in compact captions below their previews, with source metadata kept quiet.
 - Note excerpts retain a restrained text surface so they remain readable beside media.
-- Visual view preserves natural content heights. Grid view aligns type-specific preview surfaces without distorting media.
+- Masonry view preserves natural content heights. Grid view aligns type-specific preview surfaces without distorting media.
 - Hover, press, and keyboard focus feedback apply to the visible surface rather than adding permanent chrome around the full item.
 - Loading, failed, and missing-content placeholders preserve the expected surface dimensions.
 
 Type-specific rendering:
 
-| Type         | Visual content                           | Supporting information    |
+| Type         | Masonry content                          | Supporting information    |
 | ------------ | ---------------------------------------- | ------------------------- |
 | URL          | Page image or neutral fallback           | Title, domain, favicon    |
 | Image        | Natural-ratio thumbnail                  | Optional title or caption |
@@ -212,7 +213,7 @@ Type-specific rendering:
 | PDF          | First page when available                | Filename and page count   |
 | General file | File preview or type icon                | Filename, extension, size |
 
-Metadata should remain subordinate to the content in Visual view.
+Metadata should remain subordinate to the content in Masonry view.
 
 ## Card interactions
 
@@ -264,7 +265,8 @@ The detail dialog exposes:
 - Source URL or stored filename.
 - Added date for image and URL items.
 - Dimensions and media format for images.
-- A validated **Open link** action for URL items.
+- A validated **Open link** action for URL items. Pressing `Ctrl+Enter` while a URL detail is open
+  performs the same action, and the button displays the shortcut beside its label.
 - A compact, icon-led **Show in Explorer** action for every item. The action reveals local content when present and falls back to the authoritative item metadata for links or missing content.
 - Previous and next controls that follow the current visible, filtered item order without wrapping.
 
@@ -305,6 +307,7 @@ Required states include:
 - Every action is keyboard reachable.
 - Focus indicators are visible in light and dark themes.
 - Icon-only buttons include accessible names and tooltips.
+- Tooltips open after a short hover delay and use a simple arrowless surface.
 - Color is not the only indication of selection, error, or item type.
 - The content collection uses predictable focus movement.
 - Reduced-motion preferences are respected.
@@ -312,6 +315,7 @@ Required states include:
 ## Visual constraints
 
 - Dark and light themes are supported; dark may remain the initial default.
+- Dark mode uses a cool-ink canvas with subtly stepped sidebar, card, and popover surfaces rather than pure black backgrounds.
 - Content previews receive more visual weight than borders and panels.
 - Rounded cards and spacing should be restrained enough to preserve useful density.
 - Social metrics, follower actions, recommendations, and promotional surfaces are absent.

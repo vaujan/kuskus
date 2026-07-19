@@ -141,8 +141,13 @@ Rules:
 ### Note
 
 - The note body is stored as `note.md` or another documented UTF-8 text filename.
+- Local images embedded in Markdown are copied into an `assets/` directory beside `note.md` and referenced with portable relative paths.
+- `item.json` may contain an additive attachment manifest with stable IDs, safe filenames, media type, dimensions, and original filename.
 - Metadata may store derived title and timestamps but must not be the only copy of the note body.
 - Note details are presented in Kuskus.
+- A missing attachment produces an inline missing-image state without making the remaining note unreadable.
+
+Uncommitted note images are staged under `.kuskus/temp/note-draft/` with a rebuildable manifest. They are not authoritative items until `note.md`, assets, and `item.json` are finalized together. Successful commit or explicit discard removes the staged bundle; a failed commit retains it for recovery.
 
 ## Import safety
 

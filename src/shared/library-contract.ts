@@ -3,6 +3,12 @@ export const KUSKUS_CHANNELS = {
   createLibrary: 'library:create',
   openLibrary: 'library:open',
   createNote: 'library:create-note',
+  listNoteDraftImages: 'library:list-note-draft-images',
+  stageNoteDraftImage: 'library:stage-note-draft-image',
+  removeNoteDraftImage: 'library:remove-note-draft-image',
+  discardNoteDraft: 'library:discard-note-draft',
+  getNoteDraftImagePreview: 'library:get-note-draft-image-preview',
+  getNoteAttachmentPreview: 'library:get-note-attachment-preview',
   createUrl: 'library:create-url',
   enrichUrl: 'library:enrich-url',
   importImage: 'library:import-image',
@@ -29,6 +35,25 @@ export interface NoteItemDto {
   createdAt: string
   updatedAt: string
   missingContent: boolean
+  attachments: NoteAttachmentDto[]
+}
+
+export interface NoteAttachmentDto {
+  id: string
+  filename: string
+  relativePath: string
+  sourceFilename: string | null
+  mediaType: SupportedImageMediaType
+  width: number
+  height: number
+  missingContent: boolean
+}
+
+export type NoteDraftImageDto = NoteAttachmentDto
+
+export interface CreateNoteInput {
+  markdown: string
+  attachmentIds: string[]
 }
 
 export interface ImageItemDto {
@@ -147,7 +172,16 @@ export interface KuskusLibraryApi {
   getState: () => Promise<ApiResult<LibraryState>>
   create: (name: string) => Promise<ApiResult<LibraryState>>
   open: () => Promise<ApiResult<LibraryState>>
-  createNote: (markdown: string) => Promise<ApiResult<NoteItemDto>>
+  createNote: (input: CreateNoteInput) => Promise<ApiResult<NoteItemDto>>
+  listNoteDraftImages: () => Promise<ApiResult<NoteDraftImageDto[]>>
+  stageNoteDraftImage: (input: ImageImportInput) => Promise<ApiResult<NoteDraftImageDto>>
+  removeNoteDraftImage: (attachmentId: string) => Promise<ApiResult<null>>
+  discardNoteDraft: () => Promise<ApiResult<null>>
+  getNoteDraftImagePreview: (attachmentId: string) => Promise<ApiResult<ImagePreviewDto>>
+  getNoteAttachmentPreview: (
+    itemId: string,
+    attachmentId: string
+  ) => Promise<ApiResult<ImagePreviewDto>>
   createUrl: (url: string) => Promise<ApiResult<UrlItemDto>>
   enrichUrl: (itemId: string) => Promise<ApiResult<UrlItemDto>>
   importImage: (input: ImageImportInput) => Promise<ApiResult<ImageItemDto>>

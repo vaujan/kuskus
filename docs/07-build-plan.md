@@ -16,12 +16,12 @@ Deliverables:
 - Create a library in a user-selected parent folder.
 - Open an existing valid Kuskus library.
 - Reopen the last valid library on launch.
-- Display Inbox and the inline Add Item composer.
-- Expand the composer in place and accept Markdown.
+- Display Inbox with a toolbar-summoned inline New Item card.
+- Accept Markdown without a permanent capture tile or modal.
 - Commit with Save or `Ctrl+Enter`.
 - Write `library.json`, `item.json`, and `note.md` according to the storage contract.
 - Read saved notes back into the interface after reload or restart.
-- Insert a newly saved note card immediately after Add Item.
+- Morph the draft into the newly saved first card.
 - Show `note.md` content in the in-app detail view.
 - Show actionable states for missing, invalid, or unwritable libraries.
 
@@ -49,7 +49,8 @@ Exit criteria:
 
 ### Image slice acceptance criteria
 
-- Clipboard bitmap and image-file paste/drop create exactly one image item through the universal composer or focused content canvas.
+- Clipboard bitmap and image-file paste/drop create exactly one image item through New Item or the focused content canvas.
+- Images added after Markdown begins are staged, recovered after restart, and finalized as portable note assets.
 - The authoritative image is copied into the library via a temporary directory and survives restart.
 - Invalid image data, missing stored content, and unsafe item IDs produce visible errors without exposing arbitrary filesystem paths.
 - Image cards show a natural-ratio preview and open a larger in-app preview.
@@ -58,7 +59,7 @@ Exit criteria:
 
 Deliverables:
 
-- Detect a single pasted URL in the universal composer.
+- Detect a single pasted URL in the New Item card.
 - Persist the URL before performing network metadata work.
 - Show a provisional card immediately.
 - Enrich title, domain, favicon, description, and preview in the background.
@@ -77,7 +78,7 @@ Deliverables:
 - Create, rename, and remove collections.
 - Move one or more items safely.
 - Restore items from Trash.
-- Resolve active composer drafts before navigation.
+- Preserve or resolve active New Item drafts before navigation.
 
 Exit criteria:
 
@@ -87,9 +88,9 @@ Exit criteria:
 
 Deliverables:
 
-- Responsive Visual view.
+- Responsive Masonry view.
 - Uniform Grid view.
-- Compact List view.
+- Compact Table view with Name, Type, and Added columns.
 - Search by title, note, URL/domain, and filename.
 - Type filters and basic sorting.
 - Persist sidebar and view preferences.
@@ -114,4 +115,4 @@ Exit criteria:
 
 ## Current milestone
 
-Milestone 1 was completed on 2026-07-14. Milestone 2, images and general files, is next.
+Milestone 1 was completed on 2026-07-14. The summoned New Item and Markdown image-attachment slice was completed on 2026-07-19. Milestone 2 continues with PDFs and general files.

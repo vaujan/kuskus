@@ -383,3 +383,55 @@ files are not opened directly from the renderer.
 - The renderer never supplies or receives an arbitrary filesystem path.
 - Missing-content items still reveal useful metadata for inspection and repair.
 - URL opening remains a separate validated `http` or `https` operation.
+
+## DEC-015: Name the masonry layout explicitly and replace List with Table
+
+Date: 2026-07-18
+Status: Accepted
+
+### Context
+
+The original **Visual** label did not describe its masonry layout, and the original **List** mode
+rendered card-like rows instead of a semantic data table.
+
+### Decision
+
+Supersede the view naming and compact-mode presentation in DEC-006. The user-facing modes are
+**Masonry**, **Grid**, and **Table**. Table uses semantic rows with Name, Type, and Added columns,
+while Add Item remains a standalone full-width card above it. The renderer migrates the legacy
+stored `list` preference to `table` without changing authoritative library data.
+
+### Consequences
+
+- Masonry remains the default responsive, format-aware card layout.
+- Table provides a compact, keyboard-accessible retrieval view without introducing sorting,
+  pagination, or a new data dependency.
+- View preference compatibility remains renderer-local; IPC and storage contracts are unchanged.
+
+## DEC-016: Summon capture from the toolbar and bundle local images with Markdown notes
+
+Date: 2026-07-19
+Status: Accepted
+
+### Context
+
+The permanent Add Item tile competed with saved content after direct paste and drag-and-drop became familiar. The modal editing state also separated capture from the visual library. Notes could retain text drafts, but an image pasted after writing began could not remain part of the same portable Markdown item.
+
+### Decision
+
+Supersede the resting capture presentation in the golden workflow and DEC-015. A primary toolbar action summons one normal-width draft card at the beginning of the content view; no capture tile remains when the card is hidden. Direct paste and drop summon the same card, and successful capture morphs it into the saved card.
+
+Supersede DEC-009 for binary draft recovery. Markdown text remains in library-scoped renderer storage. Images added after note text begins are validated and staged under `.kuskus/temp/note-draft/`, then atomically finalized as `assets/` files beside `note.md`. Additive attachment metadata maps stable attachment IDs to safe relative filenames. Saved and staged previews are requested through item and attachment IDs rather than renderer paths.
+
+### Consequences
+
+- The resting canvas contains only saved content while capture remains available from the toolbar and direct paste.
+- Empty-card images remain standalone image items; images added after Markdown begins become portable relative references.
+- Legacy schema-version-1 notes remain valid with an empty attachment list and require no migration.
+- Missing individual attachments render an inline warning without hiding readable note text.
+- Draft text and images recover across ordinary restarts; successful commit or explicit discard clears staged files.
+- PDFs and generic files remain in their existing milestone and can reuse the same draft-card state machine later.
+
+### Revisit when
+
+Dogfooding shows that normal card width is insufficient for quick notes, one draft per library prevents useful parallel capture, or accumulated draft assets require a broader cleanup policy.

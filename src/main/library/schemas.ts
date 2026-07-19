@@ -2,9 +2,15 @@ import {
   COLLECTION_ICON_KEYS,
   type CollectionDto,
   type CollectionIconKey,
+  type NoteAttachmentDto,
   type SupportedImageMediaType
 } from '../../shared/library-contract'
-import { IMAGE_EXTENSIONS, NOTE_FILENAME } from './constants'
+import {
+  IMAGE_EXTENSIONS,
+  ITEM_ID_PATTERN,
+  NOTE_FILENAME,
+  RESERVED_WINDOWS_NAMES
+} from './constants'
 
 export interface PersistedLibrary {
   schemaVersion: 1
@@ -43,6 +49,35 @@ export interface PersistedNoteItem {
   contentFilename: 'note.md'
   note: ''
   originalCollectionId: null
+  attachments?: PersistedNoteAttachment[]
+}
+
+export type PersistedNoteAttachment = Omit<NoteAttachmentDto, 'missingContent'>
+
+export function isPersistedNoteAttachment(value: unknown): value is PersistedNoteAttachment {
+  if (!value || typeof value !== 'object') return false
+  const attachment = value as Record<string, unknown>
+  const filename = attachment.filename
+  return (
+    typeof attachment.id === 'string' &&
+    ITEM_ID_PATTERN.test(attachment.id) &&
+    typeof filename === 'string' &&
+    filename.length > 0 &&
+    filename.length <= 255 &&
+    /^[^\\/:*?"<>|]+$/.test(filename) &&
+    filename !== '.' &&
+    filename !== '..' &&
+    !/[. ]$/.test(filename) &&
+    !RESERVED_WINDOWS_NAMES.test(filename) &&
+    attachment.relativePath === `./assets/${filename}` &&
+    (attachment.sourceFilename === null || typeof attachment.sourceFilename === 'string') &&
+    typeof attachment.mediaType === 'string' &&
+    attachment.mediaType in IMAGE_EXTENSIONS &&
+    Number.isSafeInteger(attachment.width) &&
+    Number(attachment.width) > 0 &&
+    Number.isSafeInteger(attachment.height) &&
+    Number(attachment.height) > 0
+  )
 }
 
 export interface PersistedImageItem {
@@ -136,7 +171,13 @@ export function isPersistedItem(value: unknown, itemId: string): value is Persis
     return false
   }
 
-  if (item.type === 'note') return item.contentFilename === NOTE_FILENAME
+  if (item.type === 'note') {
+    return (
+      item.contentFilename === NOTE_FILENAME &&
+      (item.attachments === undefined ||
+        (Array.isArray(item.attachments) && item.attachments.every(isPersistedNoteAttachment)))
+    )
+  }
   if (item.type === 'url') {
     return (
       item.contentFilename === null &&
