@@ -117,7 +117,7 @@ function FloatingControls({
   onError: (message: string) => void
 }): React.JSX.Element {
   return (
-    <div className="absolute top-3 right-3 z-20 flex rounded-full bg-popover/85 p-0.5 shadow-md ring-1 ring-foreground/8 backdrop-blur-md">
+    <div className="absolute top-3 right-3 z-20 flex rounded-full bg-popover/85 p-0.5 shadow-sm ring-1 ring-foreground/8 backdrop-blur-md">
       <DetailControl
         label="Previous item (Left arrow)"
         disabled={!hasPrevious}
@@ -186,7 +186,7 @@ function ImageCanvas({
   const { preview, previewError } = useImagePreview(item.id, item.missingContent)
 
   return (
-    <section className="flex min-h-64 min-w-0 items-center justify-center overflow-hidden bg-muted/35 p-5 min-[860px]:min-h-0 min-[860px]:p-8">
+    <section className="flex min-h-64 min-w-0 items-center justify-center overflow-hidden bg-white dark:bg-black p-5 min-[860px]:min-h-0 min-[860px]:p-8">
       {item.missingContent ? (
         <MissingContent type="image" />
       ) : preview ? (

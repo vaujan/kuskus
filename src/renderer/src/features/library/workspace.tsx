@@ -82,7 +82,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
   const [message, setMessage] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
-  const [theme, toggleTheme] = useTheme()
+  const [theme, setTheme] = useTheme()
   const deferredSearch = useDeferredValue(search)
   const importRequestId = useRef(0)
   const dragDepth = useRef(0)
@@ -287,7 +287,9 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
       <LibrarySidebar
         library={library}
         theme={theme}
-        onToggleTheme={toggleTheme}
+        onThemeChange={setTheme}
+        view={view}
+        onViewChange={setView}
         onLibraryChange={setLibrary}
         onError={setMessage}
         onStatus={announceStatus}
@@ -301,17 +303,19 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
           onNewItem={openComposer}
           onDiscardDraft={() => setComposerDiscardRequest((request) => request + 1)}
           search={search}
+          searchScope="Inbox"
           onSearchChange={setSearch}
           searchPending={search !== deferredSearch}
           resultCount={visibleItems.length}
           totalCount={library.items.length}
-          view={view}
-          onViewChange={setView}
           typeFilters={typeFilters}
           onTypeFilterChange={changeTypeFilter}
           onClearFilters={() => setTypeFilters([])}
         />
-        <ScrollArea className="min-h-0 min-w-0 flex-1">
+        <ScrollArea
+          className="min-h-0 min-w-0 flex-1"
+          viewportClassName="focus-visible:ring-0 focus-visible:outline-none"
+        >
           <main
             className="relative min-h-full"
             onDragEnter={(event) => {
@@ -329,7 +333,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
             }}
             onDrop={captureDroppedImage}
           >
-            <div className="min-h-full p-5 lg:p-7">
+            <div className="min-h-full px-5 pt-3 pb-5 lg:px-7 lg:pt-4 lg:pb-7">
               {message && (
                 <Alert className="mb-4" variant="destructive">
                   <AlertTitle>Unable to Complete Action</AlertTitle>

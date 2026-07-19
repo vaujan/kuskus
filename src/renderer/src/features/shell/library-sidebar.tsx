@@ -1,16 +1,24 @@
 import {
   IconCopy,
+  IconDeviceDesktop,
   IconDots,
   IconFolder,
   IconFolderOpen,
   IconIcons,
   IconInbox,
+  IconLayoutDashboard,
+  IconLayoutGrid,
   IconMoon,
+  IconPalette,
   IconPencil,
   IconPlus,
+  IconSettings,
   IconSun,
+  IconTable,
   IconTag,
-  IconTrash
+  IconTrash,
+  IconTypography,
+  type TablerIcon
 } from '@tabler/icons-react'
 import { useState } from 'react'
 
@@ -29,6 +37,8 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
@@ -52,16 +62,25 @@ import { Spinner } from '@/components/ui/spinner'
 import { CollectionIcon } from '@/features/collections/collection-icons'
 import { FolderIconPickerDialog } from '@/features/collections/folder-icon-picker-dialog'
 import { FolderNameDialog } from '@/features/collections/folder-name-dialog'
+import type { LibraryView } from '@/features/items/item-view'
 import type { Theme } from '@/hooks/use-theme'
 import type { CollectionIconKey, LibraryDto } from '../../../../shared/library-contract'
 
 type IconPickerTarget = { type: 'new' } | { type: 'folder'; id: string } | null
 type FolderDialogState = { type: 'create' } | { type: 'rename'; id: string } | null
 
+const VIEW_OPTIONS: Array<{ value: LibraryView; label: string; icon: TablerIcon }> = [
+  { value: 'visual', label: 'Masonry', icon: IconLayoutDashboard },
+  { value: 'grid', label: 'Grid', icon: IconLayoutGrid },
+  { value: 'table', label: 'Table', icon: IconTable }
+]
+
 export function LibrarySidebar({
   library,
   theme,
-  onToggleTheme,
+  onThemeChange,
+  view,
+  onViewChange,
   onLibraryChange,
   onError,
   onStatus,
@@ -69,7 +88,9 @@ export function LibrarySidebar({
 }: {
   library: LibraryDto
   theme: Theme
-  onToggleTheme: () => void
+  onThemeChange: (theme: Theme) => void
+  view: LibraryView
+  onViewChange: (view: LibraryView) => void
   onLibraryChange: (library: LibraryDto) => void
   onError: (message: string) => void
   onStatus: (message: string) => void
@@ -296,14 +317,63 @@ export function LibrarySidebar({
         <SidebarFooter className="[-webkit-app-region:no-drag]">
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton onClick={onToggleTheme}>
-                {theme === 'dark' ? (
-                  <IconSun aria-hidden="true" />
-                ) : (
-                  <IconMoon aria-hidden="true" />
-                )}
-                <span>{theme === 'dark' ? 'Light theme' : 'Dark theme'}</span>
-              </SidebarMenuButton>
+              <DropdownMenu>
+                <DropdownMenuTrigger render={<SidebarMenuButton aria-label="Open Settings" />}>
+                  <IconSettings aria-hidden="true" />
+                  <span>Settings</span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56" side="right" sideOffset={8}>
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>View</DropdownMenuLabel>
+                    <DropdownMenuRadioGroup
+                      value={view}
+                      onValueChange={(value) => onViewChange(value as LibraryView)}
+                    >
+                      {VIEW_OPTIONS.map((option) => {
+                        const Icon = option.icon
+                        return (
+                          <DropdownMenuRadioItem key={option.value} value={option.value}>
+                            <Icon aria-hidden="true" />
+                            {option.label}
+                          </DropdownMenuRadioItem>
+                        )
+                      })}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>Appearance</DropdownMenuLabel>
+                    <DropdownMenuRadioGroup
+                      value={theme}
+                      onValueChange={(value) => onThemeChange(value as Theme)}
+                    >
+                      <DropdownMenuRadioItem value="light">
+                        <IconSun aria-hidden="true" />
+                        Light
+                      </DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem value="dark">
+                        <IconMoon aria-hidden="true" />
+                        Dark
+                      </DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem disabled value="system">
+                        <IconDeviceDesktop aria-hidden="true" />
+                        System
+                        <span className="ml-auto text-xs text-muted-foreground">Coming soon</span>
+                      </DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+                    <DropdownMenuItem disabled>
+                      <IconPalette aria-hidden="true" />
+                      Accent color
+                      <span className="ml-auto text-xs text-muted-foreground">Coming soon</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled>
+                      <IconTypography aria-hidden="true" />
+                      Font
+                      <span className="ml-auto text-xs text-muted-foreground">Coming soon</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </SidebarMenuItem>
           </SidebarMenu>
           <SidebarSeparator className="mx-1" />

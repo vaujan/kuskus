@@ -240,7 +240,9 @@ The user returns to a project and wants to rediscover a saved reference.
 - `Ctrl+F` or `Ctrl+K` focuses the scoped search; `Escape` clears an active query before leaving search.
 - Changing view does not change item order or selection.
 - The most recently selected Masonry, Grid, or Table view is restored on the next launch.
-- Hiding the sidebar gives the content area more space without hiding Search, Filter, or View.
+- Hiding the sidebar gives the content area more space without hiding Search or Filter. View and
+  appearance preferences remain reachable by reopening the sidebar from the persistent toolbar
+  trigger.
 - The expanded sidebar can be resized from 208 to 384 pixels with a pointer or keyboard, and its width is restored on the next launch.
 - The standard keyboard zoom shortcuts resize the complete application interface, including the sidebar, toolbar, content, and dialogs, without adding permanent toolbar controls.
 - The selected zoom level is restored on the next launch; `Ctrl+-`, `Ctrl++`, and `Ctrl+0` remain available as keyboard equivalents.

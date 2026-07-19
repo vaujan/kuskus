@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  IconCheck,
   IconDots,
   IconPhoto,
   IconPhotoPlus,
@@ -415,7 +414,7 @@ export function AddItemComposer({
       ref={rootRef}
       className="gap-0 overflow-hidden py-0 shadow-[0_0_0_1px_color-mix(in_oklch,var(--ring)_25%,transparent),0_10px_28px_-22px_rgb(0_0_0/0.3)] animate-in fade-in zoom-in-[0.98] duration-200 motion-reduce:animate-none"
     >
-      <CardContent className="flex flex-col gap-3 py-3">
+      <CardContent className="flex flex-col gap-3 p-3">
         <input
           ref={fileInputRef}
           className="sr-only"
@@ -592,11 +591,7 @@ export function AddItemComposer({
             aria-keyshortcuts="Control+Enter Meta+Enter"
             onClick={() => void save()}
           >
-            {saving ? (
-              <Spinner data-icon="inline-start" />
-            ) : (
-              <IconCheck data-icon="inline-start" aria-hidden="true" />
-            )}
+            {saving ? <Spinner data-icon="inline-start" /> : null}
             {saving
               ? 'Saving…'
               : isSingleWebUrl(draft) && attachments.length === 0

@@ -38,7 +38,9 @@ The shell supports two explicit states.
 
 - The content area expands across the available width.
 - Menu and Show Sidebar controls move into or remain accessible from the toolbar.
-- Search, Filter, View, active context, and window controls remain visible.
+- Search, Filter, the New item action, active context, and window controls remain visible.
+- View and appearance preferences remain reachable by reopening the sidebar from its persistent
+  toolbar trigger; they are not duplicated in the toolbar.
 - Hiding the sidebar never changes the active collection.
 
 Sidebar visibility and the most recently selected width should persist between launches. The resize handle supports pointer dragging and keyboard adjustment.
@@ -48,6 +50,9 @@ Sidebar visibility and the most recently selected width should persist between l
 - The current library is shown as context in the final row at the bottom of the sidebar. Clicking
   anywhere on that row opens **Open Another Library**, **Create New Library**, and **Copy Library
   Path** actions without presenting the identity row as a destination selector.
+- A **Settings** row appears immediately above the library identity. Its menu contains the persisted
+  Masonry, Grid, and Table selection plus explicit Light and Dark appearance choices. System mode,
+  accent color, and font controls may appear as clearly disabled future options until implemented.
 - Inbox is a primary destination, visually separate from user-created folders.
 - The **Folders** heading's add action is revealed on hover or keyboard focus. Each folder's overflow action follows the same behavior and opens a menu with change-icon, rename, and remove controls; removal is confirmed and permitted only for an empty folder.
 
@@ -85,20 +90,25 @@ Requirements:
 
 The toolbar contains, in responsive order:
 
-- Menu/application actions.
-- Show or Hide Sidebar.
-- Active collection title or breadcrumb.
-- Search.
-- Filter.
-- View selection.
+- A left zone containing only Show or Hide Sidebar.
+- A centered retrieval zone containing scoped Search and Filter.
+- A right action zone containing New item and its retained-draft discard action when applicable.
 - Windows minimize, maximize/restore, and close controls.
 
 Rules:
 
-- Search may grow to consume available width.
+- The three application zones share one continuous title-bar surface; native window controls remain
+  separate operating-system chrome at the far edge.
+- Search grows within a centered retrieval zone and names its active scope, for example
+  **Search Inbox…**.
 - Interactive controls must be excluded from the draggable title-bar region.
-- The active context must remain understandable when the sidebar is hidden.
-- Narrow layouts may collapse labels into icons with tooltips, but core actions remain reachable.
+- The active context must remain understandable when the sidebar is hidden through the scoped
+  search copy.
+- Narrow layouts collapse the Filter label and secondary search status before reducing the usable
+  search width. New item may collapse to its accessible icon only after those secondary labels.
+- Toolbar controls match the compact sidebar menu-row height and use the same theme radius token.
+- Toolbar horizontal gutters match the saved-content workspace gutters at ordinary and large
+  desktop widths.
 - Standard keyboard zoom shortcuts resize the complete application interface in fixed steps from 80% to 125% without adding permanent toolbar controls.
 - The selected zoom level persists between launches; `Ctrl+0` resets the interface to 100% without requiring a persistent percentage readout.
 - `Ctrl+-`, `Ctrl++`, and `Ctrl+0` perform Zoom Out, Zoom In, and Reset Zoom respectively; the equivalent Command shortcuts work on macOS.
@@ -130,7 +140,7 @@ Changing views must preserve scroll context where practical, item selection, fil
 
 ## New Item
 
-A primary **New item** button appears before Search in the action toolbar. The resting content canvas contains saved items only; activating the button summons one temporary draft card at the beginning of the active view.
+A primary **New item** button appears in the toolbar's right action zone. The resting content canvas contains saved items only; activating the button summons one temporary draft card at the beginning of the active view.
 
 ### Toolbar state
 

@@ -68,7 +68,7 @@ export function FolderNameDialog({
                     type="button"
                     variant="outline"
                     size="icon"
-                    className="size-10 shrink-0 active:scale-[0.96]"
+                    className="size-10"
                     aria-label="Choose folder icon"
                     title="Choose folder icon"
                     disabled={busy}

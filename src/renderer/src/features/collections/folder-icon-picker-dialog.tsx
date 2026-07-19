@@ -81,12 +81,9 @@ export function FolderIconPickerDialog({
                 <Button
                   key={option.key}
                   type="button"
-                  variant={selected ? 'secondary' : 'ghost'}
+                  variant={selected ? 'default' : 'ghost'}
                   size="icon-lg"
-                  className={cn(
-                    'relative size-10 active:scale-[0.96]',
-                    selected && 'ring-2 ring-ring/30'
-                  )}
+                  className={cn('relative', selected && 'ring-1 ring-ring/30')}
                   aria-label={option.label}
                   aria-pressed={selected}
                   title={option.label}

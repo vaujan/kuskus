@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 
 export type Theme = 'dark' | 'light'
 
-export function useTheme(): [Theme, () => void] {
+export function useTheme(): [Theme, (theme: Theme) => void] {
   const [theme, setTheme] = useState<Theme>(() =>
     localStorage.getItem('kuskus-theme') === 'light' ? 'light' : 'dark'
   )
@@ -13,5 +13,5 @@ export function useTheme(): [Theme, () => void] {
     localStorage.setItem('kuskus-theme', theme)
   }, [theme])
 
-  return [theme, () => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))]
+  return [theme, setTheme]
 }
