@@ -1,4 +1,4 @@
-import { access, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { access, cp, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
 import type { CollectionDto, LibraryDto, LibraryItemDto } from '../../../shared/library-contract'
@@ -20,6 +20,7 @@ import {
   type PersistedCollection,
   type PersistedItem,
   type PersistedLibrary,
+  type PersistedNoteItem,
   type PersistedNoteAttachment
 } from '../schemas'
 import { readJson, writeJsonAtomic } from './json-file'
@@ -72,6 +73,33 @@ export class LibraryStore {
       mkdir(join(libraryPath, 'trash'), { recursive: true }),
       mkdir(join(libraryPath, '.kuskus', 'temp'), { recursive: true })
     ])
+    await this.recoverPendingNoteUpdates(libraryPath)
+  }
+
+  private async recoverPendingNoteUpdates(libraryPath: string): Promise<void> {
+    const temporaryRoot = join(libraryPath, '.kuskus', 'temp')
+    const entries = await readdir(temporaryRoot, { withFileTypes: true })
+    await Promise.all(
+      entries
+        .filter((entry) => entry.isDirectory() && entry.name.endsWith('.note-update'))
+        .map(async (entry) => {
+          const itemId = entry.name.slice(0, -'.note-update'.length)
+          if (!ITEM_ID_PATTERN.test(itemId)) return
+          const transactionDirectory = join(temporaryRoot, entry.name)
+          const nextDirectory = join(transactionDirectory, 'next')
+          const previousDirectory = join(transactionDirectory, 'previous')
+          const finalDirectory = join(libraryPath, 'inbox', itemId)
+
+          if (!(await this.pathExists(finalDirectory))) {
+            if (await this.pathExists(nextDirectory)) {
+              await rename(nextDirectory, finalDirectory)
+            } else if (await this.pathExists(previousDirectory)) {
+              await rename(previousDirectory, finalDirectory)
+            }
+          }
+          await rm(transactionDirectory, { recursive: true, force: true })
+        })
+    )
   }
 
   async finalizeInboxItem(
@@ -188,6 +216,7 @@ export class LibraryStore {
   }
 
   async buildLibraryDto(libraryPath: string): Promise<LibraryDto> {
+    await this.ensureLibraryDirectories(libraryPath)
     const library = await this.readPersistedLibrary(libraryPath)
     return {
       ...library,
@@ -245,6 +274,39 @@ export class LibraryStore {
 
   async updateInboxItem(libraryPath: string, item: PersistedItem): Promise<void> {
     await writeJsonAtomic(join(libraryPath, 'inbox', item.id, ITEM_FILENAME), item)
+  }
+
+  async updateNote(
+    libraryPath: string,
+    metadata: PersistedNoteItem,
+    markdown: string
+  ): Promise<void> {
+    await this.ensureLibraryDirectories(libraryPath)
+    const transactionDirectory = join(libraryPath, '.kuskus', 'temp', `${metadata.id}.note-update`)
+    const nextDirectory = join(transactionDirectory, 'next')
+    const previousDirectory = join(transactionDirectory, 'previous')
+    const finalDirectory = join(libraryPath, 'inbox', metadata.id)
+
+    await mkdir(transactionDirectory, { recursive: false })
+    try {
+      await cp(finalDirectory, nextDirectory, { recursive: true, errorOnExist: true })
+      await writeFile(join(nextDirectory, NOTE_FILENAME), markdown, 'utf8')
+      await writeJsonAtomic(join(nextDirectory, ITEM_FILENAME), metadata)
+      await rename(finalDirectory, previousDirectory)
+      try {
+        await rename(nextDirectory, finalDirectory)
+      } catch (error) {
+        await rename(previousDirectory, finalDirectory)
+        throw error
+      }
+      await rm(transactionDirectory, { recursive: true, force: true }).catch(() => undefined)
+    } catch (error) {
+      if (!(await this.pathExists(finalDirectory)) && (await this.pathExists(previousDirectory))) {
+        await rename(previousDirectory, finalDirectory)
+      }
+      await rm(transactionDirectory, { recursive: true, force: true })
+      throw error
+    }
   }
 
   async deleteCollection(libraryPath: string, collectionId: string): Promise<void> {

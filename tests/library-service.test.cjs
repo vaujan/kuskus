@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict')
 const { existsSync, readFileSync } = require('node:fs')
-const { mkdtemp, readFile, rm, unlink, writeFile } = require('node:fs/promises')
+const { cp, mkdir, mkdtemp, readFile, rename, rm, unlink, writeFile } = require('node:fs/promises')
 const { tmpdir } = require('node:os')
 const { join } = require('node:path')
 const test = require('node:test')
@@ -19,7 +19,10 @@ require.extensions['.ts'] = (module, filename) => {
   module._compile(output.outputText, filename)
 }
 
-const { LibraryService } = require('../src/main/library/library-service.ts')
+const {
+  LibraryService,
+  NoteUpdateConflictError
+} = require('../src/main/library/library-service.ts')
 const {
   deriveImageTitle,
   detectImage,
@@ -31,6 +34,17 @@ const { isPersistedItem } = require('../src/main/library/schemas.ts')
 const { LibraryStore } = require('../src/main/library/storage/library-store.ts')
 const { LIBRARY_NAME, seedDemoEnvironment } = require('../scripts/create-demo-library.cjs')
 const { COLLECTION_ICON_KEYS } = require('../src/shared/library-contract.ts')
+const { NoteAutosaveCoordinator } = require('../src/renderer/src/features/items/note-autosave.ts')
+const { createMarkdownDiffRows } = require('../src/renderer/src/features/items/markdown-diff.ts')
+const {
+  EDITOR_COMMANDS,
+  filterEditorCommands,
+  flattenEditorCommandSections,
+  moveEditorCommandIndex
+} = require('../src/renderer/src/features/items/editor-command-model.ts')
+const {
+  getUnsupportedMarkdownReason
+} = require('../src/renderer/src/features/items/markdown-preflight.ts')
 
 const onePixelPng = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL88wAAAABJRU5ErkJggg==',
@@ -44,6 +58,21 @@ const lossyWebpHeader = Buffer.from([
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function arrayBuffer(buffer) {
   return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
+}
+
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+function noteDto(body, updatedAt = '2026-07-21T00:00:00.000Z') {
+  return {
+    schemaVersion: 1,
+    id: '90000000-0000-4000-8000-000000000001',
+    type: 'note',
+    title: body.split('\n')[0].replace(/^#+\s*/, ''),
+    body,
+    createdAt: '2026-07-20T00:00:00.000Z',
+    updatedAt,
+    missingContent: false,
+    attachments: []
+  }
 }
 
 test('creates, persists, reopens, and reveals a Markdown note path', async (context) => {
@@ -211,6 +240,257 @@ test('recovers staged images and atomically commits a portable Markdown bundle',
     savedNote.attachments.find((attachment) => attachment.id === first.id).missingContent,
     true
   )
+})
+
+test('updates Markdown notes without changing their identity or attachments', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-note-update-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const settingsPath = join(root, 'settings.json')
+  const service = new LibraryService(settingsPath)
+  const created = await service.createIn(root, 'Editable Notes')
+  const staged = await service.stageNoteDraftImage({
+    bytes: arrayBuffer(onePixelPng),
+    mediaType: 'image/png',
+    sourceFilename: 'Reference.png'
+  })
+  const note = await service.createNote({
+    markdown: `# Original title\n\n![Reference](${staged.relativePath})`,
+    attachmentIds: [staged.id]
+  })
+
+  const updated = await service.updateNote({
+    itemId: note.id,
+    markdown: `# Updated title\n\nA table:\n\n| A | B |\n| - | - |\n| 1 | 2 |\n\n![Reference](${staged.relativePath})`,
+    expectedMarkdown: note.body
+  })
+
+  assert.equal(updated.id, note.id)
+  assert.equal(updated.title, 'Updated title')
+  assert.equal(updated.createdAt, note.createdAt)
+  assert.notEqual(updated.updatedAt, note.updatedAt)
+  assert.deepEqual(updated.attachments, note.attachments)
+  assert.equal(
+    await readFile(join(created.library.path, 'inbox', note.id, 'note.md'), 'utf8'),
+    updated.body
+  )
+  assert.deepEqual(
+    await readFile(join(created.library.path, 'inbox', note.id, 'assets', staged.filename)),
+    onePixelPng
+  )
+
+  const reopened = new LibraryService(settingsPath)
+  await reopened.initialize()
+  const state = await reopened.getState()
+  assert.equal(state.status, 'ready')
+  assert.equal(state.library.items[0].body, updated.body)
+  assert.equal(state.library.items[0].title, updated.title)
+})
+
+test('rejects invalid, missing, non-note, and externally changed note updates', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-note-update-safety-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  await service.createIn(root, 'Safe Updates')
+  const note = await service.createNote({ markdown: 'Original body', attachmentIds: [] })
+
+  await assert.rejects(
+    () => service.updateNote({ itemId: '..\\outside', markdown: 'No', expectedMarkdown: '' }),
+    /identifier is invalid/i
+  )
+  await assert.rejects(
+    () => service.updateNote({ itemId: note.id, markdown: '   ', expectedMarkdown: note.body }),
+    /write something/i
+  )
+
+  const image = await service.importImage({
+    bytes: arrayBuffer(onePixelPng),
+    mediaType: 'image/png',
+    sourceFilename: 'Not a note.png'
+  })
+  await assert.rejects(
+    () => service.updateNote({ itemId: image.id, markdown: 'No', expectedMarkdown: '' }),
+    /not a note/i
+  )
+
+  const notePath = await service.getItemContentPath(note.id)
+  await writeFile(notePath, 'Changed outside Kuskus', 'utf8')
+  await assert.rejects(
+    () => service.updateNote({ itemId: note.id, markdown: 'My edit', expectedMarkdown: note.body }),
+    (error) => {
+      assert.equal(error instanceof NoteUpdateConflictError, true)
+      assert.equal(error.current.id, note.id)
+      assert.equal(error.current.body, 'Changed outside Kuskus')
+      return true
+    }
+  )
+  await unlink(notePath)
+  await assert.rejects(
+    () =>
+      service.updateNote({
+        itemId: note.id,
+        markdown: 'My edit',
+        expectedMarkdown: 'Changed outside Kuskus'
+      }),
+    /file is missing/i
+  )
+})
+
+test('debounces note autosave and advances the authoritative baseline', async (context) => {
+  const calls = []
+  const saved = []
+  const coordinator = new NoteAutosaveCoordinator({
+    itemId: noteDto('Initial').id,
+    initialMarkdown: 'Initial',
+    delay: 10,
+    save: async (input) => {
+      calls.push(input)
+      return { ok: true, data: noteDto(input.markdown) }
+    },
+    onSaved: (item) => saved.push(item.body),
+    onDraftReplaced: () => undefined
+  })
+  context.after(() => coordinator.dispose())
+
+  coordinator.updateDraft('One')
+  coordinator.updateDraft('One two')
+  await new Promise((resolve) => setTimeout(resolve, 40))
+
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].markdown, 'One two')
+  assert.equal(calls[0].expectedMarkdown, 'Initial')
+  assert.deepEqual(saved, ['One two'])
+  assert.equal(coordinator.getSnapshot().status, 'saved')
+})
+
+test('flushes coalesced edits without allowing an older save to replace a newer draft', async (context) => {
+  const calls = []
+  const saved = []
+  let resolveFirst
+  const firstResult = new Promise((resolve) => {
+    resolveFirst = resolve
+  })
+  const coordinator = new NoteAutosaveCoordinator({
+    itemId: noteDto('Initial').id,
+    initialMarkdown: 'Initial',
+    delay: 10_000,
+    save: (input) => {
+      calls.push(input)
+      if (calls.length === 1) return firstResult
+      return Promise.resolve({ ok: true, data: noteDto(input.markdown) })
+    },
+    onSaved: (item) => saved.push(item.body),
+    onDraftReplaced: () => undefined
+  })
+  context.after(() => coordinator.dispose())
+
+  coordinator.updateDraft('First edit')
+  const flushing = coordinator.flush()
+  await new Promise((resolve) => setImmediate(resolve))
+  coordinator.updateDraft('Newest edit')
+  resolveFirst({ ok: true, data: noteDto('First edit') })
+
+  assert.equal(await flushing, true)
+  assert.equal(calls.length, 2)
+  assert.equal(calls[1].markdown, 'Newest edit')
+  assert.equal(calls[1].expectedMarkdown, 'First edit')
+  assert.deepEqual(saved, ['First edit', 'Newest edit'])
+  assert.equal(coordinator.getSnapshot().draft, 'Newest edit')
+  assert.equal(coordinator.getSnapshot().savedMarkdown, 'Newest edit')
+})
+
+test('pauses autosave for conflicts and resolves with either reviewed version', async (context) => {
+  const disk = noteDto('Changed on disk', '2026-07-21T01:00:00.000Z')
+  const replacements = []
+  const calls = []
+  const coordinator = new NoteAutosaveCoordinator({
+    itemId: disk.id,
+    initialMarkdown: 'Initial',
+    delay: 10_000,
+    save: async (input) => {
+      calls.push(input)
+      if (calls.length === 1) {
+        return {
+          ok: false,
+          code: 'conflict',
+          error: 'Changed on disk',
+          conflict: { current: disk }
+        }
+      }
+      return { ok: true, data: noteDto(input.markdown, '2026-07-21T02:00:00.000Z') }
+    },
+    onSaved: () => undefined,
+    onDraftReplaced: (markdown) => replacements.push(markdown)
+  })
+  context.after(() => coordinator.dispose())
+
+  coordinator.updateDraft('My draft')
+  assert.equal(await coordinator.flush(), false)
+  assert.equal(coordinator.getSnapshot().status, 'conflict')
+  assert.equal(coordinator.getSnapshot().draft, 'My draft')
+
+  assert.equal(await coordinator.useLocalVersion(disk), true)
+  assert.equal(calls[1].expectedMarkdown, disk.body)
+  assert.equal(calls[1].markdown, 'My draft')
+
+  coordinator.updateDraft('Another local change')
+  coordinator.useDiskVersion(disk)
+  assert.deepEqual(replacements, [disk.body])
+  assert.equal(coordinator.getSnapshot().draft, disk.body)
+  assert.equal(coordinator.getSnapshot().status, 'saved')
+})
+
+test('protects blank and raw-HTML notes and produces a side-by-side Markdown diff', () => {
+  const coordinator = new NoteAutosaveCoordinator({
+    itemId: noteDto('Initial').id,
+    initialMarkdown: 'Initial',
+    save: async (input) => ({ ok: true, data: noteDto(input.markdown) }),
+    onSaved: () => undefined,
+    onDraftReplaced: () => undefined
+  })
+  coordinator.updateDraft('   ')
+  assert.equal(coordinator.getSnapshot().status, 'invalid')
+  assert.match(coordinator.getSnapshot().error, /cannot be empty/i)
+  coordinator.dispose()
+
+  assert.match(getUnsupportedMarkdownReason('<script>alert(1)</script>'), /raw HTML/i)
+  assert.equal(getUnsupportedMarkdownReason('<https://example.com>'), null)
+  assert.equal(getUnsupportedMarkdownReason('# Safe\n\n**Markdown**'), null)
+
+  const rows = createMarkdownDiffRows('Same\nMy line\nSame end', 'Same\nDisk line\nSame end')
+  assert.equal(rows[0].kind, 'same')
+  assert.equal(rows[1].kind, 'changed')
+  assert.equal(rows[1].localText, 'My line')
+  assert.equal(rows[1].diskText, 'Disk line')
+  assert.equal(rows[2].kind, 'same')
+})
+
+test('groups, filters, and navigates accessible editor commands without image insertion', () => {
+  assert.deepEqual(
+    filterEditorCommands('').map((section) => section.group),
+    ['Text', 'Lists', 'Advanced']
+  )
+  assert.equal(
+    EDITOR_COMMANDS.some((command) => command.id === 'image'),
+    false
+  )
+
+  const headingResults = flattenEditorCommandSections(filterEditorCommands('heading'))
+  assert.deepEqual(
+    headingResults.map((command) => command.id),
+    ['heading-1', 'heading-2', 'heading-3', 'heading-4', 'heading-5', 'heading-6']
+  )
+  assert.deepEqual(
+    flattenEditorCommandSections(filterEditorCommands('todo')).map((command) => command.id),
+    ['task-list']
+  )
+  assert.equal(flattenEditorCommandSections(filterEditorCommands('not-a-command')).length, 0)
+
+  assert.equal(moveEditorCommandIndex(0, 'previous', 3), 0)
+  assert.equal(moveEditorCommandIndex(0, 'next', 3), 1)
+  assert.equal(moveEditorCommandIndex(2, 'next', 3), 2)
+  assert.equal(moveEditorCommandIndex(1, 'first', 3), 0)
+  assert.equal(moveEditorCommandIndex(1, 'last', 3), 2)
+  assert.equal(moveEditorCommandIndex(0, 'next', 0), -1)
 })
 
 test('keeps staged images recoverable when note commit validation fails', async (context) => {
@@ -403,6 +683,42 @@ test('validates metadata and atomically finalizes an Inbox item', async (context
   assert.equal(await readFile(join(root, 'inbox', id, 'note.md'), 'utf8'), 'Atomic note')
   assert.equal(existsSync(join(root, 'inbox', id, 'item.json')), true)
   assert.equal(existsSync(join(root, '.kuskus', 'temp', `${id}.pending`)), false)
+})
+
+test('recovers an interrupted note directory swap before reading library state', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-note-recovery-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  const created = await service.createIn(root, 'Recover Note Update')
+  const note = await service.createNote({ markdown: 'Before interruption', attachmentIds: [] })
+  const itemDirectory = join(created.library.path, 'inbox', note.id)
+  const transactionDirectory = join(
+    created.library.path,
+    '.kuskus',
+    'temp',
+    `${note.id}.note-update`
+  )
+  const nextDirectory = join(transactionDirectory, 'next')
+  const previousDirectory = join(transactionDirectory, 'previous')
+
+  await mkdir(transactionDirectory, { recursive: false })
+  await cp(itemDirectory, nextDirectory, { recursive: true })
+  await writeFile(join(nextDirectory, 'note.md'), 'After interruption', 'utf8')
+  const metadata = JSON.parse(await readFile(join(nextDirectory, 'item.json'), 'utf8'))
+  metadata.title = 'After interruption'
+  metadata.updatedAt = new Date(Date.now() + 1000).toISOString()
+  await writeFile(
+    join(nextDirectory, 'item.json'),
+    `${JSON.stringify(metadata, null, 2)}\n`,
+    'utf8'
+  )
+  await rename(itemDirectory, previousDirectory)
+
+  const state = await service.getState()
+  assert.equal(state.status, 'ready')
+  assert.equal(state.library.items[0].body, 'After interruption')
+  assert.equal(state.library.items[0].title, 'After interruption')
+  assert.equal(existsSync(transactionDirectory), false)
 })
 
 test('seeds and resets a cultivated isolated demo profile', async (context) => {

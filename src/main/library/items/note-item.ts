@@ -64,6 +64,18 @@ export function createNoteMetadata(
   }
 }
 
+export function updateNoteMetadata(
+  metadata: PersistedNoteItem,
+  markdown: string,
+  timestamp: string
+): PersistedNoteItem {
+  return {
+    ...metadata,
+    title: deriveNoteTitle(markdown),
+    updatedAt: timestamp
+  }
+}
+
 export function toNoteDto(
   metadata: PersistedNoteItem,
   body: string,

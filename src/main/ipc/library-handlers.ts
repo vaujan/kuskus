@@ -5,9 +5,10 @@ import {
   type CollectionIconKey,
   type CreateNoteInput,
   type CreateCollectionInput,
-  type ImageImportInput
+  type ImageImportInput,
+  type UpdateNoteInput
 } from '../../shared/library-contract'
-import { LibraryService } from '../library/library-service'
+import { LibraryService, NoteUpdateConflictError } from '../library/library-service'
 import { errorResult } from './api-result'
 
 export function registerLibraryIpc(libraryService: LibraryService): void {
@@ -82,6 +83,31 @@ export function registerLibraryIpc(libraryService: LibraryService): void {
     try {
       return { ok: true, data: await libraryService.createNote(input as CreateNoteInput) }
     } catch (error) {
+      return errorResult(error, 'invalid-input')
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.updateNote, async (_event, input: unknown) => {
+    if (
+      !input ||
+      typeof input !== 'object' ||
+      typeof (input as Record<string, unknown>).itemId !== 'string' ||
+      typeof (input as Record<string, unknown>).markdown !== 'string' ||
+      typeof (input as Record<string, unknown>).expectedMarkdown !== 'string'
+    ) {
+      return errorResult(new Error('The note update is invalid.'), 'invalid-input')
+    }
+    try {
+      return { ok: true, data: await libraryService.updateNote(input as UpdateNoteInput) }
+    } catch (error) {
+      if (error instanceof NoteUpdateConflictError) {
+        return {
+          ok: false,
+          error: error.message,
+          code: 'conflict',
+          conflict: { current: error.current }
+        }
+      }
       return errorResult(error, 'invalid-input')
     }
   })

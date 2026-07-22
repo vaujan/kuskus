@@ -1,17 +1,193 @@
 @import 'tailwindcss';
+@import './typeset.css';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
+@import '@fontsource-variable/instrument-sans/wght.css';
+@import '@fontsource-variable/jetbrains-mono/wght.css';
+@import 'katex/dist/katex.min.css';
+@import '@milkdown/crepe/theme/common/style.css';
 @import '@fontsource-variable/inter';
-@import 'tw-animate-css';
-@import 'shadcn/tailwind.css';
 @import '@fontsource-variable/ibm-plex-sans';
 @import '@fontsource/ibm-plex-mono/400.css';
 @import '@fontsource/ibm-plex-mono/500.css';
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-@import "@fontsource-variable/ibm-plex-sans";
 
 @custom-variant dark (&:is(.dark *));
+
+.typeset-docs {
+  --typeset-font-body: var(--font-instrument-sans);
+  --typeset-font-heading: var(--font-instrument-sans);
+  --typeset-font-mono: var(--font-jetbrains-mono);
+  --typeset-size: 15px;
+  --typeset-leading: 1.75;
+  --typeset-flow: 1.25em;
+}
+
+.kuskus-markdown-editor {
+  width: 100%;
+  min-height: 28rem;
+}
+
+.kuskus-markdown-editor .milkdown {
+  --crepe-color-background: transparent;
+  --crepe-color-on-background: var(--foreground);
+  --crepe-color-surface: var(--popover);
+  --crepe-color-surface-low: var(--muted);
+  --crepe-color-on-surface: var(--popover-foreground);
+  --crepe-color-on-surface-variant: var(--muted-foreground);
+  --crepe-color-outline: var(--border);
+  --crepe-color-primary: var(--editor-caret);
+  --crepe-color-secondary: var(--secondary);
+  --crepe-color-on-secondary: var(--secondary-foreground);
+  --crepe-color-inverse: var(--foreground);
+  --crepe-color-on-inverse: var(--background);
+  --crepe-color-inline-code: var(--foreground);
+  --crepe-color-error: var(--destructive);
+  --crepe-color-hover: var(--accent);
+  --crepe-color-selected: var(--secondary);
+  --crepe-color-inline-area: var(--muted);
+  --crepe-font-title: var(--font-instrument-sans);
+  --crepe-font-default: var(--font-instrument-sans);
+  --crepe-font-code: var(--font-jetbrains-mono);
+  --crepe-shadow-1: 0 8px 24px color-mix(in oklch, var(--foreground) 12%, transparent);
+  --crepe-shadow-2: 0 16px 40px color-mix(in oklch, var(--foreground) 16%, transparent);
+
+  color: var(--foreground);
+  background: transparent;
+}
+
+.kuskus-markdown-editor .milkdown .ProseMirror {
+  min-height: 28rem;
+  padding: 0;
+  outline: none;
+}
+
+.kuskus-markdown-editor[data-readonly='false'] .milkdown .ProseMirror {
+  caret-color: var(--editor-caret);
+  cursor: text;
+}
+
+.kuskus-markdown-editor .milkdown .ProseMirror ::selection {
+  color: var(--foreground);
+  background-color: color-mix(in oklch, var(--editor-caret) 28%, transparent);
+}
+
+:is(.typeset-docs, .kuskus-markdown-editor .milkdown .ProseMirror) :is(h1, h2, h3, h4, h5, h6) {
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+:is(.typeset-docs, .kuskus-markdown-editor .milkdown .ProseMirror)
+  :is(h1, h2, h3, h4, h5, h6)
+  :is(strong, b) {
+  font-weight: inherit;
+}
+
+:is(.typeset-docs, .kuskus-markdown-editor .milkdown .ProseMirror) :is(h1, h2, h3, h4, h5, h6) em {
+  font-style: normal;
+}
+
+:is(.typeset-docs, .kuskus-markdown-editor .milkdown .ProseMirror)
+  :is(h1, h2, h3, h4, h5, h6)
+  :is(del, s) {
+  color: inherit;
+  text-decoration: none;
+}
+
+:is(.typeset-docs, .kuskus-markdown-editor .milkdown .ProseMirror)
+  :is(h1, h2, h3, h4, h5, h6)
+  code {
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.kuskus-markdown-editor[data-readonly='true']
+  :is(
+    .milkdown-toolbar,
+    .milkdown-slash-menu,
+    .milkdown-block-handle,
+    .milkdown-link-edit,
+    .milkdown-latex-inline-edit,
+    .milkdown-latex-block-edit
+  ) {
+  display: none !important;
+}
+
+.kuskus-markdown-editor .milkdown :is(button, [role='button']) {
+  font-family: var(--font-sans);
+}
+
+.kuskus-markdown-editor .milkdown :is(.milkdown-toolbar, .milkdown-slash-menu) {
+  border: 1px solid var(--border);
+}
+
+:is(.kuskus-editor-selection-overlay, .kuskus-editor-slash-overlay) {
+  --ring: var(--editor-control-ring);
+
+  position: fixed;
+  z-index: 50;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  transform-origin: center;
+  transition-property: opacity, transform, visibility;
+  transition-duration: 120ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+:is(.kuskus-editor-selection-overlay, .kuskus-editor-slash-overlay)[data-show='false'] {
+  visibility: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.98);
+}
+
+:is(.kuskus-editor-selection-overlay, .kuskus-editor-slash-overlay)[data-show='true'] {
+  visibility: visible;
+  pointer-events: auto;
+  opacity: 1;
+  transform: scale(1);
+}
+
+.kuskus-editor-toolbar-surface,
+.kuskus-editor-command-surface {
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--foreground) 8%, transparent),
+    0 6px 18px color-mix(in oklch, var(--foreground) 8%, transparent);
+}
+
+.kuskus-editor-toolbar-surface [data-slot='toggle-group-item'][aria-pressed='true'] {
+  color: var(--foreground);
+  background: color-mix(in oklch, var(--editor-caret) 18%, var(--popover));
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--editor-caret) 55%, transparent);
+}
+
+.kuskus-editor-toolbar-surface svg {
+  transition: stroke-width 120ms ease-out;
+}
+
+.kuskus-editor-command-surface {
+  max-height: min(22rem, calc(100vh - 3rem));
+}
+
+.typeset-docs :is(table, th, td),
+.kuskus-markdown-editor .milkdown-table-block :is(th, td) {
+  border-color: color-mix(in oklch, var(--foreground) 30%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :is(.kuskus-editor-selection-overlay, .kuskus-editor-slash-overlay) {
+    transition-duration: 0ms;
+  }
+
+  .kuskus-editor-toolbar-surface svg {
+    transition-duration: 0ms;
+  }
+}
 
 @theme inline {
   --font-heading: var(--font-sans);
@@ -58,6 +234,8 @@
 }
 
 :root {
+  --font-instrument-sans: 'Instrument Sans Variable', sans-serif;
+  --font-jetbrains-mono: 'JetBrains Mono Variable', monospace;
   --background: oklch(1 0 0);
   --foreground: oklch(0.148 0.004 228.8);
   --card: oklch(1 0 0);
@@ -92,6 +270,8 @@
   --sidebar-ring: oklch(0.723 0.014 214.4);
   --backdrop: oklch(0 0 0 / 30%);
   --backdrop-strong: oklch(0 0 0 / 55%);
+  --editor-caret: var(--primary);
+  --editor-control-ring: var(--primary);
 }
 
 .dark {
@@ -128,6 +308,8 @@
   --sidebar-ring: oklch(0.65 0.055 188);
   --backdrop: oklch(0.1 0.01 224 / 62%);
   --backdrop-strong: oklch(0.08 0.01 224 / 68%);
+  --editor-caret: var(--sidebar-primary);
+  --editor-control-ring: var(--sidebar-primary);
 }
 
 @layer base {

@@ -58,6 +58,7 @@ function ShellSidebarTrigger(): React.JSX.Element {
 }
 
 export function AppToolbar({
+  keyboardShortcutsEnabled = true,
   newItemOpen,
   hasDraft,
   newItemFocusRequest,
@@ -73,6 +74,7 @@ export function AppToolbar({
   onTypeFilterChange,
   onClearFilters
 }: {
+  keyboardShortcutsEnabled?: boolean
   newItemOpen: boolean
   hasDraft: boolean
   newItemFocusRequest: number
@@ -99,6 +101,7 @@ export function AppToolbar({
 
   useEffect(() => {
     const focusSearch = (event: KeyboardEvent): void => {
+      if (!keyboardShortcutsEnabled || event.defaultPrevented) return
       const key = event.key.toLocaleLowerCase()
       if ((event.ctrlKey || event.metaKey) && (key === 'k' || key === 'f')) {
         event.preventDefault()
@@ -108,7 +111,7 @@ export function AppToolbar({
     }
     window.addEventListener('keydown', focusSearch)
     return () => window.removeEventListener('keydown', focusSearch)
-  }, [])
+  }, [keyboardShortcutsEnabled])
 
   useEffect(() => {
     if (newItemFocusRequest > 0) newItemRef.current?.focus()
@@ -116,158 +119,162 @@ export function AppToolbar({
 
   return (
     <header className="flex h-12 shrink-0 select-none items-center bg-background [-webkit-app-region:drag]">
-      <div className="grid min-w-0 flex-1 grid-cols-[minmax(2rem,1fr)_minmax(16rem,40rem)_minmax(2rem,1fr)] items-center gap-2 px-5 lg:px-7">
-        <div className="flex justify-start">
-          <ShellSidebarTrigger />
-        </div>
+      <div className="@container/toolbar min-w-0 flex-1">
+        <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 px-2 @min-[44rem]/toolbar:grid-cols-[minmax(12rem,1fr)_minmax(16rem,40rem)_minmax(12rem,1fr)] @min-[44rem]/toolbar:gap-2 @min-[44rem]/toolbar:px-5 @min-[64rem]/toolbar:px-7">
+          <div className="flex justify-start">
+            <ShellSidebarTrigger />
+          </div>
 
-        <div className="flex min-w-0 items-center gap-1 [-webkit-app-region:no-drag]">
-          <InputGroup className="h-8 min-w-0 flex-1 border-transparent transition-[background-color,box-shadow] duration-200 hover:bg-muted/80 has-[[data-slot=input-group-control]:focus-visible]:bg-background has-[[data-slot=input-group-control]:focus-visible]:shadow-[inset_0_0_0_1px_var(--ring),0_4px_14px_rgb(0_0_0/0.08)] has-[[data-slot=input-group-control]:focus-visible]:ring-0">
-            <InputGroupInput
-              ref={searchRef}
-              className="h-8 min-w-0 text-sm [&::-webkit-search-cancel-button]:hidden md:text-sm"
-              type="search"
-              name="search"
-              aria-keyshortcuts="Control+K Meta+K Control+F Meta+F"
-              autoComplete="off"
-              placeholder={`Search ${searchScope}…`}
-              aria-label={`Search ${searchScope} by title, note text, link, or filename`}
-              value={search}
-              onChange={(event) => onSearchChange(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Escape' && search) {
-                  event.preventDefault()
-                  onSearchChange('')
-                } else if (event.key === 'Escape') {
-                  event.currentTarget.blur()
-                }
-              }}
-            />
-            <InputGroupAddon align="inline-start" className="pl-2.5">
-              <IconSearch aria-hidden="true" />
-              <span className="sr-only">Search {searchScope}</span>
-            </InputGroupAddon>
-            <InputGroupAddon align="inline-end" className="gap-2 pr-1.5">
-              <span
-                className="hidden max-w-28 truncate text-[0.6875rem] font-normal tabular-nums text-muted-foreground min-[900px]:inline"
-                aria-live="polite"
-                aria-atomic="true"
-              >
-                {hasSearch ? searchStatus : ''}
-              </span>
-              <span className="relative flex h-6 w-6 shrink-0 items-center justify-end min-[760px]:w-14">
-                <Kbd
-                  className={cn(
-                    'absolute right-0 hidden transition-[opacity,filter,scale] duration-300 [transition-timing-function:cubic-bezier(0.2,0,0,1)] min-[760px]:inline-flex',
-                    hasSearch ? 'scale-[0.25] opacity-0 blur-[4px]' : 'scale-100 opacity-100 blur-0'
-                  )}
-                  aria-hidden="true"
-                >
-                  Ctrl+K
-                </Kbd>
-                <InputGroupButton
-                  size="icon-xs"
-                  aria-label="Clear search"
-                  tabIndex={hasSearch ? 0 : -1}
-                  className={cn(
-                    "absolute right-0 transition-[opacity,filter,scale] duration-300 [transition-timing-function:cubic-bezier(0.2,0,0,1)] after:absolute after:-inset-2 after:content-[''] active:scale-[0.96]",
-                    hasSearch
-                      ? 'scale-100 opacity-100 blur-0'
-                      : 'pointer-events-none scale-[0.25] opacity-0 blur-[4px]'
-                  )}
-                  onClick={() => {
+          <div className="flex min-w-0 items-center gap-1 [-webkit-app-region:no-drag]">
+            <InputGroup className="h-8 min-w-0 flex-1 border-transparent transition-[background-color,box-shadow] duration-200 hover:bg-muted/80 has-[[data-slot=input-group-control]:focus-visible]:bg-background has-[[data-slot=input-group-control]:focus-visible]:shadow-[inset_0_0_0_1px_var(--ring),0_4px_14px_rgb(0_0_0/0.08)] has-[[data-slot=input-group-control]:focus-visible]:ring-0">
+              <InputGroupInput
+                ref={searchRef}
+                className="h-8 min-w-0 text-sm [&::-webkit-search-cancel-button]:hidden md:text-sm"
+                type="search"
+                name="search"
+                aria-keyshortcuts="Control+K Meta+K Control+F Meta+F"
+                autoComplete="off"
+                placeholder={`Search ${searchScope}…`}
+                aria-label={`Search ${searchScope} by title, note text, link, or filename`}
+                value={search}
+                onChange={(event) => onSearchChange(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape' && search) {
+                    event.preventDefault()
                     onSearchChange('')
-                    searchRef.current?.focus()
-                  }}
+                  } else if (event.key === 'Escape') {
+                    event.currentTarget.blur()
+                  }
+                }}
+              />
+              <InputGroupAddon align="inline-start" className="pl-2.5">
+                <IconSearch aria-hidden="true" />
+                <span className="sr-only">Search {searchScope}</span>
+              </InputGroupAddon>
+              <InputGroupAddon align="inline-end" className="gap-2 pr-1.5">
+                <span
+                  className="hidden max-w-28 truncate text-[0.6875rem] font-normal tabular-nums text-muted-foreground @min-[64rem]/toolbar:inline"
+                  aria-live="polite"
+                  aria-atomic="true"
                 >
-                  <IconX aria-hidden="true" />
-                </InputGroupButton>
-              </span>
-            </InputGroupAddon>
-          </InputGroup>
+                  {hasSearch ? searchStatus : ''}
+                </span>
+                <span className="relative flex h-6 w-6 shrink-0 items-center justify-end @min-[48rem]/toolbar:w-14">
+                  <Kbd
+                    className={cn(
+                      'absolute right-0 hidden transition-[opacity,filter,scale] duration-300 [transition-timing-function:cubic-bezier(0.2,0,0,1)] @min-[48rem]/toolbar:inline-flex',
+                      hasSearch
+                        ? 'scale-[0.25] opacity-0 blur-[4px]'
+                        : 'scale-100 opacity-100 blur-0'
+                    )}
+                    aria-hidden="true"
+                  >
+                    Ctrl+K
+                  </Kbd>
+                  <InputGroupButton
+                    size="icon-xs"
+                    aria-label="Clear search"
+                    tabIndex={hasSearch ? 0 : -1}
+                    className={cn(
+                      "absolute right-0 transition-[opacity,filter,scale] duration-300 [transition-timing-function:cubic-bezier(0.2,0,0,1)] after:absolute after:-inset-2 after:content-[''] active:scale-[0.96]",
+                      hasSearch
+                        ? 'scale-100 opacity-100 blur-0'
+                        : 'pointer-events-none scale-[0.25] opacity-0 blur-[4px]'
+                    )}
+                    onClick={() => {
+                      onSearchChange('')
+                      searchRef.current?.focus()
+                    }}
+                  >
+                    <IconX aria-hidden="true" />
+                  </InputGroupButton>
+                </span>
+              </InputGroupAddon>
+            </InputGroup>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  className="min-w-8 px-2.5"
-                  variant={typeFilters.length > 0 ? 'secondary' : 'ghost'}
-                  aria-label={`Filter ${searchScope} by item type`}
-                />
-              }
-            >
-              <IconAdjustmentsHorizontal data-icon="inline-start" aria-hidden="true" />
-              <span className="hidden min-[900px]:inline">Filter</span>
-              {typeFilters.length > 0 ? (
-                <Badge variant="secondary" className="tabular-nums">
-                  {typeFilters.length}
-                </Badge>
-              ) : null}
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Item type</DropdownMenuLabel>
-                {ITEM_TYPE_FILTERS.map((type) => {
-                  const option = TYPE_OPTIONS[type]
-                  const Icon = option.icon
-                  return (
-                    <DropdownMenuCheckboxItem
-                      key={type}
-                      checked={typeFilters.includes(type)}
-                      onCheckedChange={(checked) => onTypeFilterChange(type, checked)}
-                    >
-                      <Icon aria-hidden="true" />
-                      {option.label}
-                    </DropdownMenuCheckboxItem>
-                  )
-                })}
-              </DropdownMenuGroup>
-              {typeFilters.length > 0 ? (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem onClick={onClearFilters}>Clear filters</DropdownMenuItem>
-                  </DropdownMenuGroup>
-                </>
-              ) : null}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        <div className="flex min-w-0 items-center justify-end gap-1 [-webkit-app-region:no-drag]">
-          <Button
-            ref={newItemRef}
-            data-new-item-button
-            aria-expanded={newItemOpen}
-            aria-label={hasDraft && !newItemOpen ? 'Continue New item draft' : 'Create new item'}
-            onClick={onNewItem}
-          >
-            <IconPlus data-icon="inline-start" aria-hidden="true" />
-            <span className="hidden min-[720px]:inline">
-              {hasDraft && !newItemOpen ? 'Continue draft' : 'New item'}
-            </span>
-            {hasDraft ? (
-              <span className="size-1.5 rounded-full bg-primary-foreground" aria-hidden="true" />
-            ) : null}
-          </Button>
-          {hasDraft ? (
-            <Tooltip>
-              <TooltipTrigger
+            <DropdownMenu>
+              <DropdownMenuTrigger
                 render={
                   <Button
-                    className="rounded-xl active:scale-[0.96] transition-transform"
-                    size="icon"
-                    variant="ghost"
-                    aria-label="Discard New item draft"
-                    onClick={onDiscardDraft}
+                    className="min-w-8 px-2.5"
+                    variant={typeFilters.length > 0 ? 'secondary' : 'ghost'}
+                    aria-label={`Filter ${searchScope} by item type`}
                   />
                 }
               >
-                <IconTrash aria-hidden="true" />
-              </TooltipTrigger>
-              <TooltipContent>Discard draft</TooltipContent>
-            </Tooltip>
-          ) : null}
+                <IconAdjustmentsHorizontal data-icon="inline-start" aria-hidden="true" />
+                <span className="hidden @min-[56rem]/toolbar:inline">Filter</span>
+                {typeFilters.length > 0 ? (
+                  <Badge variant="secondary" className="tabular-nums">
+                    {typeFilters.length}
+                  </Badge>
+                ) : null}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Item type</DropdownMenuLabel>
+                  {ITEM_TYPE_FILTERS.map((type) => {
+                    const option = TYPE_OPTIONS[type]
+                    const Icon = option.icon
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={type}
+                        checked={typeFilters.includes(type)}
+                        onCheckedChange={(checked) => onTypeFilterChange(type, checked)}
+                      >
+                        <Icon aria-hidden="true" />
+                        {option.label}
+                      </DropdownMenuCheckboxItem>
+                    )
+                  })}
+                </DropdownMenuGroup>
+                {typeFilters.length > 0 ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem onClick={onClearFilters}>Clear filters</DropdownMenuItem>
+                    </DropdownMenuGroup>
+                  </>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          <div className="flex min-w-0 items-center justify-end gap-1">
+            <Button
+              ref={newItemRef}
+              data-new-item-button
+              aria-expanded={newItemOpen}
+              aria-label={hasDraft && !newItemOpen ? 'Continue New item draft' : 'Create new item'}
+              onClick={onNewItem}
+            >
+              <IconPlus data-icon="inline-start" aria-hidden="true" />
+              <span className="hidden @min-[44rem]/toolbar:inline">
+                {hasDraft && !newItemOpen ? 'Continue draft' : 'New item'}
+              </span>
+              {hasDraft ? (
+                <span className="size-1.5 rounded-full bg-primary-foreground" aria-hidden="true" />
+              ) : null}
+            </Button>
+            {hasDraft ? (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      className="rounded-xl active:scale-[0.96] transition-transform"
+                      size="icon"
+                      variant="ghost"
+                      aria-label="Discard New item draft"
+                      onClick={onDiscardDraft}
+                    />
+                  }
+                >
+                  <IconTrash aria-hidden="true" />
+                </TooltipTrigger>
+                <TooltipContent>Discard draft</TooltipContent>
+              </Tooltip>
+            ) : null}
+          </div>
         </div>
       </div>
       <WindowControls />

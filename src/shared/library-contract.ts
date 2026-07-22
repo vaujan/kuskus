@@ -3,6 +3,7 @@ export const KUSKUS_CHANNELS = {
   createLibrary: 'library:create',
   openLibrary: 'library:open',
   createNote: 'library:create-note',
+  updateNote: 'library:update-note',
   listNoteDraftImages: 'library:list-note-draft-images',
   stageNoteDraftImage: 'library:stage-note-draft-image',
   removeNoteDraftImage: 'library:remove-note-draft-image',
@@ -22,7 +23,7 @@ export const KUSKUS_CHANNELS = {
   openExternalUrl: 'library:open-external-url'
 } as const
 
-export type ApiErrorCode = 'cancelled' | 'invalid-input' | 'not-found' | 'io-error'
+export type ApiErrorCode = 'cancelled' | 'invalid-input' | 'not-found' | 'conflict' | 'io-error'
 
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string; code: ApiErrorCode }
 
@@ -55,6 +56,26 @@ export interface CreateNoteInput {
   markdown: string
   attachmentIds: string[]
 }
+
+export interface UpdateNoteInput {
+  itemId: string
+  markdown: string
+  expectedMarkdown: string
+}
+
+export type UpdateNoteResult =
+  | { ok: true; data: NoteItemDto }
+  | {
+      ok: false
+      error: string
+      code: Exclude<ApiErrorCode, 'conflict'>
+    }
+  | {
+      ok: false
+      error: string
+      code: 'conflict'
+      conflict: { current: NoteItemDto }
+    }
 
 export interface ImageItemDto {
   schemaVersion: 1
@@ -173,6 +194,7 @@ export interface KuskusLibraryApi {
   create: (name: string) => Promise<ApiResult<LibraryState>>
   open: () => Promise<ApiResult<LibraryState>>
   createNote: (input: CreateNoteInput) => Promise<ApiResult<NoteItemDto>>
+  updateNote: (input: UpdateNoteInput) => Promise<UpdateNoteResult>
   listNoteDraftImages: () => Promise<ApiResult<NoteDraftImageDto[]>>
   stageNoteDraftImage: (input: ImageImportInput) => Promise<ApiResult<NoteDraftImageDto>>
   removeNoteDraftImage: (attachmentId: string) => Promise<ApiResult<null>>

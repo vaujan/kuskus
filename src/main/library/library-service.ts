@@ -12,6 +12,7 @@ import type {
   LibraryState,
   NoteItemDto,
   NoteDraftImageDto,
+  UpdateNoteInput,
   UrlItemDto
 } from '../../shared/library-contract'
 import {
@@ -27,7 +28,12 @@ import {
   toImageDto,
   validateImageInput
 } from './items/image-item'
-import { createNoteMetadata, noteAttachmentFilename, toNoteDto } from './items/note-item'
+import {
+  createNoteMetadata,
+  noteAttachmentFilename,
+  toNoteDto,
+  updateNoteMetadata
+} from './items/note-item'
 import { createUrlMetadata, extractUrlMetadata, toUrlDto, validateWebUrl } from './items/url-item'
 import {
   isCollectionIconKey,
@@ -39,6 +45,15 @@ import {
 } from './schemas'
 import { readJson, writeJsonAtomic } from './storage/json-file'
 import { LibraryStore } from './storage/library-store'
+
+export class NoteUpdateConflictError extends Error {
+  constructor(readonly current: NoteItemDto) {
+    super(
+      'This note changed on disk after you opened it. Review both versions before choosing what to keep.'
+    )
+    this.name = 'NoteUpdateConflictError'
+  }
+}
 
 export class LibraryService {
   private currentLibraryPath: string | null = null
@@ -144,6 +159,51 @@ export class LibraryService {
       markdown,
       attachments.map((attachment) => ({ ...attachment, missingContent: false }))
     )
+  }
+
+  async updateNote(input: UpdateNoteInput): Promise<NoteItemDto> {
+    const libraryPath = this.requireCurrentLibrary()
+    const { itemId, markdown, expectedMarkdown } = input
+    this.validateItemId(itemId, 'item')
+    if (typeof markdown !== 'string' || !markdown.trim()) {
+      throw new Error('Write something before saving the note.')
+    }
+    if (typeof expectedMarkdown !== 'string')
+      throw new Error('The expected note content is invalid.')
+
+    const metadata = await this.store.readPersistedItem(libraryPath, itemId)
+    if (metadata.type !== 'note') throw new Error('The saved item is not a note.')
+    let currentMarkdown: string
+    try {
+      currentMarkdown = (await this.store.readItemContent(libraryPath, metadata)).toString('utf8')
+    } catch {
+      throw new Error('The note file is missing from the library.')
+    }
+    if (currentMarkdown !== expectedMarkdown) {
+      throw new NoteUpdateConflictError(
+        await this.toCurrentNoteDto(libraryPath, metadata, currentMarkdown)
+      )
+    }
+
+    const updated = updateNoteMetadata(metadata, markdown, new Date().toISOString())
+    await this.store.updateNote(libraryPath, updated, markdown)
+    return this.toCurrentNoteDto(libraryPath, updated, markdown)
+  }
+
+  private async toCurrentNoteDto(
+    libraryPath: string,
+    metadata: Parameters<typeof toNoteDto>[0],
+    markdown: string
+  ): Promise<NoteItemDto> {
+    const attachments = await Promise.all(
+      (metadata.attachments ?? []).map(async (attachment) => ({
+        ...attachment,
+        missingContent: !(await this.store.pathExists(
+          join(libraryPath, 'inbox', metadata.id, NOTE_ASSETS_DIRECTORY, attachment.filename)
+        ))
+      }))
+    )
+    return toNoteDto(metadata, markdown, attachments)
   }
 
   async listNoteDraftImages(): Promise<NoteDraftImageDto[]> {

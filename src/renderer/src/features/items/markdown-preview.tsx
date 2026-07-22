@@ -1,96 +1,23 @@
-import { Fragment, type ReactNode, useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
+import ReactMarkdown, { type Components } from 'react-markdown'
+import rehypeKatex from 'rehype-katex'
+import remarkBreaks from 'remark-breaks'
+import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
 
 import { cn } from '@/lib/utils'
 import { useNoteAttachmentPreviews } from '@/features/items/use-note-attachment-previews'
 import type { NoteAttachmentDto } from '../../../../shared/library-contract'
 
-function renderInlineMarkdown(
-  value: string,
-  keyPrefix: string,
-  onOpenLink: ((url: string) => void) | undefined,
-  localImages: Map<string, { attachment: NoteAttachmentDto; preview: string | null }>
-): ReactNode[] {
-  return value
-    .split(/(!\[[^\]]*\]\([^\s)]+\)|\[[^\]]+\]\([^\s)]+\)|\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g)
-    .filter(Boolean)
-    .map((token, index) => {
-      const key = `${keyPrefix}-${index}`
-      const image = token.match(/^!\[([^\]]*)\]\(([^\s)]+)\)$/)
-      if (image) {
-        const local = localImages.get(image[2])
-        if (local) {
-          if (local.attachment.missingContent) {
-            return (
-              <span
-                key={key}
-                className="my-2 flex min-h-24 items-center justify-center rounded-lg bg-muted px-4 text-center text-xs text-muted-foreground"
-              >
-                Image missing: {image[1] || local.attachment.filename}
-              </span>
-            )
-          }
-          if (!local.preview) {
-            return (
-              <span
-                key={key}
-                className="my-2 flex min-h-24 items-center justify-center rounded-lg bg-muted px-4 text-xs text-muted-foreground"
-                role="status"
-              >
-                Loading image…
-              </span>
-            )
-          }
-          return (
-            <img
-              key={key}
-              src={local.preview}
-              alt={image[1] || local.attachment.filename}
-              className="my-2 max-h-[32rem] w-auto max-w-full rounded-lg object-contain outline -outline-offset-1 outline-black/10 dark:outline-white/10"
-            />
-          )
-        }
-        if (/^https?:\/\//i.test(image[2])) {
-          return (
-            <button
-              key={key}
-              type="button"
-              className="relative z-20 text-primary underline underline-offset-2"
-              onClick={(event) => {
-                event.stopPropagation()
-                onOpenLink?.(image[2])
-              }}
-            >
-              {image[1] || 'Open remote image'}
-            </button>
-          )
-        }
-        return <Fragment key={key}>{token}</Fragment>
-      }
-      const link = token.match(/^\[([^\]]+)\]\(([^\s)]+)\)$/)
-      if (link)
-        return (
-          <button
-            key={key}
-            type="button"
-            className="relative z-20 text-primary underline underline-offset-2"
-            onClick={(event) => {
-              event.stopPropagation()
-              onOpenLink?.(link[2])
-            }}
-          >
-            {link[1]}
-          </button>
-        )
-      if (token.startsWith('**')) return <strong key={key}>{token.slice(2, -2)}</strong>
-      if (token.startsWith('`'))
-        return (
-          <code key={key} className="rounded bg-muted px-1 py-0.5 text-[0.85em]">
-            {token.slice(1, -1)}
-          </code>
-        )
-      if (token.startsWith('*')) return <em key={key}>{token.slice(1, -1)}</em>
-      return <Fragment key={key}>{token}</Fragment>
-    })
+function EmbeddedImageState({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return (
+    <span
+      className="not-typeset my-3 flex min-h-24 items-center justify-center rounded-lg bg-muted px-4 text-center text-xs text-muted-foreground"
+      data-not-typeset
+    >
+      {children}
+    </span>
+  )
 }
 
 export function MarkdownPreview({
@@ -135,42 +62,80 @@ export function MarkdownPreview({
     }
   }, [presentation, value])
 
+  const components: Components = {
+    a: ({ href, children, ...props }) => {
+      if (!href || !/^https?:\/\//i.test(href)) return <span>{children}</span>
+      return (
+        <a
+          {...props}
+          href={href}
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            onOpenLink?.(href)
+          }}
+        >
+          {children}
+        </a>
+      )
+    },
+    img: ({ src, alt }) => {
+      const source = typeof src === 'string' ? src : ''
+      const local = localImages.get(source)
+      if (local) {
+        if (local.attachment.missingContent) {
+          return (
+            <EmbeddedImageState>
+              Image missing: {alt || local.attachment.filename}
+            </EmbeddedImageState>
+          )
+        }
+        if (!local.preview) return <EmbeddedImageState>Loading image…</EmbeddedImageState>
+        return (
+          <img
+            src={local.preview}
+            alt={alt ?? local.attachment.filename}
+            className="not-typeset max-h-[32rem] w-auto max-w-full rounded-lg object-contain outline -outline-offset-1 outline-black/10 dark:outline-white/10"
+            data-not-typeset
+          />
+        )
+      }
+      if (/^https?:\/\//i.test(source)) {
+        return (
+          <a
+            href={source}
+            onClick={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              onOpenLink?.(source)
+            }}
+          >
+            {alt || 'Open remote image'}
+          </a>
+        )
+      }
+      return <code>{source || alt || 'Invalid image'}</code>
+    },
+    table: ({ children, ...props }) => (
+      <div className="typeset-scroll">
+        <table {...props}>{children}</table>
+      </div>
+    )
+  }
+
   return (
     <div
       ref={previewRef}
       className={cn('relative', presentation === 'card' && 'max-h-80 overflow-hidden')}
     >
-      <div
-        className={cn(
-          'flex flex-col break-words text-foreground/78',
-          presentation === 'detail' ? 'gap-3 text-[0.9375rem] leading-7' : 'gap-2 text-sm leading-6'
-        )}
-      >
-        {value.split(/\r?\n/).map((line, index) => {
-          const heading = line.match(/^(#{1,3})\s+(.+)$/)
-          if (heading)
-            return (
-              <h3 key={index} className="text-balance font-semibold text-foreground">
-                {renderInlineMarkdown(heading[2], `heading-${index}`, onOpenLink, localImages)}
-              </h3>
-            )
-          const list = line.match(/^[-*]\s+(.+)$/)
-          if (list)
-            return (
-              <p key={index} className="flex gap-2 text-pretty">
-                <span aria-hidden="true">•</span>
-                <span className="min-w-0">
-                  {renderInlineMarkdown(list[1], `list-${index}`, onOpenLink, localImages)}
-                </span>
-              </p>
-            )
-          if (!line.trim()) return <br key={index} />
-          return (
-            <p key={index} className="text-pretty">
-              {renderInlineMarkdown(line, `text-${index}`, onOpenLink, localImages)}
-            </p>
-          )
-        })}
+      <div className="typeset typeset-docs max-w-[37em] text-foreground/85">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
+          rehypePlugins={[rehypeKatex]}
+          components={components}
+        >
+          {value}
+        </ReactMarkdown>
       </div>
       {presentation === 'card' && isClipped ? (
         <div

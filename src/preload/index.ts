@@ -37,6 +37,7 @@ const libraryApi: KuskusLibraryApi = {
   create: (name) => ipcRenderer.invoke(KUSKUS_CHANNELS.createLibrary, name),
   open: () => ipcRenderer.invoke(KUSKUS_CHANNELS.openLibrary),
   createNote: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.createNote, input),
+  updateNote: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.updateNote, input),
   listNoteDraftImages: () => ipcRenderer.invoke(KUSKUS_CHANNELS.listNoteDraftImages),
   stageNoteDraftImage: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.stageNoteDraftImage, input),
   removeNoteDraftImage: (attachmentId) =>

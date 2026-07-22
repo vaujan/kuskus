@@ -8,7 +8,9 @@ import {
 
 import { Button } from '@/components/ui/button'
 
-export function WindowControls(): React.JSX.Element | null {
+export function WindowControls({
+  onClose
+}: { onClose?: () => void } = {}): React.JSX.Element | null {
   const isMac = window.electron.window.platform === 'darwin'
   const [isMaximized, setIsMaximized] = useState(false)
 
@@ -56,7 +58,7 @@ export function WindowControls(): React.JSX.Element | null {
         variant="ghost"
         type="button"
         aria-label="Close window"
-        onClick={window.electron.window.close}
+        onClick={onClose ?? window.electron.window.close}
       >
         <X aria-hidden="true" />
       </Button>

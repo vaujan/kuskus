@@ -153,6 +153,13 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
     [search, typeFilters]
   )
 
+  const updateItem = useCallback((item: LibraryItemDto): void => {
+    setLibrary((current) => ({
+      ...current,
+      items: current.items.map((entry) => (entry.id === item.id ? item : entry))
+    }))
+  }, [])
+
   const openComposer = useCallback((): void => {
     setComposerOpen(true)
     setComposerFocusRequest((request) => request + 1)
@@ -276,6 +283,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
 
   return (
     <SidebarProvider
+      keyboardShortcutEnabled={selectedItem === null}
       open={!sidebarHidden}
       onOpenChange={(open) => setSidebarHidden(!open)}
       width={sidebarWidth}
@@ -297,6 +305,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
       />
       <SidebarInset>
         <AppToolbar
+          keyboardShortcutsEnabled={selectedItem === null}
           newItemOpen={composerOpen}
           hasDraft={composerHasDraft}
           newItemFocusRequest={newItemFocusRequest}
@@ -453,6 +462,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
           {statusMessage}
         </p>
         <ItemDetailDialog
+          key={selectedItem?.id ?? 'closed-item-detail'}
           item={selectedItem}
           hasPrevious={hasPreviousItem}
           hasNext={hasNextItem}
@@ -461,6 +471,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
           onOpenChange={(open) => {
             if (!open) setSelectedItemId(null)
           }}
+          onItemUpdated={updateItem}
           onError={setMessage}
         />
       </SidebarInset>
