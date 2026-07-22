@@ -58,6 +58,8 @@ During that period, the user must be able to:
 - Organize them into collections or leave them in Inbox.
 - Browse different formats together.
 - Search for and reopen previously saved items.
+- Edit saved Markdown notes in a rendered WYSIWYG canvas with guarded local autosave while keeping
+  the library files authoritative.
 - Reopen saved links and inspect saved content without leaving Kuskus.
 - Close and reopen Kuskus without losing or corrupting content.
 - Back up the library by copying its folder.

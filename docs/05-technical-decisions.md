@@ -435,3 +435,152 @@ Supersede DEC-009 for binary draft recovery. Markdown text remains in library-sc
 ### Revisit when
 
 Dogfooding shows that normal card width is insufficient for quick notes, one draft per library prevents useful parallel capture, or accumulated draft assets require a broader cleanup policy.
+
+## DEC-017: Edit saved Markdown through guarded item updates
+
+Date: 2026-07-21
+Status: Accepted
+
+### Context
+
+Saved notes were rendered by a small line-based preview and could only be changed by editing
+`note.md` outside Kuskus. Adding in-app editing must preserve user-readable files, existing note
+assets, renderer sandboxing, and external edits made after the detail view opened.
+
+### Decision
+
+Render note Markdown with a standards-based renderer and the vendored shadcn Typeset stylesheet in
+cards and details. Note details provide explicit Edit and Preview modes; Preview follows the current
+draft, while only Save or `Ctrl+Enter` writes to disk. The renderer sends an item ID, new Markdown,
+and the Markdown version it opened through the typed preload API. The main process rejects stale
+updates and swaps a staged complete item directory into place with startup recovery. This slice edits
+text only and preserves the existing attachment manifest and assets.
+
+### Consequences
+
+- Raw HTML remains disabled and external links continue through the validated URL operation.
+- Closing or navigating away from a dirty edit requires an explicit discard decision.
+- Interrupted updates recover to the prepared version or the previous complete item.
+- Adding or removing saved-note attachments remains a separate future slice.
+
+## DEC-018: Edit saved Markdown in a WYSIWYG canvas with guarded autosave
+
+Date: 2026-07-21
+Status: Accepted
+
+### Context
+
+DEC-017 proved safe saved-note updates but exposed Markdown in a textarea and required a separate
+Preview mode and explicit Save. The intended writing experience keeps rendered structure visible
+while editing without weakening local-file authority or stale-write protection.
+
+### Decision
+
+Supersede DEC-017's editor presentation and explicit-Save behavior. Use one Markdown-backed Milkdown
+canvas for Read and Edit, toggleable with `Ctrl+E`. Edit hides ordinary Markdown markers and exposes
+contextual formatting controls. Renderer changes autosave after approximately 800 ms; `Ctrl+Enter`
+flushes immediately, and close or item navigation waits for pending persistence.
+
+Each autosave continues to send the last confirmed Markdown as its expected version. Autosaves are
+serialized and coalesced so an older response cannot replace a newer draft. A conflict returns the
+authoritative disk snapshot, pauses autosave, and requires the user to review a side-by-side Markdown
+diff before choosing either version. Raw HTML and unsupported documents remain readable but do not
+enter the rich editor. Existing attachment assets are preserved; adding saved-note attachments remains
+deferred.
+
+### Consequences
+
+- Merely opening a note or toggling modes never writes it; the first real WYSIWYG edit may normalize
+  harmless Markdown source formatting while preserving meaning.
+- Note status is visible as Saved, Saving, invalid, failed, or conflicted without Save/Cancel chrome.
+- The existing recoverable item-directory swap remains the authoritative write transaction.
+- Read and Edit preserve one editor instance, scroll position, selection, and undo history.
+
+## DEC-019: Own contextual editor presentation with React and shadcn
+
+Date: 2026-07-22
+Status: Accepted
+
+### Context
+
+Crepe's bundled slash menu and selection toolbar are Vue-rendered implementation details. They do
+not compose with the application's React shadcn primitives, and their icon-only controls do not
+provide the accessible names, focus treatment, or compact grouped presentation required by Kuskus.
+
+### Decision
+
+Milkdown remains responsible for Markdown state, selection anchoring, commands, and undo history.
+Kuskus supplies React plugin views for the selection toolbar and slash menu, composed from local
+shadcn Command, Toggle, Tooltip, Separator, and keyboard primitives. Plugin-scoped handlers operate
+only while their overlay is active, and semantic editor color tokens provide a caret and focus ring
+with at least 3:1 adjacent contrast in both themes.
+
+### Consequences
+
+- Contextual controls share the established theme, Tabler icons, hit areas, and accessibility model.
+- Crepe's block handle, link editor, table controls, math editor, and document behavior remain intact.
+- Overlay lifecycle code must mount and destroy React roots with the Milkdown editor instance.
+- No storage, IPC, autosave, conflict, or Markdown compatibility contract changes.
+
+## DEC-020: Add explicit Markdown Source mode and reserve modal title-bar controls
+
+Date: 2026-07-22
+Status: Accepted
+
+### Context
+
+Read and Edit intentionally hide Markdown markers, but direct source access is still useful for
+precise local-file editing and for documents that the rich editor refuses to load. Item-detail
+surfaces also covered the frameless Windows title bar, making its window controls unreachable.
+
+### Decision
+
+Replace the Read/Edit toggle with a shadcn Select containing Read, Edit, and Source. Source edits the
+same autosave draft as Milkdown but is never entered by `Ctrl+E`; that shortcut toggles Read and Edit
+and returns Source to Read. Source changes use the existing validation, serialized autosave,
+conflict, and guarded-leave pipeline. Raw HTML remains excluded from Milkdown but editable in Source.
+
+Keep the detail dialog modal while constraining its backdrop and surface below the 48-pixel title
+bar. Render the existing typed Windows controls inside the dialog portal, and route its close action
+through the pending-save guard. Headings render uniformly bold without visually applying nested
+bold, italic, inline-code, or strikethrough marks; those source markers are preserved, and the
+corresponding WYSIWYG toolbar actions are hidden for heading selections.
+
+### Consequences
+
+- No storage schema, IPC, preload, or main-process changes are required.
+- Safe Source drafts are synchronized into the existing Milkdown instance before returning to Read
+  or Edit; unsupported drafts stay in Read or Source until made safe.
+- The underlying toolbar remains inert while item details are open, but Windows window management
+  remains reachable without risking an unflushed note close.
+
+## DEC-021: Scope detail presentation and keyboard ownership to the modal
+
+Date: 2026-07-22
+Status: Accepted
+
+### Context
+
+Keeping DEC-020's backdrop below the title bar left the application toolbar visually outside the
+modal even though its actions were inert. Detail content also mixed native overflow containers with
+the library's Base UI ScrollArea, the custom selection toolbar could overlap Milkdown's link input,
+and window-level workspace shortcuts could still respond to editor key combinations.
+
+### Decision
+
+Supersede DEC-020 only for backdrop placement. Cover the complete window with the standard backdrop
+token and no blur, while keeping the detail-owned guarded Windows controls above it and the detail
+surface below the title bar. Use the shared shadcn ScrollArea for every user-facing detail scroll
+owner.
+
+Workspace-level shortcut listeners accept an enabled state and ignore handled events; the workspace
+disables them while any item detail is open. Detail-owned and Milkdown-native shortcuts remain
+active. Activating Link from the custom selection toolbar hides that toolbar before invoking
+Milkdown's link command and does not steal focus back from the link input.
+
+### Consequences
+
+- The toolbar and content read as one modal background without introducing a blur layer.
+- Editor formatting takes priority over sidebar and search shortcuts until the detail closes.
+- Link editing and selection formatting are mutually exclusive overlays.
+- Storage, preload, IPC, autosave, conflict, and Markdown contracts remain unchanged.

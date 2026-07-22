@@ -145,6 +145,9 @@ Rules:
 - `item.json` may contain an additive attachment manifest with stable IDs, safe filenames, media type, dimensions, and original filename.
 - Metadata may store derived title and timestamps but must not be the only copy of the note body.
 - Note details are presented in Kuskus.
+- Saved note text may be edited and autosaved in Kuskus through a validated item-ID operation. Every
+  update compares the last confirmed Markdown baseline with the current `note.md` before replacing it.
+  A conflict returns the authoritative disk snapshot for explicit comparison and resolution.
 - A missing attachment produces an inline missing-image state without making the remaining note unreadable.
 
 Uncommitted note images are staged under `.kuskus/temp/note-draft/` with a rebuildable manifest. They are not authoritative items until `note.md`, assets, and `item.json` are finalized together. Successful commit or explicit discard removes the staged bundle; a failed commit retains it for recovery.
@@ -174,7 +177,13 @@ Uncommitted note images are staged under `.kuskus/temp/note-draft/` with a rebui
 
 ## In-app item details
 
-Cards open a read-only in-app detail view. URL details expose a validated **Open link** action. Every item detail exposes **Show in Explorer** through an item-ID-based main-process operation; local content is revealed when present, otherwise Kuskus reveals the item's authoritative `item.json`. Missing content remains visible as a Kuskus warning rather than being silently removed.
+Cards open an in-app detail view. Image and URL details are read-only; note details allow rendered
+WYSIWYG Markdown edits while preserving existing attachments. Note autosaves stage a complete replacement
+before swapping it into place, recover an interrupted swap, and refuse to overwrite a `note.md` that
+changed after the editor opened it. URL details expose a validated **Open link** action. Every item
+detail exposes **Show in Explorer** through an item-ID-based main-process operation; local content is
+revealed when present, otherwise Kuskus reveals the item's authoritative `item.json`. Missing content
+remains visible as a Kuskus warning rather than being silently removed.
 
 ## Migration policy
 

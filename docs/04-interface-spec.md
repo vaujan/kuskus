@@ -271,7 +271,35 @@ dialog. The inspector is not manually collapsible and its visibility is not pers
 The detail dialog exposes:
 
 - Larger preview when supported.
-- The complete read-only note body without card-style clipping.
+- The complete rendered note body without card-style clipping, plus a compact selector for Read,
+  Edit, and Source. Read and Edit share one WYSIWYG Markdown canvas; `Ctrl+E` toggles only those two
+  modes and returns Source to Read without entering Source.
+- Edit keeps Markdown markers hidden, provides contextual formatting and slash controls, and
+  autosaves a valid changed note approximately 800 ms after typing stops.
+- Source exposes the raw Markdown in a monospace text editor and uses the same autosave, validation,
+  conflict, restore, and immediate-flush behavior as Edit. Unsupported raw HTML remains available
+  in Read and Source while Edit is disabled.
+- Headings render uniformly at their default bold weight. Nested bold, italic, inline-code, and
+  strikethrough markers remain in the source but add no visual heading treatment, and their toolbar
+  actions are omitted when a WYSIWYG selection intersects a heading.
+- The insertion caret and contextual-control focus indicators maintain at least 3:1 contrast in
+  light and dark themes. Selecting text opens a compact icon toolbar with accessible names,
+  pressed states, and delayed tooltips; `Alt+F10` moves focus into it and `Escape` returns focus to
+  the canvas. Activating Link dismisses this toolbar before Milkdown's focused link input opens, so
+  the two editor overlays never compete for the same selection.
+- Typing `/` at the end of an otherwise active text block opens one grouped command list for Text,
+  Lists, and Advanced blocks. Continued typing filters without moving focus from the canvas;
+  arrows, Home/End, Enter, and Escape operate only while the list is open.
+- `Ctrl+Enter` flushes autosave immediately. The header announces Saved, Saving, failure, blank,
+  and conflict states; a failed or blank draft can restore the last saved body.
+- Close or previous/next navigation flushes pending work before leaving. External-edit conflicts
+  retain the draft and offer a side-by-side Markdown diff before the user explicitly chooses a version.
+- The detail surface begins below the application title bar, while a standard-strength, blur-free
+  backdrop dims the complete window. Dialog-owned Windows minimize, maximize/restore, and guarded
+  close controls remain above it while all other underlying toolbar actions and workspace keyboard
+  shortcuts stay modal.
+- Note bodies and responsive image and URL details use the shared shadcn ScrollArea treatment; the
+  note mode header and floating detail controls remain fixed outside their scroll owner.
 - Source URL or stored filename.
 - Added date for image and URL items.
 - Dimensions and media format for images.
@@ -321,6 +349,8 @@ Required states include:
 - Color is not the only indication of selection, error, or item type.
 - The content collection uses predictable focus movement.
 - Reduced-motion preferences are respected.
+- Contextual editor controls preserve the document selection during pointer use and expose their
+  expanded, active, and selected states to assistive technology.
 
 ## Visual constraints
 

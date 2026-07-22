@@ -40,6 +40,8 @@ The MVP is complete when all golden workflows work against a real local library 
 - Clipboard image capture through the same draft card.
 - Drag-and-drop or paste import for images, PDFs, and general files.
 - Plain-text or Markdown quick notes with text-and-image draft recovery and explicit commit.
+- Marker-free WYSIWYG editing for saved Markdown notes with Read/Edit toggling, an explicitly
+  selected raw Source mode, guarded autosave, and reviewable conflict detection.
 - Local images embedded in notes as relative Markdown assets.
 - A draft card that morphs into the newly saved, newest-first card.
 - Direct paste into the focused content view using the same detection and saving pipeline.

@@ -185,15 +185,37 @@ The user wants to save a short observation beside other project references.
 3. Kuskus maintains a recoverable draft while the user types.
 4. The user commits with **Save** or `Ctrl+Enter`.
 5. The draft card morphs into a readable note card in the current view.
+6. Opening the saved note shows rendered Markdown and a header mode selector for Read, Edit, and
+   Source. `Ctrl+E` switches only between Read and Edit; from Source it returns to Read.
+7. Edit keeps the same rendered canvas active. Source exposes the authoritative Markdown text, and
+   both editing modes autosave approximately 800 ms after typing stops.
 
 ### Acceptance criteria
 
 - Notes use a durable, human-readable text format.
-- Markdown is stored as entered; local pasted images use portable relative references and render inline.
+- Markdown remains the authoritative format; WYSIWYG edits may normalize harmless source formatting
+  while preserving rendered meaning. Local pasted images use portable relative references and render inline.
 - A note with images remains an ordinary `note.md` plus an `assets/` folder.
 - A note can be saved with only a body; a title may be derived from its first meaningful line.
-- Editing does not require a rich-text editor in the MVP.
-- Opening the card shows the full note in Kuskus.
+- Saved-note editing uses a Markdown-backed WYSIWYG editor without exposing source markers during
+  ordinary writing, plus an explicitly selected raw Source editor.
+- Opening the card shows the full note in Kuskus with headings, lists, tables, code, blockquotes,
+  links, local images, and math rendered from Markdown.
+- Saved-note editing preserves existing attachments and writes through a validated item-ID operation.
+- Read and Edit share one rendered canvas; Source remains outside the `Ctrl+E` cycle, and
+  `Ctrl+Enter` flushes autosave immediately from either editing mode.
+- Headings render at their default bold weight without visually applying nested bold, italic,
+  inline-code, or strikethrough styling; the original Markdown markers remain authoritative.
+- Opening any item detail leaves the Windows title-bar controls reachable without making the
+  underlying application toolbar interactive.
+- The detail scrim dims the complete application window without blur, and detail content uses the
+  same accessible scrollbar treatment as the saved-item library.
+- While item details are open, workspace shortcuts are suspended so editor commands such as
+  `Ctrl+B` and `Ctrl+I` remain local to the note. Opening the inline link editor dismisses the
+  selection-formatting toolbar instead of overlapping it.
+- Closing or navigating away flushes the latest draft first and remains on the note if saving fails.
+- A note changed outside Kuskus is not silently overwritten. The user reviews a side-by-side source
+  diff before explicitly choosing the local draft or disk version.
 
 ## 7. Organize Inbox
 
