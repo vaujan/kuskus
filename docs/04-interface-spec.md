@@ -31,7 +31,7 @@ The shell supports two explicit states.
 - Sidebar appears on the left at a 256-pixel initial width, can be resized from 208 to 384 pixels, and spans the full application height.
 - The action toolbar and title bar begin to the right of the sidebar; the sidebar must not sit below them.
 - Menu and Hide Sidebar controls remain accessible near the top.
-- Inbox, collections, and Trash are displayed in the sidebar.
+- Inbox, All Items, flat folders, Archive, and Trash are displayed in the sidebar.
 - The toolbar and content occupy the remaining width.
 
 ### Hidden sidebar
@@ -67,6 +67,7 @@ Collections
   Kettlebell Training
   + New collection
 
+Archive
 Trash
 Settings
 ```
@@ -99,6 +100,9 @@ Rules:
 
 - The three application zones share one continuous title-bar surface; native window controls remain
   separate operating-system chrome at the far edge.
+- On Windows, renderer-owned caption controls use the documented Segoe Fluent `ChromeMinimize`,
+  `ChromeMaximize`, `ChromeRestore`, and `ChromeClose` glyphs. Their neutral hover and pressed fills
+  follow the active light or dark appearance, and Close uses the standard Windows red states.
 - Search grows within a centered retrieval zone and names its active scope, for example
   **Search Inbox…**.
 - Interactive controls must be excluded from the draggable title-bar region.
@@ -138,6 +142,10 @@ Rules:
 
 Changing views must preserve scroll context where practical, item selection, filter state, and item ordering.
 
+As the saved-content viewport scrolls beneath the fixed toolbar, its top edge uses a subtle
+gradient mask that grows with the scroll offset up to 24 pixels. The mask is absent at the scroll
+origin, applies consistently across Masonry, Grid, and Table, and does not fade the scrollbar.
+
 ## New Item
 
 A primary **New item** button appears in the toolbar's right action zone. The resting content canvas contains saved items only; activating the button summons one temporary draft card at the beginning of the active view.
@@ -159,8 +167,9 @@ A primary **New item** button appears in the toolbar's right action zone. The re
 
 ### Detection and feedback
 
-- A single URL shows a URL-saving state and may display the recognized domain.
-- An image in an empty card shows an immediate local preview and saves as an image item.
+- A single URL remains editable, is recognized as a link, and may display the recognized domain.
+- An image in an empty card is validated into controlled temporary storage, shows an immediate
+  preview, and remains an image draft until confirmed.
 - An image added after Markdown has begun is staged as a local note attachment, receives a collision-safe readable filename, and inserts a relative Markdown reference at the cursor.
 - A URL added after Markdown has begun remains part of the note.
 - Multiple files show the detected count and per-import or aggregate progress.
@@ -171,9 +180,16 @@ A primary **New item** button appears in the toolbar's right action zone. The re
 
 ### Completion
 
-- Recognized URLs, images, and files begin saving immediately after paste or drop.
-- Notes expose **Save** and support `Ctrl+Enter`; typed content is retained as a draft until committed or discarded.
-- On success, the draft cross-fades into the format-aware saved card in the same position.
+- Recognized URLs and images expose **Save link** or **Save image** and support `Ctrl+Enter`.
+- Notes expose **Save note** and support `Ctrl+Enter`; all detected content remains a recoverable
+  draft until committed or discarded.
+- Notes and images cross-fade directly into their format-aware saved cards. Links first replace the
+  composer with a same-size, non-editable saving card.
+- The link saving card uses **Saving link** while creating the local record and **Preparing preview**
+  while attempting initial metadata and thumbnail retrieval. It is calm, centered, `aria-busy`, and
+  preserves the final URL card footprint.
+- A successful link saving state remains visible for at least 500 ms and yields after 12 seconds to
+  the normal provisional card so slow networks cannot trap capture.
 - If retrieval filters exclude the new item, success remains visible briefly before the card dismisses with an explanation.
 - Existing cards reflow without changing pages or losing the user's current scroll context.
 - URL metadata can continue loading on the new card after the local URL record is safe.
@@ -181,14 +197,16 @@ A primary **New item** button appears in the toolbar's right action zone. The re
 ### Direct capture
 
 - Pasting while the content canvas has focus invokes the same detection and saving pipeline without requiring a preliminary click.
-- Direct paste summons the draft card so its destination and progress are visible.
+- Direct paste summons the populated draft card so its destination, detected type, and confirmation
+  action are visible; it does not bypass explicit commit.
 - Dragging valid files over the window reveals a clear drop target connected to New Item.
 - Paste and drop events are ignored by the global capture handler when a different text field intentionally owns them.
 
 ### Cancellation and draft safety
 
 - `Escape` and Close hide the card when no save, stage, or import is active.
-- Hidden Markdown and staged local images remain recoverable per library across card reopen and app restart.
+- Hidden text, links, and staged local images remain recoverable per library across card reopen,
+  library switches, and app restart.
 - Discard is explicit and removes both the renderer-local text and controlled staged assets.
 - A failed import remains visible with Retry and Remove actions.
 - Changing collections while a draft or import is active must resolve, preserve, or explicitly cancel that work; it must not silently lose it.
@@ -225,6 +243,10 @@ Type-specific rendering:
 
 Metadata should remain subordinate to the content in Masonry view.
 
+URL and video preview surfaces place a compact source badge at the lower-right. Video previews add
+an optically centered play indicator. Preview bytes come from the validated local cache rather than
+remote renderer requests.
+
 ## Card interactions
 
 - Single-click selects.
@@ -233,7 +255,7 @@ Metadata should remain subordinate to the content in Masonry view.
 - Double-click performs the primary action.
 - Enter opens the selected item's focused detail dialog.
 - Space opens quick preview when implemented.
-- Delete moves selected items to Trash after appropriate confirmation.
+- Delete moves selected items to Trash without confirmation and exposes Undo; permanent deletion is confirmed.
 - Right-click and the overflow control expose the same context menu.
 
 Minimum context menu:
@@ -241,10 +263,12 @@ Minimum context menu:
 - Open.
 - Open source URL, when applicable.
 - Move to collection.
+- Archive or Unarchive when applicable.
 - Rename or edit details.
 - Copy path, when applicable.
 - Copy source URL, when applicable.
 - Move to Trash.
+- Restore or permanently delete when viewing Trash.
 
 ## Item detail
 
@@ -289,7 +313,8 @@ The detail dialog exposes:
   the two editor overlays never compete for the same selection.
 - Typing `/` at the end of an otherwise active text block opens one grouped command list for Text,
   Lists, and Advanced blocks. Continued typing filters without moving focus from the canvas;
-  arrows, Home/End, Enter, and Escape operate only while the list is open.
+  arrows, Home/End, Enter, and Escape operate only while the list is open. Arrow and Home/End
+  navigation scrolls the command list as needed to keep the active command visible.
 - `Ctrl+Enter` flushes autosave immediately. The header announces Saved, Saving, failure, blank,
   and conflict states; a failed or blank draft can restore the last saved body.
 - Close or previous/next navigation flushes pending work before leaving. External-edit conflicts

@@ -32,6 +32,10 @@ Kuskus Library/
         <item-id>/
           item.json
           content.ext
+  archive/
+    <item-id>/
+      item.json
+      content.ext
   trash/
     <item-id>/
       item.json
@@ -39,6 +43,9 @@ Kuskus Library/
   .kuskus/
     index.sqlite
     thumbnails/
+      <item-id>/
+        preview.ext
+        favicon.ext
     temp/
 ```
 
@@ -110,13 +117,19 @@ Proposed common fields:
   "sourceFilename": null,
   "contentFilename": null,
   "note": "",
-  "originalCollectionId": null
+  "originalCollectionId": null,
+  "titleSource": "derived",
+  "trashedFrom": null
 }
 ```
 
 Rules:
 
 - Item IDs are generated once and remain stable after moves and renames.
+- The authoritative parent directory determines the current item location.
+- `originalCollectionId` records the active collection used when an archived item is unarchived.
+- `trashedFrom` records whether a trashed item came from Inbox, a collection, or Archive.
+- `titleSource: "custom"` prevents note edits or URL enrichment from replacing a manual title.
 - Type-specific fields may be added, but unknown fields should be preserved during compatible updates.
 - Paths stored in metadata should be relative to the library whenever possible.
 - Absolute external paths must not be required to open a copied item.
@@ -126,8 +139,13 @@ Rules:
 ### URL
 
 - `item.json` stores the source URL and available metadata.
+- Remote preview URLs remain metadata only. Validated preview and favicon bytes are disposable cache
+  files under `.kuskus/thumbnails/<item-id>/` and are exposed to the renderer only through an
+  item-ID-and-kind operation.
 - A URL item does not promise an offline webpage copy in the MVP.
 - Failure to retrieve metadata leaves a valid item containing the original URL.
+- A missing or corrupt URL preview cache is rebuilt when the network is available and never changes
+  the validity of the bookmark.
 - URL item details are presented in Kuskus; the source URL remains available to open in the default browser.
 
 ### Image, PDF, and general file
@@ -150,7 +168,11 @@ Rules:
   A conflict returns the authoritative disk snapshot for explicit comparison and resolution.
 - A missing attachment produces an inline missing-image state without making the remaining note unreadable.
 
-Uncommitted note images are staged under `.kuskus/temp/note-draft/` with a rebuildable manifest. They are not authoritative items until `note.md`, assets, and `item.json` are finalized together. Successful commit or explicit discard removes the staged bundle; a failed commit retains it for recovery.
+Uncommitted capture images are staged under `.kuskus/temp/note-draft/` with a rebuildable manifest.
+The legacy directory name remains for draft compatibility. A single image with no text may be
+finalized as an image item; images combined with text are finalized as `note.md`, assets, and
+`item.json`. Staged images are not authoritative items. Successful commit or explicit discard
+removes the staged bundle; a failed commit retains it for recovery.
 
 ## Import safety
 
@@ -164,15 +186,21 @@ Uncommitted note images are staged under `.kuskus/temp/note-draft/` with a rebui
 
 - Moving an item changes its collection location but not its item ID.
 - A move must not be represented as delete-then-copy without recovery protection.
-- Renaming a title does not need to rename the physical content file.
+- Batch moves stage complete directories under `.kuskus/temp/` and recover interrupted transactions
+  before scanning the library.
+- Renaming a title never renames the physical content file.
 - External manual edits should be detected on refresh or the next launch where practical.
 - If content is missing, retain the item metadata and show a missing-content state rather than silently deleting it.
 
-## Trash and permanent deletion
+## Archive, Trash, and permanent deletion
 
+- Archive moves the complete item directory into `archive/` and remembers its previous active location.
+- Archived items remain authoritative but are excluded from All Items.
 - Ordinary deletion moves the complete item directory into the library's Trash.
-- Metadata records the previous collection so restoration can return it when possible.
+- Metadata records the immediately previous location so restoration can return there when possible.
+- A missing previous collection falls back to Inbox.
 - Permanent deletion removes the library copy and generated derivatives only after confirmation.
+- Permanent deletion first stages the selected Trash directories as one recoverable batch.
 - Permanent deletion never targets an external import source.
 
 ## In-app item details

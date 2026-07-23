@@ -60,7 +60,7 @@ The user wants one obvious place to add any supported kind of content without ch
    - Pastes an image from the clipboard.
    - Pastes or drops one or more files.
    - Types or pastes plain text or Markdown.
-5. Kuskus detects the input type using the rules below and begins saving or staging it.
+5. Kuskus detects the input type using the rules below and stages it for confirmation.
 6. The draft card shows saving, staging, retry, or recovery state in place.
 7. When the save succeeds, the draft card morphs into the saved format-aware card.
 8. Existing items reflow around the new card without navigating away or opening a separate result screen.
@@ -78,16 +78,17 @@ The user wants one obvious place to add any supported kind of content without ch
 
 ### Commit behavior
 
-- A recognized URL, clipboard image, or file import begins saving immediately after paste or drop.
-- Typed notes and their staged local images maintain a recoverable library-scoped draft.
-- A note is committed with an explicit **Save** action or `Ctrl+Enter`.
+- Recognized URLs and clipboard images remain recoverable library-scoped drafts until confirmed.
+- Typed notes and their staged local images maintain the same recoverable draft behavior.
+- The detected item is committed with **Save link**, **Save image**, or **Save note**, or with
+  `Ctrl+Enter`.
 - `Escape` hides the card and retains unfinished content; discard is a separate explicit action.
 - After a successful commit, keyboard focus returns to **New item** unless the user has started another action.
 
 ### Destination and ordering
 
 - In Inbox or a collection, the item is saved into that active context.
-- From All Items, search results, or Trash, capture defaults to Inbox unless the user explicitly chooses a collection.
+- From All Items, search results, Archive, or Trash, capture defaults to Inbox unless the user explicitly chooses a collection.
 - Newly saved items appear first, newest first.
 - Metadata loading may continue after the initial card appears and must not change the item's position unexpectedly.
 
@@ -111,14 +112,22 @@ The user finds a useful webpage and copies its URL.
 ### Flow
 
 1. The user summons New Item and pastes one URL, or pastes directly while the content view has focus.
-2. Kuskus recognizes the clipboard value as a URL and immediately begins saving it.
-3. The draft card morphs into a provisional URL card at the beginning of the view.
-4. Kuskus retrieves the title, domain, favicon, description, and preview image in the background.
-5. The provisional card progressively updates with available metadata without moving to a different position.
+2. Kuskus recognizes the clipboard value as a URL and keeps it editable in the draft card.
+3. The user confirms with **Save link** or `Ctrl+Enter`.
+4. The draft becomes a non-editable saving card in the same position while the authoritative URL
+   record is created.
+5. The saving card changes to **Preparing preview** while Kuskus retrieves the title, domain,
+   favicon, description, and preview image through the main process.
+6. The saving card morphs once into the enriched URL card, a metadata fallback, or a provisional
+   card after a bounded wait. Background enrichment may continue without moving the item.
 
 ### Acceptance criteria
 
 - Network or metadata failure does not prevent saving the URL.
+- After authoritative creation, the link is registered in its destination immediately but is shown
+  only through the saving card until that intermediary state releases its slot.
+- The saving state lasts at least 500 ms after a successful confirmation and yields to a provisional
+  card after 12 seconds; creation failures restore the editable URL draft without delay.
 - The original pasted URL is preserved exactly even while normalized data is used for display or duplicate checks.
 - The card always shows at least the URL and domain.
 - Double-clicking opens the URL in the default browser.
@@ -136,10 +145,11 @@ The user has an image in the clipboard or an image file on the desktop.
 ### Flow
 
 1. The user summons New Item and pastes the clipboard image, or drops an image into the card or content view.
-2. The draft card shows a preview and an import state.
-3. Kuskus copies the image into the active library.
-4. The draft morphs into a visual image card.
-5. The user may add a title, caption, or source URL later.
+2. The draft card validates and stages the image, then shows a recoverable preview.
+3. The user confirms with **Save image** or `Ctrl+Enter`.
+4. Kuskus copies the staged image into an authoritative item in the active library.
+5. The draft morphs into a visual image card.
+6. The user may add a title, caption, or source URL later.
 
 ### Acceptance criteria
 
@@ -203,7 +213,8 @@ The user wants to save a short observation beside other project references.
   links, local images, and math rendered from Markdown.
 - Saved-note editing preserves existing attachments and writes through a validated item-ID operation.
 - Read and Edit share one rendered canvas; Source remains outside the `Ctrl+E` cycle, and
-  `Ctrl+Enter` flushes autosave immediately from either editing mode.
+  `Ctrl+Enter` flushes autosave immediately from either editing mode. The mode selector visibly
+  presents the `Ctrl+E` keyboard cue.
 - Headings render at their default bold weight without visually applying nested bold, italic,
   inline-code, or strikethrough styling; the original Markdown markers remain authoritative.
 - Opening any item detail leaves the Windows title-bar controls reachable without making the
@@ -269,21 +280,25 @@ The user returns to a project and wants to rediscover a saved reference.
 - The standard keyboard zoom shortcuts resize the complete application interface, including the sidebar, toolbar, content, and dialogs, without adding permanent toolbar controls.
 - The selected zoom level is restored on the next launch; `Ctrl+-`, `Ctrl++`, and `Ctrl+0` remain available as keyboard equivalents.
 
-## 9. Delete and recover an item
+## 9. Archive, delete, and recover an item
 
 ### Scenario
 
-The user removes an item accidentally or intentionally.
+The user hides an inactive item or removes one accidentally or intentionally.
 
 ### Flow
 
-1. The user selects **Move to Trash**.
-2. Kuskus removes the item from Inbox or its collection and places it in the library's Trash.
-3. From Trash, the user can restore or permanently delete it.
+1. The user may select **Archive** to hide retained content from active views.
+2. Unarchive returns the item to its previous Inbox or collection location when possible.
+3. The user selects **Move to Trash** for intended deletion; this works from active views or Archive.
+4. From Trash, the user can restore to the immediately previous location or permanently delete.
 
 ### Acceptance criteria
 
 - Ordinary deletion is recoverable.
+- Archive is distinct from Trash and is excluded from All Items.
+- Archive and Move to Trash provide a short-lived Undo action backed by the persisted operation.
 - Restoring returns the item to its previous collection when possible.
+- Missing previous collections fall back to Inbox with visible feedback.
 - Permanent deletion requires clear confirmation.
 - Kuskus never deletes the original external file from which an item was imported.

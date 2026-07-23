@@ -41,6 +41,7 @@ Exit criteria:
 Deliverables:
 
 - Clipboard image paste.
+- Recoverable image staging with explicit **Save image** confirmation before item creation.
 - File paste and drag-and-drop.
 - Safe copy into the library with progress and collision protection.
 - Image, PDF, and general-file cards.
@@ -65,6 +66,7 @@ Exit criteria:
 Deliverables:
 
 - Detect a single pasted URL in the New Item card.
+- Keep the detected URL editable and recoverable until **Save link** or `Ctrl+Enter` confirms it.
 - Persist the URL before performing network metadata work.
 - Show a provisional card immediately.
 - Enrich title, domain, favicon, description, and preview in the background.
@@ -74,14 +76,17 @@ Deliverables:
 Exit criteria:
 
 - URL capture works offline with at least the original URL intact.
+- Pasting a URL does not create an item or begin metadata enrichment before explicit confirmation.
 
 ## Milestone 4: Collections and organization
 
 Deliverables:
 
-- Inbox, All Items, collections, and Trash navigation.
+- Inbox, All Items, collections, Archive, and Trash navigation.
 - Create, rename, and remove collections.
 - Move one or more items safely.
+- Rename item display titles without renaming stored content files.
+- Archive and unarchive one or more items safely.
 - Restore items from Trash.
 - Preserve or resolve active New Item drafts before navigation.
 

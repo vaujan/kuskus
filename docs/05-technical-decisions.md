@@ -584,3 +584,130 @@ Milkdown's link command and does not steal focus back from the link input.
 - Editor formatting takes priority over sidebar and search shortcuts until the detail closes.
 - Link editing and selection formatting are mutually exclusive overlays.
 - Storage, preload, IPC, autosave, conflict, and Markdown contracts remain unchanged.
+
+## DEC-022: Use Windows caption glyphs for guarded window controls
+
+Date: 2026-07-22
+Status: Accepted
+
+### Context
+
+Kuskus keeps renderer-owned window controls so the item-detail autosave guard can intercept Close,
+but generic application icons made those controls look unlike the Windows caption buttons they
+replace.
+
+### Decision
+
+Keep the existing narrow typed window IPC operations and guarded Close path. On Windows, render the
+controls with Microsoft's documented Segoe Fluent `ChromeMinimize`, `ChromeMaximize`,
+`ChromeRestore`, and `ChromeClose` glyphs, with Segoe MDL2 as the older-Windows fallback. Match the
+Windows caption-button dimensions and light/dark interaction fills, including the standard red
+Close hover and pressed states. These operating-system caption glyphs are exempt from DEC-013's
+Tabler-only application-icon rule; non-Windows frameless controls retain Tabler glyphs.
+
+### Consequences
+
+- Window controls visually match Windows while pending note persistence can still delay Close.
+- Maximize and Restore continue to reflect the main-process window state.
+- Caption rendering depends only on fonts bundled with supported Windows versions and falls back to
+  Segoe MDL2 where Segoe Fluent Icons is unavailable.
+- The renderer still exposes no arbitrary native window or filesystem operation.
+
+## DEC-023: Confirm detected captures before authoritative item creation
+
+Date: 2026-07-22
+Status: Accepted
+
+### Context
+
+DEC-016 made an empty-card image or standalone URL save immediately after paste. Dogfooding showed
+that this made paste feel like an irreversible command and left the composer's Save action
+inconsistent across detected types.
+
+### Decision
+
+Supersede DEC-016 only for commit timing. URLs, clipboard images, and dropped images are detected and
+staged in the summoned draft card but do not create an authoritative item until **Save link**,
+**Save image**, **Save note**, or `Ctrl+Enter` confirms the detected result. Direct canvas paste and
+drop summon the same populated confirmation state.
+
+Text and URLs remain library-scoped renderer drafts. Image bytes use the existing validated
+`.kuskus/temp/note-draft/` bundle for compatibility. The renderer commits a standalone image by
+attachment ID; the main process revalidates the staged bytes, atomically creates the image item, and
+clears the bundle only after success. Adding text or another image converts an image candidate into
+a Markdown note in input order.
+
+### Consequences
+
+- Paste and drop never create an Inbox item without an explicit confirmation.
+- Image, link, and note drafts survive hide, library switching, and restart without becoming
+  authoritative content.
+- Failed commits retain the draft for retry or explicit discard.
+- URL metadata enrichment begins only after the URL item is committed.
+- The legacy temporary directory name remains an internal compatibility detail; no library schema
+  migration is required.
+
+## DEC-024: Separate Archive from Trash and infer item location from authoritative directories
+
+Date: 2026-07-22
+Status: Accepted
+
+### Context
+
+Folders previously persisted metadata but did not provide real item destinations, and item-native
+operations assumed every item lived in Inbox. Deletion also needs a recoverable intent distinct from
+keeping inactive material outside active browsing.
+
+### Decision
+
+Keep folders flat. Add authoritative `archive/` and existing `trash/` locations beside Inbox and
+collection item directories. The parent directory determines current location; compatible additive
+metadata records the collection used for unarchive and whether a trashed item came from Inbox, a
+collection, or Archive. All Items includes only active Inbox and collection content.
+
+Item directory moves use validated item IDs and recoverable batch manifests under `.kuskus/temp/`.
+The main process resolves every item location before filesystem, preview, autosave, enrichment, or
+Explorer operations. Manual rename writes a custom display title marker and never changes the stored
+content filename.
+
+### Consequences
+
+- Archive intentionally retains hidden content; Trash remains the path to permanent deletion.
+- Restore returns to the immediately previous location, with Inbox as the safe fallback when a
+  previous collection no longer exists.
+- Multi-item moves cannot silently settle in a partial state after restart.
+- Existing schema-version-1 items remain valid because lifecycle and title markers are additive.
+- The renderer continues to receive no arbitrary filesystem paths.
+
+## DEC-025: Cache validated rich-link assets behind an intermediary saving card
+
+Date: 2026-07-22
+Status: Accepted
+
+### Context
+
+URL metadata stored remote preview URLs, but the renderer Content Security Policy correctly blocked
+those images. Link confirmation also exposed only button-level progress before changing card shape,
+which did not communicate the network-backed preview work.
+
+### Decision
+
+After **Save link**, replace the composer with a same-slot saving card. Create and register the
+authoritative bookmark first, then show **Preparing preview** while metadata and the first preview
+attempt run. Release the intermediary after success, fallback, or 12 seconds, with a 500 ms minimum
+successful duration.
+
+Fetch HTML heads and remote image candidates only in the main process. Resolve and reject private or
+reserved network destinations before each request and redirect, enforce redirect, time, byte, MIME,
+signature, and dimension limits, and cache validated raster or ICO bytes under
+`.kuskus/thumbnails/<item-id>/`. The renderer requests preview bytes by item ID and asset kind; it
+never receives the remote asset URL or an arbitrary local path. Additive metadata version 2 records
+site name and webpage/video classification, and legacy URL items re-enrich once.
+
+### Consequences
+
+- Link saving remains durable before network work and failures still produce valid bookmarks.
+- The renderer CSP remains unchanged, while cached previews work offline and can be rebuilt.
+- URL moves do not move cache files because item IDs address the library-level cache.
+- Permanent deletion removes matching cache entries on a best-effort basis.
+- Notes and images retain their existing save transition.

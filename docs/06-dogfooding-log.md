@@ -112,6 +112,38 @@ Use this for a specific problem worth preserving.
 - Evidence: User feedback with an attached visual reference for a cleaner, preview-led layout.
 - Possible change, if obvious: Use transparent item frames, visible preview or text surfaces, and compact captions in Visual and Grid views.
 
+### F-002: Pasted images and links save before confirmation
+
+- Date: 2026-07-22
+- What I was trying to do: Paste an image, link, or text into the New Item composer and review what
+  Kuskus detected before adding it to the library.
+- What I expected: The primary action should identify the detected result as **Save image**,
+  **Save link**, or **Save note**, and saving should occur only after activating it.
+- What happened: A standalone pasted image or link was added to the library immediately, while only
+  note text waited for the Save action.
+- Workaround: None recorded.
+- Pain: Not rated.
+- Frequency: Not recorded.
+- Evidence: User-reported composer behavior for image, link, and text capture.
+- Possible change, if obvious: Stage every detected type in a recoverable composer state and require
+  explicit type-specific confirmation.
+
+### F-003: Saved links lack trustworthy visual progress and rich previews
+
+- Date: 2026-07-22
+- What I was trying to do: Save an online reference and keep its visual identity in the mixed-item
+  library.
+- What I expected: Confirmation should become a calm saving state, followed by a thumbnail-led card
+  with recognizable source information.
+- What happened: The composer exposed only button-level progress, while renderer security blocked
+  the remote preview and favicon URLs stored by metadata enrichment.
+- Workaround: Reopen the source in a browser and identify it from its domain.
+- Pain: Not rated.
+- Frequency: First recorded occurrence.
+- Evidence: User feedback with separate rich-link and intermediary-saving visual references.
+- Possible change, if obvious: Fetch and validate preview assets in the main process, cache them
+  locally, and let a same-slot saving card own the transition into the final URL card.
+
 ## Trial summary template
 
 ```markdown

@@ -29,6 +29,7 @@ The MVP is complete when all golden workflows work against a real local library 
 - Collections.
 - Create, rename, and delete collections.
 - Move one or more items between Inbox and collections.
+- Archive with unarchive to the previous location.
 - Trash with restore and permanent deletion.
 
 ### Capture
@@ -36,8 +37,9 @@ The MVP is complete when all golden workflows work against a real local library 
 - A primary New Item toolbar action that summons one inline draft card at the beginning of the active content view.
 - No permanent capture tile or separate capture dialog.
 - Automatic input detection without requiring the user to choose a format first.
-- URL capture by paste, with a provisional card followed by background metadata enrichment.
-- Clipboard image capture through the same draft card.
+- URL capture by paste with explicit confirmation, followed by a provisional card and background
+  metadata enrichment.
+- Clipboard image capture through the same recoverable, explicitly committed draft card.
 - Drag-and-drop or paste import for images, PDFs, and general files.
 - Plain-text or Markdown quick notes with text-and-image draft recovery and explicit commit.
 - Marker-free WYSIWYG editing for saved Markdown notes with Read/Edit toggling, an explicitly
@@ -46,6 +48,8 @@ The MVP is complete when all golden workflows work against a real local library 
 - A draft card that morphs into the newly saved, newest-first card.
 - Direct paste into the focused content view using the same detection and saving pipeline.
 - Visible progress and failure feedback.
+- Type-specific **Save image**, **Save link**, and **Save note** confirmation before authoritative
+  item creation.
 
 ### Browsing
 
