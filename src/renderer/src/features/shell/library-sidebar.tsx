@@ -1,4 +1,5 @@
 import {
+  IconArchive,
   IconCopy,
   IconDeviceDesktop,
   IconDots,
@@ -6,6 +7,7 @@ import {
   IconFolderOpen,
   IconIcons,
   IconInbox,
+  IconLibrary,
   IconLayoutDashboard,
   IconLayoutGrid,
   IconMoon,
@@ -23,6 +25,16 @@ import {
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
 import {
   Dialog,
   DialogContent,
@@ -65,9 +77,16 @@ import { FolderNameDialog } from '@/features/collections/folder-name-dialog'
 import type { LibraryView } from '@/features/items/item-view'
 import type { Theme } from '@/hooks/use-theme'
 import type { CollectionIconKey, LibraryDto } from '../../../../shared/library-contract'
+import { toast } from 'sonner'
 
 type IconPickerTarget = { type: 'new' } | { type: 'folder'; id: string } | null
 type FolderDialogState = { type: 'create' } | { type: 'rename'; id: string } | null
+export type LibraryDestination =
+  | { type: 'inbox' }
+  | { type: 'all' }
+  | { type: 'collection'; collectionId: string }
+  | { type: 'archive' }
+  | { type: 'trash' }
 
 const VIEW_OPTIONS: Array<{ value: LibraryView; label: string; icon: TablerIcon }> = [
   { value: 'visual', label: 'Masonry', icon: IconLayoutDashboard },
@@ -81,6 +100,8 @@ export function LibrarySidebar({
   onThemeChange,
   view,
   onViewChange,
+  destination,
+  onDestinationChange,
   onLibraryChange,
   onError,
   onStatus,
@@ -91,6 +112,8 @@ export function LibrarySidebar({
   onThemeChange: (theme: Theme) => void
   view: LibraryView
   onViewChange: (view: LibraryView) => void
+  destination: LibraryDestination
+  onDestinationChange: (destination: LibraryDestination) => void
   onLibraryChange: (library: LibraryDto) => void
   onError: (message: string) => void
   onStatus: (message: string) => void
@@ -105,6 +128,7 @@ export function LibrarySidebar({
   const [libraryOperationBusy, setLibraryOperationBusy] = useState(false)
   const [iconPickerTarget, setIconPickerTarget] = useState<IconPickerTarget>(null)
   const [iconUpdateBusy, setIconUpdateBusy] = useState(false)
+  const [folderToDelete, setFolderToDelete] = useState<{ id: string; name: string } | null>(null)
   const sorted = (folders: LibraryDto['collections']): LibraryDto['collections'] =>
     [...folders].sort((a, b) => a.name.localeCompare(b.name))
 
@@ -151,14 +175,27 @@ export function LibrarySidebar({
     setNewFolderIcon('folder')
     if (iconPickerTarget?.type === 'new') setIconPickerTarget(null)
   }
-  const deleteFolder = async (id: string, name: string): Promise<void> => {
-    if (!window.confirm(`Remove “${name}”? This only removes an empty folder.`)) return
-    const result = await window.kuskus.deleteCollection(id)
-    if (!result.ok) return onError(result.error)
-    onLibraryChange({
-      ...library,
-      collections: library.collections.filter((folder) => folder.id !== id)
-    })
+  const deleteFolder = (id: string, name: string): void => {
+    setFolderToDelete({ id, name })
+  }
+  const confirmFolderRemoval = async (): Promise<void> => {
+    if (!folderToDelete || folderOperationBusy) return
+    const { id, name } = folderToDelete
+    setFolderOperationBusy(true)
+    try {
+      const result = await window.kuskus.deleteCollection(id)
+      if (!result.ok) return onError(result.error)
+      onLibraryChange(result.data)
+      if (destination.type === 'collection' && destination.collectionId === id) {
+        onDestinationChange({ type: 'inbox' })
+      }
+      setFolderToDelete(null)
+      toast.success(`Removed “${name}”`, {
+        description: 'Its items were moved to Inbox.'
+      })
+    } finally {
+      setFolderOperationBusy(false)
+    }
   }
   const selectFolderIcon = async (icon: CollectionIconKey): Promise<void> => {
     if (!iconPickerTarget || iconUpdateBusy) return
@@ -212,6 +249,12 @@ export function LibrarySidebar({
     if (!result.ok) return onError(result.error)
     onStatus('Library path copied.')
   }
+  const inboxCount = library.items.filter((item) => item.location.type === 'inbox').length
+  const activeCount = library.items.filter(
+    (item) => item.location.type === 'inbox' || item.location.type === 'collection'
+  ).length
+  const archiveCount = library.items.filter((item) => item.location.type === 'archive').length
+  const trashCount = library.items.filter((item) => item.location.type === 'trash').length
 
   return (
     <>
@@ -221,11 +264,26 @@ export function LibrarySidebar({
             <SidebarGroupContent>
               <SidebarMenu aria-label="Library navigation">
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive>
+                  <SidebarMenuButton
+                    isActive={destination.type === 'inbox'}
+                    onClick={() => onDestinationChange({ type: 'inbox' })}
+                  >
                     <IconInbox aria-hidden="true" />
                     <span>Inbox</span>
                     <span className="ml-auto font-mono text-xs tabular-nums text-sidebar-foreground/60">
-                      {library.items.length}
+                      {inboxCount}
+                    </span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={destination.type === 'all'}
+                    onClick={() => onDestinationChange({ type: 'all' })}
+                  >
+                    <IconLibrary aria-hidden="true" />
+                    <span>All Items</span>
+                    <span className="ml-auto font-mono text-xs tabular-nums text-sidebar-foreground/60">
+                      {activeCount}
                     </span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -251,7 +309,15 @@ export function LibrarySidebar({
                 {library.collections.map((folder) => {
                   return (
                     <SidebarMenuItem key={folder.id}>
-                      <SidebarMenuButton>
+                      <SidebarMenuButton
+                        isActive={
+                          destination.type === 'collection' &&
+                          destination.collectionId === folder.id
+                        }
+                        onClick={() =>
+                          onDestinationChange({ type: 'collection', collectionId: folder.id })
+                        }
+                      >
                         <CollectionIcon icon={folder.icon} aria-hidden="true" />
                         <span>{folder.name}</span>
                       </SidebarMenuButton>
@@ -290,7 +356,7 @@ export function LibrarySidebar({
                               Change icon
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => void deleteFolder(folder.id, folder.name)}
+                              onClick={() => deleteFolder(folder.id, folder.name)}
                             >
                               <IconTrash aria-hidden="true" />
                               Remove
@@ -301,6 +367,36 @@ export function LibrarySidebar({
                     </SidebarMenuItem>
                   )
                 })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu aria-label="Item lifecycle">
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={destination.type === 'archive'}
+                    onClick={() => onDestinationChange({ type: 'archive' })}
+                  >
+                    <IconArchive aria-hidden="true" />
+                    <span>Archive</span>
+                    <span className="ml-auto font-mono text-xs tabular-nums text-sidebar-foreground/60">
+                      {archiveCount}
+                    </span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={destination.type === 'trash'}
+                    onClick={() => onDestinationChange({ type: 'trash' })}
+                  >
+                    <IconTrash aria-hidden="true" />
+                    <span>Trash</span>
+                    <span className="ml-auto font-mono text-xs tabular-nums text-sidebar-foreground/60">
+                      {trashCount}
+                    </span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -511,6 +607,41 @@ export function LibrarySidebar({
           </form>
         </DialogContent>
       </Dialog>
+      <AlertDialog
+        open={folderToDelete !== null}
+        onOpenChange={(open) => {
+          if (!open && !folderOperationBusy) setFolderToDelete(null)
+        }}
+      >
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove “{folderToDelete?.name}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {folderToDelete
+                ? (() => {
+                    const count = library.items.filter(
+                      (item) =>
+                        item.location.type === 'collection' &&
+                        item.location.collectionId === folderToDelete.id
+                    ).length
+                    return count === 0
+                      ? 'The empty folder will be removed.'
+                      : `${count} ${count === 1 ? 'item' : 'items'} will be moved to Inbox before the folder is removed.`
+                  })()
+                : ''}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={folderOperationBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={folderOperationBusy}
+              onClick={() => void confirmFolderRemoval()}
+            >
+              Remove folder
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   IconDots,
+  IconLink,
+  IconLoader2,
   IconPhoto,
   IconPhotoPlus,
   IconRefresh,
@@ -21,32 +23,76 @@ import {
 import { Kbd } from '@/components/ui/kbd'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
+import { ItemCard, ItemCardCaption, ItemCardSurface } from '@/features/items/item-card'
 import { SavedItemCard } from '@/features/items/saved-item-card'
 import type { LibraryView } from '@/features/items/item-view'
-import type { LibraryItemDto, NoteDraftImageDto } from '../../../../shared/library-contract'
+import { composeMarkdownCapture, detectCaptureKind } from '@/features/capture/capture-detection'
+import type {
+  CaptureDraftImageDto,
+  LibraryItemDto,
+  UrlItemDto
+} from '../../../../shared/library-contract'
 
 export type ImportRequest =
   { id: number; file: File } | { id: number; url: string } | { id: number; text: string }
 
-type ImportAttempt = {
-  file: File
-  previewUrl: string
-  status: 'importing' | 'failed'
-  error: string
-}
-
 const MORPH_DURATION_MS = 180
+const LINK_SAVE_MINIMUM_MS = 500
+const LINK_SAVE_TIMEOUT_MS = 12_000
 
-function isSingleWebUrl(value: string): boolean {
-  try {
-    const url = new URL(value.trim())
-    return ['http:', 'https:'].includes(url.protocol) && url.toString() === value.trim()
-  } catch {
-    return false
-  }
+function wait(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds))
 }
 
-function markdownImage(attachment: NoteDraftImageDto): string {
+function SavingLinkCard({
+  domain,
+  phase,
+  view
+}: {
+  domain: string
+  phase: 'saving' | 'preview'
+  view: LibraryView
+}): React.JSX.Element {
+  return (
+    <ItemCard aria-busy="true">
+      <ItemCardSurface
+        className={view === 'grid' || view === 'table' ? 'h-64 bg-muted' : 'aspect-[16/9] bg-muted'}
+      >
+        <div
+          key={phase}
+          className="flex size-full flex-col items-center justify-center gap-3 px-6 text-center opacity-100 transition-opacity duration-150 starting:opacity-0 motion-reduce:transition-none"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <span className="flex size-10 items-center justify-center rounded-full bg-background/70 text-muted-foreground shadow-sm">
+            {phase === 'saving' ? (
+              <IconLink className="size-5" aria-hidden="true" />
+            ) : (
+              <IconLoader2
+                className="size-5 animate-spin motion-reduce:animate-none"
+                aria-hidden="true"
+              />
+            )}
+          </span>
+          <div className="space-y-1">
+            <p className="text-sm font-medium">
+              {phase === 'saving' ? 'Saving link' : 'Preparing preview'}
+            </p>
+            <p className="text-pretty text-xs leading-5 text-muted-foreground">
+              {phase === 'saving' ? 'Adding it to your library…' : domain}
+            </p>
+          </div>
+        </div>
+      </ItemCardSurface>
+      <ItemCardCaption className="min-h-14">
+        <span className="truncate">{domain}</span>
+      </ItemCardCaption>
+    </ItemCard>
+  )
+}
+
+function markdownImage(attachment: CaptureDraftImageDto): string {
   const alt = (attachment.sourceFilename ?? attachment.filename)
     .replace(/\.[^.]+$/, '')
     .replaceAll('[', '')
@@ -54,14 +100,14 @@ function markdownImage(attachment: NoteDraftImageDto): string {
   return `![${alt || 'Image'}](${attachment.relativePath})`
 }
 
-function DraftImage({ attachment }: { attachment: NoteDraftImageDto }): React.JSX.Element {
+function DraftImage({ attachment }: { attachment: CaptureDraftImageDto }): React.JSX.Element {
   const [preview, setPreview] = useState<string | null>(null)
 
   useEffect(() => {
     if (attachment.missingContent) return
     let active = true
     let objectUrl: string | null = null
-    void window.kuskus.getNoteDraftImagePreview(attachment.id).then((result) => {
+    void window.kuskus.getCaptureDraftImagePreview(attachment.id).then((result) => {
       if (!active || !result.ok) return
       objectUrl = URL.createObjectURL(
         new Blob([result.data.bytes], { type: result.data.mediaType })
@@ -97,6 +143,9 @@ export function AddItemComposer({
   onOpenChange,
   onImportRequestHandled,
   onCreated,
+  onLinkCommitted,
+  onLinkUpdated,
+  onLinkReleased,
   onStatus,
   onDraftStateChange,
   onTransientWorkChange
@@ -109,25 +158,30 @@ export function AddItemComposer({
   view: LibraryView
   onOpenChange: (open: boolean) => void
   onImportRequestHandled: (id: number) => void
-  onCreated: (item: LibraryItemDto) => boolean
+  onCreated: (item: LibraryItemDto) => boolean | Promise<boolean>
+  onLinkCommitted: (item: UrlItemDto) => Promise<{ item: UrlItemDto; remainsVisible: boolean }>
+  onLinkUpdated: (item: UrlItemDto) => void
+  onLinkReleased: (itemId: string) => void
   onStatus: (message: string) => void
   onDraftStateChange: (hasDraft: boolean) => void
   onTransientWorkChange: (hasTransientWork: boolean) => void
 }): React.JSX.Element | null {
   const [draft, setDraft] = useState(() => localStorage.getItem(draftStorageKey) ?? '')
-  const [attachments, setAttachments] = useState<NoteDraftImageDto[]>([])
+  const [attachments, setAttachments] = useState<CaptureDraftImageDto[]>([])
   const [saving, setSaving] = useState(false)
   const [stagingCount, setStagingCount] = useState(0)
   const [error, setError] = useState('')
   const [failedStage, setFailedStage] = useState<File | null>(null)
-  const [importAttempt, setImportAttempt] = useState<ImportAttempt | null>(null)
   const [morphedItem, setMorphedItem] = useState<LibraryItemDto | null>(null)
+  const [savingLink, setSavingLink] = useState<{
+    domain: string
+    phase: 'saving' | 'preview'
+  } | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const handledImportRequest = useRef<number | null>(null)
   const handledDiscardRequest = useRef(discardRequest)
-  const importAttemptRef = useRef<ImportAttempt | null>(null)
 
   useEffect(() => {
     if (draft) localStorage.setItem(draftStorageKey, draft)
@@ -136,7 +190,7 @@ export function AddItemComposer({
 
   useEffect(() => {
     let active = true
-    void window.kuskus.listNoteDraftImages().then((result) => {
+    void window.kuskus.listCaptureDraftImages().then((result) => {
       if (!active) return
       if (result.ok) setAttachments(result.data)
       else setError(result.error)
@@ -146,23 +200,9 @@ export function AddItemComposer({
     }
   }, [])
 
-  useEffect(() => {
-    importAttemptRef.current = importAttempt
-  }, [importAttempt])
-
-  useEffect(
-    () => () => {
-      if (importAttemptRef.current) URL.revokeObjectURL(importAttemptRef.current.previewUrl)
-    },
-    []
-  )
-
-  const hasDraft =
-    draft.trim().length > 0 ||
-    attachments.length > 0 ||
-    importAttempt !== null ||
-    failedStage !== null
-  const hasTransientWork = saving || stagingCount > 0 || importAttempt?.status === 'importing'
+  const hasDraft = draft.trim().length > 0 || attachments.length > 0 || failedStage !== null
+  const hasTransientWork = saving || stagingCount > 0
+  const captureKind = detectCaptureKind(draft, attachments.length)
 
   useEffect(() => onDraftStateChange(hasDraft), [hasDraft, onDraftStateChange])
   useEffect(
@@ -195,7 +235,7 @@ export function AddItemComposer({
     [draft.length]
   )
 
-  const stageNoteImage = useCallback(
+  const stageCaptureImage = useCallback(
     async (file: File, selectionStart?: number, selectionEnd?: number): Promise<void> => {
       if (!file.type.startsWith('image/')) {
         setError('Only PNG, JPEG, GIF, WebP, and BMP images are supported.')
@@ -204,22 +244,37 @@ export function AddItemComposer({
       setStagingCount((count) => count + 1)
       setError('')
       setFailedStage(null)
-      const result = await window.kuskus.stageNoteDraftImage({
-        bytes: await file.arrayBuffer(),
-        mediaType: file.type,
-        sourceFilename: file.name || null
-      })
-      setStagingCount((count) => Math.max(0, count - 1))
-      if (!result.ok) {
+      try {
+        const result = await window.kuskus.stageCaptureDraftImage({
+          bytes: await file.arrayBuffer(),
+          mediaType: file.type,
+          sourceFilename: file.name || null
+        })
+        if (!result.ok) {
+          setFailedStage(file)
+          setError(result.error)
+          return
+        }
+        const noteIntent = draft.trim().length > 0
+        const imageCandidate = !noteIntent && attachments.length === 1
+        setAttachments((current) => [...current, result.data])
+        if (noteIntent) {
+          insertAtSelection(markdownImage(result.data), selectionStart, selectionEnd)
+          onStatus('Image added to the Markdown draft.')
+        } else if (imageCandidate) {
+          setDraft(composeMarkdownCapture([...attachments, result.data].map(markdownImage)))
+          onStatus('Images added to the Markdown draft.')
+        } else {
+          onStatus('Image ready to save.')
+        }
+      } catch (caught) {
         setFailedStage(file)
-        setError(result.error)
-        return
+        setError(caught instanceof Error ? caught.message : 'The image could not be staged.')
+      } finally {
+        setStagingCount((count) => Math.max(0, count - 1))
       }
-      setAttachments((current) => [...current, result.data])
-      insertAtSelection(markdownImage(result.data), selectionStart, selectionEnd)
-      onStatus('Image added to the Markdown draft.')
     },
-    [insertAtSelection, onStatus]
+    [attachments, draft, insertAtSelection, onStatus]
   )
 
   const finishCreate = useCallback(
@@ -227,80 +282,113 @@ export function AddItemComposer({
       setMorphedItem(item)
       setError('')
       window.setTimeout(() => {
-        const remainsVisible = onCreated(item)
-        setMorphedItem(null)
-        onOpenChange(false)
-        onStatus(
-          remainsVisible ? message : 'Saved to Inbox, but hidden by the current search or filters.'
-        )
+        void Promise.resolve(onCreated(item)).then((remainsVisible) => {
+          setMorphedItem(null)
+          onOpenChange(false)
+          onStatus(
+            remainsVisible
+              ? message
+              : 'Saved successfully, but hidden by the current location, search, or filters.'
+          )
+        })
       }, MORPH_DURATION_MS)
     },
     [onCreated, onOpenChange, onStatus]
   )
 
-  const importStandaloneImage = useCallback(
-    async (file: File): Promise<void> => {
-      if (!file.type.startsWith('image/')) {
-        setError('Only PNG, JPEG, GIF, WebP, and BMP images are supported.')
-        return
-      }
+  const finishCommittedLink = useCallback(
+    async (item: UrlItemDto, remainsVisible: boolean): Promise<void> => {
+      setMorphedItem(item)
+      setSavingLink(null)
       setError('')
-      setImportAttempt((current) => {
-        if (current) URL.revokeObjectURL(current.previewUrl)
-        return {
-          file,
-          previewUrl: URL.createObjectURL(file),
-          status: 'importing',
-          error: ''
-        }
-      })
-      const result = await window.kuskus.importImage({
-        bytes: await file.arrayBuffer(),
-        mediaType: file.type,
-        sourceFilename: file.name || null
-      })
-      if (!result.ok) {
-        setImportAttempt((current) =>
-          current ? { ...current, status: 'failed', error: result.error } : current
-        )
-        return
-      }
-      setImportAttempt((current) => {
-        if (current) URL.revokeObjectURL(current.previewUrl)
-        return null
-      })
-      finishCreate(result.data, 'Image imported to Inbox.')
+      await wait(MORPH_DURATION_MS)
+      onLinkReleased(item.id)
+      setMorphedItem(null)
+      onOpenChange(false)
+      onStatus(
+        remainsVisible
+          ? 'Link saved.'
+          : 'Saved successfully, but hidden by the current location, search, or filters.'
+      )
     },
-    [finishCreate]
+    [onLinkReleased, onOpenChange, onStatus]
   )
 
   const save = async (): Promise<void> => {
-    if (!draft.trim() || saving || hasTransientWork) return
+    if (captureKind === 'empty' || saving || hasTransientWork) return
     setSaving(true)
     setError('')
-    const urlOnly = attachments.length === 0 && isSingleWebUrl(draft)
-    const result = urlOnly
-      ? await window.kuskus.createUrl(draft.trim())
-      : await window.kuskus.createNote({
-          markdown: draft,
-          attachmentIds: attachments.map((attachment) => attachment.id)
-        })
-    setSaving(false)
-    if (!result.ok) {
-      setError(result.error)
-      return
+    const kind = captureKind
+    const minimumLinkState = kind === 'link' ? wait(LINK_SAVE_MINIMUM_MS) : Promise.resolve()
+    const linkTimeout = kind === 'link' ? wait(LINK_SAVE_TIMEOUT_MS) : Promise.resolve()
+    if (kind === 'link') {
+      let domain = draft.trim()
+      try {
+        domain = new URL(domain).hostname
+      } catch {
+        // Detection already validated the URL; retain the original text if parsing unexpectedly fails.
+      }
+      setSavingLink({ domain, phase: 'saving' })
     }
-    setDraft('')
-    setAttachments([])
-    finishCreate(
-      result.data,
-      urlOnly ? 'Link saved to Inbox. Loading page details…' : 'Note saved to Inbox.'
-    )
+    try {
+      if (kind === 'link') {
+        const created = await window.kuskus.createUrl(draft.trim())
+        if (!created.ok) {
+          setSavingLink(null)
+          setError(created.error)
+          return
+        }
+        const committed = await onLinkCommitted(created.data)
+        let latestItem = committed.item
+        setDraft('')
+        setAttachments([])
+        setSavingLink({ domain: latestItem.domain, phase: 'preview' })
+        const preparation = window.kuskus.enrichUrl(latestItem.id).then(async (result) => {
+          if (!result.ok) return latestItem
+          latestItem = result.data
+          onLinkUpdated(latestItem)
+          if (latestItem.hasPreviewImage) {
+            await window.kuskus.getUrlPreview(latestItem.id, 'preview').catch(() => undefined)
+          }
+          return latestItem
+        })
+        await Promise.race([preparation, linkTimeout])
+        await minimumLinkState
+        await finishCommittedLink(latestItem, committed.remainsVisible)
+        return
+      }
+      const result =
+        kind === 'image'
+          ? await window.kuskus.commitCaptureDraftImage(attachments[0].id)
+          : await window.kuskus.createNote({
+              markdown: draft,
+              attachmentIds: attachments.map((attachment) => attachment.id)
+            })
+      if (!result.ok) {
+        setError(result.error)
+        return
+      }
+      setDraft('')
+      setAttachments([])
+      finishCreate(
+        result.data,
+        captureKind === 'image'
+          ? 'Image saved to Inbox.'
+          : captureKind === 'link'
+            ? 'Link saved to Inbox. Loading page details…'
+            : 'Note saved to Inbox.'
+      )
+    } catch (caught) {
+      setSavingLink(null)
+      setError(caught instanceof Error ? caught.message : 'The content could not be saved.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const discard = useCallback(async (): Promise<void> => {
     if (hasTransientWork) return
-    const result = await window.kuskus.discardNoteDraft()
+    const result = await window.kuskus.discardCaptureDraft()
     if (!result.ok) {
       setError(result.error)
       onOpenChange(true)
@@ -309,10 +397,6 @@ export function AddItemComposer({
     setDraft('')
     setAttachments([])
     setFailedStage(null)
-    setImportAttempt((current) => {
-      if (current) URL.revokeObjectURL(current.previewUrl)
-      return null
-    })
     setError('')
     onOpenChange(false)
     onStatus('Draft discarded.')
@@ -324,8 +408,8 @@ export function AddItemComposer({
     void discard()
   }, [discard, discardRequest])
 
-  const removeAttachment = async (attachment: NoteDraftImageDto): Promise<void> => {
-    const result = await window.kuskus.removeNoteDraftImage(attachment.id)
+  const removeAttachment = async (attachment: CaptureDraftImageDto): Promise<void> => {
+    const result = await window.kuskus.removeCaptureDraftImage(attachment.id)
     if (!result.ok) {
       setError(result.error)
       return
@@ -342,28 +426,24 @@ export function AddItemComposer({
     onImportRequestHandled(importRequest.id)
     const timeout = window.setTimeout(() => {
       if ('file' in importRequest) {
-        if (hasDraft) void stageNoteImage(importRequest.file)
-        else void importStandaloneImage(importRequest.file)
+        void stageCaptureImage(importRequest.file)
         return
       }
-      if ('url' in importRequest && !hasDraft) {
-        void window.kuskus.createUrl(importRequest.url).then((result) => {
-          if (!result.ok) setError(result.error)
-          else finishCreate(result.data, 'Link saved to Inbox. Loading page details…')
-        })
-        return
+      const value = 'url' in importRequest ? importRequest.url : importRequest.text
+      if (captureKind === 'image') {
+        setDraft(composeMarkdownCapture([markdownImage(attachments[0])], value))
+      } else {
+        insertAtSelection(value)
       }
-      insertAtSelection('url' in importRequest ? importRequest.url : importRequest.text)
     })
     void timeout
   }, [
-    finishCreate,
-    hasDraft,
+    attachments,
+    captureKind,
     importRequest,
-    importStandaloneImage,
     insertAtSelection,
     onImportRequestHandled,
-    stageNoteImage
+    stageCaptureImage
   ])
 
   const handlePaste = (event: React.ClipboardEvent<HTMLTextAreaElement>): void => {
@@ -372,25 +452,12 @@ export function AddItemComposer({
       ?.getAsFile()
     if (image) {
       event.preventDefault()
-      const noteIntent = draft.trim().length > 0 || attachments.length > 0
-      if (noteIntent) {
-        void stageNoteImage(
-          image,
-          event.currentTarget.selectionStart,
-          event.currentTarget.selectionEnd
-        )
-      } else {
-        void importStandaloneImage(image)
-      }
+      void stageCaptureImage(
+        image,
+        event.currentTarget.selectionStart,
+        event.currentTarget.selectionEnd
+      )
       return
-    }
-    const text = event.clipboardData.getData('text/plain').trim()
-    if (!hasDraft && isSingleWebUrl(text)) {
-      event.preventDefault()
-      void window.kuskus.createUrl(text).then((result) => {
-        if (!result.ok) setError(result.error)
-        else finishCreate(result.data, 'Link saved to Inbox. Loading page details…')
-      })
     }
   }
 
@@ -402,9 +469,19 @@ export function AddItemComposer({
         <SavedItemCard
           item={morphedItem}
           view={view === 'visual' ? 'visual' : 'grid'}
+          selected={false}
           onError={setError}
+          onSelect={() => undefined}
           onOpen={() => undefined}
         />
+      </div>
+    )
+  }
+
+  if (savingLink) {
+    return (
+      <div ref={rootRef} className="min-w-0">
+        <SavingLinkCard domain={savingLink.domain} phase={savingLink.phase} view={view} />
       </div>
     )
   }
@@ -419,56 +496,15 @@ export function AddItemComposer({
           ref={fileInputRef}
           className="sr-only"
           type="file"
-          multiple
           accept="image/png,image/jpeg,image/gif,image/webp,image/bmp"
           tabIndex={-1}
           onChange={(event) => {
             const files = Array.from(event.currentTarget.files ?? [])
             event.currentTarget.value = ''
             if (files.length === 0) return
-            if (!hasDraft) void importStandaloneImage(files[0])
-            else
-              files.reduce(
-                (previous, file) => previous.then(() => stageNoteImage(file)),
-                Promise.resolve()
-              )
+            void stageCaptureImage(files[0])
           }}
         />
-        {importAttempt ? (
-          <div className="flex items-center gap-3 rounded-xl bg-muted/60 p-3">
-            <img
-              src={importAttempt.previewUrl}
-              alt="Image being imported"
-              className="size-20 rounded-lg object-cover outline -outline-offset-1 outline-black/10 dark:outline-white/10"
-            />
-            <div className="flex min-w-0 flex-1 flex-col gap-2">
-              <p className="truncate text-sm font-medium">
-                {importAttempt.file.name || 'Pasted image'}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {importAttempt.status === 'importing' ? 'Importing image…' : importAttempt.error}
-              </p>
-              {importAttempt.status === 'failed' ? (
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={() => void importStandaloneImage(importAttempt.file)}>
-                    <IconRefresh data-icon="inline-start" aria-hidden="true" />
-                    Retry
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      URL.revokeObjectURL(importAttempt.previewUrl)
-                      setImportAttempt(null)
-                    }}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
         {attachments.length > 0 ? (
           <div className="flex flex-col gap-2" aria-label="Draft images">
             {attachments.map((attachment) => (
@@ -480,7 +516,11 @@ export function AddItemComposer({
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{attachment.filename}</p>
                   <p className="text-xs text-muted-foreground">
-                    {attachment.missingContent ? 'Staged file is missing' : 'Embedded in Markdown'}
+                    {attachment.missingContent
+                      ? 'Staged file is missing'
+                      : captureKind === 'image'
+                        ? 'Ready to save'
+                        : 'Embedded in Markdown'}
                   </p>
                 </div>
                 <Button
@@ -500,10 +540,25 @@ export function AddItemComposer({
           ref={editorRef}
           className="min-h-32 max-h-96 resize-none overflow-y-auto border-0 bg-transparent px-1 py-2 text-sm leading-6 shadow-none [field-sizing:content] placeholder:text-muted-foreground/70 focus-visible:ring-0"
           aria-label="Markdown note or link"
-          placeholder="Write, paste a link, or drop an image…"
+          placeholder={
+            captureKind === 'image'
+              ? 'Add text to turn this into a note…'
+              : 'Write, paste a link, or drop an image…'
+          }
           value={draft}
-          disabled={saving || importAttempt?.status === 'importing'}
-          onChange={(event) => setDraft(event.target.value)}
+          disabled={hasTransientWork}
+          onChange={(event) => {
+            const value = event.target.value
+            if (captureKind !== 'image' || !value) {
+              setDraft(value)
+              return
+            }
+            const converted = composeMarkdownCapture([markdownImage(attachments[0])], value)
+            setDraft(converted)
+            window.requestAnimationFrame(() => {
+              editorRef.current?.setSelectionRange(converted.length, converted.length)
+            })
+          }}
           onPaste={handlePaste}
           onKeyDown={(event) => {
             if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
@@ -532,7 +587,7 @@ export function AddItemComposer({
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => void stageNoteImage(failedStage)}
+                  onClick={() => void stageCaptureImage(failedStage)}
                 >
                   <IconRefresh data-icon="inline-start" aria-hidden="true" />
                   Retry image
@@ -587,16 +642,22 @@ export function AddItemComposer({
           <Button
             size="lg"
             className="transition-[scale,background-color,color] active:scale-[0.96]"
-            disabled={!draft.trim() || hasTransientWork}
+            disabled={captureKind === 'empty' || hasTransientWork}
             aria-keyshortcuts="Control+Enter Meta+Enter"
             onClick={() => void save()}
           >
             {saving ? <Spinner data-icon="inline-start" /> : null}
             {saving
-              ? 'Saving…'
-              : isSingleWebUrl(draft) && attachments.length === 0
-                ? 'Save link'
-                : 'Save'}
+              ? captureKind === 'image'
+                ? 'Saving image…'
+                : captureKind === 'link'
+                  ? 'Saving link…'
+                  : 'Saving note…'
+              : captureKind === 'image'
+                ? 'Save image'
+                : captureKind === 'link'
+                  ? 'Save link'
+                  : 'Save note'}
             {!saving ? (
               <Kbd
                 className="ml-1 hidden bg-primary-foreground/15 text-primary-foreground sm:inline-flex"

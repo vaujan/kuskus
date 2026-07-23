@@ -6,6 +6,10 @@ import {
   type CreateNoteInput,
   type CreateCollectionInput,
   type ImageImportInput,
+  type ItemMutationInput,
+  type MoveItemsInput,
+  type RenameItemInput,
+  type UrlPreviewKind,
   type UpdateNoteInput
 } from '../../shared/library-contract'
 import { LibraryService, NoteUpdateConflictError } from '../library/library-service'
@@ -112,51 +116,65 @@ export function registerLibraryIpc(libraryService: LibraryService): void {
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.listNoteDraftImages, async () => {
+  ipcMain.handle(KUSKUS_CHANNELS.listCaptureDraftImages, async () => {
     try {
-      return { ok: true, data: await libraryService.listNoteDraftImages() }
+      return { ok: true, data: await libraryService.listCaptureDraftImages() }
     } catch (error) {
       return errorResult(error)
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.stageNoteDraftImage, async (_event, input: unknown) => {
+  ipcMain.handle(KUSKUS_CHANNELS.stageCaptureDraftImage, async (_event, input: unknown) => {
     try {
-      return { ok: true, data: await libraryService.stageNoteDraftImage(input as ImageImportInput) }
+      return {
+        ok: true,
+        data: await libraryService.stageCaptureDraftImage(input as ImageImportInput)
+      }
     } catch (error) {
       return errorResult(error, 'invalid-input')
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.removeNoteDraftImage, async (_event, id: unknown) => {
+  ipcMain.handle(KUSKUS_CHANNELS.removeCaptureDraftImage, async (_event, id: unknown) => {
     if (typeof id !== 'string') {
       return errorResult(new Error('The attachment identifier is invalid.'), 'invalid-input')
     }
     try {
-      await libraryService.removeNoteDraftImage(id)
+      await libraryService.removeCaptureDraftImage(id)
       return { ok: true, data: null }
     } catch (error) {
       return errorResult(error)
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.discardNoteDraft, async () => {
+  ipcMain.handle(KUSKUS_CHANNELS.discardCaptureDraft, async () => {
     try {
-      await libraryService.discardNoteDraft()
+      await libraryService.discardCaptureDraft()
       return { ok: true, data: null }
     } catch (error) {
       return errorResult(error)
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.getNoteDraftImagePreview, async (_event, id: unknown) => {
+  ipcMain.handle(KUSKUS_CHANNELS.getCaptureDraftImagePreview, async (_event, id: unknown) => {
     if (typeof id !== 'string') {
       return errorResult(new Error('The attachment identifier is invalid.'), 'invalid-input')
     }
     try {
-      return { ok: true, data: await libraryService.getNoteDraftImagePreview(id) }
+      return { ok: true, data: await libraryService.getCaptureDraftImagePreview(id) }
     } catch (error) {
       return errorResult(error, 'not-found')
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.commitCaptureDraftImage, async (_event, id: unknown) => {
+    if (typeof id !== 'string') {
+      return errorResult(new Error('The attachment identifier is invalid.'), 'invalid-input')
+    }
+    try {
+      return { ok: true, data: await libraryService.commitCaptureDraftImage(id) }
+    } catch (error) {
+      return errorResult(error, 'invalid-input')
     }
   })
 
@@ -197,11 +215,21 @@ export function registerLibraryIpc(libraryService: LibraryService): void {
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.importImage, async (_event, input: unknown) => {
+  ipcMain.handle(KUSKUS_CHANNELS.getUrlPreview, async (_event, itemId: unknown, kind: unknown) => {
+    if (
+      typeof itemId !== 'string' ||
+      typeof kind !== 'string' ||
+      !['preview', 'favicon'].includes(kind)
+    ) {
+      return errorResult(new Error('The link preview request is invalid.'), 'invalid-input')
+    }
     try {
-      return { ok: true, data: await libraryService.importImage(input as ImageImportInput) }
+      return {
+        ok: true,
+        data: await libraryService.getUrlPreview(itemId, kind as UrlPreviewKind)
+      }
     } catch (error) {
-      return errorResult(error, 'invalid-input')
+      return errorResult(error, 'not-found')
     }
   })
 
@@ -253,12 +281,49 @@ export function registerLibraryIpc(libraryService: LibraryService): void {
     if (typeof id !== 'string')
       return errorResult(new Error('The folder identifier is invalid.'), 'invalid-input')
     try {
-      await libraryService.deleteCollection(id)
-      return { ok: true, data: null }
+      return { ok: true, data: await libraryService.deleteCollection(id) }
     } catch (error) {
       return errorResult(error)
     }
   })
+
+  ipcMain.handle(KUSKUS_CHANNELS.renameItem, async (_event, input: unknown) => {
+    try {
+      return { ok: true, data: await libraryService.renameItem(input as RenameItemInput) }
+    } catch (error) {
+      return errorResult(error, 'invalid-input')
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.moveItems, async (_event, input: unknown) => {
+    try {
+      return { ok: true, data: await libraryService.moveItems(input as MoveItemsInput) }
+    } catch (error) {
+      return errorResult(error, 'invalid-input')
+    }
+  })
+
+  const registerItemMutation = (
+    channel: string,
+    operation: (input: ItemMutationInput) => Promise<unknown>
+  ): void => {
+    ipcMain.handle(channel, async (_event, input: unknown) => {
+      try {
+        return { ok: true, data: await operation(input as ItemMutationInput) }
+      } catch (error) {
+        return errorResult(error, 'invalid-input')
+      }
+    })
+  }
+  registerItemMutation(KUSKUS_CHANNELS.archiveItems, (input) => libraryService.archiveItems(input))
+  registerItemMutation(KUSKUS_CHANNELS.unarchiveItems, (input) =>
+    libraryService.unarchiveItems(input)
+  )
+  registerItemMutation(KUSKUS_CHANNELS.trashItems, (input) => libraryService.trashItems(input))
+  registerItemMutation(KUSKUS_CHANNELS.restoreItems, (input) => libraryService.restoreItems(input))
+  registerItemMutation(KUSKUS_CHANNELS.permanentlyDeleteItems, (input) =>
+    libraryService.permanentlyDeleteItems(input)
+  )
 
   ipcMain.handle(KUSKUS_CHANNELS.getImagePreview, async (_event, itemId: unknown) => {
     if (typeof itemId !== 'string') {

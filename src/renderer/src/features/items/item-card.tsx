@@ -43,7 +43,7 @@ export function ItemCardSurface({ className, ...props }: ComponentProps<'div'>):
     <div
       data-slot="item-card-surface"
       className={cn(
-        'relative overflow-hidden rounded-2xl bg-card shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_1px_2px_-1px_rgba(0,0,0,0.04),0_2px_4px_rgba(0,0,0,0.03)] ring-inset transition-[scale,box-shadow,background-color] duration-150 ease-out group-hover/item-card:bg-card/95 group-hover/item-card:shadow-[0_0_0_1px_rgba(0,0,0,0.07),0_1px_2px_-1px_rgba(0,0,0,0.05),0_4px_10px_-6px_rgba(0,0,0,0.08)] peer-focus-visible:ring-3 peer-focus-visible:ring-ring/60 peer-active:scale-[0.96] peer-disabled:scale-100 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06)] dark:group-hover/item-card:shadow-[0_0_0_1px_rgba(255,255,255,0.1)]',
+        'relative overflow-hidden rounded-sm bg-card shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_1px_2px_-1px_rgba(0,0,0,0.04),0_2px_4px_rgba(0,0,0,0.03)] ring-inset transition-[scale,box-shadow,background-color] duration-150 ease-out group-hover/item-card:bg-card/95 group-hover/item-card:shadow-[0_0_0_1px_rgba(0,0,0,0.07),0_1px_2px_-1px_rgba(0,0,0,0.05),0_4px_10px_-6px_rgba(0,0,0,0.08)] group-data-[selected=true]/item-card:ring-3 group-data-[selected=true]/item-card:ring-primary/70 peer-focus-visible:ring-3 peer-focus-visible:ring-ring/60 peer-active:scale-[0.96] peer-disabled:scale-100 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06)] dark:group-hover/item-card:shadow-[0_0_0_1px_rgba(255,255,255,0.1)]',
         className
       )}
       {...props}

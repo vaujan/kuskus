@@ -14,11 +14,15 @@ import type { ImageItemDto } from '../../../../shared/library-contract'
 
 export function ImageItemCard({
   item,
+  onSelect,
   onOpen,
+  selected,
   view
 }: {
   item: ImageItemDto
+  onSelect: (event: React.MouseEvent<HTMLButtonElement>) => void
   onOpen: () => void
+  selected: boolean
   view: Exclude<LibraryView, 'table'>
 }): React.JSX.Element {
   const { preview, previewError } = useImagePreview(item.id, item.missingContent)
@@ -26,12 +30,19 @@ export function ImageItemCard({
   const previewAvailable = preview !== null && failedPreview !== preview
 
   return (
-    <ItemCard>
+    <ItemCard data-selected={selected}>
       <ItemCardPrimaryAction
-        aria-label={`Open image ${item.title}`}
+        aria-label={`Select image ${item.title}`}
+        aria-pressed={selected}
         disabled={item.missingContent}
         focusSurface
-        onClick={onOpen}
+        onClick={onSelect}
+        onDoubleClick={onOpen}
+        onKeyDown={(event) => {
+          if (event.key !== 'Enter') return
+          event.preventDefault()
+          onOpen()
+        }}
       />
       <ItemCardSurface className={view === 'grid' ? 'h-64 bg-muted/30' : 'bg-muted/30'}>
         {item.missingContent ||

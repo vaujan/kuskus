@@ -34,10 +34,18 @@ function hasMissingContent(item: LibraryItemDto): boolean {
 
 export function SavedItemsTable({
   items,
-  onOpen
+  selectedIds,
+  onSelect,
+  onOpen,
+  renderActions,
+  wrapRow
 }: {
   items: LibraryItemDto[]
+  selectedIds: ReadonlySet<string>
+  onSelect: (itemId: string, event: React.MouseEvent<HTMLTableRowElement>) => void
   onOpen: (itemId: string) => void
+  renderActions: (item: LibraryItemDto) => React.ReactNode
+  wrapRow?: (item: LibraryItemDto, row: React.ReactElement) => React.ReactNode
 }): React.JSX.Element {
   return (
     <Table className="table-fixed">
@@ -46,6 +54,9 @@ export function SavedItemsTable({
           <TableHead>Name</TableHead>
           <TableHead className="w-28">Type</TableHead>
           <TableHead className="w-32 text-right">Added</TableHead>
+          <TableHead className="w-12">
+            <span className="sr-only">Actions</span>
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -53,15 +64,18 @@ export function SavedItemsTable({
           const itemType = ITEM_TYPES[item.type]
           const Icon = itemType.icon
 
-          return (
+          const row = (
             <TableRow
               key={item.id}
               tabIndex={0}
-              aria-label={`Open ${itemType.label.toLocaleLowerCase()} ${item.title}`}
-              className="cursor-pointer focus-visible:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-              onClick={() => onOpen(item.id)}
+              aria-label={`Select ${itemType.label.toLocaleLowerCase()} ${item.title}`}
+              aria-selected={selectedIds.has(item.id)}
+              data-state={selectedIds.has(item.id) ? 'selected' : undefined}
+              className="group/saved-item cursor-pointer focus-visible:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=selected]:bg-muted/70"
+              onClick={(event) => onSelect(item.id, event)}
+              onDoubleClick={() => onOpen(item.id)}
               onKeyDown={(event) => {
-                if (event.key !== 'Enter' && event.key !== ' ') return
+                if (event.key !== 'Enter') return
                 event.preventDefault()
                 onOpen(item.id)
               }}
@@ -87,8 +101,12 @@ export function SavedItemsTable({
                   {CREATED_DATE_FORMATTER.format(new Date(item.createdAt))}
                 </time>
               </TableCell>
+              <TableCell className="p-1" onClick={(event) => event.stopPropagation()}>
+                {renderActions(item)}
+              </TableCell>
             </TableRow>
           )
+          return wrapRow ? wrapRow(item, row) : row
         })}
       </TableBody>
     </Table>

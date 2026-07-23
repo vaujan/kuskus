@@ -1,6 +1,7 @@
 import type {
   ImageImportInput,
   ImageItemDto,
+  ItemLocation,
   SupportedImageMediaType
 } from '../../../shared/library-contract'
 import { IMAGE_EXTENSIONS, MAXIMUM_IMAGE_BYTES } from '../constants'
@@ -146,6 +147,9 @@ export function createImageMetadata(
   }
 }
 
-export function toImageDto(metadata: PersistedImageItem): ImageItemDto {
-  return { ...metadata, missingContent: false }
+export function toImageDto(
+  metadata: PersistedImageItem,
+  location: ItemLocation = { type: 'inbox' }
+): ImageItemDto {
+  return { ...metadata, missingContent: false, location }
 }

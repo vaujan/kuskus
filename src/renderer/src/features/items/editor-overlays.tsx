@@ -608,9 +608,7 @@ class SlashMenuView implements PluginView {
       this.#activeIndex = moveEditorCommandIndex(this.#activeIndex, direction, commands.length)
       flushSync(() => this.#render())
       this.#syncEditorAria()
-      this.#content
-        .querySelector<HTMLElement>(`#${this.#menuId}-${commands[this.#activeIndex]?.id}`)
-        ?.scrollIntoView({ block: 'nearest' })
+      this.#scrollCommandIntoView(commands[this.#activeIndex]?.id)
       return true
     }
     if (event.key === 'Enter' && commands[this.#activeIndex]) {
@@ -666,6 +664,21 @@ class SlashMenuView implements PluginView {
     runSlashCommand(this.#ctx, command)
     this.#provider.hide()
     this.#view.focus()
+  }
+
+  #scrollCommandIntoView(commandId?: EditorCommandId): void {
+    if (!commandId) return
+    const list = this.#content.querySelector<HTMLElement>(`#${this.#menuId}`)
+    const item = this.#content.querySelector<HTMLElement>(`#${this.#menuId}-${commandId}`)
+    if (!list || !item) return
+
+    const listRect = list.getBoundingClientRect()
+    const itemRect = item.getBoundingClientRect()
+    if (itemRect.bottom > listRect.bottom) {
+      list.scrollTop += itemRect.bottom - listRect.bottom
+    } else if (itemRect.top < listRect.top) {
+      list.scrollTop -= listRect.top - itemRect.top
+    }
   }
 
   #render(): void {

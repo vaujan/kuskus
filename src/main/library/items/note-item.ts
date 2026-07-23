@@ -1,4 +1,4 @@
-import type { NoteItemDto } from '../../../shared/library-contract'
+import type { ItemLocation, NoteItemDto } from '../../../shared/library-contract'
 import { IMAGE_EXTENSIONS, NOTE_FILENAME, RESERVED_WINDOWS_NAMES } from '../constants'
 import type { PersistedNoteItem } from '../schemas'
 import type { DetectedImage } from './image-item'
@@ -71,7 +71,7 @@ export function updateNoteMetadata(
 ): PersistedNoteItem {
   return {
     ...metadata,
-    title: deriveNoteTitle(markdown),
+    title: metadata.titleSource === 'custom' ? metadata.title : deriveNoteTitle(markdown),
     updatedAt: timestamp
   }
 }
@@ -79,7 +79,8 @@ export function updateNoteMetadata(
 export function toNoteDto(
   metadata: PersistedNoteItem,
   body: string,
-  attachments: NoteItemDto['attachments'] = []
+  attachments: NoteItemDto['attachments'] = [],
+  location: ItemLocation = { type: 'inbox' }
 ): NoteItemDto {
   return {
     schemaVersion: metadata.schemaVersion,
@@ -90,6 +91,7 @@ export function toNoteDto(
     createdAt: metadata.createdAt,
     updatedAt: metadata.updatedAt,
     missingContent: false,
-    attachments
+    attachments,
+    location
   }
 }

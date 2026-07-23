@@ -4,19 +4,27 @@ export const KUSKUS_CHANNELS = {
   openLibrary: 'library:open',
   createNote: 'library:create-note',
   updateNote: 'library:update-note',
-  listNoteDraftImages: 'library:list-note-draft-images',
-  stageNoteDraftImage: 'library:stage-note-draft-image',
-  removeNoteDraftImage: 'library:remove-note-draft-image',
-  discardNoteDraft: 'library:discard-note-draft',
-  getNoteDraftImagePreview: 'library:get-note-draft-image-preview',
+  listCaptureDraftImages: 'library:list-capture-draft-images',
+  stageCaptureDraftImage: 'library:stage-capture-draft-image',
+  removeCaptureDraftImage: 'library:remove-capture-draft-image',
+  discardCaptureDraft: 'library:discard-capture-draft',
+  getCaptureDraftImagePreview: 'library:get-capture-draft-image-preview',
+  commitCaptureDraftImage: 'library:commit-capture-draft-image',
   getNoteAttachmentPreview: 'library:get-note-attachment-preview',
   createUrl: 'library:create-url',
   enrichUrl: 'library:enrich-url',
-  importImage: 'library:import-image',
+  getUrlPreview: 'library:get-url-preview',
   createCollection: 'library:create-collection',
   renameCollection: 'library:rename-collection',
   setCollectionIcon: 'library:set-collection-icon',
   deleteCollection: 'library:delete-collection',
+  renameItem: 'library:rename-item',
+  moveItems: 'library:move-items',
+  archiveItems: 'library:archive-items',
+  unarchiveItems: 'library:unarchive-items',
+  trashItems: 'library:trash-items',
+  restoreItems: 'library:restore-items',
+  permanentlyDeleteItems: 'library:permanently-delete-items',
   getImagePreview: 'library:get-image-preview',
   copyLibraryPath: 'library:copy-library-path',
   showItemInExplorer: 'library:show-item-in-explorer',
@@ -26,6 +34,30 @@ export const KUSKUS_CHANNELS = {
 export type ApiErrorCode = 'cancelled' | 'invalid-input' | 'not-found' | 'conflict' | 'io-error'
 
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string; code: ApiErrorCode }
+
+export type ActiveItemLocation = { type: 'inbox' } | { type: 'collection'; collectionId: string }
+
+export type ItemLocation =
+  | ActiveItemLocation
+  | { type: 'archive'; originalCollectionId: string | null }
+  | {
+      type: 'trash'
+      trashedFrom: 'inbox' | 'collection' | 'archive'
+      originalCollectionId: string | null
+    }
+
+export interface ItemMutationInput {
+  itemIds: string[]
+}
+
+export interface MoveItemsInput extends ItemMutationInput {
+  destination: ActiveItemLocation
+}
+
+export interface RenameItemInput {
+  itemId: string
+  title: string
+}
 
 export interface NoteItemDto {
   schemaVersion: 1
@@ -37,6 +69,7 @@ export interface NoteItemDto {
   updatedAt: string
   missingContent: boolean
   attachments: NoteAttachmentDto[]
+  location: ItemLocation
 }
 
 export interface NoteAttachmentDto {
@@ -50,7 +83,7 @@ export interface NoteAttachmentDto {
   missingContent: boolean
 }
 
-export type NoteDraftImageDto = NoteAttachmentDto
+export type CaptureDraftImageDto = NoteAttachmentDto
 
 export interface CreateNoteInput {
   markdown: string
@@ -90,6 +123,7 @@ export interface ImageItemDto {
   width: number
   height: number
   missingContent: boolean
+  location: ItemLocation
 }
 
 export interface UrlItemDto {
@@ -102,10 +136,14 @@ export interface UrlItemDto {
   sourceUrl: string
   domain: string
   description: string | null
-  faviconUrl: string | null
-  previewImageUrl: string | null
+  siteName: string
+  contentKind: 'webpage' | 'video'
+  metadataVersion: number
+  hasFavicon: boolean
+  hasPreviewImage: boolean
   metadataStatus: 'pending' | 'ready' | 'unavailable'
   metadataError: string | null
+  location: ItemLocation
 }
 
 export type LibraryItemDto = NoteItemDto | ImageItemDto | UrlItemDto
@@ -122,6 +160,14 @@ export interface ImageImportInput {
 export interface ImagePreviewDto {
   bytes: ArrayBuffer
   mediaType: SupportedImageMediaType
+}
+
+export type UrlPreviewKind = 'preview' | 'favicon'
+export type UrlPreviewMediaType = SupportedImageMediaType | 'image/x-icon'
+
+export interface UrlPreviewDto {
+  bytes: ArrayBuffer
+  mediaType: UrlPreviewMediaType
 }
 
 export interface LibraryDto {
@@ -195,22 +241,30 @@ export interface KuskusLibraryApi {
   open: () => Promise<ApiResult<LibraryState>>
   createNote: (input: CreateNoteInput) => Promise<ApiResult<NoteItemDto>>
   updateNote: (input: UpdateNoteInput) => Promise<UpdateNoteResult>
-  listNoteDraftImages: () => Promise<ApiResult<NoteDraftImageDto[]>>
-  stageNoteDraftImage: (input: ImageImportInput) => Promise<ApiResult<NoteDraftImageDto>>
-  removeNoteDraftImage: (attachmentId: string) => Promise<ApiResult<null>>
-  discardNoteDraft: () => Promise<ApiResult<null>>
-  getNoteDraftImagePreview: (attachmentId: string) => Promise<ApiResult<ImagePreviewDto>>
+  listCaptureDraftImages: () => Promise<ApiResult<CaptureDraftImageDto[]>>
+  stageCaptureDraftImage: (input: ImageImportInput) => Promise<ApiResult<CaptureDraftImageDto>>
+  removeCaptureDraftImage: (attachmentId: string) => Promise<ApiResult<null>>
+  discardCaptureDraft: () => Promise<ApiResult<null>>
+  getCaptureDraftImagePreview: (attachmentId: string) => Promise<ApiResult<ImagePreviewDto>>
+  commitCaptureDraftImage: (attachmentId: string) => Promise<ApiResult<ImageItemDto>>
   getNoteAttachmentPreview: (
     itemId: string,
     attachmentId: string
   ) => Promise<ApiResult<ImagePreviewDto>>
   createUrl: (url: string) => Promise<ApiResult<UrlItemDto>>
   enrichUrl: (itemId: string) => Promise<ApiResult<UrlItemDto>>
-  importImage: (input: ImageImportInput) => Promise<ApiResult<ImageItemDto>>
+  getUrlPreview: (itemId: string, kind: UrlPreviewKind) => Promise<ApiResult<UrlPreviewDto>>
   createCollection: (input: CreateCollectionInput) => Promise<ApiResult<CollectionDto>>
   renameCollection: (id: string, name: string) => Promise<ApiResult<CollectionDto>>
   setCollectionIcon: (id: string, icon: CollectionIconKey) => Promise<ApiResult<CollectionDto>>
-  deleteCollection: (id: string) => Promise<ApiResult<null>>
+  deleteCollection: (id: string) => Promise<ApiResult<LibraryDto>>
+  renameItem: (input: RenameItemInput) => Promise<ApiResult<LibraryDto>>
+  moveItems: (input: MoveItemsInput) => Promise<ApiResult<LibraryDto>>
+  archiveItems: (input: ItemMutationInput) => Promise<ApiResult<LibraryDto>>
+  unarchiveItems: (input: ItemMutationInput) => Promise<ApiResult<LibraryDto>>
+  trashItems: (input: ItemMutationInput) => Promise<ApiResult<LibraryDto>>
+  restoreItems: (input: ItemMutationInput) => Promise<ApiResult<LibraryDto>>
+  permanentlyDeleteItems: (input: ItemMutationInput) => Promise<ApiResult<LibraryDto>>
   getImagePreview: (itemId: string) => Promise<ApiResult<ImagePreviewDto>>
   copyLibraryPath: () => Promise<ApiResult<null>>
   showItemInExplorer: (itemId: string) => Promise<ApiResult<null>>

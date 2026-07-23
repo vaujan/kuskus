@@ -48,7 +48,9 @@ export interface PersistedNoteItem {
   sourceFilename: null
   contentFilename: 'note.md'
   note: ''
-  originalCollectionId: null
+  originalCollectionId: string | null
+  titleSource?: 'derived' | 'custom'
+  trashedFrom?: 'inbox' | 'collection' | 'archive'
   attachments?: PersistedNoteAttachment[]
 }
 
@@ -94,7 +96,9 @@ export interface PersistedImageItem {
   width: number
   height: number
   note: ''
-  originalCollectionId: null
+  originalCollectionId: string | null
+  titleSource?: 'derived' | 'custom'
+  trashedFrom?: 'inbox' | 'collection' | 'archive'
 }
 
 export interface PersistedUrlItem {
@@ -111,10 +115,15 @@ export interface PersistedUrlItem {
   description: string | null
   faviconUrl: string | null
   previewImageUrl: string | null
+  siteName?: string | null
+  contentKind?: 'webpage' | 'video'
+  metadataVersion?: number
   metadataStatus: 'pending' | 'ready' | 'unavailable'
   metadataError: string | null
   note: ''
-  originalCollectionId: null
+  originalCollectionId: string | null
+  titleSource?: 'derived' | 'custom'
+  trashedFrom?: 'inbox' | 'collection' | 'archive'
 }
 
 export type PersistedItem = PersistedNoteItem | PersistedImageItem | PersistedUrlItem
@@ -166,7 +175,14 @@ export function isPersistedItem(value: unknown, itemId: string): value is Persis
     item.id !== itemId ||
     typeof item.title !== 'string' ||
     typeof item.createdAt !== 'string' ||
-    typeof item.updatedAt !== 'string'
+    typeof item.updatedAt !== 'string' ||
+    (item.originalCollectionId !== null &&
+      item.originalCollectionId !== undefined &&
+      (typeof item.originalCollectionId !== 'string' ||
+        !ITEM_ID_PATTERN.test(item.originalCollectionId))) ||
+    (item.titleSource !== undefined && !['derived', 'custom'].includes(String(item.titleSource))) ||
+    (item.trashedFrom !== undefined &&
+      !['inbox', 'collection', 'archive'].includes(String(item.trashedFrom)))
   ) {
     return false
   }
@@ -186,6 +202,12 @@ export function isPersistedItem(value: unknown, itemId: string): value is Persis
       (item.description === null || typeof item.description === 'string') &&
       (item.faviconUrl === null || typeof item.faviconUrl === 'string') &&
       (item.previewImageUrl === null || typeof item.previewImageUrl === 'string') &&
+      (item.siteName === undefined ||
+        item.siteName === null ||
+        typeof item.siteName === 'string') &&
+      (item.contentKind === undefined || ['webpage', 'video'].includes(String(item.contentKind))) &&
+      (item.metadataVersion === undefined ||
+        (Number.isSafeInteger(item.metadataVersion) && Number(item.metadataVersion) > 0)) &&
       ['pending', 'ready', 'unavailable'].includes(String(item.metadataStatus)) &&
       (item.metadataError === null || typeof item.metadataError === 'string')
     )

@@ -7,19 +7,36 @@ import type { LibraryItemDto } from '../../../../shared/library-contract'
 export function SavedItemCard({
   item,
   onError,
+  onSelect,
   onOpen,
+  selected,
   view = 'visual'
 }: {
   item: LibraryItemDto
   onError: (error: string) => void
+  onSelect: (event: React.MouseEvent<HTMLButtonElement>) => void
   onOpen: () => void
+  selected: boolean
   view?: Exclude<LibraryView, 'table'>
 }): React.JSX.Element {
   return item.type === 'note' ? (
-    <NoteItemCard item={item} view={view} onError={onError} onOpen={onOpen} />
+    <NoteItemCard
+      item={item}
+      view={view}
+      selected={selected}
+      onError={onError}
+      onSelect={onSelect}
+      onOpen={onOpen}
+    />
   ) : item.type === 'image' ? (
-    <ImageItemCard item={item} view={view} onOpen={onOpen} />
+    <ImageItemCard
+      item={item}
+      view={view}
+      selected={selected}
+      onSelect={onSelect}
+      onOpen={onOpen}
+    />
   ) : (
-    <UrlItemCard item={item} view={view} onOpen={onOpen} />
+    <UrlItemCard item={item} view={view} selected={selected} onSelect={onSelect} onOpen={onOpen} />
   )
 }

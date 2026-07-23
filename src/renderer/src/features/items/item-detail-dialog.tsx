@@ -17,6 +17,7 @@ import {
   IconLink as Link,
   IconLoader2 as LoaderCircle,
   IconPhotoOff as ImageOff,
+  IconPlayerPlayFilled as Play,
   IconWorld as Globe2,
   IconX as X,
   type TablerIcon
@@ -59,6 +60,7 @@ import { MarkdownPreview } from '@/features/items/markdown-preview'
 import { NoteAutosaveCoordinator, type NoteAutosaveSnapshot } from '@/features/items/note-autosave'
 import { getUnsupportedMarkdownReason } from '@/features/items/markdown-preflight'
 import { useImagePreview } from '@/features/items/use-image-preview'
+import { useUrlPreview } from '@/features/items/use-url-preview'
 import {
   WysiwygMarkdownEditor,
   type WysiwygMarkdownEditorHandle
@@ -156,6 +158,7 @@ function DetailControl({
 
 function FloatingControls({
   itemId,
+  actions,
   hasPrevious,
   hasNext,
   onPrevious,
@@ -163,6 +166,7 @@ function FloatingControls({
   onError
 }: {
   itemId: string
+  actions?: React.ReactNode
   hasPrevious: boolean
   hasNext: boolean
   onPrevious: () => void
@@ -178,6 +182,7 @@ function FloatingControls({
       >
         <ChevronLeft aria-hidden="true" />
       </DetailControl>
+      {actions}
       <DetailControl label="Next item (Right arrow)" disabled={!hasNext} onClick={onNext}>
         <ChevronRight aria-hidden="true" />
       </DetailControl>
@@ -277,31 +282,43 @@ function UrlCanvas({
 }: {
   item: Extract<LibraryItemDto, { type: 'url' }>
 }): React.JSX.Element {
+  const preview = useUrlPreview(item.id, 'preview', item.hasPreviewImage)
+  const loading = item.metadataStatus === 'pending' || preview.loading
   return (
-    <section className="flex min-h-64 min-w-0 items-center justify-center overflow-hidden bg-muted/35 p-5 min-[860px]:min-h-0 min-[860px]:p-8">
-      {item.previewImageUrl ? (
+    <section className="relative flex min-h-64 min-w-0 items-center justify-center overflow-hidden bg-muted/35 p-5 min-[860px]:min-h-0 min-[860px]:p-8">
+      {preview.preview ? (
         <img
-          src={item.previewImageUrl}
+          src={preview.preview}
           alt=""
           className="max-h-full max-w-full object-contain outline -outline-offset-1 outline-black/10 dark:outline-white/10"
         />
       ) : (
         <div className="flex max-w-xs flex-col items-center gap-3 px-6 text-center">
           <span className="flex size-11 items-center justify-center rounded-full bg-background/70 text-muted-foreground shadow-sm">
-            {item.metadataStatus === 'pending' ? (
-              <LoaderCircle className="size-5 animate-spin" aria-hidden="true" />
+            {loading ? (
+              <LoaderCircle
+                className="size-5 animate-spin motion-reduce:animate-none"
+                aria-hidden="true"
+              />
             ) : (
               <Globe2 className="size-5" aria-hidden="true" />
             )}
           </span>
           <div className="space-y-1">
             <p className="text-sm font-medium">
-              {item.metadataStatus === 'pending' ? 'Loading link preview' : 'No preview available'}
+              {loading ? 'Loading link preview' : 'No preview available'}
             </p>
             <p className="text-pretty text-xs leading-5 text-muted-foreground">{item.domain}</p>
           </div>
         </div>
       )}
+      {item.contentKind === 'video' && preview.preview ? (
+        <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <span className="flex size-14 items-center justify-center rounded-full bg-black/60 text-white shadow-sm backdrop-blur-sm">
+            <Play className="ml-0.5 size-6" aria-hidden="true" />
+          </span>
+        </span>
+      ) : null}
     </section>
   )
 }
@@ -363,7 +380,7 @@ function NoteCanvas({
           >
             <SelectTrigger
               size="sm"
-              className="min-w-28 border-border bg-transparent"
+              className="min-w-40 border-border bg-transparent"
               aria-label="Markdown note mode"
               aria-keyshortcuts="Control+E"
             >
@@ -371,6 +388,7 @@ function NoteCanvas({
                 <SelectedModeIcon aria-hidden="true" />
                 {NOTE_MODE_OPTIONS[mode].label}
               </SelectValue>
+              <Kbd aria-hidden="true">Ctrl+E</Kbd>
             </SelectTrigger>
             <SelectContent align="start" alignItemWithTrigger={false}>
               <SelectGroup>
@@ -586,6 +604,7 @@ export function ItemDetailDialog({
   onNext,
   onOpenChange,
   onItemUpdated,
+  renderActions,
   onError
 }: {
   item: LibraryItemDto | null
@@ -595,6 +614,7 @@ export function ItemDetailDialog({
   onNext: () => void
   onOpenChange: (open: boolean) => void
   onItemUpdated: (item: LibraryItemDto) => void
+  renderActions?: (guard: (action: () => void) => void) => React.ReactNode
   onError: (message: string) => void
 }): React.JSX.Element {
   const [openedNote] = useState(() => (item?.type === 'note' ? item : null))
@@ -760,6 +780,7 @@ export function ItemDetailDialog({
                   </Dialog.Description>
                   <FloatingControls
                     itemId={item.id}
+                    actions={renderActions?.(requestGuardedAction)}
                     hasPrevious={hasPrevious}
                     hasNext={hasNext}
                     onPrevious={() => requestGuardedAction(onPrevious)}

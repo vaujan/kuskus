@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { Toaster } from '@/components/ui/sonner'
 import { LoadingScreen } from '@/app/loading-screen'
 import { SetupScreen } from '@/features/library/setup-screen'
 import { Workspace } from '@/features/library/workspace'
@@ -34,6 +35,7 @@ function App(): React.JSX.Element {
       ) : (
         <SetupScreen initialState={state} />
       )}
+      <Toaster position="bottom-right" closeButton />
     </TooltipProvider>
   )
 }

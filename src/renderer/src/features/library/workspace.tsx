@@ -1,13 +1,42 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  IconArchive,
   IconInbox as Inbox,
   IconPhoto as FileImage,
   IconSearch as Search,
+  IconTrash,
   IconX as X
 } from '@tabler/icons-react'
 
 import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
 import {
   Empty,
   EmptyContent,
@@ -23,12 +52,24 @@ import { AddItemComposer, type ImportRequest } from '@/features/capture/add-item
 import { SavedItemCard } from '@/features/items/saved-item-card'
 import { SavedItemsTable } from '@/features/items/saved-items-table'
 import { ItemDetailDialog } from '@/features/items/item-detail-dialog'
+import {
+  ItemActionMenu,
+  ItemContextMenu,
+  type ItemActionHandlers
+} from '@/features/items/item-action-menu'
 import { type ItemTypeFilter, type LibraryView } from '@/features/items/item-view'
 import { AppToolbar } from '@/features/shell/app-toolbar'
-import { LibrarySidebar } from '@/features/shell/library-sidebar'
+import { LibrarySidebar, type LibraryDestination } from '@/features/shell/library-sidebar'
 import { useTheme } from '@/hooks/use-theme'
 import { cn } from '@/lib/utils'
-import type { LibraryDto, LibraryItemDto } from '../../../../shared/library-contract'
+import type {
+  ActiveItemLocation,
+  ApiResult,
+  LibraryDto,
+  LibraryItemDto,
+  UrlItemDto
+} from '../../../../shared/library-contract'
+import { toast } from 'sonner'
 
 const DEFAULT_SIDEBAR_WIDTH = 256
 const MIN_SIDEBAR_WIDTH = 208
@@ -52,6 +93,29 @@ function itemMatchesRetrieval(
   return searchableText.includes(query)
 }
 
+function itemMatchesDestination(item: LibraryItemDto, destination: LibraryDestination): boolean {
+  if (destination.type === 'all') {
+    return item.location.type === 'inbox' || item.location.type === 'collection'
+  }
+  if (destination.type === 'collection') {
+    return (
+      item.location.type === 'collection' && item.location.collectionId === destination.collectionId
+    )
+  }
+  return item.location.type === destination.type
+}
+
+function destinationLabel(destination: LibraryDestination, library: LibraryDto): string {
+  if (destination.type === 'inbox') return 'Inbox'
+  if (destination.type === 'all') return 'All Items'
+  if (destination.type === 'archive') return 'Archive'
+  if (destination.type === 'trash') return 'Trash'
+  return (
+    library.collections.find((collection) => collection.id === destination.collectionId)?.name ??
+    'Folder'
+  )
+}
+
 export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): React.JSX.Element {
   const [library, setLibrary] = useState(initialLibrary)
   const [sidebarHidden, setSidebarHidden] = useState(
@@ -71,6 +135,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
   const [newItemFocusRequest, setNewItemFocusRequest] = useState(0)
   const [importRequest, setImportRequest] = useState<ImportRequest | null>(null)
   const [composerHasTransientWork, setComposerHasTransientWork] = useState(false)
+  const [composerOwnedItemId, setComposerOwnedItemId] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [search, setSearch] = useState('')
   const [typeFilters, setTypeFilters] = useState<ItemTypeFilter[]>([])
@@ -82,12 +147,19 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
   const [message, setMessage] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
+  const [destination, setDestination] = useState<LibraryDestination>({ type: 'inbox' })
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const [selectionAnchorId, setSelectionAnchorId] = useState<string | null>(null)
+  const [renameTarget, setRenameTarget] = useState<LibraryItemDto | null>(null)
+  const [renameTitle, setRenameTitle] = useState('')
+  const [deleteTargets, setDeleteTargets] = useState<string[]>([])
+  const [itemOperationBusy, setItemOperationBusy] = useState(false)
   const [theme, setTheme] = useTheme()
   const deferredSearch = useDeferredValue(search)
   const importRequestId = useRef(0)
   const dragDepth = useRef(0)
   const enrichingUrlIds = useRef(new Set<string>())
-  const draftStorageKey = `kuskus-note-draft:${initialLibrary.path}`
+  const draftStorageKey = `kuskus-note-draft:${library.path}`
 
   const announceStatus = useCallback((message: string): void => {
     setStatusMessage('')
@@ -108,8 +180,17 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
 
   const visibleItems = useMemo(() => {
     const query = deferredSearch.trim().toLocaleLowerCase()
-    return library.items.filter((item) => itemMatchesRetrieval(item, query, typeFilters))
-  }, [deferredSearch, library.items, typeFilters])
+    return library.items.filter(
+      (item) =>
+        item.id !== composerOwnedItemId &&
+        itemMatchesDestination(item, destination) &&
+        itemMatchesRetrieval(item, query, typeFilters)
+    )
+  }, [composerOwnedItemId, deferredSearch, destination, library.items, typeFilters])
+  const destinationItems = useMemo(
+    () => library.items.filter((item) => itemMatchesDestination(item, destination)),
+    [destination, library.items]
+  )
 
   const selectedItem = useMemo(
     () => library.items.find((item) => item.id === selectedItemId) ?? null,
@@ -134,23 +215,112 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
 
   const hasActiveRetrieval = search.trim().length > 0 || typeFilters.length > 0
 
-  const changeTypeFilter = useCallback((type: ItemTypeFilter, selected: boolean): void => {
-    setTypeFilters((current) =>
-      selected
-        ? current.includes(type)
-          ? current
-          : [...current, type]
-        : current.filter((entry) => entry !== type)
-    )
+  const changeDestination = useCallback((next: LibraryDestination): void => {
+    setDestination(next)
+    setSelectedIds(new Set())
+    setSelectionAnchorId(null)
+    setSelectedItemId(null)
+    setComposerOpen(false)
   }, [])
 
-  const addCreatedItem = useCallback(
-    (item: LibraryItemDto): boolean => {
-      setLibrary((current) => ({ ...current, items: [item, ...current.items] }))
-      setMessage('')
-      return itemMatchesRetrieval(item, search.trim().toLocaleLowerCase(), typeFilters)
+  const pruneSelectionForRetrieval = useCallback(
+    (query: string, filters: ItemTypeFilter[]): void => {
+      const matchingIds = new Set(
+        library.items
+          .filter(
+            (item) =>
+              itemMatchesDestination(item, destination) &&
+              itemMatchesRetrieval(item, query.trim().toLocaleLowerCase(), filters)
+          )
+          .map((item) => item.id)
+      )
+      setSelectedIds((current) => {
+        const next = new Set([...current].filter((itemId) => matchingIds.has(itemId)))
+        return next.size === current.size ? current : next
+      })
+      setSelectionAnchorId((current) => (current && matchingIds.has(current) ? current : null))
     },
-    [search, typeFilters]
+    [destination, library.items]
+  )
+
+  const changeSearch = useCallback(
+    (next: string): void => {
+      setSearch(next)
+      pruneSelectionForRetrieval(next, typeFilters)
+    },
+    [pruneSelectionForRetrieval, typeFilters]
+  )
+
+  const changeTypeFilter = useCallback(
+    (type: ItemTypeFilter, selected: boolean): void => {
+      const next = selected
+        ? typeFilters.includes(type)
+          ? typeFilters
+          : [...typeFilters, type]
+        : typeFilters.filter((entry) => entry !== type)
+      setTypeFilters(next)
+      pruneSelectionForRetrieval(search, next)
+    },
+    [pruneSelectionForRetrieval, search, typeFilters]
+  )
+
+  const addCreatedItem = useCallback(
+    async (item: LibraryItemDto): Promise<boolean> => {
+      let nextItem = item
+      if (destination.type === 'collection') {
+        const result = await window.kuskus.moveItems({
+          itemIds: [item.id],
+          destination: { type: 'collection', collectionId: destination.collectionId }
+        })
+        if (!result.ok) {
+          setMessage(result.error)
+          return false
+        } else {
+          setLibrary(result.data)
+          nextItem = result.data.items.find((entry) => entry.id === item.id) ?? item
+        }
+      } else {
+        setLibrary((current) => ({ ...current, items: [item, ...current.items] }))
+      }
+      setMessage('')
+      return (
+        itemMatchesDestination(nextItem, destination) &&
+        itemMatchesRetrieval(nextItem, search.trim().toLocaleLowerCase(), typeFilters)
+      )
+    },
+    [destination, search, typeFilters]
+  )
+
+  const commitLinkItem = useCallback(
+    async (item: UrlItemDto): Promise<{ item: UrlItemDto; remainsVisible: boolean }> => {
+      setComposerOwnedItemId(item.id)
+      let nextItem = item
+      if (destination.type === 'collection') {
+        const result = await window.kuskus.moveItems({
+          itemIds: [item.id],
+          destination: { type: 'collection', collectionId: destination.collectionId }
+        })
+        if (result.ok) {
+          setLibrary(result.data)
+          const moved = result.data.items.find((entry) => entry.id === item.id)
+          if (moved?.type === 'url') nextItem = moved
+          setMessage('')
+        } else {
+          setLibrary((current) => ({ ...current, items: [item, ...current.items] }))
+          setMessage(`${result.error} The link was kept in Inbox.`)
+        }
+      } else {
+        setLibrary((current) => ({ ...current, items: [item, ...current.items] }))
+        setMessage('')
+      }
+      return {
+        item: nextItem,
+        remainsVisible:
+          itemMatchesDestination(nextItem, destination) &&
+          itemMatchesRetrieval(nextItem, search.trim().toLocaleLowerCase(), typeFilters)
+      }
+    },
+    [destination, search, typeFilters]
   )
 
   const updateItem = useCallback((item: LibraryItemDto): void => {
@@ -159,6 +329,238 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
       items: current.items.map((entry) => (entry.id === item.id ? item : entry))
     }))
   }, [])
+
+  const applyLibraryResult = useCallback(
+    (result: ApiResult<LibraryDto>): LibraryDto | null => {
+      if (!result.ok) {
+        setMessage(result.error)
+        return null
+      }
+      setLibrary(result.data)
+      setSelectedItemId((current) => {
+        if (!current) return current
+        const item = result.data.items.find((entry) => entry.id === current)
+        return item && itemMatchesDestination(item, destination) ? current : null
+      })
+      setMessage('')
+      setSelectedIds(new Set())
+      setSelectionAnchorId(null)
+      return result.data
+    },
+    [destination]
+  )
+
+  const moveItemIds = useCallback(
+    async (itemIds: string[], nextDestination: ActiveItemLocation): Promise<void> => {
+      setItemOperationBusy(true)
+      try {
+        applyLibraryResult(await window.kuskus.moveItems({ itemIds, destination: nextDestination }))
+      } finally {
+        setItemOperationBusy(false)
+      }
+    },
+    [applyLibraryResult]
+  )
+
+  const archiveItemIds = useCallback(
+    async (itemIds: string[], showUndo = true): Promise<void> => {
+      setItemOperationBusy(true)
+      try {
+        const result = await window.kuskus.archiveItems({ itemIds })
+        if (!applyLibraryResult(result)) return
+        if (showUndo) {
+          toast.success(`${itemIds.length === 1 ? 'Item' : `${itemIds.length} items`} archived`, {
+            duration: 6000,
+            action: {
+              label: 'Undo',
+              onClick: () => {
+                void window.kuskus
+                  .unarchiveItems({ itemIds })
+                  .then((undoResult) => applyLibraryResult(undoResult))
+              }
+            }
+          })
+        }
+      } finally {
+        setItemOperationBusy(false)
+      }
+    },
+    [applyLibraryResult]
+  )
+
+  const unarchiveItemIds = useCallback(
+    async (itemIds: string[], notify = true): Promise<void> => {
+      const missingPreviousFolder = itemIds.some((itemId) => {
+        const item = library.items.find((entry) => entry.id === itemId)
+        const collectionId =
+          item?.location.type === 'archive' ? item.location.originalCollectionId : null
+        return (
+          collectionId !== null &&
+          !library.collections.some((collection) => collection.id === collectionId)
+        )
+      })
+      setItemOperationBusy(true)
+      try {
+        const result = await window.kuskus.unarchiveItems({ itemIds })
+        if (!applyLibraryResult(result)) return
+        if (notify) {
+          toast.success(itemIds.length === 1 ? 'Item unarchived' : 'Items unarchived', {
+            description: missingPreviousFolder
+              ? 'A previous folder was unavailable, so the item was returned to Inbox.'
+              : undefined
+          })
+        }
+      } finally {
+        setItemOperationBusy(false)
+      }
+    },
+    [applyLibraryResult, library.collections, library.items]
+  )
+
+  const trashItemIds = useCallback(
+    async (itemIds: string[], showUndo = true): Promise<void> => {
+      setItemOperationBusy(true)
+      try {
+        const result = await window.kuskus.trashItems({ itemIds })
+        if (!applyLibraryResult(result)) return
+        if (showUndo) {
+          toast.success(
+            `${itemIds.length === 1 ? 'Item' : `${itemIds.length} items`} moved to Trash`,
+            {
+              duration: 6000,
+              action: {
+                label: 'Undo',
+                onClick: () => {
+                  void window.kuskus
+                    .restoreItems({ itemIds })
+                    .then((undoResult) => applyLibraryResult(undoResult))
+                }
+              }
+            }
+          )
+        }
+      } finally {
+        setItemOperationBusy(false)
+      }
+    },
+    [applyLibraryResult]
+  )
+
+  const restoreItemIds = useCallback(
+    async (itemIds: string[], notify = true): Promise<void> => {
+      const missingPreviousFolder = itemIds.some((itemId) => {
+        const item = library.items.find((entry) => entry.id === itemId)
+        if (item?.location.type !== 'trash' || item.location.trashedFrom !== 'collection') {
+          return false
+        }
+        const collectionId = item.location.originalCollectionId
+        return (
+          collectionId !== null &&
+          !library.collections.some((collection) => collection.id === collectionId)
+        )
+      })
+      setItemOperationBusy(true)
+      try {
+        const result = await window.kuskus.restoreItems({ itemIds })
+        if (!applyLibraryResult(result)) return
+        if (notify) {
+          toast.success(itemIds.length === 1 ? 'Item restored' : 'Items restored', {
+            description: missingPreviousFolder
+              ? 'A previous folder was unavailable, so the item was restored to Inbox.'
+              : undefined
+          })
+        }
+      } finally {
+        setItemOperationBusy(false)
+      }
+    },
+    [applyLibraryResult, library.collections, library.items]
+  )
+
+  const revealItem = useCallback(async (itemId: string): Promise<void> => {
+    const result = await window.kuskus.showItemInExplorer(itemId)
+    if (!result.ok) setMessage(result.error)
+  }, [])
+
+  const openSource = useCallback(async (item: LibraryItemDto): Promise<void> => {
+    if (item.type !== 'url') return
+    const result = await window.kuskus.openExternalUrl(item.sourceUrl)
+    if (!result.ok) setMessage(result.error)
+  }, [])
+
+  const selectItem = useCallback(
+    (itemId: string, event: Pick<React.MouseEvent, 'shiftKey' | 'ctrlKey' | 'metaKey'>): void => {
+      if (event.shiftKey && selectionAnchorId) {
+        const anchorIndex = visibleItems.findIndex((item) => item.id === selectionAnchorId)
+        const itemIndex = visibleItems.findIndex((item) => item.id === itemId)
+        if (anchorIndex >= 0 && itemIndex >= 0) {
+          const start = Math.min(anchorIndex, itemIndex)
+          const end = Math.max(anchorIndex, itemIndex)
+          setSelectedIds(new Set(visibleItems.slice(start, end + 1).map((item) => item.id)))
+          return
+        }
+      }
+      if (event.ctrlKey || event.metaKey) {
+        setSelectedIds((current) => {
+          const next = new Set(current)
+          if (next.has(itemId)) next.delete(itemId)
+          else next.add(itemId)
+          return next
+        })
+      } else {
+        setSelectedIds(new Set([itemId]))
+      }
+      setSelectionAnchorId(itemId)
+    },
+    [selectionAnchorId, visibleItems]
+  )
+
+  const itemActions = useCallback(
+    (item: LibraryItemDto): ItemActionHandlers => ({
+      onOpen: () => setSelectedItemId(item.id),
+      onRename: () => {
+        setRenameTarget(item)
+        setRenameTitle(item.title)
+      },
+      onMove: (nextDestination) => void moveItemIds([item.id], nextDestination),
+      onReveal: () => void revealItem(item.id),
+      onArchive: () => void archiveItemIds([item.id]),
+      onUnarchive: () => void unarchiveItemIds([item.id]),
+      onTrash: () => void trashItemIds([item.id]),
+      onRestore: () => void restoreItemIds([item.id]),
+      onDeletePermanently: () => setDeleteTargets([item.id]),
+      onOpenSource: () => void openSource(item)
+    }),
+    [
+      archiveItemIds,
+      moveItemIds,
+      openSource,
+      restoreItemIds,
+      revealItem,
+      trashItemIds,
+      unarchiveItemIds
+    ]
+  )
+
+  useEffect(() => {
+    const moveSelectionToTrash = (event: KeyboardEvent): void => {
+      if (
+        event.defaultPrevented ||
+        event.key !== 'Delete' ||
+        selectedItemId !== null ||
+        selectedIds.size === 0 ||
+        destination.type === 'trash'
+      ) {
+        return
+      }
+      const target = event.target as HTMLElement | null
+      if (target?.closest('input, textarea, [contenteditable="true"]')) return
+      event.preventDefault()
+      void trashItemIds([...selectedIds])
+    }
+    window.addEventListener('keydown', moveSelectionToTrash)
+    return () => window.removeEventListener('keydown', moveSelectionToTrash)
+  }, [destination.type, selectedIds, selectedItemId, trashItemIds])
 
   const openComposer = useCallback((): void => {
     setComposerOpen(true)
@@ -172,7 +574,8 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
 
   useEffect(() => {
     const pending = library.items.filter(
-      (item) => item.type === 'url' && item.metadataStatus === 'pending'
+      (item) =>
+        item.type === 'url' && (item.metadataStatus === 'pending' || item.metadataVersion < 2)
     )
     pending.forEach((item) => {
       if (enrichingUrlIds.current.has(item.id)) return
@@ -262,8 +665,123 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
     else if (files.length > 0) setMessage('Only image files can be imported here right now.')
   }
 
+  const submitRename = async (event: React.FormEvent): Promise<void> => {
+    event.preventDefault()
+    if (!renameTarget || !renameTitle.trim() || itemOperationBusy) return
+    setItemOperationBusy(true)
+    try {
+      const result = await window.kuskus.renameItem({
+        itemId: renameTarget.id,
+        title: renameTitle
+      })
+      if (!applyLibraryResult(result)) return
+      setRenameTarget(null)
+      setRenameTitle('')
+      toast.success('Item renamed')
+    } finally {
+      setItemOperationBusy(false)
+    }
+  }
+
+  const confirmPermanentDelete = async (): Promise<void> => {
+    if (deleteTargets.length === 0 || itemOperationBusy) return
+    setItemOperationBusy(true)
+    try {
+      const result = await window.kuskus.permanentlyDeleteItems({ itemIds: deleteTargets })
+      if (!applyLibraryResult(result)) return
+      const count = deleteTargets.length
+      setDeleteTargets([])
+      setSelectedItemId(null)
+      toast.success(count === 1 ? 'Item permanently deleted' : `${count} items permanently deleted`)
+    } finally {
+      setItemOperationBusy(false)
+    }
+  }
+
+  const selectedItemIds = [...selectedIds]
+  const bulkActions =
+    selectedItemIds.length > 0 ? (
+      <div className="sticky top-2 z-30 mb-4 flex min-h-12 items-center gap-2 rounded-xl bg-popover/95 px-3 py-2 shadow-lg ring-1 ring-foreground/8 backdrop-blur-md">
+        <span className="mr-auto text-sm font-medium tabular-nums">
+          {selectedItemIds.length} selected
+        </span>
+        {destination.type !== 'trash' ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button size="sm" variant="outline" />}>
+              Move to
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuGroup>
+                <DropdownMenuItem
+                  onClick={() => void moveItemIds(selectedItemIds, { type: 'inbox' })}
+                >
+                  Inbox
+                </DropdownMenuItem>
+                {library.collections.map((collection) => (
+                  <DropdownMenuItem
+                    key={collection.id}
+                    onClick={() =>
+                      void moveItemIds(selectedItemIds, {
+                        type: 'collection',
+                        collectionId: collection.id
+                      })
+                    }
+                  >
+                    {collection.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+        {destination.type === 'archive' ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => void unarchiveItemIds(selectedItemIds)}
+          >
+            Unarchive
+          </Button>
+        ) : destination.type === 'trash' ? (
+          <Button size="sm" variant="outline" onClick={() => void restoreItemIds(selectedItemIds)}>
+            Restore
+          </Button>
+        ) : (
+          <Button size="sm" variant="outline" onClick={() => void archiveItemIds(selectedItemIds)}>
+            <IconArchive data-icon="inline-start" aria-hidden="true" />
+            Archive
+          </Button>
+        )}
+        {destination.type === 'trash' ? (
+          <Button size="sm" variant="destructive" onClick={() => setDeleteTargets(selectedItemIds)}>
+            Delete permanently
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => void trashItemIds(selectedItemIds)}
+          >
+            <IconTrash data-icon="inline-start" aria-hidden="true" />
+            Move to Trash
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            setSelectedIds(new Set())
+            setSelectionAnchorId(null)
+          }}
+        >
+          Clear
+        </Button>
+      </div>
+    ) : null
+
   const addItemComposer = (
     <AddItemComposer
+      key={draftStorageKey}
       open={composerOpen}
       focusRequest={composerFocusRequest}
       discardRequest={composerDiscardRequest}
@@ -275,6 +793,11 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
         setImportRequest((current) => (current?.id === id ? null : current))
       }
       onCreated={addCreatedItem}
+      onLinkCommitted={commitLinkItem}
+      onLinkUpdated={updateItem}
+      onLinkReleased={(itemId) =>
+        setComposerOwnedItemId((current) => (current === itemId ? null : current))
+      }
       onStatus={announceStatus}
       onDraftStateChange={setComposerHasDraft}
       onTransientWorkChange={setComposerHasTransientWork}
@@ -298,6 +821,8 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
         onThemeChange={setTheme}
         view={view}
         onViewChange={setView}
+        destination={destination}
+        onDestinationChange={changeDestination}
         onLibraryChange={setLibrary}
         onError={setMessage}
         onStatus={announceStatus}
@@ -312,18 +837,18 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
           onNewItem={openComposer}
           onDiscardDraft={() => setComposerDiscardRequest((request) => request + 1)}
           search={search}
-          searchScope="Inbox"
-          onSearchChange={setSearch}
+          searchScope={destinationLabel(destination, library)}
+          onSearchChange={changeSearch}
           searchPending={search !== deferredSearch}
           resultCount={visibleItems.length}
-          totalCount={library.items.length}
+          totalCount={destinationItems.length}
           typeFilters={typeFilters}
           onTypeFilterChange={changeTypeFilter}
           onClearFilters={() => setTypeFilters([])}
         />
         <ScrollArea
           className="min-h-0 min-w-0 flex-1"
-          viewportClassName="focus-visible:ring-0 focus-visible:outline-none"
+          viewportClassName="dark:library-scroll-viewport focus-visible:ring-0 focus-visible:outline-none"
         >
           <main
             className="relative min-h-full"
@@ -366,6 +891,15 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                   </AlertAction>
                 </Alert>
               )}
+              <div className="mb-4 flex min-h-8 items-center gap-3">
+                <h1 className="min-w-0 flex-1 truncate text-base font-semibold text-balance">
+                  {destinationLabel(destination, library)}
+                </h1>
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {destinationItems.length} {destinationItems.length === 1 ? 'item' : 'items'}
+                </span>
+              </div>
+              {bulkActions}
               {isDragging ? (
                 <Empty className="drop-target min-h-72 border border-dashed border-primary bg-muted/30">
                   <EmptyHeader>
@@ -382,7 +916,26 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                   {visibleItems.length > 0 ? (
                     <SavedItemsTable
                       items={visibleItems}
+                      selectedIds={selectedIds}
+                      onSelect={selectItem}
                       onOpen={(itemId) => setSelectedItemId(itemId)}
+                      renderActions={(item) => (
+                        <ItemActionMenu
+                          item={item}
+                          collections={library.collections}
+                          {...itemActions(item)}
+                        />
+                      )}
+                      wrapRow={(item, row) => (
+                        <ItemContextMenu
+                          key={item.id}
+                          item={item}
+                          collections={library.collections}
+                          {...itemActions(item)}
+                        >
+                          {row}
+                        </ItemContextMenu>
+                      )}
                     />
                   ) : null}
                 </div>
@@ -403,17 +956,40 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                     {addItemComposer}
                   </div>
                   {visibleItems.map((item) => (
-                    <div
-                      className={cn('min-w-0', view === 'visual' && 'mb-4 break-inside-avoid')}
+                    <ItemContextMenu
+                      item={item}
+                      collections={library.collections}
+                      {...itemActions(item)}
                       key={item.id}
                     >
-                      <SavedItemCard
-                        item={item}
-                        view={view}
-                        onError={setMessage}
-                        onOpen={() => setSelectedItemId(item.id)}
-                      />
-                    </div>
+                      <div
+                        className={cn('min-w-0', view === 'visual' && 'mb-4 break-inside-avoid')}
+                      >
+                        <div
+                          className="group/saved-item relative"
+                          data-selected={selectedIds.has(item.id)}
+                        >
+                          <SavedItemCard
+                            item={item}
+                            view={view}
+                            selected={selectedIds.has(item.id)}
+                            onError={setMessage}
+                            onSelect={(event) => selectItem(item.id, event)}
+                            onOpen={() => setSelectedItemId(item.id)}
+                          />
+                          <div
+                            className="absolute top-2 right-2 z-30"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <ItemActionMenu
+                              item={item}
+                              collections={library.collections}
+                              {...itemActions(item)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </ItemContextMenu>
                   ))}
                 </div>
               )}
@@ -433,8 +1009,10 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        setSearch('')
+                        changeSearch('')
                         setTypeFilters([])
+                        setSelectedIds(new Set())
+                        setSelectionAnchorId(null)
                       }}
                     >
                       Clear search and filters
@@ -442,15 +1020,29 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                   </EmptyContent>
                 </Empty>
               )}
-              {!isDragging && library.items.length === 0 && !hasActiveRetrieval && (
+              {!isDragging && destinationItems.length === 0 && !hasActiveRetrieval && (
                 <Empty className="mt-6">
                   <EmptyHeader>
                     <EmptyMedia variant="icon">
                       <Inbox aria-hidden="true" />
                     </EmptyMedia>
-                    <EmptyTitle>Your Inbox is ready</EmptyTitle>
+                    <EmptyTitle>
+                      {destination.type === 'archive'
+                        ? 'Archive is empty'
+                        : destination.type === 'trash'
+                          ? 'Trash is empty'
+                          : destination.type === 'all'
+                            ? 'Your library is ready'
+                            : destination.type === 'collection'
+                              ? 'This folder is empty'
+                              : 'Your Inbox is ready'}
+                    </EmptyTitle>
                     <EmptyDescription>
-                      Add a note, paste an image, or drop one anywhere in this window.
+                      {destination.type === 'archive'
+                        ? 'Archived items stay here until you unarchive or trash them.'
+                        : destination.type === 'trash'
+                          ? 'Items moved to Trash remain recoverable until permanently deleted.'
+                          : 'Add a note, paste an image, or drop one anywhere in this window.'}
                     </EmptyDescription>
                   </EmptyHeader>
                 </Empty>
@@ -472,8 +1064,104 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
             if (!open) setSelectedItemId(null)
           }}
           onItemUpdated={updateItem}
+          renderActions={(guard) => {
+            if (!selectedItem) return null
+            const actions = itemActions(selectedItem)
+            return (
+              <ItemActionMenu
+                item={selectedItem}
+                collections={library.collections}
+                alwaysVisible
+                {...actions}
+                onRename={() => guard(actions.onRename)}
+                onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}
+                onArchive={() => guard(actions.onArchive)}
+                onUnarchive={() => guard(actions.onUnarchive)}
+                onTrash={() => guard(actions.onTrash)}
+                onRestore={() => guard(actions.onRestore)}
+                onDeletePermanently={() => guard(actions.onDeletePermanently)}
+              />
+            )
+          }}
           onError={setMessage}
         />
+        <Dialog
+          open={renameTarget !== null}
+          onOpenChange={(open) => {
+            if (!open && !itemOperationBusy) {
+              setRenameTarget(null)
+              setRenameTitle('')
+            }
+          }}
+        >
+          <DialogContent>
+            <form onSubmit={(event) => void submitRename(event)}>
+              <DialogHeader>
+                <DialogTitle>Rename item</DialogTitle>
+                <DialogDescription>
+                  This changes the title shown in Kuskus. The stored content filename stays the
+                  same.
+                </DialogDescription>
+              </DialogHeader>
+              <FieldGroup className="py-4">
+                <Field>
+                  <FieldLabel htmlFor="item-title">Title</FieldLabel>
+                  <Input
+                    id="item-title"
+                    autoFocus
+                    maxLength={200}
+                    value={renameTitle}
+                    disabled={itemOperationBusy}
+                    onFocus={(event) => event.currentTarget.select()}
+                    onChange={(event) => setRenameTitle(event.target.value)}
+                  />
+                </Field>
+              </FieldGroup>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={itemOperationBusy}
+                  onClick={() => setRenameTarget(null)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={!renameTitle.trim() || itemOperationBusy}>
+                  Rename
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+        <AlertDialog
+          open={deleteTargets.length > 0}
+          onOpenChange={(open) => {
+            if (!open && !itemOperationBusy) setDeleteTargets([])
+          }}
+        >
+          <AlertDialogContent size="sm">
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                Permanently delete {deleteTargets.length === 1 ? 'this item' : 'these items'}?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteTargets.length === 1
+                  ? 'The library copy will be removed and cannot be restored. The original external source is never deleted.'
+                  : `${deleteTargets.length} library items will be removed and cannot be restored. Original external sources are never deleted.`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={itemOperationBusy}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                disabled={itemOperationBusy}
+                onClick={() => void confirmPermanentDelete()}
+              >
+                Delete permanently
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </SidebarInset>
     </SidebarProvider>
   )

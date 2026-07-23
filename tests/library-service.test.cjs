@@ -29,7 +29,14 @@ const {
   safeSourceFilename
 } = require('../src/main/library/items/image-item.ts')
 const { createNoteMetadata, deriveNoteTitle } = require('../src/main/library/items/note-item.ts')
-const { createUrlMetadata, validateWebUrl } = require('../src/main/library/items/url-item.ts')
+const {
+  createUrlMetadata,
+  extractUrlMetadata,
+  isYouTubeVideoUrl,
+  validateWebUrl
+} = require('../src/main/library/items/url-item.ts')
+const { isPublicIpAddress, readHtmlHead } = require('../src/main/library/url-network.ts')
+const { validateUrlPreview } = require('../src/main/library/url-preview.ts')
 const { isPersistedItem } = require('../src/main/library/schemas.ts')
 const { LibraryStore } = require('../src/main/library/storage/library-store.ts')
 const { LIBRARY_NAME, seedDemoEnvironment } = require('../scripts/create-demo-library.cjs')
@@ -45,6 +52,11 @@ const {
 const {
   getUnsupportedMarkdownReason
 } = require('../src/renderer/src/features/items/markdown-preflight.ts')
+const {
+  composeMarkdownCapture,
+  detectCaptureKind,
+  isSingleWebUrl
+} = require('../src/renderer/src/features/capture/capture-detection.ts')
 
 const onePixelPng = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL88wAAAABJRU5ErkJggg==',
@@ -172,6 +184,73 @@ test('imports, persists, previews, and detects a missing clipboard image', async
   assert.equal(missing.library.items[0].missingContent, true)
 })
 
+test('stages a recoverable image without creating an item and commits it explicitly', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-capture-draft-image-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const settingsPath = join(root, 'settings.json')
+  const service = new LibraryService(settingsPath)
+  await service.createIn(root, 'Explicit Image Capture')
+
+  const staged = await service.stageCaptureDraftImage({
+    bytes: arrayBuffer(onePixelPng),
+    mediaType: 'image/png',
+    sourceFilename: 'Clipboard.png'
+  })
+  const beforeCommit = await service.getState()
+  assert.equal(beforeCommit.status, 'ready')
+  assert.equal(beforeCommit.library.items.length, 0)
+
+  const reopened = new LibraryService(settingsPath)
+  await reopened.initialize()
+  assert.equal((await reopened.listCaptureDraftImages()).length, 1)
+  const image = await reopened.commitCaptureDraftImage(staged.id)
+  assert.equal(image.type, 'image')
+  assert.equal(image.sourceFilename, 'Clipboard.png')
+  assert.deepEqual(await readFile(await reopened.getItemContentPath(image.id)), onePixelPng)
+  assert.equal((await reopened.listCaptureDraftImages()).length, 0)
+})
+
+test('rejects invalid or missing capture draft images without discarding recovery data', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-capture-draft-failure-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  const created = await service.createIn(root, 'Failed Image Capture')
+  const staged = await service.stageCaptureDraftImage({
+    bytes: arrayBuffer(onePixelPng),
+    mediaType: 'image/png',
+    sourceFilename: 'Missing.png'
+  })
+
+  await assert.rejects(
+    () => service.commitCaptureDraftImage('..\\outside'),
+    /identifier is invalid/i
+  )
+  await unlink(join(created.library.path, '.kuskus', 'temp', 'note-draft', staged.filename))
+  await assert.rejects(() => service.commitCaptureDraftImage(staged.id))
+  const recovered = await service.listCaptureDraftImages()
+  assert.equal(recovered.length, 1)
+  assert.equal(recovered[0].missingContent, true)
+})
+
+test('detects explicit capture kinds without treating mixed content as a link or image', () => {
+  assert.equal(isSingleWebUrl('https://example.com/path'), true)
+  assert.equal(isSingleWebUrl('Read https://example.com'), false)
+  assert.equal(detectCaptureKind('', 0), 'empty')
+  assert.equal(detectCaptureKind('', 1), 'image')
+  assert.equal(detectCaptureKind('https://example.com/', 0), 'link')
+  assert.equal(detectCaptureKind('A note', 0), 'note')
+  assert.equal(detectCaptureKind('Caption', 1), 'note')
+  assert.equal(detectCaptureKind('', 2), 'note')
+  assert.equal(
+    composeMarkdownCapture(['![First](./assets/first.png)'], 'Caption'),
+    '![First](./assets/first.png)\n\nCaption'
+  )
+  assert.equal(
+    composeMarkdownCapture(['![First](./assets/first.png)', '![Second](./assets/second.png)']),
+    '![First](./assets/first.png)\n\n![Second](./assets/second.png)'
+  )
+})
+
 test('recovers staged images and atomically commits a portable Markdown bundle', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-note-assets-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
@@ -180,12 +259,12 @@ test('recovers staged images and atomically commits a portable Markdown bundle',
   const created = await service.createIn(root, 'Attached Notes')
   assert.equal(created.status, 'ready')
 
-  const first = await service.stageNoteDraftImage({
+  const first = await service.stageCaptureDraftImage({
     bytes: arrayBuffer(onePixelPng),
     mediaType: 'image/png',
     sourceFilename: 'Sketch.png'
   })
-  const second = await service.stageNoteDraftImage({
+  const second = await service.stageCaptureDraftImage({
     bytes: arrayBuffer(onePixelPng),
     mediaType: 'image/png',
     sourceFilename: 'Sketch.png'
@@ -193,15 +272,19 @@ test('recovers staged images and atomically commits a portable Markdown bundle',
   assert.equal(first.filename, 'Sketch.png')
   assert.equal(second.filename, 'Sketch-2.png')
   assert.equal(first.relativePath, './assets/Sketch.png')
+  await assert.rejects(
+    () => service.commitCaptureDraftImage(first.id),
+    /standalone image draft is no longer valid/i
+  )
 
   const reopened = new LibraryService(settingsPath)
   await reopened.initialize()
-  const recovered = await reopened.listNoteDraftImages()
+  const recovered = await reopened.listCaptureDraftImages()
   assert.deepEqual(
     recovered.map((attachment) => attachment.id),
     [first.id, second.id]
   )
-  const stagedPreview = await reopened.getNoteDraftImagePreview(first.id)
+  const stagedPreview = await reopened.getCaptureDraftImagePreview(first.id)
   assert.deepEqual(Buffer.from(stagedPreview.bytes), onePixelPng)
 
   const markdown = [
@@ -220,7 +303,7 @@ test('recovers staged images and atomically commits a portable Markdown bundle',
     note.attachments.every((attachment) => !attachment.missingContent),
     true
   )
-  assert.equal((await reopened.listNoteDraftImages()).length, 0)
+  assert.equal((await reopened.listCaptureDraftImages()).length, 0)
 
   const libraryPath = created.library.path
   assert.equal(await readFile(join(libraryPath, 'inbox', note.id, 'note.md'), 'utf8'), markdown)
@@ -248,7 +331,7 @@ test('updates Markdown notes without changing their identity or attachments', as
   const settingsPath = join(root, 'settings.json')
   const service = new LibraryService(settingsPath)
   const created = await service.createIn(root, 'Editable Notes')
-  const staged = await service.stageNoteDraftImage({
+  const staged = await service.stageCaptureDraftImage({
     bytes: arrayBuffer(onePixelPng),
     mediaType: 'image/png',
     sourceFilename: 'Reference.png'
@@ -498,7 +581,7 @@ test('keeps staged images recoverable when note commit validation fails', async 
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   await service.createIn(root, 'Recoverable Draft')
-  const staged = await service.stageNoteDraftImage({
+  const staged = await service.stageCaptureDraftImage({
     bytes: arrayBuffer(onePixelPng),
     mediaType: 'image/png',
     sourceFilename: '../unsafe.png'
@@ -508,10 +591,13 @@ test('keeps staged images recoverable when note commit validation fails', async 
     () => service.createNote({ markdown: 'Do not lose this', attachmentIds: ['..\\outside'] }),
     /attachment list is invalid/i
   )
-  assert.equal((await service.listNoteDraftImages()).length, 1)
-  await assert.rejects(() => service.removeNoteDraftImage('..\\outside'), /identifier is invalid/i)
-  await service.removeNoteDraftImage(staged.id)
-  assert.equal((await service.listNoteDraftImages()).length, 0)
+  assert.equal((await service.listCaptureDraftImages()).length, 1)
+  await assert.rejects(
+    () => service.removeCaptureDraftImage('..\\outside'),
+    /identifier is invalid/i
+  )
+  await service.removeCaptureDraftImage(staged.id)
+  assert.equal((await service.listCaptureDraftImages()).length, 0)
 })
 
 test('rejects unsafe persisted note attachment metadata', () => {
@@ -546,6 +632,8 @@ test('creates a durable URL item before metadata enrichment', async (context) =>
   assert.equal(link.sourceUrl, 'https://example.com/path?value=1')
   assert.equal(link.domain, 'example.com')
   assert.equal(link.metadataStatus, 'pending')
+  assert.equal(link.metadataVersion, 2)
+  assert.equal(link.hasPreviewImage, false)
   assert.equal(
     await service.getItemRevealPath(link.id),
     join(root, 'Link Library', 'inbox', link.id, 'item.json')
@@ -557,6 +645,102 @@ test('creates a durable URL item before metadata enrichment', async (context) =>
   assert.equal(state.status, 'ready')
   assert.equal(state.library.items[0].type, 'url')
   assert.equal(state.library.items[0].sourceUrl, link.sourceUrl)
+})
+
+test('extracts rich metadata from a bounded HTML head and classifies video links', async () => {
+  const html = `${'<html><head>'}
+    <meta content="Example &amp; Demo" property="og:title">
+    <meta name="description" content="A useful page">
+    <meta content="/preview.png" property="og:image">
+    <meta content="Example Studio" property="og:site_name">
+    <meta content="video.other" property="og:type">
+    <link href="/favicon.ico" rel="shortcut icon">
+    </head><body>${'x'.repeat(1_200_000)}</body></html>`
+  const head = await readHtmlHead(
+    new Response(html, { headers: { 'content-type': 'text/html; charset=utf-8' } })
+  )
+  assert.equal(head.includes('<body>'), false)
+  const metadata = extractUrlMetadata(head, new URL('https://example.com/watch'))
+  assert.equal(metadata.title, 'Example & Demo')
+  assert.equal(metadata.description, 'A useful page')
+  assert.equal(metadata.previewImageUrl, 'https://example.com/preview.png')
+  assert.equal(metadata.faviconUrl, 'https://example.com/favicon.ico')
+  assert.equal(metadata.siteName, 'Example Studio')
+  assert.equal(metadata.contentKind, 'video')
+  assert.equal(metadata.metadataVersion, 2)
+  assert.equal(isYouTubeVideoUrl(new URL('https://youtu.be/M7lc1UVf-VE')), true)
+  assert.equal(isYouTubeVideoUrl(new URL('https://www.youtube.com/shorts/M7lc1UVf-VE')), true)
+  assert.equal(isYouTubeVideoUrl(new URL('https://www.youtube.com/')), false)
+})
+
+test('rejects private preview destinations and validates cached raster bytes', () => {
+  for (const address of [
+    '0.0.0.0',
+    '10.0.0.1',
+    '127.0.0.1',
+    '169.254.1.1',
+    '172.16.0.1',
+    '192.168.0.1',
+    '::',
+    '::1',
+    'fc00::1',
+    'fe80::1',
+    '2001:db8::1'
+  ]) {
+    assert.equal(isPublicIpAddress(address), false, address)
+  }
+  assert.equal(isPublicIpAddress('93.184.216.34'), true)
+  assert.equal(isPublicIpAddress('2606:4700:4700::1111'), true)
+  assert.deepEqual(validateUrlPreview(onePixelPng, 'image/png', 'preview'), {
+    mediaType: 'image/png',
+    extension: 'png'
+  })
+  assert.throws(() => validateUrlPreview(onePixelPng, 'image/jpeg', 'preview'), /does not match/i)
+})
+
+test('enriches, caches, reopens, and serves URL previews without renderer hotlinks', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-url-preview-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const settingsPath = join(root, 'settings.json')
+  const requests = []
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  const lookup = async () => [{ address: '93.184.216.34', family: 4 }]
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  const fetchPreview = async (input) => {
+    const url = String(input)
+    requests.push(url)
+    if (url.endsWith('/preview.png')) {
+      return new Response(onePixelPng, { headers: { 'content-type': 'image/png' } })
+    }
+    return new Response(
+      '<head><meta property="og:title" content="Cached page"><meta property="og:image" content="/preview.png"><meta property="og:site_name" content="Example"></head>',
+      { headers: { 'content-type': 'text/html' } }
+    )
+  }
+  const service = new LibraryService(settingsPath, { fetch: fetchPreview, lookup })
+  await service.createIn(root, 'Preview Library')
+  const created = await service.createUrl('https://example.com/article')
+  const enriched = await service.enrichUrl(created.id)
+  assert.equal(enriched.title, 'Cached page')
+  assert.equal(enriched.siteName, 'Example')
+  assert.equal(enriched.hasPreviewImage, true)
+  assert.equal(Object.hasOwn(enriched, 'previewImageUrl'), false)
+  const first = await service.getUrlPreview(created.id, 'preview')
+  assert.deepEqual(Buffer.from(first.bytes), onePixelPng)
+  assert.equal(requests.filter((url) => url.endsWith('/preview.png')).length, 1)
+  const second = await service.getUrlPreview(created.id, 'preview')
+  assert.deepEqual(Buffer.from(second.bytes), onePixelPng)
+  assert.equal(requests.filter((url) => url.endsWith('/preview.png')).length, 1)
+
+  const reopened = new LibraryService(settingsPath, {
+    fetch: async () => {
+      throw new Error('offline')
+    },
+    lookup
+  })
+  await reopened.initialize()
+  const cached = await reopened.getUrlPreview(created.id, 'preview')
+  assert.deepEqual(Buffer.from(cached.bytes), onePixelPng)
 })
 
 test('persists curated collection icons and safely normalizes legacy metadata', async (context) => {
@@ -721,6 +905,221 @@ test('recovers an interrupted note directory swap before reading library state',
   assert.equal(existsSync(transactionDirectory), false)
 })
 
+test('recovers interrupted item move batches by phase before scanning the library', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-item-move-recovery-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  const created = await service.createIn(root, 'Move Recovery Library')
+  const libraryPath = created.library.path
+  const note = await service.createNote({ markdown: 'Recover my location', attachmentIds: [] })
+  const source = join(libraryPath, 'inbox', note.id)
+  const originalMetadata = JSON.parse(await readFile(join(source, 'item.json'), 'utf8'))
+
+  const rollbackTransaction = join(libraryPath, '.kuskus', 'temp', 'rollback.item-move')
+  const rollbackStaged = join(rollbackTransaction, 'items', note.id)
+  await mkdir(join(rollbackTransaction, 'items'), { recursive: true })
+  await rename(source, rollbackStaged)
+  await writeFile(
+    join(rollbackTransaction, 'manifest.json'),
+    `${JSON.stringify({
+      schemaVersion: 1,
+      phase: 'staging',
+      entries: [
+        {
+          itemId: note.id,
+          source: { type: 'inbox' },
+          destination: { type: 'archive', originalCollectionId: null },
+          originalMetadata,
+          nextMetadata: originalMetadata
+        }
+      ]
+    })}\n`
+  )
+  let state = await service.getState()
+  assert.equal(state.status, 'ready')
+  assert.deepEqual(state.library.items.find((item) => item.id === note.id).location, {
+    type: 'inbox'
+  })
+  assert.equal(existsSync(rollbackTransaction), false)
+
+  const commitTransaction = join(libraryPath, '.kuskus', 'temp', 'commit.item-move')
+  const commitStaged = join(commitTransaction, 'items', note.id)
+  await mkdir(join(commitTransaction, 'items'), { recursive: true })
+  await rename(source, commitStaged)
+  await writeFile(
+    join(commitTransaction, 'manifest.json'),
+    `${JSON.stringify({
+      schemaVersion: 1,
+      phase: 'committing',
+      entries: [
+        {
+          itemId: note.id,
+          source: { type: 'inbox' },
+          destination: { type: 'archive', originalCollectionId: null },
+          originalMetadata,
+          nextMetadata: originalMetadata
+        }
+      ]
+    })}\n`
+  )
+  state = await service.getState()
+  assert.equal(state.status, 'ready')
+  assert.equal(state.library.items.find((item) => item.id === note.id).location.type, 'archive')
+  assert.equal(existsSync(commitTransaction), false)
+})
+
+test('rolls back every item when a live batch move fails during commit', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-item-move-rollback-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  const created = await service.createIn(root, 'Move Rollback Library')
+  const first = await service.createNote({ markdown: 'First batch item', attachmentIds: [] })
+  const second = await service.createNote({ markdown: 'Second batch item', attachmentIds: [] })
+
+  class FailingCommitStore extends LibraryStore {
+    constructor() {
+      super()
+      this.archiveMoves = 0
+    }
+
+    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+    async moveDirectory(source, destination) {
+      if (destination.includes(`${join('archive', '')}`)) {
+        this.archiveMoves += 1
+        if (this.archiveMoves === 2) throw new Error('Injected destination failure')
+      }
+      return super.moveDirectory(source, destination)
+    }
+  }
+
+  const store = new FailingCommitStore()
+  const resolved = await Promise.all(
+    [first.id, second.id].map((itemId) => store.resolveItem(created.library.path, itemId))
+  )
+  await assert.rejects(
+    store.moveItems(
+      created.library.path,
+      resolved.map((item) => ({
+        item,
+        destination: { type: 'archive', originalCollectionId: null },
+        metadata: { ...item.metadata, originalCollectionId: null }
+      }))
+    ),
+    /Injected destination failure/
+  )
+
+  for (const item of resolved) {
+    assert.equal(existsSync(join(created.library.path, 'inbox', item.metadata.id)), true)
+    assert.equal(existsSync(join(created.library.path, 'archive', item.metadata.id)), false)
+  }
+})
+
+test('moves, archives, trashes, restores, renames, and permanently deletes items safely', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-lifecycle-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  const created = await service.createIn(root, 'Lifecycle Library')
+  const libraryPath = created.library.path
+  const collection = await service.createCollection({ name: 'Project' })
+  const note = await service.createNote({ markdown: '# Original title\nBody', attachmentIds: [] })
+  const image = await service.importImage({
+    bytes: arrayBuffer(onePixelPng),
+    mediaType: 'image/png',
+    sourceFilename: 'external-source.png'
+  })
+  const externalSource = join(root, 'external-source.png')
+  await writeFile(externalSource, onePixelPng)
+
+  let library = await service.moveItems({
+    itemIds: [note.id, image.id],
+    destination: { type: 'collection', collectionId: collection.id }
+  })
+  assert.deepEqual(library.items.find((item) => item.id === note.id).location, {
+    type: 'collection',
+    collectionId: collection.id
+  })
+  assert.equal(existsSync(join(libraryPath, 'collections', collection.id, 'items', note.id)), true)
+
+  library = await service.archiveItems({ itemIds: [note.id] })
+  assert.deepEqual(library.items.find((item) => item.id === note.id).location, {
+    type: 'archive',
+    originalCollectionId: collection.id
+  })
+  library = await service.trashItems({ itemIds: [note.id] })
+  assert.deepEqual(library.items.find((item) => item.id === note.id).location, {
+    type: 'trash',
+    trashedFrom: 'archive',
+    originalCollectionId: collection.id
+  })
+  library = await service.restoreItems({ itemIds: [note.id] })
+  assert.equal(library.items.find((item) => item.id === note.id).location.type, 'archive')
+  library = await service.unarchiveItems({ itemIds: [note.id] })
+  assert.deepEqual(library.items.find((item) => item.id === note.id).location, {
+    type: 'collection',
+    collectionId: collection.id
+  })
+
+  library = await service.renameItem({ itemId: note.id, title: 'Custom note title' })
+  const renamed = library.items.find((item) => item.id === note.id)
+  assert.equal(renamed.title, 'Custom note title')
+  const updated = await service.updateNote({
+    itemId: note.id,
+    markdown: '# A different derived title\nChanged',
+    expectedMarkdown: renamed.body
+  })
+  assert.equal(updated.title, 'Custom note title')
+
+  await service.trashItems({ itemIds: [image.id] })
+  library = await service.permanentlyDeleteItems({ itemIds: [image.id] })
+  assert.equal(
+    library.items.some((item) => item.id === image.id),
+    false
+  )
+  assert.equal(existsSync(externalSource), true)
+  assert.equal(existsSync(join(libraryPath, 'trash', image.id)), false)
+
+  const reopened = new LibraryService(join(root, 'settings.json'))
+  await reopened.initialize()
+  const reopenedState = await reopened.getState()
+  assert.equal(reopenedState.status, 'ready')
+  assert.equal(
+    reopenedState.library.items.find((item) => item.id === note.id).title,
+    'Custom note title'
+  )
+})
+
+test('removing a non-empty folder moves active items to Inbox and archived fallback returns to Inbox', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-folder-removal-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  await service.createIn(root, 'Folder Removal Library')
+  const activeFolder = await service.createCollection({ name: 'Active folder' })
+  const archivedFolder = await service.createCollection({ name: 'Archived folder' })
+  const active = await service.createNote({ markdown: 'Active item', attachmentIds: [] })
+  const archived = await service.createNote({ markdown: 'Archived item', attachmentIds: [] })
+  await service.moveItems({
+    itemIds: [active.id],
+    destination: { type: 'collection', collectionId: activeFolder.id }
+  })
+  await service.moveItems({
+    itemIds: [archived.id],
+    destination: { type: 'collection', collectionId: archivedFolder.id }
+  })
+  await service.archiveItems({ itemIds: [archived.id] })
+
+  let library = await service.deleteCollection(activeFolder.id)
+  assert.equal(
+    library.collections.some((entry) => entry.id === activeFolder.id),
+    false
+  )
+  assert.deepEqual(library.items.find((item) => item.id === active.id).location, { type: 'inbox' })
+  library = await service.deleteCollection(archivedFolder.id)
+  library = await service.unarchiveItems({ itemIds: [archived.id] })
+  assert.deepEqual(library.items.find((item) => item.id === archived.id).location, {
+    type: 'inbox'
+  })
+})
+
 test('seeds and resets a cultivated isolated demo profile', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-demo-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
@@ -733,7 +1132,7 @@ test('seeds and resets a cultivated isolated demo profile', async (context) => {
   assert.equal(state.status, 'ready')
   assert.equal(state.library.path, libraryPath)
   assert.equal(state.library.name, LIBRARY_NAME)
-  assert.equal(state.library.items.length, 12)
+  assert.equal(state.library.items.length, 18)
   assert.equal(state.library.collections.length, 4)
   assert.deepEqual(
     state.library.collections.map((collection) => collection.name),

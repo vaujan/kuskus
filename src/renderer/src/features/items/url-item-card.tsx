@@ -1,7 +1,8 @@
-import { useState } from 'react'
 import {
+  IconExternalLink as ExternalLink,
   IconLoader2 as LoaderCircle,
   IconPhotoOff as ImageOff,
+  IconPlayerPlayFilled as Play,
   IconWorld as Globe2
 } from '@tabler/icons-react'
 
@@ -12,46 +13,74 @@ import {
   ItemCardSurface
 } from '@/features/items/item-card'
 import type { LibraryView } from '@/features/items/item-view'
+import { useUrlPreview } from '@/features/items/use-url-preview'
 import type { UrlItemDto } from '../../../../shared/library-contract'
 
 export function UrlItemCard({
   item,
+  onSelect,
   onOpen,
+  selected,
   view
 }: {
   item: UrlItemDto
+  onSelect: (event: React.MouseEvent<HTMLButtonElement>) => void
   onOpen: () => void
+  selected: boolean
   view: Exclude<LibraryView, 'table'>
 }): React.JSX.Element {
-  const [failedPreviewUrl, setFailedPreviewUrl] = useState<string | null>(null)
-  const [failedFaviconUrl, setFailedFaviconUrl] = useState<string | null>(null)
-  const hasPreview = item.previewImageUrl !== null && failedPreviewUrl !== item.previewImageUrl
-  const hasFavicon = item.faviconUrl !== null && failedFaviconUrl !== item.faviconUrl
+  const preview = useUrlPreview(item.id, 'preview', item.hasPreviewImage)
+  const favicon = useUrlPreview(item.id, 'favicon', item.hasFavicon)
+  const previewLoading = item.metadataStatus === 'pending' || preview.loading
 
   return (
-    <ItemCard>
-      <ItemCardPrimaryAction aria-label={`View link ${item.title}`} focusSurface onClick={onOpen} />
+    <ItemCard data-selected={selected}>
+      <ItemCardPrimaryAction
+        aria-label={`Select link ${item.title}`}
+        aria-pressed={selected}
+        focusSurface
+        onClick={onSelect}
+        onDoubleClick={onOpen}
+        onKeyDown={(event) => {
+          if (event.key !== 'Enter') return
+          event.preventDefault()
+          onOpen()
+        }}
+      />
       <ItemCardSurface className={view === 'grid' ? 'h-64 bg-muted' : 'aspect-[16/9] bg-muted'}>
-        {hasPreview ? (
+        {preview.preview ? (
           <img
-            src={item.previewImageUrl ?? undefined}
+            src={preview.preview}
             alt=""
             loading="lazy"
-            onError={() => setFailedPreviewUrl(item.previewImageUrl)}
-            className="size-full object-cover outline -outline-offset-1 outline-black/10 dark:outline-white/10"
+            className="size-full object-cover opacity-100 outline -outline-offset-1 outline-black/10 transition-opacity duration-150 motion-reduce:transition-none dark:outline-white/10"
           />
         ) : (
           <div className="flex size-full flex-col items-center justify-center gap-2 bg-linear-to-br from-muted/70 to-muted/30 text-muted-foreground">
-            {item.metadataStatus === 'pending' ? (
-              <LoaderCircle className="size-5 animate-spin" aria-hidden="true" />
+            {previewLoading ? (
+              <LoaderCircle
+                className="size-5 animate-spin motion-reduce:animate-none"
+                aria-hidden="true"
+              />
             ) : (
               <ImageOff className="size-5" aria-hidden="true" />
             )}
             <span className="text-xs">
-              {item.metadataStatus === 'pending' ? 'Loading preview' : 'No preview available'}
+              {previewLoading ? 'Loading preview' : 'No preview available'}
             </span>
           </div>
         )}
+        {item.contentKind === 'video' && preview.preview ? (
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <span className="flex size-11 items-center justify-center rounded-full bg-black/60 text-white shadow-sm backdrop-blur-sm">
+              <Play className="ml-0.5 size-5" aria-hidden="true" />
+            </span>
+          </span>
+        ) : null}
+        <span className="pointer-events-none absolute right-2 bottom-2 flex max-w-[calc(100%-1rem)] items-center gap-1 rounded-sm bg-background/85 px-2 py-1 text-[10px] leading-none font-medium tracking-wide text-foreground uppercase shadow-sm backdrop-blur-sm">
+          <ExternalLink className="size-3 shrink-0" aria-hidden="true" />
+          <span className="truncate">{item.siteName}</span>
+        </span>
       </ItemCardSurface>
       <ItemCardCaption className="min-h-14 flex-col items-start justify-start gap-1.5">
         <p
@@ -64,11 +93,10 @@ export function UrlItemCard({
           {item.title}
         </p>
         <span className="flex min-w-0 max-w-full items-center gap-1.5">
-          {hasFavicon ? (
+          {favicon.preview ? (
             <img
-              src={item.faviconUrl ?? undefined}
+              src={favicon.preview}
               alt=""
-              onError={() => setFailedFaviconUrl(item.faviconUrl)}
               className="size-3.5 shrink-0 rounded-sm outline -outline-offset-1 outline-black/10 dark:outline-white/10"
             />
           ) : (
