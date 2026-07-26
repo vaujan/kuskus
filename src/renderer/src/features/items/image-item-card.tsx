@@ -6,6 +6,7 @@ import {
   ItemCard,
   ItemCardCaption,
   ItemCardPrimaryAction,
+  ItemCardSelectionIndicator,
   ItemCardSurface
 } from '@/features/items/item-card'
 import type { LibraryView } from '@/features/items/item-view'
@@ -14,13 +15,13 @@ import type { ImageItemDto } from '../../../../shared/library-contract'
 
 export function ImageItemCard({
   item,
-  onSelect,
+  onActivate,
   onOpen,
   selected,
   view
 }: {
   item: ImageItemDto
-  onSelect: (event: React.MouseEvent<HTMLButtonElement>) => void
+  onActivate: (event: React.MouseEvent<HTMLButtonElement>) => void
   onOpen: () => void
   selected: boolean
   view: Exclude<LibraryView, 'table'>
@@ -32,18 +33,18 @@ export function ImageItemCard({
   return (
     <ItemCard data-selected={selected}>
       <ItemCardPrimaryAction
-        aria-label={`Select image ${item.title}`}
+        aria-label={`Open image ${item.title}`}
+        aria-haspopup="dialog"
         aria-pressed={selected}
-        disabled={item.missingContent}
         focusSurface
-        onClick={onSelect}
-        onDoubleClick={onOpen}
+        onClick={onActivate}
         onKeyDown={(event) => {
           if (event.key !== 'Enter') return
           event.preventDefault()
           onOpen()
         }}
       />
+      <ItemCardSelectionIndicator />
       <ItemCardSurface className={view === 'grid' ? 'h-64 bg-muted/30' : 'bg-muted/30'}>
         {item.missingContent ||
         previewError ||

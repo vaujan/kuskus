@@ -249,12 +249,14 @@ remote renderer requests.
 
 ## Card interactions
 
-- Single-click selects.
-- Ctrl-click toggles an item in multi-selection.
-- Shift-click selects a range where ordering is stable.
-- Double-click performs the primary action.
+- Single-click opens the item's focused detail dialog without leaving it selected after the dialog closes.
+- Ctrl-click or Cmd-click toggles an item in multi-selection without opening it.
+- Shift-click selects a range where ordering is stable without opening an item.
+- Ctrl+A or Cmd+A selects every item matching the current destination, search, and filters when
+  focus is outside a text field or editor. The selection is a snapshot rather than a live query.
 - Enter opens the selected item's focused detail dialog.
 - Space opens quick preview when implemented.
+- Escape clears the current item selection after any open contextual menu handles it first.
 - Delete moves selected items to Trash without confirmation and exposes Undo; permanent deletion is confirmed.
 - Right-click and the overflow control expose the same context menu.
 
@@ -269,6 +271,25 @@ Minimum context menu:
 - Copy source URL, when applicable.
 - Move to Trash.
 - Restore or permanently delete when viewing Trash.
+
+Selecting one or more items reveals a compact contextual action toolbar centered above the bottom
+edge of the content pane. The toolbar floats independently of the saved-content scroll viewport,
+uses the same translucent material as popup menus, and does not shift the item layout. Its actions
+match the active destination, remain keyboard accessible, and collapse from icon-and-label controls
+to icon-only controls with accessible names and tooltips when space is constrained. The scroll
+viewport reserves enough bottom space while the toolbar is visible for the final item row to remain
+fully reachable.
+
+Selected cards use a high-contrast outer accent halo, a restrained accent wash, and a persistent
+checked badge at the upper-left. Selected table rows use the same checked marker with an
+accent-tinted background and inset leading edge. These indicators remain distinct from hover and
+keyboard focus in both themes and stay legible over bright, dark, and missing-content previews.
+
+The content header places a compact Select All control beside the item count. It selects all
+matching items, not only items currently inside the scroll viewport, and exposes unchecked,
+indeterminate, and checked states. When every matching item is already selected, activating the
+control clears the selection. Its accessible name distinguishes all items from filtered results and
+exposes Ctrl+A or Cmd+A as the keyboard equivalent.
 
 ## Item detail
 
@@ -374,6 +395,10 @@ Required states include:
 - Color is not the only indication of selection, error, or item type.
 - The content collection uses predictable focus movement.
 - Reduced-motion preferences are respected.
+- Shortcut-driven sidebar, search, selection, editor-overlay, and item-detail state changes are
+  instantaneous. Occasional dialogs, tooltips, capture transitions, and drag-over feedback use the
+  shared motion timings; reduced motion removes positional and scale movement while retaining
+  brief opacity or color feedback where it aids comprehension.
 - Contextual editor controls preserve the document selection during pointer use and expose their
   expanded, active, and selected states to assistive technology.
 

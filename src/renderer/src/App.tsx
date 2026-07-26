@@ -35,7 +35,7 @@ function App(): React.JSX.Element {
       ) : (
         <SetupScreen initialState={state} />
       )}
-      <Toaster position="bottom-right" closeButton />
+      <Toaster position="bottom-right" />
     </TooltipProvider>
   )
 }

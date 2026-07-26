@@ -8,6 +8,7 @@
 @import '@milkdown/crepe/theme/common/style.css';
 @import '@fontsource-variable/inter';
 @import '@fontsource-variable/ibm-plex-sans';
+@import '@fontsource/ibm-plex-serif';
 @import '@fontsource/ibm-plex-mono/400.css';
 @import '@fontsource/ibm-plex-mono/500.css';
 
@@ -40,9 +41,9 @@
 }
 
 .typeset-docs {
-  --typeset-font-body: var(--font-instrument-sans);
-  --typeset-font-heading: var(--font-instrument-sans);
-  --typeset-font-mono: var(--font-jetbrains-mono);
+  --typeset-font-body: var(--font-serif);
+  --typeset-font-heading: var(--font-serif);
+  --typeset-font-mono: var(--font-mono);
   --typeset-size: 15px;
   --typeset-leading: 1.75;
   --typeset-flow: 1.25em;
@@ -71,9 +72,9 @@
   --crepe-color-hover: var(--accent);
   --crepe-color-selected: var(--secondary);
   --crepe-color-inline-area: var(--muted);
-  --crepe-font-title: var(--font-instrument-sans);
-  --crepe-font-default: var(--font-instrument-sans);
-  --crepe-font-code: var(--font-jetbrains-mono);
+  --crepe-font-title: var(--font-serif);
+  --crepe-font-default: var(--font-serif);
+  --crepe-font-code: var(--font-mono);
   --crepe-shadow-1: 0 8px 24px color-mix(in oklch, var(--foreground) 12%, transparent);
   --crepe-shadow-2: 0 16px 40px color-mix(in oklch, var(--foreground) 16%, transparent);
 
@@ -157,24 +158,18 @@
   font-family: var(--font-sans);
   font-size: 0.875rem;
   line-height: 1.25rem;
-  transform-origin: center;
-  transition-property: opacity, transform, visibility;
-  transition-duration: 120ms;
-  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
 }
 
 :is(.kuskus-editor-selection-overlay, .kuskus-editor-slash-overlay)[data-show='false'] {
   visibility: hidden;
   pointer-events: none;
   opacity: 0;
-  transform: scale(0.98);
 }
 
 :is(.kuskus-editor-selection-overlay, .kuskus-editor-slash-overlay)[data-show='true'] {
   visibility: visible;
   pointer-events: auto;
   opacity: 1;
-  transform: scale(1);
 }
 
 .kuskus-editor-toolbar-surface,
@@ -193,7 +188,7 @@
 }
 
 .kuskus-editor-toolbar-surface svg {
-  transition: stroke-width 120ms ease-out;
+  transition: stroke-width var(--motion-duration-tooltip) var(--motion-ease-out);
 }
 
 .kuskus-editor-command-surface {
@@ -205,20 +200,23 @@
   border-color: color-mix(in oklch, var(--foreground) 30%, transparent);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  :is(.kuskus-editor-selection-overlay, .kuskus-editor-slash-overlay) {
-    transition-duration: 0ms;
-  }
+.kuskus-markdown-editor .milkdown-block-handle,
+.kuskus-markdown-editor .milkdown-image-block .image-wrapper .operation,
+.kuskus-markdown-editor .milkdown-image-block .image-wrapper .image-resize-handle {
+  transition-property: opacity;
+  transition-duration: var(--motion-duration-tooltip);
+  transition-timing-function: var(--motion-ease-out);
+}
 
-  .kuskus-editor-toolbar-surface svg {
-    transition-duration: 0ms;
-  }
+.kuskus-markdown-editor .crepe-drop-cursor {
+  transition: opacity var(--motion-duration-tooltip) var(--motion-ease-out);
 }
 
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: 'IBM Plex Sans Variable', sans-serif;
   --font-mono: 'IBM Plex Mono', monospace;
+  --font-serif: 'IBM Plex Serif', serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -262,6 +260,13 @@
 :root {
   --font-instrument-sans: 'Instrument Sans Variable', sans-serif;
   --font-jetbrains-mono: 'JetBrains Mono Variable', monospace;
+  --motion-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --motion-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --motion-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --motion-duration-tooltip: 125ms;
+  --motion-duration-press: 150ms;
+  --motion-duration-ui: 180ms;
+  --motion-duration-dialog: 200ms;
   --background: oklch(1 0 0);
   --foreground: oklch(0.148 0.004 228.8);
   --card: oklch(1 0 0);
@@ -375,16 +380,51 @@
   }
 }
 
+[data-sonner-toaster] {
+  transition: transform var(--motion-duration-dialog) var(--motion-ease-out) !important;
+}
+
+[data-sonner-toast] {
+  transition-property: transform, opacity, box-shadow !important;
+  transition-duration:
+    var(--motion-duration-dialog), var(--motion-duration-dialog), var(--motion-duration-press) !important;
+  transition-timing-function: var(--motion-ease-out) !important;
+}
+
+[data-sonner-toast] > * {
+  transition: opacity var(--motion-duration-dialog) var(--motion-ease-out) !important;
+}
+
+[data-sonner-toast][data-swiping='true'] {
+  transition: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
+  html {
+    scroll-behavior: auto;
+  }
+
+  .kuskus-editor-toolbar-surface svg,
+  .kuskus-markdown-editor .milkdown-block-handle,
+  .kuskus-markdown-editor .milkdown-image-block .image-wrapper .operation,
+  .kuskus-markdown-editor .milkdown-image-block .image-wrapper .image-resize-handle,
+  .kuskus-markdown-editor .crepe-drop-cursor {
+    transition-duration: 0ms;
   }
 
   [data-slot='button']:active {
-    scale: 1 !important;
+    scale: 1;
+  }
+
+  [data-sonner-toaster] {
+    transition: none !important;
+  }
+
+  [data-sonner-toast],
+  [data-sonner-toast] > * {
+    transition-property: opacity !important;
+    transition-duration: var(--motion-duration-press) !important;
+    transition-timing-function: var(--motion-ease-out) !important;
+    animation: none !important;
   }
 }

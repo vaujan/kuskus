@@ -1,21 +1,25 @@
 import { IconFileAlert as FileWarning } from '@tabler/icons-react'
 
-import { ItemCard, ItemCardPrimaryAction, ItemCardSurface } from '@/features/items/item-card'
+import {
+  ItemCard,
+  ItemCardPrimaryAction,
+  ItemCardSelectionIndicator,
+  ItemCardSurface
+} from '@/features/items/item-card'
 import type { LibraryView } from '@/features/items/item-view'
 import { MarkdownPreview } from '@/features/items/markdown-preview'
+import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
 import type { NoteItemDto } from '../../../../shared/library-contract'
 
 export function NoteItemCard({
   item,
-  onError,
-  onSelect,
+  onActivate,
   onOpen,
   selected,
   view
 }: {
   item: NoteItemDto
-  onError: (error: string) => void
-  onSelect: (event: React.MouseEvent<HTMLButtonElement>) => void
+  onActivate: (event: React.MouseEvent<HTMLButtonElement>) => void
   onOpen: () => void
   selected: boolean
   view: Exclude<LibraryView, 'table'>
@@ -23,17 +27,18 @@ export function NoteItemCard({
   return (
     <ItemCard data-selected={selected}>
       <ItemCardPrimaryAction
-        aria-label={`Select note ${item.title}`}
+        aria-label={`Open note ${item.title}`}
+        aria-haspopup="dialog"
         aria-pressed={selected}
         focusSurface
-        onClick={onSelect}
-        onDoubleClick={onOpen}
+        onClick={onActivate}
         onKeyDown={(event) => {
           if (event.key !== 'Enter') return
           event.preventDefault()
           onOpen()
         }}
       />
+      <ItemCardSelectionIndicator />
       <ItemCardSurface className={view === 'grid' ? 'h-64 p-4' : 'max-h-[24rem] p-4'}>
         {item.missingContent ? (
           <div className="flex size-full min-h-28 flex-col items-center justify-center gap-2 bg-destructive/8 px-5 text-center text-destructive">
@@ -45,10 +50,7 @@ export function NoteItemCard({
             value={item.body}
             itemId={item.id}
             attachments={item.attachments}
-            onOpenLink={async (url) => {
-              const result = await window.kuskus.openExternalUrl(url)
-              if (!result.ok) onError(result.error)
-            }}
+            onOpenLink={(url) => void openExternalUrlWithFeedback(url)}
           />
         )}
       </ItemCardSurface>

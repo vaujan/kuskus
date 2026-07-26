@@ -2,6 +2,7 @@ import {
   IconArchive,
   IconArchiveOff,
   IconDots,
+  IconEye,
   IconExternalLink,
   IconFolder,
   IconFolderOpen,
@@ -35,6 +36,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type {
   ActiveItemLocation,
   CollectionDto,
@@ -58,6 +60,7 @@ interface ItemActionMenuProps extends ItemActionHandlers {
   item: LibraryItemDto
   collections: CollectionDto[]
   alwaysVisible?: boolean
+  showQuickSourceAction?: boolean
 }
 
 function DropdownActions({
@@ -78,7 +81,10 @@ function DropdownActions({
     return (
       <>
         <DropdownMenuGroup>
-          <DropdownMenuItem onClick={onOpen}>Open</DropdownMenuItem>
+          <DropdownMenuItem onClick={onOpen}>
+            <IconEye aria-hidden="true" />
+            Open
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={onReveal}>
             <IconFolderOpen aria-hidden="true" />
             Show in Explorer
@@ -102,7 +108,10 @@ function DropdownActions({
   return (
     <>
       <DropdownMenuGroup>
-        <DropdownMenuItem onClick={onOpen}>Open</DropdownMenuItem>
+        <DropdownMenuItem onClick={onOpen}>
+          <IconEye aria-hidden="true" />
+          Open
+        </DropdownMenuItem>
         {item.type === 'url' ? (
           <DropdownMenuItem onClick={onOpenSource}>
             <IconExternalLink aria-hidden="true" />
@@ -165,13 +174,23 @@ function ContextActions(props: ItemActionMenuProps): React.JSX.Element {
     return (
       <>
         <ContextMenuGroup>
-          <ContextMenuItem onClick={props.onOpen}>Open</ContextMenuItem>
-          <ContextMenuItem onClick={props.onReveal}>Show in Explorer</ContextMenuItem>
-          <ContextMenuItem onClick={props.onRestore}>Restore</ContextMenuItem>
+          <ContextMenuItem onClick={props.onOpen}>
+            <IconEye aria-hidden="true" />
+            Open
+          </ContextMenuItem>
+          <ContextMenuItem onClick={props.onReveal}>
+            <IconFolderOpen aria-hidden="true" />
+            Show in Explorer
+          </ContextMenuItem>
+          <ContextMenuItem onClick={props.onRestore}>
+            <IconRestore aria-hidden="true" />
+            Restore
+          </ContextMenuItem>
         </ContextMenuGroup>
         <ContextMenuSeparator />
         <ContextMenuGroup>
           <ContextMenuItem variant="destructive" onClick={props.onDeletePermanently}>
+            <IconTrashX aria-hidden="true" />
             Delete permanently
           </ContextMenuItem>
         </ContextMenuGroup>
@@ -181,13 +200,25 @@ function ContextActions(props: ItemActionMenuProps): React.JSX.Element {
   return (
     <>
       <ContextMenuGroup>
-        <ContextMenuItem onClick={props.onOpen}>Open</ContextMenuItem>
+        <ContextMenuItem onClick={props.onOpen}>
+          <IconEye aria-hidden="true" />
+          Open
+        </ContextMenuItem>
         {item.type === 'url' ? (
-          <ContextMenuItem onClick={props.onOpenSource}>Open source link</ContextMenuItem>
+          <ContextMenuItem onClick={props.onOpenSource}>
+            <IconExternalLink aria-hidden="true" />
+            Open source link
+          </ContextMenuItem>
         ) : null}
-        <ContextMenuItem onClick={props.onRename}>Rename</ContextMenuItem>
+        <ContextMenuItem onClick={props.onRename}>
+          <IconPencil aria-hidden="true" />
+          Rename
+        </ContextMenuItem>
         <ContextMenuSub>
-          <ContextMenuSubTrigger>Move to</ContextMenuSubTrigger>
+          <ContextMenuSubTrigger>
+            <IconFolder aria-hidden="true" />
+            Move to
+          </ContextMenuSubTrigger>
           <ContextMenuSubContent>
             <ContextMenuGroup>
               <ContextMenuItem onClick={() => props.onMove({ type: 'inbox' })}>
@@ -204,16 +235,26 @@ function ContextActions(props: ItemActionMenuProps): React.JSX.Element {
             </ContextMenuGroup>
           </ContextMenuSubContent>
         </ContextMenuSub>
-        <ContextMenuItem onClick={props.onReveal}>Show in Explorer</ContextMenuItem>
+        <ContextMenuItem onClick={props.onReveal}>
+          <IconFolderOpen aria-hidden="true" />
+          Show in Explorer
+        </ContextMenuItem>
       </ContextMenuGroup>
       <ContextMenuSeparator />
       <ContextMenuGroup>
         {item.location.type === 'archive' ? (
-          <ContextMenuItem onClick={props.onUnarchive}>Unarchive</ContextMenuItem>
+          <ContextMenuItem onClick={props.onUnarchive}>
+            <IconArchiveOff aria-hidden="true" />
+            Unarchive
+          </ContextMenuItem>
         ) : (
-          <ContextMenuItem onClick={props.onArchive}>Archive</ContextMenuItem>
+          <ContextMenuItem onClick={props.onArchive}>
+            <IconArchive aria-hidden="true" />
+            Archive
+          </ContextMenuItem>
         )}
         <ContextMenuItem variant="destructive" onClick={props.onTrash}>
+          <IconTrash aria-hidden="true" />
           Move to Trash
         </ContextMenuItem>
       </ContextMenuGroup>
@@ -222,29 +263,55 @@ function ContextActions(props: ItemActionMenuProps): React.JSX.Element {
 }
 
 export function ItemActionMenu(props: ItemActionMenuProps): React.JSX.Element {
+  const actionButtonClassName = cn(
+    'rounded-full shadow-sm transition-[opacity,scale] [transition-duration:var(--motion-duration-press)] [transition-timing-function:var(--motion-ease-out)]',
+    !props.alwaysVisible &&
+      'opacity-0 group-data-[selected=true]/saved-item:opacity-100 group-data-[state=selected]/saved-item:opacity-100 group-focus-within/saved-item:opacity-100 group-hover/saved-item:opacity-100'
+  )
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="secondary"
-            className={cn(
-              'size-10 rounded-full shadow-sm transition-[opacity,scale] duration-150 data-popup-open:opacity-100 active:scale-[0.96]',
-              !props.alwaysVisible &&
-                'opacity-0 group-data-[selected=true]/saved-item:opacity-100 group-data-[state=selected]/saved-item:opacity-100 group-focus-within/saved-item:opacity-100 group-hover/saved-item:opacity-100'
-            )}
-            aria-label={`Actions for ${props.item.title}`}
-          />
-        }
-      >
-        <IconDots aria-hidden="true" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
-        <DropdownActions {...props} />
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="flex items-center gap-1">
+      {props.item.type === 'url' && props.showQuickSourceAction ? (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                size="icon"
+                variant="secondary"
+                className={actionButtonClassName}
+                aria-label={`Open source link for ${props.item.title}`}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  props.onOpenSource()
+                }}
+              />
+            }
+          >
+            <IconExternalLink aria-hidden="true" />
+          </TooltipTrigger>
+          <TooltipContent>Open source link</TooltipContent>
+        </Tooltip>
+      ) : null}
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              type="button"
+              size="icon"
+              variant="secondary"
+              className={cn(actionButtonClassName, 'data-popup-open:opacity-100')}
+              aria-label={`Actions for ${props.item.title}`}
+            />
+          }
+        >
+          <IconDots aria-hidden="true" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownActions {...props} />
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   )
 }
 

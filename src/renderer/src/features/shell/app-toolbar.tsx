@@ -126,7 +126,7 @@ export function AppToolbar({
           </div>
 
           <div className="flex min-w-0 items-center gap-1 [-webkit-app-region:no-drag]">
-            <InputGroup className="h-8 min-w-0 flex-1 border-transparent transition-[background-color,box-shadow] duration-200 hover:bg-muted/80 has-[[data-slot=input-group-control]:focus-visible]:bg-background has-[[data-slot=input-group-control]:focus-visible]:shadow-[inset_0_0_0_1px_var(--ring),0_4px_14px_rgb(0_0_0/0.08)] has-[[data-slot=input-group-control]:focus-visible]:ring-0">
+            <InputGroup className="h-8 min-w-0 flex-1 border-transparent transition-[background-color,box-shadow] [transition-duration:var(--motion-duration-ui)] hover:bg-muted/80 has-[[data-slot=input-group-control]:focus-visible]:bg-background has-[[data-slot=input-group-control]:focus-visible]:shadow-[inset_0_0_0_1px_var(--ring),0_4px_14px_rgb(0_0_0/0.08)] has-[[data-slot=input-group-control]:focus-visible]:ring-0">
               <InputGroupInput
                 ref={searchRef}
                 className="h-8 min-w-0 text-sm [&::-webkit-search-cancel-button]:hidden md:text-sm"
@@ -162,10 +162,8 @@ export function AppToolbar({
                 <span className="relative flex h-6 w-6 shrink-0 items-center justify-end @min-[48rem]/toolbar:w-14">
                   <Kbd
                     className={cn(
-                      'absolute right-0 hidden transition-[opacity,filter,scale] duration-300 [transition-timing-function:cubic-bezier(0.2,0,0,1)] @min-[48rem]/toolbar:inline-flex',
-                      hasSearch
-                        ? 'scale-[0.25] opacity-0 blur-[4px]'
-                        : 'scale-100 opacity-100 blur-0'
+                      'absolute right-0 hidden @min-[48rem]/toolbar:inline-flex',
+                      hasSearch ? 'invisible opacity-0' : 'visible opacity-100'
                     )}
                     aria-hidden="true"
                   >
@@ -176,10 +174,10 @@ export function AppToolbar({
                     aria-label="Clear search"
                     tabIndex={hasSearch ? 0 : -1}
                     className={cn(
-                      "absolute right-0 transition-[opacity,filter,scale] duration-300 [transition-timing-function:cubic-bezier(0.2,0,0,1)] after:absolute after:-inset-2 after:content-[''] active:scale-[0.96]",
+                      "absolute right-0 after:absolute after:-inset-2 after:content-['']",
                       hasSearch
-                        ? 'scale-100 opacity-100 blur-0'
-                        : 'pointer-events-none scale-[0.25] opacity-0 blur-[4px]'
+                        ? 'visible opacity-100'
+                        : 'pointer-events-none invisible opacity-0'
                     )}
                     onClick={() => {
                       onSearchChange('')
@@ -261,7 +259,7 @@ export function AppToolbar({
                 <TooltipTrigger
                   render={
                     <Button
-                      className="rounded-xl active:scale-[0.96] transition-transform"
+                      className="rounded-xl"
                       size="icon"
                       variant="ghost"
                       aria-label="Discard New item draft"

@@ -6,15 +6,13 @@ import type { LibraryItemDto } from '../../../../shared/library-contract'
 
 export function SavedItemCard({
   item,
-  onError,
-  onSelect,
+  onActivate,
   onOpen,
   selected,
   view = 'visual'
 }: {
   item: LibraryItemDto
-  onError: (error: string) => void
-  onSelect: (event: React.MouseEvent<HTMLButtonElement>) => void
+  onActivate: (event: React.MouseEvent<HTMLButtonElement>) => void
   onOpen: () => void
   selected: boolean
   view?: Exclude<LibraryView, 'table'>
@@ -24,8 +22,7 @@ export function SavedItemCard({
       item={item}
       view={view}
       selected={selected}
-      onError={onError}
-      onSelect={onSelect}
+      onActivate={onActivate}
       onOpen={onOpen}
     />
   ) : item.type === 'image' ? (
@@ -33,10 +30,16 @@ export function SavedItemCard({
       item={item}
       view={view}
       selected={selected}
-      onSelect={onSelect}
+      onActivate={onActivate}
       onOpen={onOpen}
     />
   ) : (
-    <UrlItemCard item={item} view={view} selected={selected} onSelect={onSelect} onOpen={onOpen} />
+    <UrlItemCard
+      item={item}
+      view={view}
+      selected={selected}
+      onActivate={onActivate}
+      onOpen={onOpen}
+    />
   )
 }

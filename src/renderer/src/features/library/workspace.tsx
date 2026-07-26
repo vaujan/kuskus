@@ -1,10 +1,11 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  IconArchive,
   IconInbox as Inbox,
   IconPhoto as FileImage,
   IconSearch as Search,
-  IconTrash,
+  IconSquare as Square,
+  IconSquareCheck as SquareCheck,
+  IconSquareMinus as SquareMinus,
   IconX as X
 } from '@tabler/icons-react'
 
@@ -28,13 +29,6 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import {
@@ -52,6 +46,8 @@ import { AddItemComposer, type ImportRequest } from '@/features/capture/add-item
 import { SavedItemCard } from '@/features/items/saved-item-card'
 import { SavedItemsTable } from '@/features/items/saved-items-table'
 import { ItemDetailDialog } from '@/features/items/item-detail-dialog'
+import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
+import { BulkActionToolbar } from '@/features/library/bulk-action-toolbar'
 import {
   ItemActionMenu,
   ItemContextMenu,
@@ -166,6 +162,12 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
     window.requestAnimationFrame(() => setStatusMessage(message))
   }, [])
 
+  const clearSelection = useCallback((): void => {
+    setSelectedIds(new Set())
+    setSelectionAnchorId(null)
+    announceStatus('Selection cleared')
+  }, [announceStatus])
+
   useEffect(() => {
     localStorage.setItem('kuskus-sidebar-hidden', String(sidebarHidden))
   }, [sidebarHidden])
@@ -191,6 +193,21 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
     () => library.items.filter((item) => itemMatchesDestination(item, destination)),
     [destination, library.items]
   )
+  const selectedVisibleCount = useMemo(
+    () => visibleItems.reduce((count, item) => count + Number(selectedIds.has(item.id)), 0),
+    [selectedIds, visibleItems]
+  )
+  const allVisibleItemsSelected =
+    visibleItems.length > 0 && selectedVisibleCount === visibleItems.length
+  const someVisibleItemsSelected = selectedVisibleCount > 0 && !allVisibleItemsSelected
+
+  const selectAllVisibleItems = useCallback((): void => {
+    setSelectedIds(new Set(visibleItems.map((item) => item.id)))
+    setSelectionAnchorId(null)
+    announceStatus(
+      `${visibleItems.length} ${visibleItems.length === 1 ? 'item' : 'items'} selected`
+    )
+  }, [announceStatus, visibleItems])
 
   const selectedItem = useMemo(
     () => library.items.find((item) => item.id === selectedItemId) ?? null,
@@ -484,8 +501,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
 
   const openSource = useCallback(async (item: LibraryItemDto): Promise<void> => {
     if (item.type !== 'url') return
-    const result = await window.kuskus.openExternalUrl(item.sourceUrl)
-    if (!result.ok) setMessage(result.error)
+    await openExternalUrlWithFeedback(item.sourceUrl)
   }, [])
 
   const selectItem = useCallback(
@@ -513,6 +529,20 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
       setSelectionAnchorId(itemId)
     },
     [selectionAnchorId, visibleItems]
+  )
+
+  const activateItem = useCallback(
+    (itemId: string, event: Pick<React.MouseEvent, 'shiftKey' | 'ctrlKey' | 'metaKey'>): void => {
+      if (event.shiftKey || event.ctrlKey || event.metaKey) {
+        selectItem(itemId, event)
+        return
+      }
+
+      setSelectedIds(new Set())
+      setSelectionAnchorId(null)
+      setSelectedItemId(itemId)
+    },
+    [selectItem]
   )
 
   const itemActions = useCallback(
@@ -561,6 +591,63 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
     window.addEventListener('keydown', moveSelectionToTrash)
     return () => window.removeEventListener('keydown', moveSelectionToTrash)
   }, [destination.type, selectedIds, selectedItemId, trashItemIds])
+
+  useEffect(() => {
+    const clearSelectionOnEscape = (event: KeyboardEvent): void => {
+      if (
+        event.defaultPrevented ||
+        event.key !== 'Escape' ||
+        selectedItemId !== null ||
+        renameTarget !== null ||
+        deleteTargets.length > 0 ||
+        selectedIds.size === 0
+      ) {
+        return
+      }
+      const target = event.target as HTMLElement | null
+      if (target?.closest('input, textarea, [contenteditable="true"]')) return
+      event.preventDefault()
+      clearSelection()
+    }
+    window.addEventListener('keydown', clearSelectionOnEscape)
+    return () => window.removeEventListener('keydown', clearSelectionOnEscape)
+  }, [clearSelection, deleteTargets.length, renameTarget, selectedIds.size, selectedItemId])
+
+  useEffect(() => {
+    const selectAllItems = (event: KeyboardEvent): void => {
+      if (
+        event.defaultPrevented ||
+        event.altKey ||
+        (!event.ctrlKey && !event.metaKey) ||
+        event.key.toLocaleLowerCase() !== 'a' ||
+        selectedItemId !== null ||
+        renameTarget !== null ||
+        deleteTargets.length > 0 ||
+        visibleItems.length === 0
+      ) {
+        return
+      }
+      const target = event.target
+      if (
+        target instanceof Element &&
+        target.closest(
+          'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="menu"], [role="dialog"], [role="listbox"]'
+        )
+      ) {
+        return
+      }
+      event.preventDefault()
+      selectAllVisibleItems()
+    }
+    window.addEventListener('keydown', selectAllItems)
+    return () => window.removeEventListener('keydown', selectAllItems)
+  }, [
+    deleteTargets.length,
+    renameTarget,
+    selectAllVisibleItems,
+    selectedItemId,
+    visibleItems.length
+  ])
 
   const openComposer = useCallback((): void => {
     setComposerOpen(true)
@@ -699,85 +786,6 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
   }
 
   const selectedItemIds = [...selectedIds]
-  const bulkActions =
-    selectedItemIds.length > 0 ? (
-      <div className="sticky top-2 z-30 mb-4 flex min-h-12 items-center gap-2 rounded-xl bg-popover/95 px-3 py-2 shadow-lg ring-1 ring-foreground/8 backdrop-blur-md">
-        <span className="mr-auto text-sm font-medium tabular-nums">
-          {selectedItemIds.length} selected
-        </span>
-        {destination.type !== 'trash' ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger render={<Button size="sm" variant="outline" />}>
-              Move to
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuGroup>
-                <DropdownMenuItem
-                  onClick={() => void moveItemIds(selectedItemIds, { type: 'inbox' })}
-                >
-                  Inbox
-                </DropdownMenuItem>
-                {library.collections.map((collection) => (
-                  <DropdownMenuItem
-                    key={collection.id}
-                    onClick={() =>
-                      void moveItemIds(selectedItemIds, {
-                        type: 'collection',
-                        collectionId: collection.id
-                      })
-                    }
-                  >
-                    {collection.name}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : null}
-        {destination.type === 'archive' ? (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => void unarchiveItemIds(selectedItemIds)}
-          >
-            Unarchive
-          </Button>
-        ) : destination.type === 'trash' ? (
-          <Button size="sm" variant="outline" onClick={() => void restoreItemIds(selectedItemIds)}>
-            Restore
-          </Button>
-        ) : (
-          <Button size="sm" variant="outline" onClick={() => void archiveItemIds(selectedItemIds)}>
-            <IconArchive data-icon="inline-start" aria-hidden="true" />
-            Archive
-          </Button>
-        )}
-        {destination.type === 'trash' ? (
-          <Button size="sm" variant="destructive" onClick={() => setDeleteTargets(selectedItemIds)}>
-            Delete permanently
-          </Button>
-        ) : (
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={() => void trashItemIds(selectedItemIds)}
-          >
-            <IconTrash data-icon="inline-start" aria-hidden="true" />
-            Move to Trash
-          </Button>
-        )}
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => {
-            setSelectedIds(new Set())
-            setSelectionAnchorId(null)
-          }}
-        >
-          Clear
-        </Button>
-      </div>
-    ) : null
 
   const addItemComposer = (
     <AddItemComposer
@@ -867,7 +875,12 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
             }}
             onDrop={captureDroppedImage}
           >
-            <div className="min-h-full px-5 pt-3 pb-5 lg:px-7 lg:pt-4 lg:pb-7">
+            <div
+              className={cn(
+                'min-h-full px-5 pt-3 pb-5 lg:px-7 lg:pt-4 lg:pb-7',
+                selectedItemIds.length > 0 && 'pb-24 lg:pb-24'
+              )}
+            >
               {message && (
                 <Alert className="mb-4" variant="destructive">
                   <AlertTitle>Unable to Complete Action</AlertTitle>
@@ -898,10 +911,51 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                 <span className="text-xs tabular-nums text-muted-foreground">
                   {destinationItems.length} {destinationItems.length === 1 ? 'item' : 'items'}
                 </span>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant={
+                          allVisibleItemsSelected || someVisibleItemsSelected
+                            ? 'secondary'
+                            : 'ghost'
+                        }
+                        size="sm"
+                        className="relative after:absolute after:-inset-y-1.5 after:-inset-x-1"
+                        aria-label={
+                          allVisibleItemsSelected
+                            ? `Clear selection of ${visibleItems.length} ${hasActiveRetrieval ? 'results' : 'items'}`
+                            : `Select all ${visibleItems.length} ${hasActiveRetrieval ? 'results' : 'items'}`
+                        }
+                        aria-keyshortcuts="Control+A Meta+A"
+                        aria-pressed={someVisibleItemsSelected ? 'mixed' : allVisibleItemsSelected}
+                        disabled={visibleItems.length === 0}
+                        onClick={() =>
+                          allVisibleItemsSelected ? clearSelection() : selectAllVisibleItems()
+                        }
+                      />
+                    }
+                  >
+                    {allVisibleItemsSelected ? (
+                      <SquareCheck aria-hidden="true" />
+                    ) : someVisibleItemsSelected ? (
+                      <SquareMinus aria-hidden="true" />
+                    ) : (
+                      <Square aria-hidden="true" />
+                    )}
+                    <span>Select all</span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {allVisibleItemsSelected ? 'Clear selection' : 'Select all'} · Ctrl+A
+                  </TooltipContent>
+                </Tooltip>
               </div>
-              {bulkActions}
-              {isDragging ? (
-                <Empty className="drop-target min-h-72 border border-dashed border-primary bg-muted/30">
+              <Empty
+                aria-hidden={!isDragging}
+                data-active={isDragging}
+                className="drop-target pointer-events-none absolute inset-4 z-40 min-h-72 scale-[0.98] border border-dashed border-primary bg-background/94 opacity-0 shadow-xl backdrop-blur-md transition-[opacity,scale] [transition-duration:var(--motion-duration-press)] [transition-timing-function:var(--motion-ease-out)] data-[active=true]:scale-100 data-[active=true]:opacity-100 motion-reduce:transition-opacity motion-reduce:data-[active=false]:scale-100 motion-reduce:data-[active=true]:scale-100"
+              >
                   <EmptyHeader>
                     <EmptyMedia variant="icon">
                       <FileImage aria-hidden="true" />
@@ -909,15 +963,15 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                     <EmptyTitle>Drop image to add it to Inbox</EmptyTitle>
                     <EmptyDescription>The original file stays untouched.</EmptyDescription>
                   </EmptyHeader>
-                </Empty>
-              ) : view === 'table' ? (
+              </Empty>
+              {view === 'table' ? (
                 <div className="flex flex-col gap-4">
                   <div className={cn('min-w-0', !composerOpen && 'hidden')}>{addItemComposer}</div>
                   {visibleItems.length > 0 ? (
                     <SavedItemsTable
                       items={visibleItems}
                       selectedIds={selectedIds}
-                      onSelect={selectItem}
+                      onActivate={activateItem}
                       onOpen={(itemId) => setSelectedItemId(itemId)}
                       renderActions={(item) => (
                         <ItemActionMenu
@@ -973,8 +1027,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                             item={item}
                             view={view}
                             selected={selectedIds.has(item.id)}
-                            onError={setMessage}
-                            onSelect={(event) => selectItem(item.id, event)}
+                            onActivate={(event) => activateItem(item.id, event)}
                             onOpen={() => setSelectedItemId(item.id)}
                           />
                           <div
@@ -984,6 +1037,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                             <ItemActionMenu
                               item={item}
                               collections={library.collections}
+                              showQuickSourceAction
                               {...itemActions(item)}
                             />
                           </div>
@@ -1050,6 +1104,18 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
             </div>
           </main>
         </ScrollArea>
+        <BulkActionToolbar
+          selectedItemIds={selectedItemIds}
+          destination={destination}
+          collections={library.collections}
+          onMove={(itemIds, nextDestination) => void moveItemIds(itemIds, nextDestination)}
+          onArchive={(itemIds) => void archiveItemIds(itemIds)}
+          onUnarchive={(itemIds) => void unarchiveItemIds(itemIds)}
+          onTrash={(itemIds) => void trashItemIds(itemIds)}
+          onRestore={(itemIds) => void restoreItemIds(itemIds)}
+          onDeletePermanently={setDeleteTargets}
+          onClearSelection={clearSelection}
+        />
         <p className="sr-only" aria-live="polite" aria-atomic="true">
           {statusMessage}
         </p>

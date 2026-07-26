@@ -130,9 +130,9 @@ The user finds a useful webpage and copies its URL.
   card after 12 seconds; creation failures restore the editable URL draft without delay.
 - The original pasted URL is preserved exactly even while normalized data is used for display or duplicate checks.
 - The card always shows at least the URL and domain.
-- Double-clicking opens the URL in the default browser.
-- **Open source URL** is available from the item menu.
-- Opening the card shows its saved details; **Open link** launches the source in the default browser.
+- Single-clicking the card opens its saved details.
+- **Open source URL** is available from the item menu and confirms when the URL is handed to the default browser.
+- **Open link** in the detail launches the source in the default browser with the same feedback.
 - Every saved item detail exposes **Show in Explorer** for its validated library copy or metadata file.
 - The MVP saves a reference and metadata, not a guaranteed offline copy of the webpage.
 
@@ -156,8 +156,7 @@ The user has an image in the clipboard or an image file on the desktop.
 - The stored image is an ordinary file in the library.
 - Kuskus does not modify the original source file.
 - The card respects the image's natural aspect ratio in Masonry view.
-- Double-clicking opens a preview or the operating system's default image application.
-- Opening the card shows a larger in-app image preview.
+- Single-clicking the card opens a larger in-app image preview.
 - **Show in Explorer** reveals the imported library copy without exposing an arbitrary renderer path.
 
 ## 5. Capture a local file
@@ -179,8 +178,7 @@ The user drags a PDF or another local file into Kuskus.
 - The original file remains unchanged.
 - Filename collisions do not overwrite existing content.
 - An unsupported preview does not prevent importing or opening the file.
-- Double-clicking opens the stored copy with the operating system's default application.
-- Opening the card shows its available in-app preview and details.
+- Single-clicking the card shows its available in-app preview and details.
 
 ## 6. Create a quick note
 
@@ -271,7 +269,13 @@ The user returns to a project and wants to rediscover a saved reference.
 - Search covers at least title, note text, domain, and filename.
 - Search and item-type filters combine within the active context and can be cleared without navigating away.
 - `Ctrl+F` or `Ctrl+K` focuses the scoped search; `Escape` clears an active query before leaving search.
+- `Ctrl+A` selects every item matching the current destination, search, and item-type filters when
+  focus is outside a text field or editor. All Items does not cross into Archive or Trash.
+- Select All is a snapshot: later filter changes prune hidden selections but do not silently select
+  newly revealed or newly created items. `Escape` clears the item selection.
 - Changing view does not change item order or selection.
+- Selected items remain unmistakable over every preview type in Masonry, Grid, and Table through a
+  checked marker plus a high-contrast accent treatment that does not rely on color alone.
 - The most recently selected Masonry, Grid, or Table view is restored on the next launch.
 - Hiding the sidebar gives the content area more space without hiding Search or Filter. View and
   appearance preferences remain reachable by reopening the sidebar from the persistent toolbar

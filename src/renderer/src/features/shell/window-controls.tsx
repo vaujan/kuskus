@@ -76,7 +76,7 @@ export function WindowControls({
   if (isMac) return null
 
   return (
-    <div className="flex h-full self-stretch [-webkit-app-region:no-drag]">
+    <div className="flex h-10 self-stretch [-webkit-app-region:no-drag]">
       <CaptionButton
         label="Minimize window"
         glyph={isWindows ? WINDOWS_CAPTION_GLYPHS.minimize : <Minus className="size-4" />}

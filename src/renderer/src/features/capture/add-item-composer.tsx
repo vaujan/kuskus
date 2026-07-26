@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import {
   IconDots,
   IconLink,
@@ -39,6 +39,9 @@ export type ImportRequest =
 const MORPH_DURATION_MS = 180
 const LINK_SAVE_MINIMUM_MS = 500
 const LINK_SAVE_TIMEOUT_MS = 12_000
+const MORPH_STYLE = {
+  '--capture-morph-duration': `${MORPH_DURATION_MS}ms`
+} as CSSProperties
 
 function wait(milliseconds: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds))
@@ -60,7 +63,7 @@ function SavingLinkCard({
       >
         <div
           key={phase}
-          className="flex size-full flex-col items-center justify-center gap-3 px-6 text-center opacity-100 transition-opacity duration-150 starting:opacity-0 motion-reduce:transition-none"
+          className="flex size-full flex-col items-center justify-center gap-3 px-6 text-center opacity-100 transition-opacity [transition-duration:var(--motion-duration-press)] [transition-timing-function:var(--motion-ease-out)] starting:opacity-0 motion-reduce:transition-none"
           role="status"
           aria-live="polite"
           aria-atomic="true"
@@ -465,13 +468,15 @@ export function AddItemComposer({
 
   if (morphedItem) {
     return (
-      <div className="animate-in fade-in zoom-in-[0.98] duration-200 motion-reduce:animate-none">
+      <div
+        className="animate-in fade-in zoom-in-[0.98] [animation-duration:var(--capture-morph-duration)] [animation-timing-function:var(--motion-ease-out)] motion-reduce:animate-none"
+        style={MORPH_STYLE}
+      >
         <SavedItemCard
           item={morphedItem}
           view={view === 'visual' ? 'visual' : 'grid'}
           selected={false}
-          onError={setError}
-          onSelect={() => undefined}
+          onActivate={() => undefined}
           onOpen={() => undefined}
         />
       </div>
@@ -489,7 +494,8 @@ export function AddItemComposer({
   return (
     <Card
       ref={rootRef}
-      className="gap-0 overflow-hidden py-0 shadow-[0_0_0_1px_color-mix(in_oklch,var(--ring)_25%,transparent),0_10px_28px_-22px_rgb(0_0_0/0.3)] animate-in fade-in zoom-in-[0.98] duration-200 motion-reduce:animate-none"
+      className="gap-0 rounded-lg overflow-hidden py-0 shadow-[0_0_0_1px_color-mix(in_oklch,var(--ring)_25%,transparent),0_10px_28px_-22px_rgb(0_0_0/0.3)] animate-in fade-in zoom-in-[0.98] [animation-duration:var(--capture-morph-duration)] [animation-timing-function:var(--motion-ease-out)] motion-reduce:animate-none"
+      style={MORPH_STYLE}
     >
       <CardContent className="flex flex-col gap-3 p-3">
         <input
@@ -641,7 +647,7 @@ export function AddItemComposer({
           </DropdownMenu>
           <Button
             size="lg"
-            className="transition-[scale,background-color,color] active:scale-[0.96]"
+            className=""
             disabled={captureKind === 'empty' || hasTransientWork}
             aria-keyshortcuts="Control+Enter Meta+Enter"
             onClick={() => void save()}

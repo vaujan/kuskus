@@ -295,7 +295,7 @@ export function LibrarySidebar({
             <SidebarGroupAction
               aria-label="Add folder"
               title="Add folder"
-              className="opacity-0 transition-opacity group-focus-within/folder-group:opacity-100 group-hover/folder-group:opacity-100 focus-visible:opacity-100"
+              className="opacity-0 transition-opacity [transition-duration:var(--motion-duration-tooltip)] [transition-timing-function:var(--motion-ease-out)] group-focus-within/folder-group:opacity-100 group-hover/folder-group:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none"
               onClick={() => {
                 setFolderName('')
                 setNewFolderIcon('folder')
@@ -355,9 +355,7 @@ export function LibrarySidebar({
                               <IconIcons data-icon="inline-start" aria-hidden="true" />
                               Change icon
                             </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => deleteFolder(folder.id, folder.name)}
-                            >
+                            <DropdownMenuItem onClick={() => deleteFolder(folder.id, folder.name)}>
                               <IconTrash aria-hidden="true" />
                               Remove
                             </DropdownMenuItem>

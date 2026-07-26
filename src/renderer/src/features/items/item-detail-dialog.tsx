@@ -58,6 +58,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { createMarkdownDiffRows } from '@/features/items/markdown-diff'
 import { MarkdownPreview } from '@/features/items/markdown-preview'
 import { NoteAutosaveCoordinator, type NoteAutosaveSnapshot } from '@/features/items/note-autosave'
+import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
 import { getUnsupportedMarkdownReason } from '@/features/items/markdown-preflight'
 import { useImagePreview } from '@/features/items/use-image-preview'
 import { useUrlPreview } from '@/features/items/use-url-preview'
@@ -143,7 +144,7 @@ function DetailControl({
         <Button
           type="button"
           variant="ghost"
-          className="size-10 active:scale-[0.96] transition-[scale,background-color,color]"
+          className="size-10"
           aria-label={label}
           disabled={disabled}
           onClick={onClick}
@@ -203,7 +204,7 @@ function FloatingControls({
                 <Button
                   type="button"
                   variant="ghost"
-                  className="size-10 active:scale-[0.96] transition-[scale,background-color,color]"
+                  className="size-10"
                   aria-label="Close item details"
                 />
               }
@@ -269,7 +270,7 @@ function ImageCanvas({
         </div>
       ) : (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+          <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
           Loading image
         </div>
       )}
@@ -335,8 +336,7 @@ function NoteCanvas({
   onFlush,
   onRetry,
   onRestore,
-  onReviewConflict,
-  onError
+  onReviewConflict
 }: {
   item: Extract<LibraryItemDto, { type: 'note' }>
   mode: NoteMode
@@ -350,7 +350,6 @@ function NoteCanvas({
   onRetry: () => void
   onRestore: () => void
   onReviewConflict: () => void
-  onError: (message: string) => void
 }): React.JSX.Element {
   const sourceRef = useRef<HTMLTextAreaElement>(null)
   const SelectedModeIcon = NOTE_MODE_OPTIONS[mode].icon
@@ -490,10 +489,7 @@ function NoteCanvas({
                 itemId={item.id}
                 attachments={item.attachments}
                 presentation="detail"
-                onOpenLink={async (url) => {
-                  const result = await window.kuskus.openExternalUrl(url)
-                  if (!result.ok) onError(result.error)
-                }}
+                onOpenLink={(url) => void openExternalUrlWithFeedback(url)}
               />
             ) : null}
             {!unsupportedReason ? (
@@ -506,9 +502,7 @@ function NoteCanvas({
                   readOnly={mode !== 'edit'}
                   onMarkdownChange={onDraftChange}
                   onOpenLink={(url) => {
-                    void window.kuskus.openExternalUrl(url).then((result) => {
-                      if (!result.ok) onError(result.error)
-                    })
+                    void openExternalUrlWithFeedback(url)
                   }}
                 />
               </div>
@@ -578,7 +572,7 @@ function UrlInspector({
         </PropertyList>
         <Button
           size="lg"
-          className="w-full active:scale-[0.96] transition-[scale,background-color,color]"
+          className="w-full"
           aria-keyshortcuts="Control+Enter"
           onClick={onOpenLink}
         >
@@ -688,9 +682,7 @@ export function ItemDetailDialog({
 
   const openLink = async (): Promise<void> => {
     if (item?.type !== 'url') return
-
-    const result = await window.kuskus.openExternalUrl(item.sourceUrl)
-    if (!result.ok) onError(result.error)
+    await openExternalUrlWithFeedback(item.sourceUrl)
   }
 
   const handleKeyDown = (event: React.KeyboardEvent): void => {
@@ -760,10 +752,10 @@ export function ItemDetailDialog({
         }}
       >
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-50 bg-[var(--backdrop)] transition-opacity duration-200 ease-out data-ending-style:opacity-0 data-starting-style:opacity-0" />
+          <Dialog.Backdrop className="fixed inset-0 z-50 bg-[var(--backdrop)]" />
           <Dialog.Popup
             onKeyDown={handleKeyDown}
-            className="pointer-events-none fixed inset-0 z-50 outline-none transition-opacity duration-200 ease-out data-ending-style:opacity-0 data-starting-style:opacity-0"
+            className="pointer-events-none fixed inset-0 z-50 outline-none"
           >
             <div className="pointer-events-auto fixed top-0 right-0 h-12">
               <WindowControls onClose={() => requestGuardedAction(window.electron.window.close)} />
@@ -801,7 +793,6 @@ export function ItemDetailDialog({
                       onRetry={() => void coordinator?.retry()}
                       onRestore={() => coordinator?.restoreSaved()}
                       onReviewConflict={() => setConflictDialogOpen(true)}
-                      onError={onError}
                     />
                   ) : (
                     <ScrollArea

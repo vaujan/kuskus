@@ -1,4 +1,5 @@
 import {
+  IconCheck as Check,
   IconFileText as FileText,
   IconPhoto as FileImage,
   IconWorld as Globe2,
@@ -35,14 +36,14 @@ function hasMissingContent(item: LibraryItemDto): boolean {
 export function SavedItemsTable({
   items,
   selectedIds,
-  onSelect,
+  onActivate,
   onOpen,
   renderActions,
   wrapRow
 }: {
   items: LibraryItemDto[]
   selectedIds: ReadonlySet<string>
-  onSelect: (itemId: string, event: React.MouseEvent<HTMLTableRowElement>) => void
+  onActivate: (itemId: string, event: React.MouseEvent<HTMLTableRowElement>) => void
   onOpen: (itemId: string) => void
   renderActions: (item: LibraryItemDto) => React.ReactNode
   wrapRow?: (item: LibraryItemDto, row: React.ReactElement) => React.ReactNode
@@ -63,17 +64,18 @@ export function SavedItemsTable({
         {items.map((item) => {
           const itemType = ITEM_TYPES[item.type]
           const Icon = itemType.icon
+          const selected = selectedIds.has(item.id)
 
           const row = (
             <TableRow
               key={item.id}
               tabIndex={0}
-              aria-label={`Select ${itemType.label.toLocaleLowerCase()} ${item.title}`}
-              aria-selected={selectedIds.has(item.id)}
-              data-state={selectedIds.has(item.id) ? 'selected' : undefined}
-              className="group/saved-item cursor-pointer focus-visible:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=selected]:bg-muted/70"
-              onClick={(event) => onSelect(item.id, event)}
-              onDoubleClick={() => onOpen(item.id)}
+              aria-label={`Open ${itemType.label.toLocaleLowerCase()} ${item.title}`}
+              aria-haspopup="dialog"
+              aria-selected={selected}
+              data-state={selected ? 'selected' : undefined}
+              className="group/saved-item cursor-pointer transition-none active:bg-muted/70 focus-visible:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=selected]:bg-primary/10 data-[state=selected]:shadow-[inset_3px_0_0_var(--primary)] hover:data-[state=selected]:bg-primary/14"
+              onClick={(event) => onActivate(item.id, event)}
               onKeyDown={(event) => {
                 if (event.key !== 'Enter') return
                 event.preventDefault()
@@ -82,6 +84,12 @@ export function SavedItemsTable({
             >
               <TableCell className="overflow-hidden">
                 <span className="flex min-w-0 items-center gap-2">
+                  <span
+                    aria-hidden="true"
+                    className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground opacity-0 ring-2 ring-background group-data-[state=selected]/saved-item:opacity-100"
+                  >
+                    <Check className="size-3.5 stroke-[2.5]" />
+                  </span>
                   <span className="truncate font-medium">{item.title}</span>
                   {hasMissingContent(item) ? (
                     <Badge variant="destructive" className="shrink-0">

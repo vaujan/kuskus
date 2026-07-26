@@ -10,6 +10,7 @@ import {
   ItemCard,
   ItemCardCaption,
   ItemCardPrimaryAction,
+  ItemCardSelectionIndicator,
   ItemCardSurface
 } from '@/features/items/item-card'
 import type { LibraryView } from '@/features/items/item-view'
@@ -18,13 +19,13 @@ import type { UrlItemDto } from '../../../../shared/library-contract'
 
 export function UrlItemCard({
   item,
-  onSelect,
+  onActivate,
   onOpen,
   selected,
   view
 }: {
   item: UrlItemDto
-  onSelect: (event: React.MouseEvent<HTMLButtonElement>) => void
+  onActivate: (event: React.MouseEvent<HTMLButtonElement>) => void
   onOpen: () => void
   selected: boolean
   view: Exclude<LibraryView, 'table'>
@@ -36,24 +37,25 @@ export function UrlItemCard({
   return (
     <ItemCard data-selected={selected}>
       <ItemCardPrimaryAction
-        aria-label={`Select link ${item.title}`}
+        aria-label={`Open link ${item.title}`}
+        aria-haspopup="dialog"
         aria-pressed={selected}
         focusSurface
-        onClick={onSelect}
-        onDoubleClick={onOpen}
+        onClick={onActivate}
         onKeyDown={(event) => {
           if (event.key !== 'Enter') return
           event.preventDefault()
           onOpen()
         }}
       />
+      <ItemCardSelectionIndicator />
       <ItemCardSurface className={view === 'grid' ? 'h-64 bg-muted' : 'aspect-[16/9] bg-muted'}>
         {preview.preview ? (
           <img
             src={preview.preview}
             alt=""
             loading="lazy"
-            className="size-full object-cover opacity-100 outline -outline-offset-1 outline-black/10 transition-opacity duration-150 motion-reduce:transition-none dark:outline-white/10"
+            className="size-full object-cover outline -outline-offset-1 outline-black/10 dark:outline-white/10"
           />
         ) : (
           <div className="flex size-full flex-col items-center justify-center gap-2 bg-linear-to-br from-muted/70 to-muted/30 text-muted-foreground">
@@ -77,7 +79,7 @@ export function UrlItemCard({
             </span>
           </span>
         ) : null}
-        <span className="pointer-events-none absolute right-2 bottom-2 flex max-w-[calc(100%-1rem)] items-center gap-1 rounded-sm bg-background/85 px-2 py-1 text-[10px] leading-none font-medium tracking-wide text-foreground uppercase shadow-sm backdrop-blur-sm">
+        <span className="pointer-events-none absolute right-2 bottom-2 flex max-w-[calc(100%-1rem)] items-center gap-1 rounded-sm bg-background/55 p-1 text-xs border border-foreground/10 leading-none tracking-wide text-foreground shadow-sm backdrop-blur-xs">
           <ExternalLink className="size-3 shrink-0" aria-hidden="true" />
           <span className="truncate">{item.siteName}</span>
         </span>

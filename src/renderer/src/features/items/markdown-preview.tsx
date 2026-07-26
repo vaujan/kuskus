@@ -69,6 +69,7 @@ export function MarkdownPreview({
         <a
           {...props}
           href={href}
+          className="transition-[opacity] [transition-duration:var(--motion-duration-press)] [transition-timing-function:var(--motion-ease-out)] active:opacity-60"
           onClick={(event) => {
             event.preventDefault()
             event.stopPropagation()
@@ -104,6 +105,7 @@ export function MarkdownPreview({
         return (
           <a
             href={source}
+            className="transition-[opacity] [transition-duration:var(--motion-duration-press)] [transition-timing-function:var(--motion-ease-out)] active:opacity-60"
             onClick={(event) => {
               event.preventDefault()
               event.stopPropagation()
