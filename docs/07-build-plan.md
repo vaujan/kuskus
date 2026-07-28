@@ -24,15 +24,17 @@ Deliverables:
 - Morph the draft into the newly saved first card.
 - Show `note.md` content in the in-app detail view.
 - Render full Markdown in cards and details and allow guarded text editing from the detail view.
-- Keep detail scrolling on the shared shadcn ScrollArea, make link editing exclusive with selection
-  formatting controls, and suspend workspace shortcuts while the modal is open.
+- Keep detail scrolling on the shared shadcn ScrollArea and suspend workspace shortcuts while the
+  modal is open so Markdown editing commands remain local to the note.
 - Show actionable states for missing, invalid, or unwritable libraries.
 
 Exit criteria:
 
 - A real note can be created, found on disk, reopened after restart, and viewed in its detail view.
-- A saved note can be edited in a rendered Read/Edit canvas or explicit raw Source mode, autosaved,
-  persisted across restart, and protected from stale overwrites through reviewable conflict resolution.
+- A saved note can switch among rendered Read, highlighted Markdown, and linked Split presentations,
+  update its preview on every committed edit, autosave, persist across restart, retain source
+  selection and pane positions, and remain protected from stale overwrites through reviewable
+  conflict resolution.
 - The external filesystem is never accessible through an arbitrary renderer-supplied path.
 - Typecheck, lint, and production build pass.
 
@@ -125,4 +127,4 @@ Exit criteria:
 
 ## Current milestone
 
-Milestone 1 was completed on 2026-07-14. The summoned New Item and Markdown image-attachment slice was completed on 2026-07-19. Milestone 2 continues with PDFs and general files.
+Milestone 1 was completed on 2026-07-14. The summoned New Item and Markdown image-attachment slice was completed on 2026-07-19. Milestone 2 continues with PDFs and general files. Library sorting by date added, title, and item type (Milestone 5 retrieval work) was completed on 2026-07-28.

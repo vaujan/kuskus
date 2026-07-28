@@ -42,8 +42,8 @@ The MVP is complete when all golden workflows work against a real local library 
 - Clipboard image capture through the same recoverable, explicitly committed draft card.
 - Drag-and-drop or paste import for images, PDFs, and general files.
 - Plain-text or Markdown quick notes with text-and-image draft recovery and explicit commit.
-- Marker-free WYSIWYG editing for saved Markdown notes with Read/Edit toggling, an explicitly
-  selected raw Source mode, guarded autosave, and reviewable conflict detection.
+- Highlighted plain Markdown editing for saved notes with visible Read/Markdown/Split switching,
+  guarded autosave, keyboard emphasis shortcuts, and reviewable conflict detection.
 - Local images embedded in notes as relative Markdown assets.
 - A draft card that morphs into the newly saved, newest-first card.
 - Direct paste into the focused content view using the same detection and saving pipeline.
@@ -64,6 +64,7 @@ The MVP is complete when all golden workflows work against a real local library 
 
 - Search by title, note text, URL/domain, and filename.
 - Filter by item type.
+- Sort by date added, title, or item type.
 - Open an item using its primary action.
 - Open a URL in the default browser.
 - Open saved links in the default browser and show item details in Kuskus.
@@ -83,7 +84,6 @@ The MVP is complete when all golden workflows work against a real local library 
 - Browser extension.
 - Multiple library support.
 - Tags.
-- Sorting by added date, title, and file type.
 - PDF first-page previews and page count.
 - Keyboard navigation and Space quick preview.
 - Duplicate detection by file content.

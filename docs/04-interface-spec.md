@@ -96,7 +96,7 @@ Requirements:
 The toolbar contains, in responsive order:
 
 - A left zone containing only Show or Hide Sidebar.
-- A centered retrieval zone containing scoped Search and Filter.
+- A centered retrieval zone containing scoped Search and the combined Sort and Filter menu.
 - A right action zone containing New item and its retained-draft discard action when applicable.
 - Windows minimize, maximize/restore, and close controls.
 
@@ -319,7 +319,7 @@ compact fixed header identifies the library item with its title plus Added and E
 this metadata remains visually subordinate to headings authored inside the Markdown document. The
 header rests directly on the reading canvas without a separating border or a surface of its own, so
 the note reads as one continuous surface.
-Note cards and the Read/Edit canvas use the same semantic Markdown typesetting rules so headings,
+Note cards and the Read canvas use the same semantic Markdown typesetting rules so headings,
 prose, lists, quotes, links, code, tables, math, and images retain one visual hierarchy across both
 surfaces. Cards use a compact 15-pixel preset; the centered reading pane uses a 16-pixel preset.
 
@@ -329,34 +329,34 @@ dialog. The inspector is not manually collapsible and its visibility is not pers
 The detail dialog exposes:
 
 - Larger preview when supported.
-- The complete rendered note body without card-style clipping, plus a 40-pixel icon-only mode
-  picker for Read, Edit, and Source. Its tooltip identifies the current mode and `Ctrl+E` shortcut;
-  opening it provides direct access to all three modes. Read and Edit share one WYSIWYG Markdown
-  canvas; `Ctrl+E` toggles only those two modes and returns Source to Read without entering Source.
-- Edit keeps Markdown markers hidden, provides contextual formatting and slash controls, and
-  autosaves a valid changed note approximately 800 ms after typing stops.
-- Source exposes the raw Markdown in a monospace text editor and uses the same autosave, validation,
-  conflict, restore, and immediate-flush behavior as Edit. Unsupported raw HTML remains available
-  in Read and Source while Edit is disabled.
+- The complete rendered note body without card-style clipping, plus a compact three-icon segmented
+  control for Read, Markdown, and Split aligned beside the detail-navigation group. Every choice uses
+  at least a 40-pixel hit area and exposes its name and shortcut to assistive technology.
+- `Ctrl+E` changes Read to Markdown and changes Markdown or Split to Read. `Ctrl+Shift+E` toggles
+  Split and returns to the previous single-pane mode.
+- Markdown exposes the authoritative source in a borderless, GFM-aware CodeMirror editor and
+  autosaves a valid changed note approximately 800 ms after typing stops. Syntax color and heading
+  scale are presentational; opening or switching modes never rewrites or normalizes the source.
+  Every committed editor change updates the shared draft and Split preview immediately; the debounce
+  delays disk persistence only.
+- Split shows independently scrollable source and live sanitized preview panes. Scrolling either pane
+  proportionally aligns the other, and the actively scrolled or edited pane remains the driver while
+  content height or pane width changes. Both panes use the shared scrollbar treatment. Below 860
+  pixels, Split remains selected but shows Markdown only.
+- Raw HTML remains editable and persistable in Markdown but is not executed by Read.
 - Headings support nested bold, italic, inline-code, and strikethrough treatment in cards and the
-  Read/Edit canvas. Unformatted headings use a 400 weight, nested bold uses a 700 weight, and all
-  four actions remain available when a WYSIWYG selection intersects a heading.
-- The insertion caret and contextual-control focus indicators maintain at least 3:1 contrast in
-  light and dark themes. Selecting text opens a compact icon toolbar with accessible names,
-  pressed states, and delayed tooltips; `Alt+F10` moves focus into it and `Escape` returns focus to
-  the canvas. Activating Link dismisses this toolbar before Milkdown's focused link input opens, so
-  the two editor overlays never compete for the same selection.
-- Selecting text already visible in the note or switching between Read and Edit preserves the note
-  viewport position. Extending a selection beyond the viewport edge may still scroll intentionally.
-- Typing `/` at the end of an otherwise active text block opens one grouped command list for Text,
-  Lists, and Advanced blocks. Continued typing filters without moving focus from the canvas;
-  arrows, Home/End, Enter, and Escape operate only while the list is open. Arrow and Home/End
-  navigation scrolls the command list as needed to keep the active command visible.
-- Edit exposes the Add and Move block controls whenever the editor has focus and a block is active,
-  rather than relying on hover alone. Both controls retain 40-pixel hit areas, accessible names,
-  tooltips, and focus indicators. Add supports Enter or Space; Move supports Alt+Up and Alt+Down
-  for keyboard reordering and hides with the rest of the editor controls in Read mode.
-- `Ctrl+Enter` flushes autosave immediately without adding routine save chrome. The header does not
+  Read canvas. Unformatted headings use a 400 weight and nested bold uses a 700 weight.
+- The insertion caret follows the normal foreground color, and mode-control focus indicators maintain
+  at least 3:1 contrast in light and dark themes. Selecting text never opens contextual UI. `Ctrl+B`
+  and `Ctrl+I` wrap or unwrap the selection with GFM emphasis markers; an empty selection inserts
+  paired markers around the caret.
+- Selecting text already visible in the note or switching among Read, Markdown, and Split preserves
+  source selection and pane positions. The source selection highlight uses the shared neutral
+  selection color only while the editor is focused; the logical selection remains after focus moves.
+  Extending a selection beyond the viewport edge may still scroll intentionally.
+- Typing `/` inserts an ordinary slash; the editor has no slash menu, block handles, drag controls,
+  floating formatting toolbar, or fixed formatting toolbar.
+- `Ctrl+Enter` flushes autosave immediately from Markdown or Split without adding routine save chrome. The header does not
   show Saved, Saving, or pending-save states; invalid drafts, write failures, and conflicts remain
   persistently visible and exposed to assistive technology. A failed or blank draft can restore the
   last saved body.
@@ -389,6 +389,11 @@ The detail interface must not become a general-purpose knowledge-management prop
 - The interface makes the scope visible.
 - Search covers title, note text, domain/URL, and filename.
 - Filter initially supports item type.
+- Sorting offers newest first, oldest first, title A–Z, title Z–A, and grouping by item type within
+  the active context. Sorting lives with item-type filtering in the retrieval zone's Filter menu,
+  and an active non-default sort is visible on that control at rest.
+- The selected sort persists between launches, applies to every view, and never changes the item
+  selection.
 - Clearing search and filters returns to the previous collection view.
 - Empty results distinguish "no saved items" from "no matches."
 

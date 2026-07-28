@@ -800,3 +800,87 @@ for the notify module.
 - Adding or restyling a notification is a one-file change; call sites pass only domain data.
 - The undo shortcut stack lives in the renderer and tracks at most the visible Undo toasts.
 - The countdown affordance is presentational only; the Sonner dismiss timer remains authoritative.
+
+## DEC-029: Edit saved notes as plain Markdown
+
+Date: 2026-07-28
+Status: Accepted
+
+### Context
+
+The Milkdown canvas kept Markdown authoritative but introduced a second block-based document model,
+source normalization, asynchronous editor lifecycle, and contextual controls. Saved-note editing
+needs direct, predictable access to the same user-readable text already stored in `note.md`.
+
+### Decision
+
+Supersede DEC-018 and DEC-019 for editor presentation, DEC-020 for note modes, and DEC-021 for
+Milkdown-specific keyboard and overlay behavior. Saved notes provide Read and Markdown modes behind
+a visible segmented control; `Ctrl+E` toggles between them. Read uses the existing sanitized
+standards-based renderer with GFM, soft-break, math, and local-attachment support. Markdown uses a
+controlled monospace textarea and saves its value without normalization.
+
+Remove Milkdown, block handles, slash commands, and floating or fixed formatting toolbars.
+`Ctrl+B` and `Ctrl+I` remain local to the textarea and toggle Markdown emphasis markers.
+The autosave debounce, immediate `Ctrl+Enter` flush, stale-write check, conflict review, guarded
+navigation, and item-ID-based storage operation from DEC-018 remain unchanged.
+
+### Consequences
+
+- Existing `note.md` files and attachments require no migration and are not rewritten merely by
+  opening a note or switching modes.
+- Raw HTML remains editable and persistable but is not executed by the Read renderer.
+- The renderer no longer carries a block-editor dependency, document model, overlay lifecycle, or
+  editor-specific theme layer.
+- No storage schema, preload, IPC, or main-process changes are required.
+
+## DEC-030: Add highlighted source and linked split presentation
+
+Date: 2026-07-28
+Status: Accepted
+
+### Context
+
+DEC-029 removed the block editor and restored exact Markdown editing, but its uniform textarea did
+not provide source hierarchy or a way to compare source with the rendered result while writing.
+The text mode control also consumed more header width than the adjacent icon-led detail controls.
+
+### Decision
+
+Extend DEC-029 with renderer-local Read, Markdown, and Split modes behind a compact icon segmented
+control aligned beside detail navigation. `Ctrl+E` retains the Read/Markdown transition, while
+`Ctrl+Shift+E` toggles Split and restores the previous single-pane mode. Below the desktop breakpoint,
+Split remains selected but presents Markdown only.
+
+Replace the native textarea with a focused CodeMirror 6 configuration using the GFM parser, exact
+controlled-string synchronization, local undo history, emphasis shortcuts, restrained token color,
+and heading-scaled source typography. Split composes that editor with the existing sanitized
+`MarkdownPreview`; either pane drives the other by guarded proportional scrolling.
+
+Amendment (2026-07-29): Every CodeMirror document-changing transaction publishes the complete
+authoritative string to the shared autosave draft, including external history-free synchronization;
+duplicate values are harmless because the coordinator is idempotent. Split scroll mirroring is
+animation-frame throttled, tracks the active source or preview driver, and recalculates after draft,
+content-size, or pane-size changes.
+
+Amendment (2026-07-29, pane parity): The editor uses the app-native `::selection` instead of
+CodeMirror's drawn selection layer, so selected text looks and behaves identically in source and
+preview, focused or not. The source scroller deliberately avoids the standard `scrollbar-width` /
+`scrollbar-color` properties (rendered by Chromium as a flat thin thumb) and instead uses the same
+webkit scrollbar metrics as the shared `ScrollArea` (10px lane, 8px rounded border-colored thumb,
+transparent track, no buttons). The source scroller always spans its pane; the Markdown text column
+centers itself at `max-w-3xl` inside `.cm-content`, so single-pane Markdown mode keeps the scrollbar
+at the pane edge exactly like Read mode. The autosave coordinator revives on `subscribe`: React
+StrictMode
+runs effect cleanup and setup on the memoized coordinator in development, and a live subscription
+therefore restores `disposed` instances and re-arms any dirty-draft autosave instead of silently
+ignoring all future edits.
+
+### Consequences
+
+- CodeMirror is a renderer dependency and an editing surface only, not a block or document model.
+- Source highlighting, heading scale, and split position never change saved Markdown bytes.
+- Read, Markdown, and Split share one autosave draft and the existing validation, conflict, and
+  guarded-leave pipeline.
+- Split preview updates are immediate; the existing debounce applies only to persistence.
+- No storage schema, preload, IPC, main-process, attachment, or preview-renderer changes are required.

@@ -205,10 +205,11 @@ removes the staged bundle; a failed commit retains it for recovery.
 
 ## In-app item details
 
-Cards open an in-app detail view. Image and URL details are read-only; note details allow rendered
-WYSIWYG Markdown edits while preserving existing attachments. Note autosaves stage a complete replacement
-before swapping it into place, recover an interrupted swap, and refuse to overwrite a `note.md` that
-changed after the editor opened it. URL details expose a validated **Open link** action. Every item
+Cards open an in-app detail view. Image and URL details are read-only; note details provide rendered
+reading, highlighted Markdown editing, and a split presentation while preserving existing attachments.
+Opening a note or switching modes never rewrites or normalizes its source. Note autosaves stage a complete replacement before
+swapping it into place, recover an interrupted swap, and refuse to overwrite a `note.md` that changed
+after the editor opened it. URL details expose a validated **Open link** action. Every item
 detail exposes **Show in Explorer** through an item-ID-based main-process operation; local content is
 revealed when present, otherwise Kuskus reveals the item's authoritative `item.json`. Missing content
 remains visible as a Kuskus warning rather than being silently removed.
