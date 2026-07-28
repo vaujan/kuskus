@@ -43,7 +43,20 @@ export class NoteAutosaveCoordinator {
   }
 
   subscribe = (listener: () => void): (() => void) => {
+    // React StrictMode unmounts and remounts effects in development, which runs the
+    // owner's dispose() cleanup while the memoized coordinator instance stays in use.
+    // A live subscriber means the coordinator is mounted again, so revive it and
+    // restore the pending autosave instead of ignoring every future draft update.
+    this.disposed = false
     this.listeners.add(listener)
+    if (
+      !this.timer &&
+      !this.inFlight &&
+      this.snapshot.status === 'dirty' &&
+      this.snapshot.draft !== this.snapshot.savedMarkdown
+    ) {
+      this.schedule()
+    }
     return () => this.listeners.delete(listener)
   }
 

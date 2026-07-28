@@ -44,15 +44,20 @@ const { COLLECTION_ICON_KEYS } = require('../src/shared/library-contract.ts')
 const { NoteAutosaveCoordinator } = require('../src/renderer/src/features/items/note-autosave.ts')
 const { createMarkdownDiffRows } = require('../src/renderer/src/features/items/markdown-diff.ts')
 const {
-  EDITOR_COMMANDS,
-  filterEditorCommands,
-  flattenEditorCommandSections,
-  moveEditorCommandIndex
-} = require('../src/renderer/src/features/items/editor-command-model.ts')
+  getPublishedMarkdownChange
+} = require('../src/renderer/src/features/items/markdown-editor-change.ts')
 const {
-  getUnsupportedMarkdownReason,
-  normalizeRichEditorMarkdown
-} = require('../src/renderer/src/features/items/markdown-preflight.ts')
+  toggleMarkdownMarker
+} = require('../src/renderer/src/features/items/markdown-formatting.ts')
+const {
+  getScrollRatio,
+  getScrollTopForRatio,
+  hasMeaningfulScrollDelta
+} = require('../src/renderer/src/features/items/markdown-scroll.ts')
+const {
+  getSplitToggleMode,
+  toggleReadMarkdown
+} = require('../src/renderer/src/features/items/note-view-mode.ts')
 const {
   composeMarkdownCapture,
   detectCaptureKind,
@@ -446,6 +451,36 @@ test('debounces note autosave and advances the authoritative baseline', async (c
   assert.equal(coordinator.getSnapshot().status, 'saved')
 })
 
+test('persists an editor draft through autosave and reopens the exact Markdown', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-editor-autosave-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const settingsPath = join(root, 'settings.json')
+  const service = new LibraryService(settingsPath)
+  await service.createIn(root, 'Editor Autosave')
+  const note = await service.createNote({ markdown: '# Initial', attachmentIds: [] })
+  const updatedMarkdown = '# Updated\n\n- exact source\n- live preview'
+  const coordinator = new NoteAutosaveCoordinator({
+    itemId: note.id,
+    initialMarkdown: note.body,
+    delay: 10_000,
+    save: async (input) => ({ ok: true, data: await service.updateNote(input) }),
+    onSaved: () => undefined,
+    onDraftReplaced: () => undefined
+  })
+  context.after(() => coordinator.dispose())
+
+  coordinator.updateDraft(updatedMarkdown)
+  assert.equal(coordinator.getSnapshot().draft, updatedMarkdown)
+  assert.equal(coordinator.getSnapshot().status, 'dirty')
+  assert.equal(await coordinator.flush(), true)
+
+  const reopened = new LibraryService(settingsPath)
+  await reopened.initialize()
+  const state = await reopened.getState()
+  const reopenedNote = state.library.items.find((item) => item.id === note.id)
+  assert.equal(reopenedNote.body, updatedMarkdown)
+})
+
 test('flushes coalesced edits without allowing an older save to replace a newer draft', async (context) => {
   const calls = []
   const saved = []
@@ -523,7 +558,7 @@ test('pauses autosave for conflicts and resolves with either reviewed version', 
   assert.equal(coordinator.getSnapshot().status, 'saved')
 })
 
-test('protects blank and raw-HTML notes and produces a side-by-side Markdown diff', () => {
+test('protects blank notes and produces a side-by-side Markdown diff', () => {
   const coordinator = new NoteAutosaveCoordinator({
     itemId: noteDto('Initial').id,
     initialMarkdown: 'Initial',
@@ -536,23 +571,6 @@ test('protects blank and raw-HTML notes and produces a side-by-side Markdown dif
   assert.match(coordinator.getSnapshot().error, /cannot be empty/i)
   coordinator.dispose()
 
-  assert.match(getUnsupportedMarkdownReason('<script>alert(1)</script>'), /raw HTML/i)
-  assert.equal(getUnsupportedMarkdownReason('<https://example.com>'), null)
-  assert.equal(getUnsupportedMarkdownReason('# Safe\n\n**Markdown**'), null)
-
-  for (const sentinel of ['<br>', '<br/>', '<br />', '<br >']) {
-    assert.equal(normalizeRichEditorMarkdown(`# Heading\n${sentinel}\nBody`), '# Heading\n\nBody')
-    assert.equal(getUnsupportedMarkdownReason(`# Heading\n${sentinel}\nBody`), null)
-  }
-  assert.equal(
-    normalizeRichEditorMarkdown('First\n\n<br />\n\nSecond\n<br>'),
-    'First\n\n\n\nSecond\n'
-  )
-  assert.equal(normalizeRichEditorMarkdown('# Safe\n\n**Markdown**'), '# Safe\n\n**Markdown**')
-  assert.match(getUnsupportedMarkdownReason('Text <br /> more text'), /raw HTML/i)
-  assert.match(getUnsupportedMarkdownReason('<br class="spacer">'), /raw HTML/i)
-  assert.match(getUnsupportedMarkdownReason('<!-- hidden -->'), /raw HTML/i)
-
   const rows = createMarkdownDiffRows('Same\nMy line\nSame end', 'Same\nDisk line\nSame end')
   assert.equal(rows[0].kind, 'same')
   assert.equal(rows[1].kind, 'changed')
@@ -561,33 +579,63 @@ test('protects blank and raw-HTML notes and produces a side-by-side Markdown dif
   assert.equal(rows[2].kind, 'same')
 })
 
-test('groups, filters, and navigates accessible editor commands without image insertion', () => {
-  assert.deepEqual(
-    filterEditorCommands('').map((section) => section.group),
-    ['Text', 'Lists', 'Advanced']
-  )
-  assert.equal(
-    EDITOR_COMMANDS.some((command) => command.id === 'image'),
-    false
-  )
+test('toggles Markdown emphasis markers while preserving the intended selection', () => {
+  assert.deepEqual(toggleMarkdownMarker('Hello world', 6, 11, '**'), {
+    value: 'Hello **world**',
+    selectionStart: 8,
+    selectionEnd: 13
+  })
+  assert.deepEqual(toggleMarkdownMarker('Hello **world**', 8, 13, '**'), {
+    value: 'Hello world',
+    selectionStart: 6,
+    selectionEnd: 11
+  })
+  assert.deepEqual(toggleMarkdownMarker('Hello **world**', 6, 15, '**'), {
+    value: 'Hello world',
+    selectionStart: 6,
+    selectionEnd: 11
+  })
+  assert.deepEqual(toggleMarkdownMarker('Hello ', 6, 6, '*'), {
+    value: 'Hello **',
+    selectionStart: 7,
+    selectionEnd: 7
+  })
+  assert.deepEqual(toggleMarkdownMarker('**word**', 2, 6, '*'), {
+    value: '***word***',
+    selectionStart: 3,
+    selectionEnd: 7
+  })
+  assert.deepEqual(toggleMarkdownMarker('***word***', 3, 7, '*'), {
+    value: '**word**',
+    selectionStart: 2,
+    selectionEnd: 6
+  })
+})
 
-  const headingResults = flattenEditorCommandSections(filterEditorCommands('heading'))
-  assert.deepEqual(
-    headingResults.map((command) => command.id),
-    ['heading-1', 'heading-2', 'heading-3', 'heading-4', 'heading-5', 'heading-6']
-  )
-  assert.deepEqual(
-    flattenEditorCommandSections(filterEditorCommands('todo')).map((command) => command.id),
-    ['task-list']
-  )
-  assert.equal(flattenEditorCommandSections(filterEditorCommands('not-a-command')).length, 0)
+test('uses predictable note-mode keyboard transitions', () => {
+  assert.equal(toggleReadMarkdown('read'), 'markdown')
+  assert.equal(toggleReadMarkdown('markdown'), 'read')
+  assert.equal(toggleReadMarkdown('split'), 'read')
+  assert.equal(getSplitToggleMode('read', 'read'), 'split')
+  assert.equal(getSplitToggleMode('markdown', 'markdown'), 'split')
+  assert.equal(getSplitToggleMode('split', 'markdown'), 'markdown')
+})
 
-  assert.equal(moveEditorCommandIndex(0, 'previous', 3), 0)
-  assert.equal(moveEditorCommandIndex(0, 'next', 3), 1)
-  assert.equal(moveEditorCommandIndex(2, 'next', 3), 2)
-  assert.equal(moveEditorCommandIndex(1, 'first', 3), 0)
-  assert.equal(moveEditorCommandIndex(1, 'last', 3), 2)
-  assert.equal(moveEditorCommandIndex(0, 'next', 0), -1)
+test('publishes every CodeMirror document change, including empty Markdown', () => {
+  assert.equal(getPublishedMarkdownChange(true, '# Updated'), '# Updated')
+  assert.equal(getPublishedMarkdownChange(true, ''), '')
+  assert.equal(getPublishedMarkdownChange(false, '# Unchanged'), null)
+})
+
+test('maps linked Markdown scrolling proportionally and handles non-overflowing panes', () => {
+  assert.equal(getScrollRatio(300, 1000, 400), 0.5)
+  assert.equal(getScrollTopForRatio(0.5, 1600, 600), 500)
+  assert.equal(getScrollRatio(100, 300, 400), 0)
+  assert.equal(getScrollTopForRatio(0.75, 300, 400), 0)
+  assert.equal(getScrollRatio(-20, 1000, 400), 0)
+  assert.equal(getScrollTopForRatio(2, 1000, 400), 600)
+  assert.equal(hasMeaningfulScrollDelta(100, 100.5), false)
+  assert.equal(hasMeaningfulScrollDelta(100, 101), true)
 })
 
 test('keeps staged images recoverable when note commit validation fails', async (context) => {

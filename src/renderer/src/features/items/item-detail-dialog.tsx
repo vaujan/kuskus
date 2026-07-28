@@ -1,13 +1,13 @@
 import { Dialog } from '@base-ui/react/dialog'
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import {
   IconAlignLeft as AlignLeft,
   IconCalendar as Calendar,
   IconChevronLeft as ChevronLeft,
   IconChevronRight as ChevronRight,
-  IconDimensions as Dimensions,
   IconCode as Code,
-  IconEdit as Edit,
+  IconColumns2 as Columns2,
+  IconDimensions as Dimensions,
   IconEye as Eye,
   IconExternalLink as ExternalLink,
   IconFile as File,
@@ -45,27 +45,25 @@ import {
 } from '@/components/ui/dialog'
 import { Kbd } from '@/components/ui/kbd'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { createMarkdownDiffRows } from '@/features/items/markdown-diff'
+import { MarkdownEditor, type MarkdownEditorHandle } from '@/features/items/markdown-editor'
 import { MarkdownPreview } from '@/features/items/markdown-preview'
+import {
+  getScrollRatio,
+  getScrollTopForRatio,
+  hasMeaningfulScrollDelta
+} from '@/features/items/markdown-scroll'
 import { NoteAutosaveCoordinator, type NoteAutosaveSnapshot } from '@/features/items/note-autosave'
+import {
+  getSplitToggleMode,
+  toggleReadMarkdown,
+  type NoteMode,
+  type SinglePaneNoteMode
+} from '@/features/items/note-view-mode'
 import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
-import { getUnsupportedMarkdownReason } from '@/features/items/markdown-preflight'
 import { useImagePreview } from '@/features/items/use-image-preview'
 import { useUrlPreview } from '@/features/items/use-url-preview'
-import {
-  WysiwygMarkdownEditor,
-  type WysiwygMarkdownEditorHandle
-} from '@/features/items/wysiwyg-markdown-editor'
 import { WindowControls } from '@/features/shell/window-controls'
 import { cn } from '@/lib/utils'
 import type { LibraryItemDto } from '../../../../shared/library-contract'
@@ -77,39 +75,6 @@ const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   hour: 'numeric',
   minute: '2-digit'
 })
-
-type NoteMode = 'read' | 'edit' | 'source'
-
-const NOTE_MODE_OPTIONS: Record<NoteMode, { label: string; icon: TablerIcon }> = {
-  read: { label: 'Read', icon: Eye },
-  edit: { label: 'Edit', icon: Edit },
-  source: { label: 'Source', icon: Code }
-}
-
-function isNoteMode(value: unknown): value is NoteMode {
-  return value === 'read' || value === 'edit' || value === 'source'
-}
-
-function NoteModeIcon({ mode }: { mode: NoteMode }): React.JSX.Element {
-  const modes = Object.keys(NOTE_MODE_OPTIONS) as NoteMode[]
-
-  return (
-    <span className="relative size-4" aria-hidden="true">
-      {modes.map((value) => {
-        const Icon = NOTE_MODE_OPTIONS[value].icon
-        return (
-          <Icon
-            key={value}
-            className={cn(
-              'absolute inset-0 transition-[opacity,filter,scale] duration-300 [transition-timing-function:cubic-bezier(0.2,0,0,1)] motion-reduce:scale-100 motion-reduce:blur-0 motion-reduce:transition-none',
-              mode === value ? 'scale-100 opacity-100 blur-0' : 'scale-[0.25] opacity-0 blur-[4px]'
-            )}
-          />
-        )
-      })}
-    </span>
-  )
-}
 
 function formatDate(value: string): string {
   const date = new Date(value)
@@ -180,6 +145,7 @@ function DetailControl({
 
 function FloatingControls({
   itemId,
+  leadingControls,
   actions,
   hasPrevious,
   hasNext,
@@ -188,6 +154,7 @@ function FloatingControls({
   onError
 }: {
   itemId: string
+  leadingControls?: React.ReactNode
   actions?: React.ReactNode
   hasPrevious: boolean
   hasNext: boolean
@@ -196,46 +163,99 @@ function FloatingControls({
   onError: (message: string) => void
 }): React.JSX.Element {
   return (
-    <div className="absolute top-3 right-3 z-20 flex rounded-full bg-popover/85 p-0.5 shadow-sm ring-1 ring-foreground/8 backdrop-blur-md">
-      <DetailControl
-        label="Previous item (Left arrow)"
-        disabled={!hasPrevious}
-        onClick={onPrevious}
-      >
-        <ChevronLeft aria-hidden="true" />
-      </DetailControl>
-      {actions}
-      <DetailControl label="Next item (Right arrow)" disabled={!hasNext} onClick={onNext}>
-        <ChevronRight aria-hidden="true" />
-      </DetailControl>
-      <DetailControl
-        label="Show in Explorer"
-        onClick={async () => {
-          const result = await window.kuskus.showItemInExplorer(itemId)
-          if (!result.ok) onError(result.error)
-        }}
-      >
-        <FolderOpen aria-hidden="true" />
-      </DetailControl>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Dialog.Close
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="size-10"
-                  aria-label="Close item details"
-                />
-              }
-            />
-          }
+    <div className="absolute top-3 right-3 z-20 flex max-w-[calc(100%-1.5rem)] flex-wrap justify-end gap-2">
+      {leadingControls}
+      <div className="flex rounded-full bg-popover/85 p-0.5 shadow-sm ring-1 ring-foreground/8 backdrop-blur-md">
+        <DetailControl
+          label="Previous item (Left arrow)"
+          disabled={!hasPrevious}
+          onClick={onPrevious}
         >
-          <X aria-hidden="true" />
-        </TooltipTrigger>
-        <TooltipContent>Close item details</TooltipContent>
-      </Tooltip>
+          <ChevronLeft aria-hidden="true" />
+        </DetailControl>
+        {actions}
+        <DetailControl label="Next item (Right arrow)" disabled={!hasNext} onClick={onNext}>
+          <ChevronRight aria-hidden="true" />
+        </DetailControl>
+        <DetailControl
+          label="Show in Explorer"
+          onClick={async () => {
+            const result = await window.kuskus.showItemInExplorer(itemId)
+            if (!result.ok) onError(result.error)
+          }}
+        >
+          <FolderOpen aria-hidden="true" />
+        </DetailControl>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Dialog.Close
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="size-10"
+                    aria-label="Close item details"
+                  />
+                }
+              />
+            }
+          >
+            <X aria-hidden="true" />
+          </TooltipTrigger>
+          <TooltipContent>Close item details</TooltipContent>
+        </Tooltip>
+      </div>
+    </div>
+  )
+}
+
+function NoteModeControls({
+  mode,
+  onModeChange
+}: {
+  mode: NoteMode
+  onModeChange: (mode: NoteMode) => void
+}): React.JSX.Element {
+  const options = [
+    { value: 'read' as const, label: 'Read (Ctrl+E)', icon: Eye, shortcut: 'Control+E' },
+    { value: 'markdown' as const, label: 'Markdown (Ctrl+E)', icon: Code, shortcut: 'Control+E' },
+    {
+      value: 'split' as const,
+      label: 'Split view (Ctrl+Shift+E)',
+      icon: Columns2,
+      shortcut: 'Control+Shift+E'
+    }
+  ]
+
+  return (
+    <div
+      className="flex rounded-full bg-popover/85 p-0.5 shadow-sm ring-1 ring-foreground/8 backdrop-blur-md"
+      role="group"
+      aria-label="Note mode"
+    >
+      {options.map(({ value, label, icon: Icon, shortcut }) => (
+        <Tooltip key={value}>
+          <TooltipTrigger render={<span className="inline-flex" />}>
+            <Button
+              type="button"
+              variant="ghost"
+              className={cn(
+                'size-10 rounded-full text-muted-foreground shadow-none',
+                mode === value &&
+                  'bg-foreground/8 text-foreground shadow-sm hover:bg-foreground/10 dark:bg-foreground/10 dark:hover:bg-foreground/12'
+              )}
+              aria-label={label}
+              aria-pressed={mode === value}
+              aria-keyshortcuts={shortcut}
+              onClick={() => onModeChange(value)}
+            >
+              <Icon stroke={1.5} aria-hidden="true" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{label}</TooltipContent>
+        </Tooltip>
+      ))}
     </div>
   )
 }
@@ -352,10 +372,7 @@ function NoteCanvas({
   item,
   mode,
   snapshot,
-  unsupportedReason,
-  editorRef,
   onDraftChange,
-  onModeChange,
   onRetry,
   onRestore,
   onReviewConflict
@@ -363,16 +380,19 @@ function NoteCanvas({
   item: Extract<LibraryItemDto, { type: 'note' }>
   mode: NoteMode
   snapshot: NoteAutosaveSnapshot
-  unsupportedReason: string | null
-  editorRef: React.RefObject<WysiwygMarkdownEditorHandle | null>
   onDraftChange: (value: string) => void
-  onModeChange: (mode: NoteMode) => void
   onRetry: () => void
   onRestore: () => void
   onReviewConflict: () => void
 }): React.JSX.Element {
-  const sourceRef = useRef<HTMLTextAreaElement>(null)
-  const viewportRef = useRef<HTMLDivElement>(null)
+  const editorRef = useRef<MarkdownEditorHandle>(null)
+  const previewViewportRef = useRef<HTMLDivElement>(null)
+  const previousModeRef = useRef<NoteMode>(mode)
+  const activeScrollDriverRef = useRef<'source' | 'preview'>(mode === 'read' ? 'preview' : 'source')
+  const pendingScrollDriverRef = useRef<'source' | 'preview' | null>(null)
+  const programmaticScrollTargetRef = useRef<'source' | 'preview' | null>(null)
+  const syncFrameRef = useRef<number | null>(null)
+  const releaseSyncFrameRef = useRef<number | null>(null)
   const problemStatusLabel =
     snapshot.status === 'invalid'
       ? 'Not saved'
@@ -382,10 +402,116 @@ function NoteCanvas({
           ? 'Save conflict'
           : null
 
+  const scheduleScrollSynchronization = useCallback(
+    (driver: 'source' | 'preview', recordDriver = true): void => {
+      if (mode !== 'split') return
+      if (programmaticScrollTargetRef.current === driver) {
+        programmaticScrollTargetRef.current = null
+        return
+      }
+      if (recordDriver) activeScrollDriverRef.current = driver
+      pendingScrollDriverRef.current = driver
+      if (syncFrameRef.current !== null) return
+
+      syncFrameRef.current = requestAnimationFrame(() => {
+        syncFrameRef.current = null
+        const pendingDriver = pendingScrollDriverRef.current
+        pendingScrollDriverRef.current = null
+        const source = editorRef.current?.getScroller()
+        const preview = previewViewportRef.current
+        if (!pendingDriver || !source || !preview) return
+
+        const driverElement = pendingDriver === 'source' ? source : preview
+        const targetElement = pendingDriver === 'source' ? preview : source
+        if (driverElement.clientHeight === 0 || targetElement.clientHeight === 0) return
+
+        const ratio = getScrollRatio(
+          driverElement.scrollTop,
+          driverElement.scrollHeight,
+          driverElement.clientHeight
+        )
+        const nextScrollTop = getScrollTopForRatio(
+          ratio,
+          targetElement.scrollHeight,
+          targetElement.clientHeight
+        )
+        if (!hasMeaningfulScrollDelta(targetElement.scrollTop, nextScrollTop)) return
+
+        const targetPane = pendingDriver === 'source' ? 'preview' : 'source'
+        programmaticScrollTargetRef.current = targetPane
+        targetElement.scrollTop = nextScrollTop
+        if (releaseSyncFrameRef.current !== null) {
+          cancelAnimationFrame(releaseSyncFrameRef.current)
+        }
+        releaseSyncFrameRef.current = requestAnimationFrame(() => {
+          if (programmaticScrollTargetRef.current === targetPane) {
+            programmaticScrollTargetRef.current = null
+          }
+          releaseSyncFrameRef.current = null
+        })
+      })
+    },
+    [mode]
+  )
+
+  useEffect(() => {
+    const preview = previewViewportRef.current
+    if (!preview) return
+    const handlePreviewScroll = (): void => scheduleScrollSynchronization('preview')
+    preview.addEventListener('scroll', handlePreviewScroll, { passive: true })
+    return () => preview.removeEventListener('scroll', handlePreviewScroll)
+  }, [scheduleScrollSynchronization])
+
+  useEffect(() => {
+    const previousMode = previousModeRef.current
+    previousModeRef.current = mode
+    const frame = requestAnimationFrame(() => {
+      editorRef.current?.requestMeasure()
+      if (mode === 'split' && previousMode !== 'split') {
+        const driver = previousMode === 'read' ? 'preview' : 'source'
+        activeScrollDriverRef.current = driver
+        scheduleScrollSynchronization(driver, false)
+      }
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [mode, scheduleScrollSynchronization])
+
+  useEffect(() => {
+    if (mode !== 'split') return
+    scheduleScrollSynchronization(activeScrollDriverRef.current, false)
+  }, [mode, scheduleScrollSynchronization, snapshot.draft])
+
+  useEffect(() => {
+    if (mode !== 'split') return
+    const source = editorRef.current?.getScroller()
+    const preview = previewViewportRef.current
+    if (!source || !preview) return
+
+    const observer = new ResizeObserver(() => {
+      editorRef.current?.requestMeasure()
+      scheduleScrollSynchronization(activeScrollDriverRef.current, false)
+    })
+    observer.observe(source)
+    observer.observe(preview)
+    const sourceContent = source.querySelector('.cm-content')
+    const previewContent = preview.firstElementChild
+    if (sourceContent) observer.observe(sourceContent)
+    if (previewContent) observer.observe(previewContent)
+    return () => observer.disconnect()
+  }, [mode, scheduleScrollSynchronization])
+
+  useEffect(
+    () => () => {
+      if (syncFrameRef.current !== null) cancelAnimationFrame(syncFrameRef.current)
+      if (releaseSyncFrameRef.current !== null) cancelAnimationFrame(releaseSyncFrameRef.current)
+    },
+    []
+  )
+
   return (
     <section className="flex size-full min-w-0 flex-col bg-popover">
       {!item.missingContent ? (
-        <header className="flex min-h-16 shrink-0 flex-wrap items-center gap-x-5 gap-y-3 px-4 pt-16 pb-3 sm:flex-nowrap sm:px-7 sm:pt-3 sm:pr-52">
+        <header className="flex min-h-16 shrink-0 flex-wrap items-center gap-x-5 gap-y-3 px-4 pt-28 pb-3 sm:flex-nowrap sm:px-7 sm:pt-3 sm:pr-[23rem]">
           <div className="min-w-0 flex-1 basis-full sm:basis-auto">
             <p
               className="truncate text-sm leading-5 font-medium text-foreground"
@@ -403,71 +529,25 @@ function NoteCanvas({
               </span>
             </p>
           </div>
-          <div className="flex shrink-0 items-center gap-3">
-            <Select
-              value={mode}
-              onValueChange={(value) => {
-                if (isNoteMode(value)) onModeChange(value)
-              }}
+          {problemStatusLabel ? (
+            <p
+              className="shrink-0 text-xs text-destructive"
+              aria-live="assertive"
+              aria-atomic="true"
             >
-              <Tooltip>
-                <TooltipTrigger render={<span className="inline-flex" />}>
-                  <SelectTrigger
-                    showIndicator={false}
-                    className="size-10 justify-center gap-0 bg-transparent p-0 hover:bg-muted aria-expanded:bg-muted"
-                    aria-label={`Note mode: ${NOTE_MODE_OPTIONS[mode].label}. Choose note mode`}
-                    aria-keyshortcuts="Control+E"
-                  >
-                    <SelectValue className="flex-none justify-center">
-                      <NoteModeIcon mode={mode} />
-                    </SelectValue>
-                  </SelectTrigger>
-                </TooltipTrigger>
-                <TooltipContent>Note mode: {NOTE_MODE_OPTIONS[mode].label} (Ctrl+E)</TooltipContent>
-              </Tooltip>
-              <SelectContent align="start" alignItemWithTrigger={false}>
-                <SelectGroup>
-                  <SelectItem value="read">
-                    <Eye aria-hidden="true" />
-                    Read
-                  </SelectItem>
-                  <SelectItem value="edit" disabled={Boolean(unsupportedReason)}>
-                    <Edit aria-hidden="true" />
-                    Edit
-                  </SelectItem>
-                  <SelectItem value="source">
-                    <Code aria-hidden="true" />
-                    Source
-                  </SelectItem>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            {problemStatusLabel ? (
-              <p className="text-xs text-destructive" aria-live="assertive" aria-atomic="true">
-                {problemStatusLabel}
-              </p>
-            ) : null}
-          </div>
+              {problemStatusLabel}
+            </p>
+          ) : null}
         </header>
       ) : null}
-      <ScrollArea
-        className="min-h-0 flex-1"
-        viewportClassName="focus-visible:ring-0 focus-visible:outline-none"
-        viewportRef={viewportRef}
-      >
-        {item.missingContent ? (
-          <div className="flex size-full items-center justify-center">
-            <MissingContent type="note" />
-          </div>
-        ) : (
-          <article className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-5 px-7 py-10 sm:px-12 min-[860px]:px-16">
-            {unsupportedReason ? (
-              <Alert>
-                <AlertTitle>Rich editing is unavailable for this note</AlertTitle>
-                <AlertDescription>{unsupportedReason}</AlertDescription>
-              </Alert>
-            ) : null}
-            {snapshot.error ? (
+      {item.missingContent ? (
+        <div className="flex min-h-0 flex-1 items-center justify-center">
+          <MissingContent type="note" />
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col">
+          {snapshot.error ? (
+            <div className="shrink-0 px-7 pt-4 sm:px-12">
               <Alert variant="destructive">
                 <AlertTitle>
                   {snapshot.status === 'conflict' ? 'The note changed on disk' : 'Note not saved'}
@@ -490,46 +570,56 @@ function NoteCanvas({
                   ) : null}
                 </div>
               </Alert>
-            ) : null}
-            {mode === 'source' ? (
-              <Textarea
-                ref={sourceRef}
+            </div>
+          ) : null}
+          <div
+            className={cn(
+              'grid min-h-0 flex-1 grid-cols-1',
+              mode === 'split' && 'min-[860px]:grid-cols-2'
+            )}
+          >
+            <div
+              className={cn(
+                'min-h-0 min-w-0',
+                mode === 'read' ? 'hidden' : 'flex',
+                mode === 'split' && 'min-[860px]:border-r'
+              )}
+            >
+              <MarkdownEditor
+                ref={editorRef}
                 value={snapshot.draft}
-                className="min-h-[28rem] flex-1 resize-none border-0 bg-transparent p-0 font-mono text-sm leading-6 shadow-none focus-visible:border-transparent focus-visible:ring-0"
-                aria-label="Markdown source"
-                aria-invalid={snapshot.status === 'invalid'}
-                autoFocus
-                spellCheck={false}
-                onChange={(event) => onDraftChange(event.currentTarget.value)}
+                invalid={snapshot.status === 'invalid'}
+                active={mode === 'markdown' || mode === 'split'}
+                onChange={(value) => {
+                  activeScrollDriverRef.current = 'source'
+                  onDraftChange(value)
+                }}
+                onScroll={() => scheduleScrollSynchronization('source')}
               />
-            ) : unsupportedReason ? (
-              <MarkdownPreview
-                value={snapshot.draft}
-                itemId={item.id}
-                attachments={item.attachments}
-                presentation="detail"
-                onOpenLink={(url) => void openExternalUrlWithFeedback(url)}
-              />
-            ) : null}
-            {!unsupportedReason ? (
-              <div className={mode === 'source' ? 'hidden' : undefined}>
-                <WysiwygMarkdownEditor
-                  ref={editorRef}
+            </div>
+            <ScrollArea
+              className={cn(
+                'min-h-0 min-w-0',
+                mode === 'read' && 'flex',
+                mode === 'markdown' && 'hidden',
+                mode === 'split' && 'hidden min-[860px]:flex'
+              )}
+              viewportClassName="focus-visible:ring-0 focus-visible:outline-none"
+              viewportRef={previewViewportRef}
+            >
+              <article className="mx-auto min-h-full w-full max-w-3xl px-7 py-10 sm:px-12 min-[860px]:px-16">
+                <MarkdownPreview
+                  value={snapshot.draft}
                   itemId={item.id}
-                  initialMarkdown={snapshot.draft}
                   attachments={item.attachments}
-                  readOnly={mode !== 'edit'}
-                  scrollViewportRef={viewportRef}
-                  onMarkdownChange={onDraftChange}
-                  onOpenLink={(url) => {
-                    void openExternalUrlWithFeedback(url)
-                  }}
+                  presentation="detail"
+                  onOpenLink={(url) => void openExternalUrlWithFeedback(url)}
                 />
-              </div>
-            ) : null}
-          </article>
-        )}
-      </ScrollArea>
+              </article>
+            </ScrollArea>
+          </div>
+        </div>
+      )}
     </section>
   )
 }
@@ -627,8 +717,6 @@ export function ItemDetailDialog({
   onError: (message: string) => void
 }): React.JSX.Element {
   const [openedNote] = useState(() => (item?.type === 'note' ? item : null))
-  const editorRef = useRef<WysiwygMarkdownEditorHandle>(null)
-  const [replacement, setReplacement] = useState<{ markdown: string; request: number } | null>(null)
   const coordinator = useMemo(
     () =>
       openedNote
@@ -637,8 +725,7 @@ export function ItemDetailDialog({
             initialMarkdown: openedNote.body,
             save: (input) => window.kuskus.updateNote(input),
             onSaved: onItemUpdated,
-            onDraftReplaced: (markdown) =>
-              setReplacement((current) => ({ markdown, request: (current?.request ?? 0) + 1 }))
+            onDraftReplaced: () => undefined
           })
         : null,
     [onItemUpdated, openedNote]
@@ -655,30 +742,19 @@ export function ItemDetailDialog({
     coordinator?.getSnapshot ?? (() => fallbackSnapshot.current)
   )
   const [mode, setMode] = useState<NoteMode>('read')
+  const previousSingleModeRef = useRef<SinglePaneNoteMode>('read')
   const [leaving, setLeaving] = useState(false)
   const [conflictDialogOpen, setConflictDialogOpen] = useState(false)
   const [conflictResolution, setConflictResolution] = useState<'mine' | 'disk' | null>(null)
-  const unsupportedReason = openedNote ? getUnsupportedMarkdownReason(snapshot.draft) : null
   const diffRows = useMemo(
     () => (snapshot.conflict ? createMarkdownDiffRows(snapshot.draft, snapshot.conflict.body) : []),
     [snapshot.conflict, snapshot.draft]
   )
 
   useEffect(() => () => coordinator?.dispose(), [coordinator])
-  useEffect(() => {
-    if (!replacement) return
-    void editorRef.current?.replaceMarkdown(replacement.markdown)
-  }, [replacement])
-
   const changeMode = (nextMode: NoteMode): void => {
     if (nextMode === mode) return
-    if (mode === 'source' && nextMode !== 'source' && !unsupportedReason) {
-      const replacementPromise = editorRef.current?.replaceMarkdown(snapshot.draft)
-      if (replacementPromise) {
-        void replacementPromise.then(() => setMode(nextMode))
-        return
-      }
-    }
+    if (nextMode !== 'split') previousSingleModeRef.current = nextMode
     setMode(nextMode)
   }
 
@@ -709,13 +785,25 @@ export function ItemDetailDialog({
       event.ctrlKey &&
       !event.altKey &&
       !event.metaKey &&
-      !event.shiftKey &&
+      event.shiftKey &&
       !event.repeat &&
-      item?.type === 'note' &&
-      (mode === 'source' || !unsupportedReason)
+      item?.type === 'note'
     ) {
       event.preventDefault()
-      changeMode(mode === 'read' ? 'edit' : 'read')
+      changeMode(getSplitToggleMode(mode, previousSingleModeRef.current))
+      return
+    }
+    if (
+      event.key.toLocaleLowerCase() === 'e' &&
+      event.ctrlKey &&
+      !event.altKey &&
+      !event.metaKey &&
+      !event.shiftKey &&
+      !event.repeat &&
+      item?.type === 'note'
+    ) {
+      event.preventDefault()
+      changeMode(toggleReadMarkdown(mode))
       return
     }
     if (
@@ -740,7 +828,7 @@ export function ItemDetailDialog({
       !event.shiftKey &&
       !event.repeat &&
       item?.type === 'note' &&
-      (mode === 'edit' || mode === 'source')
+      mode !== 'read'
     ) {
       event.preventDefault()
       void coordinator?.flush()
@@ -787,6 +875,11 @@ export function ItemDetailDialog({
                   </Dialog.Description>
                   <FloatingControls
                     itemId={item.id}
+                    leadingControls={
+                      item.type === 'note' ? (
+                        <NoteModeControls mode={mode} onModeChange={changeMode} />
+                      ) : undefined
+                    }
                     actions={renderActions?.(requestGuardedAction)}
                     hasPrevious={hasPrevious}
                     hasNext={hasNext}
@@ -799,10 +892,7 @@ export function ItemDetailDialog({
                       item={item}
                       mode={mode}
                       snapshot={snapshot}
-                      unsupportedReason={unsupportedReason}
-                      editorRef={editorRef}
                       onDraftChange={(value) => coordinator?.updateDraft(value)}
-                      onModeChange={changeMode}
                       onRetry={() => void coordinator?.retry()}
                       onRestore={() => coordinator?.restoreSaved()}
                       onReviewConflict={() => setConflictDialogOpen(true)}

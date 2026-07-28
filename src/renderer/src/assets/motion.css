@@ -48,14 +48,6 @@
     scroll-behavior: auto;
   }
 
-  .kuskus-editor-toolbar-surface svg,
-  .kuskus-markdown-editor .milkdown-block-handle,
-  .kuskus-markdown-editor .milkdown-image-block .image-wrapper .operation,
-  .kuskus-markdown-editor .milkdown-image-block .image-wrapper .image-resize-handle,
-  .kuskus-markdown-editor .crepe-drop-cursor {
-    transition-duration: 0ms;
-  }
-
   [data-slot='button']:active {
     scale: 1;
   }

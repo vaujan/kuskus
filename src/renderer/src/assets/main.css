@@ -6,7 +6,6 @@
 @import '@fontsource-variable/instrument-sans/wght.css';
 @import '@fontsource-variable/jetbrains-mono/wght.css';
 @import 'katex/dist/katex.min.css';
-@import '@milkdown/crepe/theme/common/style.css' layer(vendor);
 @import '@fontsource-variable/inter';
 @import '@fontsource-variable/ibm-plex-sans';
 @import '@fontsource/ibm-plex-serif';
@@ -16,6 +15,5 @@
 @import './theme.css';
 @import './typeset.css';
 @import './markdown.css';
-@import './markdown-editor.css';
 @import './shell.css';
 @import './motion.css';

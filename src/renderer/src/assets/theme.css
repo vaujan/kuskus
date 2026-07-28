@@ -89,7 +89,6 @@
   --sidebar-ring: oklch(0.723 0.014 214.4);
   --backdrop: oklch(0 0 0 / 30%);
   --backdrop-strong: oklch(0 0 0 / 55%);
-  --editor-caret: var(--primary);
   --editor-control-ring: var(--primary);
 }
 
@@ -127,7 +126,6 @@
   --sidebar-ring: oklch(0.56 0.021 213.5);
   --backdrop: oklch(0.1 0.01 224 / 62%);
   --backdrop-strong: oklch(0.08 0.01 224 / 68%);
-  --editor-caret: var(--sidebar-primary);
   --editor-control-ring: var(--sidebar-primary);
 }
 
