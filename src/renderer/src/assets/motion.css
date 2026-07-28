@@ -17,29 +17,30 @@
   transition: none !important;
 }
 
-/* Undo toasts show the remaining undo window as a hairline countdown. Sonner
-   pauses its dismiss timer while the toaster is hovered, so the bar pauses on
-   the same condition to stay in sync. */
-[data-sonner-toast].notify-undo::after {
-  content: '';
-  position: absolute;
-  right: 12px;
-  bottom: 4px;
-  left: 12px;
-  height: 2px;
-  border-radius: 999px;
-  background-color: color-mix(in oklch, var(--foreground) 18%, transparent);
-  transform-origin: left;
+/* Undo toasts show the remaining undo window as a hairline countdown. Painted
+   as a background layer instead of a pseudo-element because Sonner claims both
+   ::before (exit) and ::after (expanded hover bridge) for itself. Selectors are
+   anchored to [data-sonner-toaster] to outrank Sonner's runtime-injected
+   [data-sonner-toast][data-styled='true'] background shorthand, which would
+   otherwise reset background-image. Sonner pauses its dismiss timer while the
+   toaster is hovered, so the bar pauses on the same condition to stay in sync. */
+[data-sonner-toaster] [data-sonner-toast].notify-undo {
+  background-image: linear-gradient(
+    color-mix(in oklch, var(--foreground) 18%, transparent) 0 0
+  );
+  background-repeat: no-repeat;
+  background-position: 12px calc(100% - 4px);
+  background-size: calc(100% - 24px) 2px;
   animation: notify-undo-countdown var(--notify-undo-duration, 6000ms) linear forwards;
 }
 
-[data-sonner-toaster]:hover [data-sonner-toast].notify-undo::after {
+[data-sonner-toaster]:hover [data-sonner-toast].notify-undo {
   animation-play-state: paused;
 }
 
 @keyframes notify-undo-countdown {
   to {
-    transform: scaleX(0);
+    background-size: 0 2px;
   }
 }
 
@@ -64,7 +65,7 @@
     animation: none !important;
   }
 
-  [data-sonner-toast].notify-undo::after {
-    content: none;
+  [data-sonner-toaster] [data-sonner-toast].notify-undo {
+    background-image: none;
   }
 }

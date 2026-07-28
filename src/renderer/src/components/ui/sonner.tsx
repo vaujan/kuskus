@@ -35,14 +35,14 @@ const Toaster = ({ ...props }: ToasterProps) => {
           '--normal-bg': 'var(--popover)',
           '--normal-text': 'var(--popover-foreground)',
           '--normal-border': 'var(--border)',
-          '--border-radius': 'calc(var(--radius) + 6px)',
+          '--border-radius': 'calc(var(--radius) + 2px)',
           '--width': '22rem'
         } as React.CSSProperties
       }
       toastOptions={{
         classNames: {
           toast:
-            'cn-toast group/toast !flex !items-center !gap-3 !rounded-2xl !border-0 !bg-popover/88 !px-3 !py-2.5 !text-popover-foreground !shadow-[0_0_0_1px_rgba(0,0,0,0.06),0_8px_28px_-12px_rgba(0,0,0,0.28)] !ring-1 !ring-foreground/6 !backdrop-blur-2xl dark:!shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_8px_28px_-12px_rgba(0,0,0,0.72)]',
+            'cn-toast group/toast !flex !items-center !gap-3 !rounded-2xl !border-0 !bg-popover !px-3 !py-2.5 !text-popover-foreground !shadow-[0_0_0_1px_rgba(0,0,0,0.06),0_8px_28px_-12px_rgba(0,0,0,0.28)] !ring-1 !ring-foreground/6 !backdrop-blur-2xl dark:!shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_8px_28px_-12px_rgba(0,0,0,0.72)]',
           content: '!flex !min-w-0 !flex-1 !flex-col !gap-0.5',
           title: '!text-[13px] !leading-4 !font-medium',
           description: '!text-xs !leading-4 !text-muted-foreground',
