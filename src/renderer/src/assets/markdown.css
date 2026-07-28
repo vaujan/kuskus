@@ -1,0 +1,80 @@
+@layer components {
+  .kuskus-typeset {
+    --typeset-font-body: var(--font-sans);
+    --typeset-font-heading: var(--font-sans);
+    --typeset-font-mono: var(--font-mono);
+    --typeset-leading: 1.75;
+    --typeset-flow: 1.25em;
+    --typeset-rule: color-mix(in oklch, var(--foreground) 30%, transparent);
+    --typeset-image-outline: rgb(0 0 0 / 10%);
+
+    max-width: 37em;
+    font-size: var(--typeset-size);
+    color: color-mix(in oklch, var(--foreground) 85%, transparent);
+  }
+
+  .kuskus-typeset[data-typeset-presentation='card'] {
+    --typeset-size: 15px;
+  }
+
+  .kuskus-typeset[data-typeset-presentation='detail'] {
+    --typeset-size: 16px;
+  }
+
+  .kuskus-typeset
+    *:not(:where(.not-typeset, [data-not-typeset], .not-typeset *, [data-not-typeset] *)) {
+    &:where(h1, h2, h3, h4, h5, h6) {
+      padding: 0;
+      font-weight: 400;
+      text-wrap: balance;
+    }
+
+    &:where(p, li, blockquote, figcaption) {
+      line-height: inherit;
+      text-wrap: pretty;
+    }
+
+    &:where(p) {
+      padding: 0;
+    }
+
+    &:where(h1, h2, h3, h4, h5, h6) :is(strong, b) {
+      font-weight: 700;
+    }
+
+    &:where(:not(pre) > code) {
+      display: inline;
+      line-height: inherit;
+    }
+
+    &:where(blockquote) {
+      position: static;
+    }
+
+    &:where(hr) {
+      height: auto;
+      padding: 0;
+      background: transparent;
+    }
+
+    &:where(img) {
+      max-height: 32rem;
+      width: auto;
+      border-radius: var(--radius-lg);
+      object-fit: contain;
+      outline: 1px solid var(--typeset-image-outline);
+      outline-offset: -1px;
+    }
+  }
+
+  .kuskus-typeset
+    :where(blockquote):not(
+      :where(.not-typeset, [data-not-typeset], .not-typeset *, [data-not-typeset] *)
+    )::before {
+    content: none;
+  }
+
+  .dark .kuskus-typeset {
+    --typeset-image-outline: rgb(255 255 255 / 10%);
+  }
+}

@@ -1,0 +1,78 @@
+[data-sonner-toaster] {
+  transition: transform var(--motion-duration-dialog) var(--motion-ease-out) !important;
+}
+
+[data-sonner-toast] {
+  transition-property: transform, opacity, box-shadow !important;
+  transition-duration:
+    var(--motion-duration-dialog), var(--motion-duration-dialog), var(--motion-duration-press) !important;
+  transition-timing-function: var(--motion-ease-out) !important;
+}
+
+[data-sonner-toast] > * {
+  transition: opacity var(--motion-duration-dialog) var(--motion-ease-out) !important;
+}
+
+[data-sonner-toast][data-swiping='true'] {
+  transition: none !important;
+}
+
+/* Undo toasts show the remaining undo window as a hairline countdown. Sonner
+   pauses its dismiss timer while the toaster is hovered, so the bar pauses on
+   the same condition to stay in sync. */
+[data-sonner-toast].notify-undo::after {
+  content: '';
+  position: absolute;
+  right: 12px;
+  bottom: 4px;
+  left: 12px;
+  height: 2px;
+  border-radius: 999px;
+  background-color: color-mix(in oklch, var(--foreground) 18%, transparent);
+  transform-origin: left;
+  animation: notify-undo-countdown var(--notify-undo-duration, 6000ms) linear forwards;
+}
+
+[data-sonner-toaster]:hover [data-sonner-toast].notify-undo::after {
+  animation-play-state: paused;
+}
+
+@keyframes notify-undo-countdown {
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .kuskus-editor-toolbar-surface svg,
+  .kuskus-markdown-editor .milkdown-block-handle,
+  .kuskus-markdown-editor .milkdown-image-block .image-wrapper .operation,
+  .kuskus-markdown-editor .milkdown-image-block .image-wrapper .image-resize-handle,
+  .kuskus-markdown-editor .crepe-drop-cursor {
+    transition-duration: 0ms;
+  }
+
+  [data-slot='button']:active {
+    scale: 1;
+  }
+
+  [data-sonner-toaster] {
+    transition: none !important;
+  }
+
+  [data-sonner-toast],
+  [data-sonner-toast] > * {
+    transition-property: opacity !important;
+    transition-duration: var(--motion-duration-press) !important;
+    transition-timing-function: var(--motion-ease-out) !important;
+    animation: none !important;
+  }
+
+  [data-sonner-toast].notify-undo::after {
+    content: none;
+  }
+}

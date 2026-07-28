@@ -90,6 +90,27 @@ function isNoteMode(value: unknown): value is NoteMode {
   return value === 'read' || value === 'edit' || value === 'source'
 }
 
+function NoteModeIcon({ mode }: { mode: NoteMode }): React.JSX.Element {
+  const modes = Object.keys(NOTE_MODE_OPTIONS) as NoteMode[]
+
+  return (
+    <span className="relative size-4" aria-hidden="true">
+      {modes.map((value) => {
+        const Icon = NOTE_MODE_OPTIONS[value].icon
+        return (
+          <Icon
+            key={value}
+            className={cn(
+              'absolute inset-0 transition-[opacity,filter,scale] duration-300 [transition-timing-function:cubic-bezier(0.2,0,0,1)] motion-reduce:scale-100 motion-reduce:blur-0 motion-reduce:transition-none',
+              mode === value ? 'scale-100 opacity-100 blur-0' : 'scale-[0.25] opacity-0 blur-[4px]'
+            )}
+          />
+        )
+      })}
+    </span>
+  )
+}
+
 function formatDate(value: string): string {
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? value : DATE_FORMATTER.format(date)
@@ -270,7 +291,10 @@ function ImageCanvas({
         </div>
       ) : (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+          <LoaderCircle
+            className="size-4 animate-spin motion-reduce:animate-none"
+            aria-hidden="true"
+          />
           Loading image
         </div>
       )}
@@ -330,10 +354,8 @@ function NoteCanvas({
   snapshot,
   unsupportedReason,
   editorRef,
-  leaving,
   onDraftChange,
   onModeChange,
-  onFlush,
   onRetry,
   onRestore,
   onReviewConflict
@@ -343,98 +365,95 @@ function NoteCanvas({
   snapshot: NoteAutosaveSnapshot
   unsupportedReason: string | null
   editorRef: React.RefObject<WysiwygMarkdownEditorHandle | null>
-  leaving: boolean
   onDraftChange: (value: string) => void
   onModeChange: (mode: NoteMode) => void
-  onFlush: () => void
   onRetry: () => void
   onRestore: () => void
   onReviewConflict: () => void
 }): React.JSX.Element {
   const sourceRef = useRef<HTMLTextAreaElement>(null)
-  const SelectedModeIcon = NOTE_MODE_OPTIONS[mode].icon
-  const statusLabel = leaving
-    ? 'Finishing save…'
-    : snapshot.status === 'saving'
-      ? 'Saving…'
-      : snapshot.status === 'dirty'
-        ? 'Waiting to save…'
-        : snapshot.status === 'invalid'
-          ? 'Not saved'
-          : snapshot.status === 'error'
-            ? 'Unable to save'
-            : snapshot.status === 'conflict'
-              ? 'Save conflict'
-              : 'Saved'
+  const viewportRef = useRef<HTMLDivElement>(null)
+  const problemStatusLabel =
+    snapshot.status === 'invalid'
+      ? 'Not saved'
+      : snapshot.status === 'error'
+        ? 'Unable to save'
+        : snapshot.status === 'conflict'
+          ? 'Save conflict'
+          : null
 
   return (
     <section className="flex size-full min-w-0 flex-col bg-popover">
       {!item.missingContent ? (
-        <header className="flex min-h-16 shrink-0 flex-wrap items-center gap-3 px-4 pt-16 pb-3 sm:flex-nowrap sm:px-7 sm:pt-3 sm:pr-52">
-          <Select
-            value={mode}
-            onValueChange={(value) => {
-              if (isNoteMode(value)) onModeChange(value)
-            }}
-          >
-            <SelectTrigger
-              size="sm"
-              className="min-w-40 border-border bg-transparent"
-              aria-label="Markdown note mode"
-              aria-keyshortcuts="Control+E"
+        <header className="flex min-h-16 shrink-0 flex-wrap items-center gap-x-5 gap-y-3 px-4 pt-16 pb-3 sm:flex-nowrap sm:px-7 sm:pt-3 sm:pr-52">
+          <div className="min-w-0 flex-1 basis-full sm:basis-auto">
+            <p
+              className="truncate text-sm leading-5 font-medium text-foreground"
+              title={item.title}
             >
-              <SelectValue>
-                <SelectedModeIcon aria-hidden="true" />
-                {NOTE_MODE_OPTIONS[mode].label}
-              </SelectValue>
-              <Kbd aria-hidden="true">Ctrl+E</Kbd>
-            </SelectTrigger>
-            <SelectContent align="start" alignItemWithTrigger={false}>
-              <SelectGroup>
-                <SelectItem value="read">
-                  <Eye aria-hidden="true" />
-                  Read
-                </SelectItem>
-                <SelectItem value="edit" disabled={Boolean(unsupportedReason)}>
-                  <Edit aria-hidden="true" />
-                  Edit
-                </SelectItem>
-                <SelectItem value="source">
-                  <Code aria-hidden="true" />
-                  Source
-                </SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <p
-            className={cn(
-              'text-xs text-muted-foreground',
-              (snapshot.status === 'error' ||
-                snapshot.status === 'invalid' ||
-                snapshot.status === 'conflict') &&
-                'text-destructive'
-            )}
-            aria-live="polite"
-            aria-atomic="true"
-          >
-            {statusLabel}
-          </p>
-          {snapshot.status === 'dirty' ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              aria-keyshortcuts="Control+Enter"
-              onClick={onFlush}
+              {item.title}
+            </p>
+            <p className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 text-[0.6875rem] leading-4 text-muted-foreground tabular-nums">
+              <span className="whitespace-nowrap">
+                Added <time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time>
+              </span>
+              <span aria-hidden="true">·</span>
+              <span className="whitespace-nowrap">
+                Edited <time dateTime={item.updatedAt}>{formatDate(item.updatedAt)}</time>
+              </span>
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-3">
+            <Select
+              value={mode}
+              onValueChange={(value) => {
+                if (isNoteMode(value)) onModeChange(value)
+              }}
             >
-              Save now
-            </Button>
-          ) : null}
+              <Tooltip>
+                <TooltipTrigger render={<span className="inline-flex" />}>
+                  <SelectTrigger
+                    showIndicator={false}
+                    className="size-10 justify-center gap-0 bg-transparent p-0 hover:bg-muted aria-expanded:bg-muted"
+                    aria-label={`Note mode: ${NOTE_MODE_OPTIONS[mode].label}. Choose note mode`}
+                    aria-keyshortcuts="Control+E"
+                  >
+                    <SelectValue className="flex-none justify-center">
+                      <NoteModeIcon mode={mode} />
+                    </SelectValue>
+                  </SelectTrigger>
+                </TooltipTrigger>
+                <TooltipContent>Note mode: {NOTE_MODE_OPTIONS[mode].label} (Ctrl+E)</TooltipContent>
+              </Tooltip>
+              <SelectContent align="start" alignItemWithTrigger={false}>
+                <SelectGroup>
+                  <SelectItem value="read">
+                    <Eye aria-hidden="true" />
+                    Read
+                  </SelectItem>
+                  <SelectItem value="edit" disabled={Boolean(unsupportedReason)}>
+                    <Edit aria-hidden="true" />
+                    Edit
+                  </SelectItem>
+                  <SelectItem value="source">
+                    <Code aria-hidden="true" />
+                    Source
+                  </SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            {problemStatusLabel ? (
+              <p className="text-xs text-destructive" aria-live="assertive" aria-atomic="true">
+                {problemStatusLabel}
+              </p>
+            ) : null}
+          </div>
         </header>
       ) : null}
       <ScrollArea
         className="min-h-0 flex-1"
         viewportClassName="focus-visible:ring-0 focus-visible:outline-none"
+        viewportRef={viewportRef}
       >
         {item.missingContent ? (
           <div className="flex size-full items-center justify-center">
@@ -500,6 +519,7 @@ function NoteCanvas({
                   initialMarkdown={snapshot.draft}
                   attachments={item.attachments}
                   readOnly={mode !== 'edit'}
+                  scrollViewportRef={viewportRef}
                   onMarkdownChange={onDraftChange}
                   onOpenLink={(url) => {
                     void openExternalUrlWithFeedback(url)
@@ -570,12 +590,7 @@ function UrlInspector({
             <time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time>
           </PropertyRow>
         </PropertyList>
-        <Button
-          size="lg"
-          className="w-full"
-          aria-keyshortcuts="Control+Enter"
-          onClick={onOpenLink}
-        >
+        <Button size="lg" className="w-full" aria-keyshortcuts="Control+Enter" onClick={onOpenLink}>
           <ExternalLink data-icon="inline-start" aria-hidden="true" />
           Open link
           <Kbd
@@ -786,10 +801,8 @@ export function ItemDetailDialog({
                       snapshot={snapshot}
                       unsupportedReason={unsupportedReason}
                       editorRef={editorRef}
-                      leaving={leaving}
                       onDraftChange={(value) => coordinator?.updateDraft(value)}
                       onModeChange={changeMode}
-                      onFlush={() => void coordinator?.flush()}
                       onRetry={() => void coordinator?.retry()}
                       onRestore={() => coordinator?.restoreSaved()}
                       onReviewConflict={() => setConflictDialogOpen(true)}

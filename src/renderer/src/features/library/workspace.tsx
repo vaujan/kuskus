@@ -3,9 +3,6 @@ import {
   IconInbox as Inbox,
   IconPhoto as FileImage,
   IconSearch as Search,
-  IconSquare as Square,
-  IconSquareCheck as SquareCheck,
-  IconSquareMinus as SquareMinus,
   IconX as X
 } from '@tabler/icons-react'
 
@@ -48,11 +45,18 @@ import { SavedItemsTable } from '@/features/items/saved-items-table'
 import { ItemDetailDialog } from '@/features/items/item-detail-dialog'
 import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
 import { BulkActionToolbar } from '@/features/library/bulk-action-toolbar'
+import { OrderedMasonry } from '@/features/library/ordered-masonry'
 import {
   ItemActionMenu,
   ItemContextMenu,
   type ItemActionHandlers
 } from '@/features/items/item-action-menu'
+import {
+  ITEM_SORT_STORAGE_KEY,
+  parseItemSort,
+  sortItems,
+  type ItemSort
+} from '@/features/items/item-sort'
 import { type ItemTypeFilter, type LibraryView } from '@/features/items/item-view'
 import { AppToolbar } from '@/features/shell/app-toolbar'
 import { LibrarySidebar, type LibraryDestination } from '@/features/shell/library-sidebar'
@@ -65,7 +69,14 @@ import type {
   LibraryItemDto,
   UrlItemDto
 } from '../../../../shared/library-contract'
-import { toast } from 'sonner'
+import {
+  notifyArchived,
+  notifyPermanentlyDeleted,
+  notifyRenamed,
+  notifyRestored,
+  notifyTrashed,
+  notifyUnarchived
+} from '@/lib/notify'
 
 const DEFAULT_SIDEBAR_WIDTH = 256
 const MIN_SIDEBAR_WIDTH = 208
@@ -135,6 +146,9 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
   const [isDragging, setIsDragging] = useState(false)
   const [search, setSearch] = useState('')
   const [typeFilters, setTypeFilters] = useState<ItemTypeFilter[]>([])
+  const [sort, setSort] = useState<ItemSort>(() =>
+    parseItemSort(localStorage.getItem(ITEM_SORT_STORAGE_KEY))
+  )
   const [view, setView] = useState<LibraryView>(() => {
     const stored = localStorage.getItem('kuskus-library-view')
     if (stored === 'list') return 'table'
@@ -155,6 +169,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
   const importRequestId = useRef(0)
   const dragDepth = useRef(0)
   const enrichingUrlIds = useRef(new Set<string>())
+  const pendingRevealItemId = useRef<string | null>(null)
   const draftStorageKey = `kuskus-note-draft:${library.path}`
 
   const announceStatus = useCallback((message: string): void => {
@@ -180,33 +195,50 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
     localStorage.setItem('kuskus-library-view', view)
   }, [view])
 
+  useEffect(() => {
+    localStorage.setItem(ITEM_SORT_STORAGE_KEY, sort)
+  }, [sort])
+
   const visibleItems = useMemo(() => {
     const query = deferredSearch.trim().toLocaleLowerCase()
-    return library.items.filter(
+    const filtered = library.items.filter(
       (item) =>
         item.id !== composerOwnedItemId &&
         itemMatchesDestination(item, destination) &&
         itemMatchesRetrieval(item, query, typeFilters)
     )
-  }, [composerOwnedItemId, deferredSearch, destination, library.items, typeFilters])
+    return sortItems(filtered, sort)
+  }, [composerOwnedItemId, deferredSearch, destination, library.items, sort, typeFilters])
   const destinationItems = useMemo(
     () => library.items.filter((item) => itemMatchesDestination(item, destination)),
     [destination, library.items]
   )
-  const selectedVisibleCount = useMemo(
-    () => visibleItems.reduce((count, item) => count + Number(selectedIds.has(item.id)), 0),
-    [selectedIds, visibleItems]
-  )
-  const allVisibleItemsSelected =
-    visibleItems.length > 0 && selectedVisibleCount === visibleItems.length
-  const someVisibleItemsSelected = selectedVisibleCount > 0 && !allVisibleItemsSelected
-
   const selectAllVisibleItems = useCallback((): void => {
     setSelectedIds(new Set(visibleItems.map((item) => item.id)))
     setSelectionAnchorId(null)
     announceStatus(
       `${visibleItems.length} ${visibleItems.length === 1 ? 'item' : 'items'} selected`
     )
+  }, [announceStatus, visibleItems])
+
+  // A newly saved item joins the active sorted position rather than always landing first;
+  // once it renders, scroll it into view and announce the save.
+  useEffect(() => {
+    const itemId = pendingRevealItemId.current
+    if (!itemId) return
+    const revealed = visibleItems.find((item) => item.id === itemId)
+    if (!revealed) {
+      pendingRevealItemId.current = null
+      return
+    }
+    pendingRevealItemId.current = null
+    const element = document.querySelector(`[data-item-id="${CSS.escape(itemId)}"]`)
+    if (element instanceof HTMLElement) {
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      element.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest' })
+    }
+    const kindLabel = revealed.type === 'note' ? 'note' : revealed.type === 'image' ? 'image' : 'link'
+    announceStatus(`Saved ${kindLabel}.`)
   }, [announceStatus, visibleItems])
 
   const selectedItem = useMemo(
@@ -300,10 +332,11 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
         setLibrary((current) => ({ ...current, items: [item, ...current.items] }))
       }
       setMessage('')
-      return (
+      const remainsVisible =
         itemMatchesDestination(nextItem, destination) &&
         itemMatchesRetrieval(nextItem, search.trim().toLocaleLowerCase(), typeFilters)
-      )
+      if (remainsVisible) pendingRevealItemId.current = nextItem.id
+      return remainsVisible
     },
     [destination, search, typeFilters]
   )
@@ -386,16 +419,10 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
         const result = await window.kuskus.archiveItems({ itemIds })
         if (!applyLibraryResult(result)) return
         if (showUndo) {
-          toast.success(`${itemIds.length === 1 ? 'Item' : `${itemIds.length} items`} archived`, {
-            duration: 6000,
-            action: {
-              label: 'Undo',
-              onClick: () => {
-                void window.kuskus
-                  .unarchiveItems({ itemIds })
-                  .then((undoResult) => applyLibraryResult(undoResult))
-              }
-            }
+          notifyArchived(itemIds.length, () => {
+            void window.kuskus
+              .unarchiveItems({ itemIds })
+              .then((undoResult) => applyLibraryResult(undoResult))
           })
         }
       } finally {
@@ -421,11 +448,12 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
         const result = await window.kuskus.unarchiveItems({ itemIds })
         if (!applyLibraryResult(result)) return
         if (notify) {
-          toast.success(itemIds.length === 1 ? 'Item unarchived' : 'Items unarchived', {
-            description: missingPreviousFolder
+          notifyUnarchived(
+            itemIds.length,
+            missingPreviousFolder
               ? 'A previous folder was unavailable, so the item was returned to Inbox.'
               : undefined
-          })
+          )
         }
       } finally {
         setItemOperationBusy(false)
@@ -441,20 +469,11 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
         const result = await window.kuskus.trashItems({ itemIds })
         if (!applyLibraryResult(result)) return
         if (showUndo) {
-          toast.success(
-            `${itemIds.length === 1 ? 'Item' : `${itemIds.length} items`} moved to Trash`,
-            {
-              duration: 6000,
-              action: {
-                label: 'Undo',
-                onClick: () => {
-                  void window.kuskus
-                    .restoreItems({ itemIds })
-                    .then((undoResult) => applyLibraryResult(undoResult))
-                }
-              }
-            }
-          )
+          notifyTrashed(itemIds.length, () => {
+            void window.kuskus
+              .restoreItems({ itemIds })
+              .then((undoResult) => applyLibraryResult(undoResult))
+          })
         }
       } finally {
         setItemOperationBusy(false)
@@ -481,11 +500,12 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
         const result = await window.kuskus.restoreItems({ itemIds })
         if (!applyLibraryResult(result)) return
         if (notify) {
-          toast.success(itemIds.length === 1 ? 'Item restored' : 'Items restored', {
-            description: missingPreviousFolder
+          notifyRestored(
+            itemIds.length,
+            missingPreviousFolder
               ? 'A previous folder was unavailable, so the item was restored to Inbox.'
               : undefined
-          })
+          )
         }
       } finally {
         setItemOperationBusy(false)
@@ -764,7 +784,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
       if (!applyLibraryResult(result)) return
       setRenameTarget(null)
       setRenameTitle('')
-      toast.success('Item renamed')
+      notifyRenamed()
     } finally {
       setItemOperationBusy(false)
     }
@@ -779,7 +799,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
       const count = deleteTargets.length
       setDeleteTargets([])
       setSelectedItemId(null)
-      toast.success(count === 1 ? 'Item permanently deleted' : `${count} items permanently deleted`)
+      notifyPermanentlyDeleted(count)
     } finally {
       setItemOperationBusy(false)
     }
@@ -803,13 +823,61 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
       onCreated={addCreatedItem}
       onLinkCommitted={commitLinkItem}
       onLinkUpdated={updateItem}
-      onLinkReleased={(itemId) =>
+      onLinkReleased={(itemId) => {
         setComposerOwnedItemId((current) => (current === itemId ? null : current))
-      }
+        const released = library.items.find((entry) => entry.id === itemId)
+        if (
+          released &&
+          itemMatchesDestination(released, destination) &&
+          itemMatchesRetrieval(released, search.trim().toLocaleLowerCase(), typeFilters)
+        ) {
+          pendingRevealItemId.current = itemId
+        }
+      }}
       onStatus={announceStatus}
       onDraftStateChange={setComposerHasDraft}
       onTransientWorkChange={setComposerHasTransientWork}
     />
+  )
+
+  const cardLayoutContent = (
+    <>
+      <div className={cn('min-w-0', !composerOpen && 'hidden')}>{addItemComposer}</div>
+      {visibleItems.map((item) => (
+        <ItemContextMenu
+          item={item}
+          collections={library.collections}
+          {...itemActions(item)}
+          key={item.id}
+        >
+          <div className="min-w-0" data-item-id={item.id}>
+            <div
+              className="group/saved-item relative"
+              data-selected={selectedIds.has(item.id)}
+            >
+              <SavedItemCard
+                item={item}
+                view={view === 'visual' ? 'visual' : 'grid'}
+                selected={selectedIds.has(item.id)}
+                onActivate={(event) => activateItem(item.id, event)}
+                onOpen={() => setSelectedItemId(item.id)}
+              />
+              <div
+                className="absolute top-2 right-2 z-30"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <ItemActionMenu
+                  item={item}
+                  collections={library.collections}
+                  showQuickSourceAction
+                  {...itemActions(item)}
+                />
+              </div>
+            </div>
+          </div>
+        </ItemContextMenu>
+      ))}
+    </>
   )
 
   return (
@@ -853,6 +921,8 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
           typeFilters={typeFilters}
           onTypeFilterChange={changeTypeFilter}
           onClearFilters={() => setTypeFilters([])}
+          sort={sort}
+          onSortChange={setSort}
         />
         <ScrollArea
           className="min-h-0 min-w-0 flex-1"
@@ -904,65 +974,18 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                   </AlertAction>
                 </Alert>
               )}
-              <div className="mb-4 flex min-h-8 items-center gap-3">
-                <h1 className="min-w-0 flex-1 truncate text-base font-semibold text-balance">
-                  {destinationLabel(destination, library)}
-                </h1>
-                <span className="text-xs tabular-nums text-muted-foreground">
-                  {destinationItems.length} {destinationItems.length === 1 ? 'item' : 'items'}
-                </span>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        type="button"
-                        variant={
-                          allVisibleItemsSelected || someVisibleItemsSelected
-                            ? 'secondary'
-                            : 'ghost'
-                        }
-                        size="sm"
-                        className="relative after:absolute after:-inset-y-1.5 after:-inset-x-1"
-                        aria-label={
-                          allVisibleItemsSelected
-                            ? `Clear selection of ${visibleItems.length} ${hasActiveRetrieval ? 'results' : 'items'}`
-                            : `Select all ${visibleItems.length} ${hasActiveRetrieval ? 'results' : 'items'}`
-                        }
-                        aria-keyshortcuts="Control+A Meta+A"
-                        aria-pressed={someVisibleItemsSelected ? 'mixed' : allVisibleItemsSelected}
-                        disabled={visibleItems.length === 0}
-                        onClick={() =>
-                          allVisibleItemsSelected ? clearSelection() : selectAllVisibleItems()
-                        }
-                      />
-                    }
-                  >
-                    {allVisibleItemsSelected ? (
-                      <SquareCheck aria-hidden="true" />
-                    ) : someVisibleItemsSelected ? (
-                      <SquareMinus aria-hidden="true" />
-                    ) : (
-                      <Square aria-hidden="true" />
-                    )}
-                    <span>Select all</span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {allVisibleItemsSelected ? 'Clear selection' : 'Select all'} · Ctrl+A
-                  </TooltipContent>
-                </Tooltip>
-              </div>
               <Empty
                 aria-hidden={!isDragging}
                 data-active={isDragging}
                 className="drop-target pointer-events-none absolute inset-4 z-40 min-h-72 scale-[0.98] border border-dashed border-primary bg-background/94 opacity-0 shadow-xl backdrop-blur-md transition-[opacity,scale] [transition-duration:var(--motion-duration-press)] [transition-timing-function:var(--motion-ease-out)] data-[active=true]:scale-100 data-[active=true]:opacity-100 motion-reduce:transition-opacity motion-reduce:data-[active=false]:scale-100 motion-reduce:data-[active=true]:scale-100"
               >
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon">
-                      <FileImage aria-hidden="true" />
-                    </EmptyMedia>
-                    <EmptyTitle>Drop image to add it to Inbox</EmptyTitle>
-                    <EmptyDescription>The original file stays untouched.</EmptyDescription>
-                  </EmptyHeader>
+                <EmptyHeader>
+                  <EmptyMedia variant="icon">
+                    <FileImage aria-hidden="true" />
+                  </EmptyMedia>
+                  <EmptyTitle>Drop image to add it to Inbox</EmptyTitle>
+                  <EmptyDescription>The original file stays untouched.</EmptyDescription>
+                </EmptyHeader>
               </Empty>
               {view === 'table' ? (
                 <div className="flex flex-col gap-4">
@@ -993,58 +1016,11 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                     />
                   ) : null}
                 </div>
+              ) : view === 'visual' ? (
+                <OrderedMasonry>{cardLayoutContent}</OrderedMasonry>
               ) : (
-                <div
-                  className={cn(
-                    view === 'visual' && 'columns-[16rem] gap-4',
-                    view === 'grid' && 'grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-4'
-                  )}
-                >
-                  <div
-                    className={cn(
-                      'min-w-0',
-                      view === 'visual' && 'mb-4 break-inside-avoid',
-                      !composerOpen && 'hidden'
-                    )}
-                  >
-                    {addItemComposer}
-                  </div>
-                  {visibleItems.map((item) => (
-                    <ItemContextMenu
-                      item={item}
-                      collections={library.collections}
-                      {...itemActions(item)}
-                      key={item.id}
-                    >
-                      <div
-                        className={cn('min-w-0', view === 'visual' && 'mb-4 break-inside-avoid')}
-                      >
-                        <div
-                          className="group/saved-item relative"
-                          data-selected={selectedIds.has(item.id)}
-                        >
-                          <SavedItemCard
-                            item={item}
-                            view={view}
-                            selected={selectedIds.has(item.id)}
-                            onActivate={(event) => activateItem(item.id, event)}
-                            onOpen={() => setSelectedItemId(item.id)}
-                          />
-                          <div
-                            className="absolute top-2 right-2 z-30"
-                            onClick={(event) => event.stopPropagation()}
-                          >
-                            <ItemActionMenu
-                              item={item}
-                              collections={library.collections}
-                              showQuickSourceAction
-                              {...itemActions(item)}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </ItemContextMenu>
-                  ))}
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-4">
+                  {cardLayoutContent}
                 </div>
               )}
               {!isDragging && visibleItems.length === 0 && hasActiveRetrieval && (

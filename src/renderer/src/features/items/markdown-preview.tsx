@@ -96,8 +96,7 @@ export function MarkdownPreview({
           <img
             src={local.preview}
             alt={alt ?? local.attachment.filename}
-            className="not-typeset max-h-[32rem] w-auto max-w-full rounded-lg object-contain outline -outline-offset-1 outline-black/10 dark:outline-white/10"
-            data-not-typeset
+            className="kuskus-markdown-image"
           />
         )
       }
@@ -130,7 +129,10 @@ export function MarkdownPreview({
       ref={previewRef}
       className={cn('relative', presentation === 'card' && 'max-h-80 overflow-hidden')}
     >
-      <div className="typeset typeset-docs max-w-[37em] text-foreground/85">
+      <div
+        className="typeset kuskus-typeset"
+        data-typeset-presentation={presentation}
+      >
         <ReactMarkdown
           remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
           rehypePlugins={[rehypeKatex]}

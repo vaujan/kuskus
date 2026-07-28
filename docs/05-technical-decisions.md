@@ -492,7 +492,8 @@ deferred.
 
 - Merely opening a note or toggling modes never writes it; the first real WYSIWYG edit may normalize
   harmless Markdown source formatting while preserving meaning.
-- Note status is visible as Saved, Saving, invalid, failed, or conflicted without Save/Cancel chrome.
+- Routine note autosave is implicit: Saved, Saving, and pending states add no header chrome. Invalid,
+  failed, and conflicted states remain visible because they require user action.
 - The existing recoverable item-directory swap remains the authoritative write transaction.
 - Read and Edit preserve one editor instance, scroll position, selection, and undo history.
 
@@ -545,6 +546,12 @@ bar. Render the existing typed Windows controls inside the dialog portal, and ro
 through the pending-save guard. Headings render uniformly bold without visually applying nested
 bold, italic, inline-code, or strikethrough marks; those source markers are preserved, and the
 corresponding WYSIWYG toolbar actions are hidden for heading selections.
+
+Amendment (2026-07-28): Heading-specific inline-formatting restrictions are removed. Bold, italic,
+inline-code, and strikethrough render consistently across cards, Read, and Edit. Unformatted
+headings use a 400 weight, nested bold uses a 700 weight, and all four WYSIWYG toolbar actions remain
+available for heading selections. Markdown remains authoritative, so existing formatted headings
+require no migration.
 
 ### Consequences
 
@@ -711,3 +718,85 @@ site name and webpage/video classification, and legacy URL items re-enrich once.
 - URL moves do not move cache files because item IDs address the library-level cache.
 - Permanent deletion removes matching cache entries on a best-effort basis.
 - Notes and images retain their existing save transition.
+
+## DEC-026: Preserve source order across Masonry columns
+
+Date: 2026-07-28
+Status: Accepted
+
+### Context
+
+CSS multi-column layout filled each column from top to bottom, so Masonry displayed the same item
+sequence differently from Grid, Table, keyboard focus, range selection, and detail navigation.
+
+### Decision
+
+Masonry keeps the authoritative renderer item order and assigns successive visible cards across
+responsive columns from left to right. Card positions are measured in the renderer so each column
+retains natural card heights. Predictable cross-view ordering takes priority over placing every next
+card in the currently shortest column.
+
+### Consequences
+
+- Masonry, Grid, Table, keyboard order, selection, and detail navigation share one item sequence.
+- Unequal card heights may leave column bottoms uneven.
+- Card and container size changes require a local layout recalculation but do not affect storage,
+  IPC, or authoritative item ordering.
+
+## DEC-027: Keep library sorting as renderer-local presentation state
+
+Date: 2026-07-28
+Status: Accepted
+
+### Context
+
+Browsing needed ordering beyond the fixed newest-first scan order. Sorting changes only how
+already-loaded items are presented; it must not weaken the single shared item sequence from DEC-026
+or add storage and IPC surface.
+
+### Decision
+
+Sort the filtered visible items in the renderer with a pure comparator. The supported orders are
+newest first (default), oldest first, title A-Z, title Z-A, and grouping by item type, with
+deterministic tiebreakers (added date, then item ID) so keyboard order, range selection, and detail
+navigation stay stable. The preference persists in renderer-local storage and applies uniformly to
+Masonry, Grid, and Table. A newly saved item joins its sorted position and is scrolled into view
+rather than always appearing first.
+
+### Consequences
+
+- No preload, IPC, schema, or storage-contract changes.
+- The main-process newest-first scan order remains the neutral base order.
+- The golden workflow's "newly saved items appear first" rule now describes the default sort only.
+- Table rows reorder through the same control without column-header sorting.
+
+### Revisit when
+
+Dogfooding asks for per-destination sort preferences, additional sort keys such as last edited, or
+column-header sorting in Table view.
+
+## DEC-028: Route user feedback toasts through a shared notify module
+
+Date: 2026-07-28
+Status: Accepted
+
+### Context
+
+Toast calls were assembled ad hoc at each call site, so every notification rendered the same
+generic success icon regardless of the operation, and undoable operations re-implemented the same
+action-button pattern with inconsistent durations and copy.
+
+### Decision
+
+All user feedback toasts flow through `src/renderer/src/lib/notify.tsx`, which maps each library
+verb (archive, trash, restore, rename, delete, open link) to a distinct Tabler icon and owns copy,
+durations, and the Undo affordance. Undoable toasts expose the persisted reversal both as a toast
+action button and as a renderer-wide Ctrl+Z shortcut that is active only while an Undo toast is
+visible and never intercepts editable targets, menus, or dialogs. Raw `toast.*` calls are reserved
+for the notify module.
+
+### Consequences
+
+- Adding or restyling a notification is a one-file change; call sites pass only domain data.
+- The undo shortcut stack lives in the renderer and tracks at most the visible Undo toasts.
+- The countdown affordance is presentational only; the Sonner dismiss timer remains authoritative.

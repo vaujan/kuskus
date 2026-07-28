@@ -50,7 +50,8 @@ const {
   moveEditorCommandIndex
 } = require('../src/renderer/src/features/items/editor-command-model.ts')
 const {
-  getUnsupportedMarkdownReason
+  getUnsupportedMarkdownReason,
+  normalizeRichEditorMarkdown
 } = require('../src/renderer/src/features/items/markdown-preflight.ts')
 const {
   composeMarkdownCapture,
@@ -538,6 +539,19 @@ test('protects blank and raw-HTML notes and produces a side-by-side Markdown dif
   assert.match(getUnsupportedMarkdownReason('<script>alert(1)</script>'), /raw HTML/i)
   assert.equal(getUnsupportedMarkdownReason('<https://example.com>'), null)
   assert.equal(getUnsupportedMarkdownReason('# Safe\n\n**Markdown**'), null)
+
+  for (const sentinel of ['<br>', '<br/>', '<br />', '<br >']) {
+    assert.equal(normalizeRichEditorMarkdown(`# Heading\n${sentinel}\nBody`), '# Heading\n\nBody')
+    assert.equal(getUnsupportedMarkdownReason(`# Heading\n${sentinel}\nBody`), null)
+  }
+  assert.equal(
+    normalizeRichEditorMarkdown('First\n\n<br />\n\nSecond\n<br>'),
+    'First\n\n\n\nSecond\n'
+  )
+  assert.equal(normalizeRichEditorMarkdown('# Safe\n\n**Markdown**'), '# Safe\n\n**Markdown**')
+  assert.match(getUnsupportedMarkdownReason('Text <br /> more text'), /raw HTML/i)
+  assert.match(getUnsupportedMarkdownReason('<br class="spacer">'), /raw HTML/i)
+  assert.match(getUnsupportedMarkdownReason('<!-- hidden -->'), /raw HTML/i)
 
   const rows = createMarkdownDiffRows('Same\nMy line\nSame end', 'Same\nDisk line\nSame end')
   assert.equal(rows[0].kind, 'same')

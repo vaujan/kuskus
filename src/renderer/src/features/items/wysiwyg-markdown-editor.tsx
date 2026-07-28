@@ -1,13 +1,25 @@
-import { memo, useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
+import {
+  memo,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type Ref,
+  type RefObject
+} from 'react'
 import remarkBreaks from 'remark-breaks'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import { configureKuskusEditorOverlays } from '@/features/items/editor-overlays'
+import { normalizeRichEditorMarkdown } from '@/features/items/markdown-preflight'
 import { MarkdownPreview } from '@/features/items/markdown-preview'
 import type { NoteAttachmentDto } from '../../../../shared/library-contract'
 
 type CrepeInstance = import('@milkdown/crepe').Crepe
+type EditorView = import('@milkdown/kit/prose/view').EditorView
+type ProseMirrorNode = import('@milkdown/kit/prose/model').Node
+type BlockService = import('@milkdown/kit/plugin/block').BlockService
 
 export interface WysiwygMarkdownEditorHandle {
   replaceMarkdown: (markdown: string) => Promise<void>
@@ -20,6 +32,7 @@ interface WysiwygMarkdownEditorProps {
   initialMarkdown: string
   attachments: NoteAttachmentDto[]
   readOnly: boolean
+  scrollViewportRef: RefObject<HTMLDivElement | null>
   onMarkdownChange: (markdown: string) => void
   onOpenLink: (url: string) => void
 }
@@ -38,6 +51,20 @@ const EDITOR_CONTROL_SELECTOR = [
   '.milkdown-latex-inline-edit',
   '.milkdown-latex-block-edit'
 ].join(',')
+
+interface ActiveTopLevelBlock {
+  dom: HTMLElement
+  index: number
+  node: ProseMirrorNode
+  pos: number
+}
+
+interface BlockControlRuntime {
+  view: EditorView
+  service: BlockService
+  createFragment: (nodes: ProseMirrorNode[]) => ProseMirrorNode['content']
+  createTextSelection: (doc: ProseMirrorNode, pos: number) => EditorView['state']['selection']
+}
 
 function placeholderImage(message: string): string {
   const escaped = message.replace(/[&<>"']/g, (character) => {
@@ -62,12 +89,187 @@ function markEditorControls(root: HTMLElement): void {
   })
 }
 
+function focusEditorWithoutScrolling(
+  root: HTMLElement | null,
+  scrollViewport: HTMLDivElement | null
+): void {
+  const editor = root?.querySelector<HTMLElement>('.ProseMirror')
+  if (!editor) return
+
+  const scrollLeft = scrollViewport?.scrollLeft
+  const scrollTop = scrollViewport?.scrollTop
+  editor.focus({ preventScroll: true })
+
+  // Keep the viewport stable even if the embedded Chromium version ignores
+  // preventScroll for a contenteditable element.
+  if (scrollViewport && scrollLeft !== undefined && scrollTop !== undefined) {
+    scrollViewport.scrollLeft = scrollLeft
+    scrollViewport.scrollTop = scrollTop
+  }
+}
+
+function getActiveTopLevelBlock(view: EditorView): ActiveTopLevelBlock | null {
+  const { doc, selection } = view.state
+  if (doc.childCount === 0 || selection.$from.depth === 0) return null
+
+  const index = selection.$from.index(0)
+  if (index < 0 || index >= doc.childCount) return null
+
+  let pos = 0
+  for (let childIndex = 0; childIndex < index; childIndex += 1) {
+    pos += doc.child(childIndex).nodeSize
+  }
+
+  const node = doc.child(index)
+  const dom = view.nodeDOM(pos)
+  if (!(dom instanceof HTMLElement)) return null
+  return { dom, index, node, pos }
+}
+
+function moveActiveBlock(runtime: BlockControlRuntime, direction: -1 | 1): boolean {
+  const { view } = runtime
+  const active = getActiveTopLevelBlock(view)
+  if (!active) return false
+
+  const siblingIndex = active.index + direction
+  if (siblingIndex < 0 || siblingIndex >= view.state.doc.childCount) return false
+
+  const sibling = view.state.doc.child(siblingIndex)
+  const rangeStart = direction < 0 ? active.pos - sibling.nodeSize : active.pos
+  const rangeEnd =
+    direction < 0
+      ? active.pos + active.node.nodeSize
+      : active.pos + active.node.nodeSize + sibling.nodeSize
+  const replacement =
+    direction < 0
+      ? runtime.createFragment([active.node, sibling])
+      : runtime.createFragment([sibling, active.node])
+  const nextPos = direction < 0 ? rangeStart : active.pos + sibling.nodeSize
+  const transaction = view.state.tr.replaceWith(rangeStart, rangeEnd, replacement)
+  transaction.setSelection(runtime.createTextSelection(transaction.doc, nextPos + 1))
+  view.dispatch(transaction.scrollIntoView())
+  view.focus()
+  return true
+}
+
+function installAccessibleBlockControls(
+  root: HTMLElement,
+  runtime: BlockControlRuntime
+): () => void {
+  let frame = 0
+
+  const prepareControls = (): void => {
+    const handle = root.querySelector<HTMLElement>('.milkdown-block-handle')
+    if (!handle) return
+
+    handle.dataset.notTypeset = ''
+    handle.classList.add('not-typeset')
+    const [addControl, dragControl] = [
+      ...handle.querySelectorAll<HTMLElement>('.operation-item')
+    ]
+
+    if (addControl && addControl.dataset.kuskusControl !== 'add-block') {
+      addControl.dataset.kuskusControl = 'add-block'
+      addControl.setAttribute('role', 'button')
+      addControl.setAttribute('aria-label', 'Add block below')
+      addControl.setAttribute('title', 'Add block below')
+      addControl.tabIndex = 0
+      addControl.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return
+        event.preventDefault()
+        event.stopPropagation()
+        addControl.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+        addControl.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }))
+      })
+    }
+
+    if (dragControl) {
+      const active = getActiveTopLevelBlock(runtime.view)
+      const canMove = Boolean(
+        active && (active.index > 0 || active.index < runtime.view.state.doc.childCount - 1)
+      )
+      dragControl.setAttribute('aria-disabled', String(!canMove))
+
+      if (dragControl.dataset.kuskusControl !== 'move-block') {
+        dragControl.dataset.kuskusControl = 'move-block'
+        dragControl.setAttribute('role', 'button')
+        dragControl.setAttribute('aria-label', 'Move block')
+        dragControl.setAttribute('aria-keyshortcuts', 'Alt+ArrowUp Alt+ArrowDown')
+        dragControl.setAttribute(
+          'title',
+          'Drag to reorder. Press Alt+Up or Alt+Down to move this block.'
+        )
+        dragControl.tabIndex = 0
+        dragControl.addEventListener('keydown', (event) => {
+          if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return
+          event.preventDefault()
+          event.stopPropagation()
+          moveActiveBlock(runtime, event.key === 'ArrowUp' ? -1 : 1)
+          scheduleSync()
+        })
+      }
+    }
+  }
+
+  const sync = (): void => {
+    frame = 0
+    prepareControls()
+    if (!runtime.view.editable) {
+      runtime.service.keydownCallback(runtime.view)
+      return
+    }
+    if (!runtime.view.hasFocus() && !root.contains(document.activeElement)) return
+
+    const active = getActiveTopLevelBlock(runtime.view)
+    if (!active) return
+    const rect = active.dom.getBoundingClientRect()
+    runtime.service.mousemoveCallback(
+      runtime.view,
+      new MouseEvent('pointermove', {
+        bubbles: true,
+        clientY: rect.top + rect.height / 2
+      })
+    )
+    requestAnimationFrame(prepareControls)
+  }
+
+  const scheduleSync = (): void => {
+    cancelAnimationFrame(frame)
+    frame = requestAnimationFrame(sync)
+  }
+  const handleFocusOut = (): void => {
+    requestAnimationFrame(() => {
+      if (runtime.view.hasFocus() || root.contains(document.activeElement)) return
+      runtime.service.keydownCallback(runtime.view)
+    })
+  }
+
+  root.addEventListener('focusin', scheduleSync)
+  root.addEventListener('focusout', handleFocusOut)
+  root.addEventListener('keydown', scheduleSync)
+  root.addEventListener('keyup', scheduleSync)
+  root.addEventListener('pointerup', scheduleSync)
+  document.addEventListener('selectionchange', scheduleSync)
+  scheduleSync()
+
+  return () => {
+    cancelAnimationFrame(frame)
+    root.removeEventListener('focusin', scheduleSync)
+    root.removeEventListener('focusout', handleFocusOut)
+    root.removeEventListener('keydown', scheduleSync)
+    root.removeEventListener('keyup', scheduleSync)
+    root.removeEventListener('pointerup', scheduleSync)
+    document.removeEventListener('selectionchange', scheduleSync)
+  }
+}
+
 const WysiwygMarkdownEditor = memo(function WysiwygMarkdownEditor({
   ref,
   itemId,
   initialMarkdown,
   attachments,
   readOnly,
+  scrollViewportRef,
   onMarkdownChange,
   onOpenLink
 }: WysiwygMarkdownEditorProps): React.JSX.Element {
@@ -77,7 +279,7 @@ const WysiwygMarkdownEditor = memo(function WysiwygMarkdownEditor({
   const onMarkdownChangeRef = useRef(onMarkdownChange)
   const suppressChangesRef = useRef(false)
   const readyForUserChangesRef = useRef(false)
-  const initialMarkdownRef = useRef(initialMarkdown)
+  const initialMarkdownRef = useRef(normalizeRichEditorMarkdown(initialMarkdown))
   const attachmentsRef = useRef(attachments)
   const objectUrlsRef = useRef(new Set<string>())
   const imageUrlCacheRef = useRef(new Map<string, string>())
@@ -95,21 +297,21 @@ const WysiwygMarkdownEditor = memo(function WysiwygMarkdownEditor({
         if (!crepe) return Promise.resolve()
         suppressChangesRef.current = true
         return import('@milkdown/kit/utils').then(({ replaceAll }) => {
-          crepe.editor.action(replaceAll(markdown))
+          crepe.editor.action(replaceAll(normalizeRichEditorMarkdown(markdown)))
           queueMicrotask(() => {
             suppressChangesRef.current = false
           })
         })
       },
-      focus: () => rootRef.current?.querySelector<HTMLElement>('.ProseMirror')?.focus()
+      focus: () => focusEditorWithoutScrolling(rootRef.current, scrollViewportRef.current)
     }),
-    []
+    [scrollViewportRef]
   )
 
   useEffect(() => {
     crepeRef.current?.setReadonly(readOnly)
-    if (!readOnly) rootRef.current?.querySelector<HTMLElement>('.ProseMirror')?.focus()
-  }, [readOnly])
+    if (!readOnly) focusEditorWithoutScrolling(rootRef.current, scrollViewportRef.current)
+  }, [readOnly, scrollViewportRef])
 
   useEffect(() => {
     const root = rootRef.current
@@ -118,9 +320,14 @@ const WysiwygMarkdownEditor = memo(function WysiwygMarkdownEditor({
     const objectUrls = objectUrlsRef.current
     let active = true
     let observer: MutationObserver | null = null
+    let disposeBlockControls = (): void => undefined
 
-    void Promise.all([import('@milkdown/crepe'), import('@milkdown/kit/utils')])
-      .then(async ([{ Crepe }, { $remark }]) => {
+    void Promise.all([
+      import('@milkdown/crepe'),
+      import('@milkdown/kit/utils'),
+      import('@milkdown/kit/preset/commonmark')
+    ])
+      .then(async ([{ Crepe }, { $remark }, { remarkPreserveEmptyLinePlugin }]) => {
         if (!active) return
         const attachmentByPath = new Map(
           attachmentsRef.current.map((attachment) => [attachment.relativePath, attachment])
@@ -179,18 +386,21 @@ const WysiwygMarkdownEditor = memo(function WysiwygMarkdownEditor({
             }
           }
         })
+        await crepe.editor.remove(remarkPreserveEmptyLinePlugin)
         configureKuskusEditorOverlays(crepe.editor)
         crepe.editor.use($remark('kuskus-soft-breaks', () => remarkBreaks))
         crepe.setReadonly(readOnlyRef.current)
         crepe.on((listener) => {
           listener.markdownUpdated((_ctx, markdown, previousMarkdown) => {
+            const normalizedMarkdown = normalizeRichEditorMarkdown(markdown)
+            const normalizedPreviousMarkdown = normalizeRichEditorMarkdown(previousMarkdown)
             if (
               !readyForUserChangesRef.current ||
               suppressChangesRef.current ||
-              markdown === previousMarkdown
+              normalizedMarkdown === normalizedPreviousMarkdown
             )
               return
-            onMarkdownChangeRef.current(markdown)
+            onMarkdownChangeRef.current(normalizedMarkdown)
           })
         })
         crepeRef.current = crepe
@@ -199,6 +409,21 @@ const WysiwygMarkdownEditor = memo(function WysiwygMarkdownEditor({
           await crepe.destroy()
           return
         }
+        const [{ editorViewCtx }, { blockServiceInstance }, { Fragment }, { TextSelection }] =
+          await Promise.all([
+            import('@milkdown/kit/core'),
+            import('@milkdown/kit/plugin/block'),
+            import('@milkdown/kit/prose/model'),
+            import('@milkdown/kit/prose/state')
+          ])
+        if (!active) return
+        const view = crepe.editor.ctx.get(editorViewCtx)
+        disposeBlockControls = installAccessibleBlockControls(root, {
+          view,
+          service: crepe.editor.ctx.get(blockServiceInstance.key),
+          createFragment: (nodes) => Fragment.fromArray(nodes),
+          createTextSelection: (doc, pos) => TextSelection.near(doc.resolve(pos))
+        })
         markEditorControls(root)
         observer = new MutationObserver(() => markEditorControls(root))
         observer.observe(root, { childList: true, subtree: true })
@@ -217,6 +442,7 @@ const WysiwygMarkdownEditor = memo(function WysiwygMarkdownEditor({
       active = false
       readyForUserChangesRef.current = false
       observer?.disconnect()
+      disposeBlockControls()
       const crepe = crepeRef.current
       crepeRef.current = null
       if (crepe) void crepe.destroy()
@@ -246,8 +472,9 @@ const WysiwygMarkdownEditor = memo(function WysiwygMarkdownEditor({
 
   return (
     <div
-      className="kuskus-markdown-editor typeset typeset-docs max-w-[37em] text-foreground/85"
+      className="kuskus-markdown-editor typeset kuskus-typeset"
       data-readonly={readOnly}
+      data-typeset-presentation="detail"
       onClickCapture={(event) => {
         const target = event.target as HTMLElement
         const anchor = target.closest<HTMLAnchorElement>('a[href]')

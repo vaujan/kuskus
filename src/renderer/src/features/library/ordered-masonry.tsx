@@ -1,0 +1,95 @@
+import { useLayoutEffect, useRef, type ReactNode } from 'react'
+
+const DEFAULT_GAP = 16
+const DEFAULT_MIN_COLUMN_WIDTH = 256
+
+function clearItemLayout(item: HTMLElement): void {
+  item.style.removeProperty('position')
+  item.style.removeProperty('width')
+  item.style.removeProperty('left')
+  item.style.removeProperty('top')
+}
+
+export function OrderedMasonry({
+  children,
+  gap = DEFAULT_GAP,
+  minColumnWidth = DEFAULT_MIN_COLUMN_WIDTH
+}: {
+  children: ReactNode
+  gap?: number
+  minColumnWidth?: number
+}): React.JSX.Element {
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    let layoutFrame: number | null = null
+
+    const layout = (): void => {
+      layoutFrame = null
+      const containerWidth = container.clientWidth
+      if (containerWidth <= 0) return
+
+      const items = Array.from(container.children).filter(
+        (child): child is HTMLElement => child instanceof HTMLElement
+      )
+      const visibleItems = items.filter(
+        (item) => !item.hidden && window.getComputedStyle(item).display !== 'none'
+      )
+
+      for (const item of items) {
+        if (!visibleItems.includes(item)) clearItemLayout(item)
+      }
+
+      if (visibleItems.length === 0) {
+        container.style.height = '0px'
+        return
+      }
+
+      const columnCount = Math.max(
+        1,
+        Math.floor((containerWidth + gap) / (minColumnWidth + gap))
+      )
+      const columnWidth = (containerWidth - gap * (columnCount - 1)) / columnCount
+      const columnHeights = Array<number>(columnCount).fill(0)
+
+      for (const item of visibleItems) {
+        item.style.position = 'absolute'
+        item.style.width = `${columnWidth}px`
+      }
+
+      for (const [index, item] of visibleItems.entries()) {
+        const column = index % columnCount
+        const top = columnHeights[column]
+        item.style.left = `${column * (columnWidth + gap)}px`
+        item.style.top = `${top}px`
+        columnHeights[column] = top + item.getBoundingClientRect().height + gap
+      }
+
+      container.style.height = `${Math.max(...columnHeights) - gap}px`
+    }
+
+    const scheduleLayout = (): void => {
+      if (layoutFrame !== null) return
+      layoutFrame = window.requestAnimationFrame(layout)
+    }
+
+    const resizeObserver = new ResizeObserver(scheduleLayout)
+    resizeObserver.observe(container)
+    for (const child of container.children) resizeObserver.observe(child)
+    layout()
+
+    return () => {
+      resizeObserver.disconnect()
+      if (layoutFrame !== null) window.cancelAnimationFrame(layoutFrame)
+    }
+  }, [children, gap, minColumnWidth])
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      {children}
+    </div>
+  )
+}

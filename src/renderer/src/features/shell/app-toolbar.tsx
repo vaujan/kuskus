@@ -20,6 +20,8 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
@@ -32,6 +34,7 @@ import {
 import { Kbd } from '@/components/ui/kbd'
 import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { ITEM_SORT_OPTIONS, DEFAULT_ITEM_SORT, type ItemSort } from '@/features/items/item-sort'
 import { ITEM_TYPE_FILTERS, type ItemTypeFilter } from '@/features/items/item-view'
 import { WindowControls } from '@/features/shell/window-controls'
 import { cn } from '@/lib/utils'
@@ -72,7 +75,9 @@ export function AppToolbar({
   totalCount,
   typeFilters,
   onTypeFilterChange,
-  onClearFilters
+  onClearFilters,
+  sort,
+  onSortChange
 }: {
   keyboardShortcutsEnabled?: boolean
   newItemOpen: boolean
@@ -89,6 +94,8 @@ export function AppToolbar({
   typeFilters: ItemTypeFilter[]
   onTypeFilterChange: (type: ItemTypeFilter, selected: boolean) => void
   onClearFilters: () => void
+  sort: ItemSort
+  onSortChange: (sort: ItemSort) => void
 }): React.JSX.Element {
   const searchRef = useRef<HTMLInputElement>(null)
   const newItemRef = useRef<HTMLButtonElement>(null)
@@ -134,7 +141,7 @@ export function AppToolbar({
                 name="search"
                 aria-keyshortcuts="Control+K Meta+K Control+F Meta+F"
                 autoComplete="off"
-                placeholder={`Search ${searchScope}…`}
+                placeholder="Search…"
                 aria-label={`Search ${searchScope} by title, note text, link, or filename`}
                 value={search}
                 onChange={(event) => onSearchChange(event.target.value)}
@@ -147,9 +154,15 @@ export function AppToolbar({
                   }
                 }}
               />
-              <InputGroupAddon align="inline-start" className="pl-2.5">
+              <InputGroupAddon align="inline-start" className="min-w-0 gap-1.5 pl-2.5 pr-1">
                 <IconSearch aria-hidden="true" />
-                <span className="sr-only">Search {searchScope}</span>
+                <span
+                  className="max-w-20 truncate text-xs font-medium text-foreground/70 @min-[56rem]/toolbar:max-w-32"
+                  title={searchScope}
+                >
+                  {searchScope}
+                </span>
+                <span className="h-3.5 w-px shrink-0 bg-border" aria-hidden="true" />
               </InputGroupAddon>
               <InputGroupAddon align="inline-end" className="gap-2 pr-1.5">
                 <span
@@ -175,9 +188,7 @@ export function AppToolbar({
                     tabIndex={hasSearch ? 0 : -1}
                     className={cn(
                       "absolute right-0 after:absolute after:-inset-2 after:content-['']",
-                      hasSearch
-                        ? 'visible opacity-100'
-                        : 'pointer-events-none invisible opacity-0'
+                      hasSearch ? 'visible opacity-100' : 'pointer-events-none invisible opacity-0'
                     )}
                     onClick={() => {
                       onSearchChange('')
@@ -195,8 +206,10 @@ export function AppToolbar({
                 render={
                   <Button
                     className="min-w-8 px-2.5"
-                    variant={typeFilters.length > 0 ? 'secondary' : 'ghost'}
-                    aria-label={`Filter ${searchScope} by item type`}
+                    variant={
+                      typeFilters.length > 0 || sort !== DEFAULT_ITEM_SORT ? 'secondary' : 'ghost'
+                    }
+                    aria-label={`Sort and filter ${searchScope}`}
                   />
                 }
               >
@@ -209,6 +222,20 @@ export function AppToolbar({
                 ) : null}
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={sort}
+                    onValueChange={(value) => onSortChange(value as ItemSort)}
+                  >
+                    {ITEM_SORT_OPTIONS.map((option) => (
+                      <DropdownMenuRadioItem key={option.value} value={option.value}>
+                        {option.label}
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
                 <DropdownMenuGroup>
                   <DropdownMenuLabel>Item type</DropdownMenuLabel>
                   {ITEM_TYPE_FILTERS.map((type) => {

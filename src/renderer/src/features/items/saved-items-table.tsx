@@ -70,6 +70,7 @@ export function SavedItemsTable({
             <TableRow
               key={item.id}
               tabIndex={0}
+              data-item-id={item.id}
               aria-label={`Open ${itemType.label.toLocaleLowerCase()} ${item.title}`}
               aria-haspopup="dialog"
               aria-selected={selected}

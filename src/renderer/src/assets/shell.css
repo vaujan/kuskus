@@ -1,0 +1,27 @@
+@layer components {
+  .windows-caption-glyph {
+    font-family: 'Segoe Fluent Icons', 'Segoe MDL2 Assets', sans-serif;
+    font-size: 10px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 1;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .library-scroll-viewport {
+    --library-scroll-fade-size: min(var(--scroll-area-overflow-y-start, 0px), 2rem);
+
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      black var(--library-scroll-fade-size),
+      black 100%
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      black var(--library-scroll-fade-size),
+      black 100%
+    );
+  }
+}

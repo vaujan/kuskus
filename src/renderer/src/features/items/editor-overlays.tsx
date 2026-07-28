@@ -108,8 +108,6 @@ const TOOLBAR_ACTIONS: readonly ToolbarAction[] = [
   { id: 'link', label: 'Link', icon: IconLink }
 ]
 
-const HEADING_RESTRICTED_ACTIONS = new Set<ToolbarActionId>(['bold', 'italic', 'strike', 'code'])
-
 const COMMAND_ICONS: Record<EditorCommandId, TablerIcon> = {
   text: IconTypography,
   'heading-1': IconH1,
@@ -173,17 +171,6 @@ function toolbarActionActive(ctx: Ctx, view: EditorView, action: ToolbarActionId
   }[action]
 
   return state.doc.rangeHasMark(state.selection.from, state.selection.to, mark.type(ctx))
-}
-
-function selectionIntersectsHeading(ctx: Ctx, state: EditorState): boolean {
-  const headingType = headingSchema.type(ctx)
-  let intersectsHeading = false
-  state.doc.nodesBetween(state.selection.from, state.selection.to, (node) => {
-    if (node.type !== headingType) return !intersectsHeading
-    intersectsHeading = true
-    return false
-  })
-  return intersectsHeading
 }
 
 function runToolbarAction(ctx: Ctx, action: ToolbarActionId): void {
@@ -354,17 +341,14 @@ class SelectionToolbarView implements PluginView {
   }
 
   #render = (): void => {
-    const actions = selectionIntersectsHeading(this.#ctx, this.#view.state)
-      ? TOOLBAR_ACTIONS.filter((action) => !HEADING_RESTRICTED_ACTIONS.has(action.id))
-      : TOOLBAR_ACTIONS
     const activeActions = new Set(
-      actions
-        .filter((action) => toolbarActionActive(this.#ctx, this.#view, action.id))
-        .map((action) => action.id)
+      TOOLBAR_ACTIONS.filter((action) => toolbarActionActive(this.#ctx, this.#view, action.id)).map(
+        (action) => action.id
+      )
     )
     this.#root.render(
       <SelectionToolbar
-        actions={actions}
+        actions={TOOLBAR_ACTIONS}
         activeActions={activeActions}
         onEscape={() => {
           this.#provider.hide()

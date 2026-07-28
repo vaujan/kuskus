@@ -71,7 +71,7 @@ export function ItemCardCaption({
     <CardFooter
       data-slot="item-card-caption"
       className={cn(
-        'pointer-events-none min-h-10 gap-2 rounded-sm px-1 pt-2 pb-0 text-xs text-muted-foreground group-data-[selected=true]/item-card:bg-primary/8 group-data-[selected=true]/item-card:text-foreground',
+        'pointer-events-none min-h-10 gap-2 rounded-b-sm -mt-1 px-1 pt-2 pb-0 text-xs text-muted-foreground group-data-[selected=true]/item-card:bg-primary/8 group-data-[selected=true]/item-card:text-foreground',
         className
       )}
       {...props}

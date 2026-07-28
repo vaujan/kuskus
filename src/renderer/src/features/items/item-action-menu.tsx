@@ -11,6 +11,7 @@ import {
   IconTrash,
   IconTrashX
 } from '@tabler/icons-react'
+import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -263,10 +264,11 @@ function ContextActions(props: ItemActionMenuProps): React.JSX.Element {
 }
 
 export function ItemActionMenu(props: ItemActionMenuProps): React.JSX.Element {
+  const [menuOpen, setMenuOpen] = useState(false)
   const actionButtonClassName = cn(
     'rounded-full shadow-sm transition-[opacity,scale] [transition-duration:var(--motion-duration-press)] [transition-timing-function:var(--motion-ease-out)]',
     !props.alwaysVisible &&
-      'opacity-0 group-data-[selected=true]/saved-item:opacity-100 group-data-[state=selected]/saved-item:opacity-100 group-focus-within/saved-item:opacity-100 group-hover/saved-item:opacity-100'
+      'opacity-0 group-hover/saved-item:opacity-100 focus-visible:opacity-100'
   )
 
   return (
@@ -293,14 +295,14 @@ export function ItemActionMenu(props: ItemActionMenuProps): React.JSX.Element {
           <TooltipContent>Open source link</TooltipContent>
         </Tooltip>
       ) : null}
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={(open) => setMenuOpen(open)}>
         <DropdownMenuTrigger
           render={
             <Button
               type="button"
               size="icon"
               variant="secondary"
-              className={cn(actionButtonClassName, 'data-popup-open:opacity-100')}
+              className={cn(actionButtonClassName, menuOpen && 'opacity-100')}
               aria-label={`Actions for ${props.item.title}`}
             />
           }

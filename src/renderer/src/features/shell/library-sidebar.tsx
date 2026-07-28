@@ -22,7 +22,7 @@ import {
   IconTypography,
   type TablerIcon
 } from '@tabler/icons-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -65,6 +65,7 @@ import {
   SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuAction,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
@@ -77,7 +78,7 @@ import { FolderNameDialog } from '@/features/collections/folder-name-dialog'
 import type { LibraryView } from '@/features/items/item-view'
 import type { Theme } from '@/hooks/use-theme'
 import type { CollectionIconKey, LibraryDto } from '../../../../shared/library-contract'
-import { toast } from 'sonner'
+import { notifyCollectionRemoved } from '@/lib/notify'
 
 type IconPickerTarget = { type: 'new' } | { type: 'folder'; id: string } | null
 type FolderDialogState = { type: 'create' } | { type: 'rename'; id: string } | null
@@ -190,9 +191,7 @@ export function LibrarySidebar({
         onDestinationChange({ type: 'inbox' })
       }
       setFolderToDelete(null)
-      toast.success(`Removed “${name}”`, {
-        description: 'Its items were moved to Inbox.'
-      })
+      notifyCollectionRemoved(name)
     } finally {
       setFolderOperationBusy(false)
     }
@@ -249,12 +248,32 @@ export function LibrarySidebar({
     if (!result.ok) return onError(result.error)
     onStatus('Library path copied.')
   }
-  const inboxCount = library.items.filter((item) => item.location.type === 'inbox').length
-  const activeCount = library.items.filter(
-    (item) => item.location.type === 'inbox' || item.location.type === 'collection'
-  ).length
-  const archiveCount = library.items.filter((item) => item.location.type === 'archive').length
-  const trashCount = library.items.filter((item) => item.location.type === 'trash').length
+  const locationCounts = useMemo(() => {
+    const collectionCounts = new Map<string, number>()
+    let inbox = 0
+    let active = 0
+    let archive = 0
+    let trash = 0
+
+    for (const item of library.items) {
+      if (item.location.type === 'inbox') {
+        inbox += 1
+        active += 1
+      } else if (item.location.type === 'collection') {
+        active += 1
+        collectionCounts.set(
+          item.location.collectionId,
+          (collectionCounts.get(item.location.collectionId) ?? 0) + 1
+        )
+      } else if (item.location.type === 'archive') {
+        archive += 1
+      } else {
+        trash += 1
+      }
+    }
+
+    return { inbox, active, archive, trash, collectionCounts }
+  }, [library.items])
 
   return (
     <>
@@ -271,7 +290,7 @@ export function LibrarySidebar({
                     <IconInbox aria-hidden="true" />
                     <span>Inbox</span>
                     <span className="ml-auto font-mono text-xs tabular-nums text-sidebar-foreground/60">
-                      {inboxCount}
+                      {locationCounts.inbox}
                     </span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -283,7 +302,7 @@ export function LibrarySidebar({
                     <IconLibrary aria-hidden="true" />
                     <span>All Items</span>
                     <span className="ml-auto font-mono text-xs tabular-nums text-sidebar-foreground/60">
-                      {activeCount}
+                      {locationCounts.active}
                     </span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -321,13 +340,16 @@ export function LibrarySidebar({
                         <CollectionIcon icon={folder.icon} aria-hidden="true" />
                         <span>{folder.name}</span>
                       </SidebarMenuButton>
+                      <SidebarMenuBadge className="font-mono font-normal text-sidebar-foreground/60 opacity-100 transition-opacity [transition-duration:var(--motion-duration-tooltip)] [transition-timing-function:var(--motion-ease-out)] group-hover/menu-item:opacity-0 group-has-[:focus-visible]/menu-item:opacity-0 motion-reduce:transition-none">
+                        {locationCounts.collectionCounts.get(folder.id) ?? 0}
+                      </SidebarMenuBadge>
                       <DropdownMenu>
                         <DropdownMenuTrigger
                           render={
                             <SidebarMenuAction
-                              showOnHover
                               aria-label={`Manage ${folder.name}`}
                               title={`Manage ${folder.name}`}
+                              className="opacity-0 transition-opacity [transition-duration:var(--motion-duration-tooltip)] [transition-timing-function:var(--motion-ease-out)] group-hover/menu-item:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none"
                             />
                           }
                         >
@@ -379,7 +401,7 @@ export function LibrarySidebar({
                     <IconArchive aria-hidden="true" />
                     <span>Archive</span>
                     <span className="ml-auto font-mono text-xs tabular-nums text-sidebar-foreground/60">
-                      {archiveCount}
+                      {locationCounts.archive}
                     </span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -391,7 +413,7 @@ export function LibrarySidebar({
                     <IconTrash aria-hidden="true" />
                     <span>Trash</span>
                     <span className="ml-auto font-mono text-xs tabular-nums text-sidebar-foreground/60">
-                      {trashCount}
+                      {locationCounts.trash}
                     </span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

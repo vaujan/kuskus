@@ -54,7 +54,10 @@ Sidebar visibility and the most recently selected width should persist between l
   Masonry, Grid, and Table selection plus explicit Light and Dark appearance choices. System mode,
   accent color, and font controls may appear as clearly disabled future options until implemented.
 - Inbox is a primary destination, visually separate from user-created folders.
-- The **Folders** heading's add action is revealed on hover or keyboard focus. Each folder's overflow action follows the same behavior and opens a menu with change-icon, rename, and remove controls; removal is confirmed and permitted only for an empty folder.
+- The **Folders** heading's add action is revealed on hover or keyboard focus. Each folder shows its
+  destination item count at rest. Its overflow action replaces that count only while the row is
+  hovered, or while the action itself has keyboard-visible focus, and provides change-icon, rename,
+  and remove controls; removal is confirmed and permitted only for an empty folder.
 
 Minimum structure:
 
@@ -75,7 +78,8 @@ Settings
 Requirements:
 
 - The selected destination has a clear active state.
-- Item counts are optional and must not create visual noise.
+- Navigation item counts use tabular numerals and reflect destination totals rather than active
+  search or type filters. Folder counts include zero and update after item moves.
 - Collection rename and deletion are available from a context menu.
 - Folder creation and rename open focused dialogs instead of editing inline in the sidebar. Both
   can be canceled without saving, and creation includes an optional icon button whose default is
@@ -123,6 +127,8 @@ Rules:
 
 - Responsive masonry-style columns.
 - Cards use natural heights and format-aware presentation.
+- Items retain source order across columns: each logical row fills from left to right before the
+  next row, even when unequal card heights leave column bottoms uneven.
 - Recommended minimum card width: 240-280 pixels, subject to prototype evaluation.
 - Column count follows available width rather than fixed breakpoints alone.
 - Expanded sidebar will commonly show three columns; hidden sidebar may show three or four.
@@ -228,6 +234,8 @@ Masonry and Grid cards use a preview-first hierarchy:
 - Note excerpts retain a restrained text surface so they remain readable beside media.
 - Masonry view preserves natural content heights. Grid view aligns type-specific preview surfaces without distorting media.
 - Hover, press, and keyboard focus feedback apply to the visible surface rather than adding permanent chrome around the full item.
+- The overflow action is hidden at rest, appears on card hover or keyboard focus, and remains visible
+  while its menu is open even when the pointer leaves the card.
 - Loading, failed, and missing-content placeholders preserve the expected surface dimensions.
 
 Type-specific rendering:
@@ -285,11 +293,10 @@ checked badge at the upper-left. Selected table rows use the same checked marker
 accent-tinted background and inset leading edge. These indicators remain distinct from hover and
 keyboard focus in both themes and stay legible over bright, dark, and missing-content previews.
 
-The content header places a compact Select All control beside the item count. It selects all
-matching items, not only items currently inside the scroll viewport, and exposes unchecked,
-indeterminate, and checked states. When every matching item is already selected, activating the
-control clears the selection. Its accessible name distinguishes all items from filtered results and
-exposes Ctrl+A or Cmd+A as the keyboard equivalent.
+The saved-content canvas begins directly below the toolbar without a separate destination header.
+Search keeps the active destination visible in a persistent, truncated scope label, including while
+a query is entered or the sidebar is hidden. `Ctrl+A` or `Cmd+A` remains the Select All equivalent
+and selects all matching items, not only items currently inside the scroll viewport.
 
 ## Item detail
 
@@ -307,8 +314,14 @@ At ordinary desktop widths, images and URLs use two panes:
   primary action. Property rows use field-specific icons with aligned label and value columns;
   image format and dimensions remain separate, independently scannable fields.
 
-Notes use a single, centered reading pane without a right inspector or nested card surface. Their
-accessible dialog title remains available to assistive technology without adding visible chrome.
+Notes use a single, centered reading pane without a right inspector or nested card surface. A
+compact fixed header identifies the library item with its title plus Added and Edited timestamps;
+this metadata remains visually subordinate to headings authored inside the Markdown document. The
+header rests directly on the reading canvas without a separating border or a surface of its own, so
+the note reads as one continuous surface.
+Note cards and the Read/Edit canvas use the same semantic Markdown typesetting rules so headings,
+prose, lists, quotes, links, code, tables, math, and images retain one visual hierarchy across both
+surfaces. Cards use a compact 15-pixel preset; the centered reading pane uses a 16-pixel preset.
 
 Below the two-pane breakpoint, the preview and inspector stack vertically inside one scrollable
 dialog. The inspector is not manually collapsible and its visibility is not persisted.
@@ -316,28 +329,37 @@ dialog. The inspector is not manually collapsible and its visibility is not pers
 The detail dialog exposes:
 
 - Larger preview when supported.
-- The complete rendered note body without card-style clipping, plus a compact selector for Read,
-  Edit, and Source. Read and Edit share one WYSIWYG Markdown canvas; `Ctrl+E` toggles only those two
-  modes and returns Source to Read without entering Source.
+- The complete rendered note body without card-style clipping, plus a 40-pixel icon-only mode
+  picker for Read, Edit, and Source. Its tooltip identifies the current mode and `Ctrl+E` shortcut;
+  opening it provides direct access to all three modes. Read and Edit share one WYSIWYG Markdown
+  canvas; `Ctrl+E` toggles only those two modes and returns Source to Read without entering Source.
 - Edit keeps Markdown markers hidden, provides contextual formatting and slash controls, and
   autosaves a valid changed note approximately 800 ms after typing stops.
 - Source exposes the raw Markdown in a monospace text editor and uses the same autosave, validation,
   conflict, restore, and immediate-flush behavior as Edit. Unsupported raw HTML remains available
   in Read and Source while Edit is disabled.
-- Headings render uniformly at their default bold weight. Nested bold, italic, inline-code, and
-  strikethrough markers remain in the source but add no visual heading treatment, and their toolbar
-  actions are omitted when a WYSIWYG selection intersects a heading.
+- Headings support nested bold, italic, inline-code, and strikethrough treatment in cards and the
+  Read/Edit canvas. Unformatted headings use a 400 weight, nested bold uses a 700 weight, and all
+  four actions remain available when a WYSIWYG selection intersects a heading.
 - The insertion caret and contextual-control focus indicators maintain at least 3:1 contrast in
   light and dark themes. Selecting text opens a compact icon toolbar with accessible names,
   pressed states, and delayed tooltips; `Alt+F10` moves focus into it and `Escape` returns focus to
   the canvas. Activating Link dismisses this toolbar before Milkdown's focused link input opens, so
   the two editor overlays never compete for the same selection.
+- Selecting text already visible in the note or switching between Read and Edit preserves the note
+  viewport position. Extending a selection beyond the viewport edge may still scroll intentionally.
 - Typing `/` at the end of an otherwise active text block opens one grouped command list for Text,
   Lists, and Advanced blocks. Continued typing filters without moving focus from the canvas;
   arrows, Home/End, Enter, and Escape operate only while the list is open. Arrow and Home/End
   navigation scrolls the command list as needed to keep the active command visible.
-- `Ctrl+Enter` flushes autosave immediately. The header announces Saved, Saving, failure, blank,
-  and conflict states; a failed or blank draft can restore the last saved body.
+- Edit exposes the Add and Move block controls whenever the editor has focus and a block is active,
+  rather than relying on hover alone. Both controls retain 40-pixel hit areas, accessible names,
+  tooltips, and focus indicators. Add supports Enter or Space; Move supports Alt+Up and Alt+Down
+  for keyboard reordering and hides with the rest of the editor controls in Read mode.
+- `Ctrl+Enter` flushes autosave immediately without adding routine save chrome. The header does not
+  show Saved, Saving, or pending-save states; invalid drafts, write failures, and conflicts remain
+  persistently visible and exposed to assistive technology. A failed or blank draft can restore the
+  last saved body.
 - Close or previous/next navigation flushes pending work before leaving. External-edit conflicts
   retain the draft and offer a side-by-side Markdown diff before the user explicitly chooses a version.
 - The detail surface begins below the application title bar, while a standard-strength, blur-free

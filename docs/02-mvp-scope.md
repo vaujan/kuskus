@@ -57,7 +57,7 @@ The MVP is complete when all golden workflows work against a real local library 
 - Uniform Grid view.
 - Compact Table view with Name, Type, and Added columns.
 - Expandable and hideable folder sidebar.
-- Active collection title or breadcrumb.
+- Persistent active-destination scope inside Search.
 - Responsive column count based on available width rather than a fixed number.
 
 ### Retrieval
