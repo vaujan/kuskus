@@ -375,7 +375,8 @@ function NoteCanvas({
   onDraftChange,
   onRetry,
   onRestore,
-  onReviewConflict
+  onReviewConflict,
+  onOpenVaultLink
 }: {
   item: Extract<LibraryItemDto, { type: 'note' }>
   mode: NoteMode
@@ -384,6 +385,7 @@ function NoteCanvas({
   onRetry: () => void
   onRestore: () => void
   onReviewConflict: () => void
+  onOpenVaultLink: (target: string) => void
 }): React.JSX.Element {
   const editorRef = useRef<MarkdownEditorHandle>(null)
   const previewViewportRef = useRef<HTMLDivElement>(null)
@@ -614,6 +616,7 @@ function NoteCanvas({
                   attachments={item.attachments}
                   presentation="detail"
                   onOpenLink={(url) => void openExternalUrlWithFeedback(url)}
+                  onOpenVaultLink={onOpenVaultLink}
                 />
               </article>
             </ScrollArea>
@@ -651,6 +654,34 @@ function ImageInspector({
         </PropertyList>
       </div>
     </aside>
+  )
+}
+
+function FileDetails({
+  item
+}: {
+  item: Extract<LibraryItemDto, { type: 'file' }>
+}): React.JSX.Element {
+  return (
+    <div className="flex min-h-full items-center justify-center px-7 py-20 min-[860px]:col-span-2">
+      <div className="flex w-full max-w-md flex-col items-center gap-6 text-center">
+        <span className="flex size-20 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+          <File className="size-9" aria-hidden="true" />
+        </span>
+        <div className="flex min-w-0 flex-col gap-1">
+          <Dialog.Title className="break-words text-xl font-semibold">{item.title}</Dialog.Title>
+          <p className="text-sm text-muted-foreground">{item.contentFilename}</p>
+        </div>
+        <PropertyList>
+          <PropertyRow icon={FileTypography} label="Type">
+            {item.mediaType || 'Unknown'}
+          </PropertyRow>
+          <PropertyRow icon={Calendar} label="Added">
+            {formatDate(item.createdAt)}
+          </PropertyRow>
+        </PropertyList>
+      </div>
+    </div>
   )
 }
 
@@ -704,6 +735,7 @@ export function ItemDetailDialog({
   onOpenChange,
   onItemUpdated,
   renderActions,
+  onOpenVaultLink,
   onError
 }: {
   item: LibraryItemDto | null
@@ -714,6 +746,7 @@ export function ItemDetailDialog({
   onOpenChange: (open: boolean) => void
   onItemUpdated: (item: LibraryItemDto) => void
   renderActions?: (guard: (action: () => void) => void) => React.ReactNode
+  onOpenVaultLink: (target: string) => void
   onError: (message: string) => void
 }): React.JSX.Element {
   const [openedNote] = useState(() => (item?.type === 'note' ? item : null))
@@ -896,6 +929,9 @@ export function ItemDetailDialog({
                       onRetry={() => void coordinator?.retry()}
                       onRestore={() => coordinator?.restoreSaved()}
                       onReviewConflict={() => setConflictDialogOpen(true)}
+                      onOpenVaultLink={(target) =>
+                        requestGuardedAction(() => onOpenVaultLink(target))
+                      }
                     />
                   ) : (
                     <ScrollArea
@@ -908,11 +944,13 @@ export function ItemDetailDialog({
                             <ImageCanvas item={item} />
                             <ImageInspector item={item} />
                           </>
-                        ) : (
+                        ) : item.type === 'url' ? (
                           <>
                             <UrlCanvas item={item} />
                             <UrlInspector item={item} onOpenLink={() => void openLink()} />
                           </>
+                        ) : (
+                          <FileDetails item={item} />
                         )}
                       </div>
                     </ScrollArea>

@@ -31,7 +31,7 @@ The shell supports two explicit states.
 - Sidebar appears on the left at a 256-pixel initial width, can be resized from 208 to 384 pixels, and spans the full application height.
 - The action toolbar and title bar begin to the right of the sidebar; the sidebar must not sit below them.
 - Menu and Hide Sidebar controls remain accessible near the top.
-- Inbox, All Items, flat folders, Archive, and Trash are displayed in the sidebar.
+- Inbox, All Items, nested folders, Archive, and Trash are displayed in the sidebar.
 - The toolbar and content occupy the remaining width.
 
 ### Hidden sidebar
@@ -56,8 +56,8 @@ Sidebar visibility and the most recently selected width should persist between l
 - Inbox is a primary destination, visually separate from user-created folders.
 - The **Folders** heading's add action is revealed on hover or keyboard focus. Each folder shows its
   destination item count at rest. Its overflow action replaces that count only while the row is
-  hovered, or while the action itself has keyboard-visible focus, and provides change-icon, rename,
-  and remove controls; removal is confirmed and permitted only for an empty folder.
+  hovered, or while the action itself has keyboard-visible focus, and provides add-subfolder,
+  change-icon, move, rename, and remove controls.
 
 Minimum structure:
 
@@ -79,17 +79,40 @@ Requirements:
 
 - The selected destination has a clear active state.
 - Navigation item counts use tabular numerals and reflect destination totals rather than active
-  search or type filters. Folder counts include zero and update after item moves.
-- Collection rename and deletion are available from a context menu.
-- Folder creation and rename open focused dialogs instead of editing inline in the sidebar. Both
-  can be canceled without saving, and creation includes an optional icon button whose default is
-  the standard folder glyph.
-- A searchable dialog offers a curated, keyboard-accessible set of folder icons. Icon choices use
-  the interface foreground colors rather than user-defined colors.
-- Changing an icon persists immediately; a failed save leaves the previous icon intact and keeps
-  the picker available for recovery.
-- Deleting a non-empty collection requires a clear choice for its items.
-- Nested collections are not required in the MVP.
+  search or type filters. Folder counts include descendants, include zero, and update after moves.
+- Collection actions are available from both the overflow control and a right-click context menu.
+- Folder creation and rename open focused, name-only dialogs instead of editing inline in the
+  sidebar. Both can be canceled without saving.
+- Folder rows show a validated, user-selectable icon between the disclosure control and name without
+  increasing the compact row height. Names, counts, and hierarchy remain visually primary.
+- Deleting a folder with direct items clearly states that they move to Inbox. A folder with
+  subfolders cannot be removed, and refusal happens before any item mutation.
+- Nested collection rows form a semantic expandable tree, retain stable selection across folder
+  renames, and use a separate keyboard-accessible chevron so selecting a folder never toggles it.
+- Folder branches start expanded, remember collapsed folder IDs per library as disposable local UI
+  state, reveal the selected folder's ancestors, and select an active descendant's ancestor when
+  that branch is collapsed.
+- The Folders section action creates a root folder. Each folder menu exposes **Add subfolder**;
+  successful child creation expands its parent but does not change the current destination.
+- Selecting a folder displays its complete subtree while capture targets the exact selected folder.
+- Item and multi-item drags may target Inbox or any folder. Folder drags reparent folders; dropping
+  on the Folders section moves to the root. Invalid ancestry targets are refused without mutation.
+- Move menus and dialogs preserve tree indentation and icons, identify the current destination, and
+  disambiguate same-name folders in different branches.
+
+The Settings menu shows the fixed `Ctrl+Shift+Space` **Global capture** shortcut and whether its
+system-wide registration is available. A registration conflict also produces one non-blocking
+notice per app run. The shortcut cannot be changed or disabled in the first version.
+
+The Settings menu includes **Show referenced attachments**. It is off by default so assets already
+embedded by notes do not duplicate the visual canvas, while enabling it reveals every indexed file.
+An uninitialized vault uses a preview screen listing detected notes, images, files, folders, and the
+exact Kuskus metadata changes. Schema-v1 libraries use a migration screen that explains the retained
+sibling backup and reports completion or a recoverable failure.
+
+If automatic legacy bookmark cleanup cannot safely distinguish generated metadata from user-authored
+content, the workspace shows a persistent repair notice. It identifies the number of unchanged files
+without exposing arbitrary native paths to renderer operations.
 
 ## Toolbar
 
@@ -97,7 +120,8 @@ The toolbar contains, in responsive order:
 
 - A left zone containing only Show or Hide Sidebar.
 - A centered retrieval zone containing scoped Search and the combined Sort and Filter menu.
-- A right action zone containing New item and its retained-draft discard action when applicable.
+- A right action zone containing New item, its `Ctrl+N` shortcut, and its retained-draft discard
+  action when applicable.
 - Windows minimize, maximize/restore, and close controls.
 
 Rules:
@@ -161,6 +185,8 @@ A primary **New item** button appears in the toolbar's right action zone. The re
 - The action uses a plus icon and visible label at ordinary widths, collapsing to an accessible icon at narrow widths.
 - When a hidden draft exists, the action reads **Continue draft**, shows a quiet indicator, and exposes explicit discard.
 - Repeated activation scrolls to and focuses the existing card rather than creating another draft.
+- `Ctrl+N` performs the same action while Kuskus is focused. Item details and dialogs suspend it with
+  the other workspace shortcuts.
 
 ### Draft card
 
@@ -203,6 +229,11 @@ A primary **New item** button appears in the toolbar's right action zone. The re
 ### Direct capture
 
 - Pasting while the content canvas has focus invokes the same detection and saving pipeline without requiring a preliminary click.
+- Pressing `Ctrl+Shift+Space` while Kuskus is running restores and focuses the main window, selects
+  Inbox, clears search and type filters, and opens the existing composer without reading the
+  clipboard. Existing drafts are retained and still require explicit confirmation.
+- If an item detail or another dialog is open, the shortcut prepares New Item behind it and provides
+  a brief notice without closing, discarding, or force-saving the foreground work.
 - Direct paste summons the populated draft card so its destination, detected type, and confirmation
   action are visible; it does not bypass explicit commit.
 - Dragging valid files over the window reveals a clear drop target connected to New Item.
@@ -265,7 +296,13 @@ remote renderer requests.
 - Enter opens the selected item's focused detail dialog.
 - Space opens quick preview when implemented.
 - Escape clears the current item selection after any open contextual menu handles it first.
-- Delete moves selected items to Trash without confirmation and exposes Undo; permanent deletion is confirmed.
+- `F2` renames the sole selected item, or the focused visible card or row when no selection exists.
+  It is a quiet no-op for multiple selections and in Trash.
+- `Delete` moves selected items, or the focused visible card or row, to Trash without confirmation
+  and exposes Undo. In Trash it opens permanent-delete confirmation. Modified variants such as
+  `Shift+Delete` do nothing.
+- `F2` and `Delete` are renderer-local and are suspended while text editing, menus, item details, or
+  dialogs own the keyboard.
 - Right-click and the overflow control expose the same context menu.
 
 Minimum context menu:
@@ -274,11 +311,11 @@ Minimum context menu:
 - Open source URL, when applicable.
 - Move to collection.
 - Archive or Unarchive when applicable.
-- Rename or edit details.
+- Rename or edit details, with `F2` shown for Rename.
 - Copy path, when applicable.
 - Copy source URL, when applicable.
-- Move to Trash.
-- Restore or permanently delete when viewing Trash.
+- Move to Trash, with `Delete` shown.
+- Restore or permanently delete when viewing Trash, with `Delete` shown for permanent deletion.
 
 Selecting one or more items reveals a compact contextual action toolbar centered above the bottom
 edge of the content pane. The toolbar floats independently of the saved-content scroll viewport,
@@ -416,6 +453,7 @@ Required states include:
 ## Accessibility and keyboard behavior
 
 - Every action is keyboard reachable.
+- Item menu commands publish matching `aria-keyshortcuts` values for `F2` and `Delete`.
 - Focus indicators are visible in light and dark themes.
 - Icon-only buttons include accessible names and tooltips.
 - Tooltips open after a short hover delay and use a simple arrowless surface.

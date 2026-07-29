@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { join } from 'node:path'
+import { watch, type FSWatcher } from 'node:fs'
+import { basename, extname, join } from 'node:path'
 
 import type {
   ActiveItemLocation,
@@ -7,6 +8,8 @@ import type {
   CreateNoteInput,
   CreateCollectionInput,
   ImageImportInput,
+  FileImportInput,
+  FileItemDto,
   ImageItemDto,
   ImagePreviewDto,
   CollectionDto,
@@ -14,6 +17,7 @@ import type {
   LibraryDto,
   LibraryState,
   MoveItemsInput,
+  MoveCollectionInput,
   NoteItemDto,
   CaptureDraftImageDto,
   UpdateNoteInput,
@@ -35,12 +39,7 @@ import {
   toImageDto,
   validateImageInput
 } from './items/image-item'
-import {
-  createNoteMetadata,
-  noteAttachmentFilename,
-  toNoteDto,
-  updateNoteMetadata
-} from './items/note-item'
+import { createNoteMetadata, noteAttachmentFilename, updateNoteMetadata } from './items/note-item'
 import { createUrlMetadata, extractUrlMetadata, toUrlDto, validateWebUrl } from './items/url-item'
 import {
   isCollectionIconKey,
@@ -48,6 +47,7 @@ import {
   type PersistedCollection,
   type PersistedItem,
   type PersistedLibrary,
+  type PersistedNoteItem,
   type PersistedSettings,
   type PersistedUrlItem
 } from './schemas'
@@ -73,11 +73,15 @@ export class NoteUpdateConflictError extends Error {
 
 export class LibraryService {
   private currentLibraryPath: string | null = null
+  private pendingLibraryPath: string | null = null
   private unavailableLibrary: { path: string; message: string } | null = null
   private readonly store = new LibraryStore()
   private readonly urlNetwork: UrlNetworkDependencies
   private readonly enrichmentRequests = new Map<string, Promise<UrlItemDto>>()
   private readonly previewRequests = new Map<string, Promise<UrlPreviewDto>>()
+  private vaultWatcher: FSWatcher | null = null
+  private vaultChangeTimer: NodeJS.Timeout | null = null
+  private readonly vaultChangeListeners = new Set<() => void>()
 
   constructor(
     private readonly settingsPath: string,
@@ -91,6 +95,14 @@ export class LibraryService {
       const settings = await readJson<PersistedSettings>(this.settingsPath)
       if (settings.schemaVersion !== 1 || !settings.lastLibraryPath) return
 
+      if (await this.store.isLegacyLibrary(settings.lastLibraryPath)) {
+        this.pendingLibraryPath = settings.lastLibraryPath
+        return
+      }
+      if (await this.store.isUninitializedVault(settings.lastLibraryPath)) {
+        this.pendingLibraryPath = settings.lastLibraryPath
+        return
+      }
       await this.store.readPersistedLibrary(settings.lastLibraryPath)
       this.currentLibraryPath = settings.lastLibraryPath
     } catch (error) {
@@ -123,6 +135,8 @@ export class LibraryService {
       }
     }
 
+    if (this.pendingLibraryPath) return this.pendingState(this.pendingLibraryPath)
+
     if (this.unavailableLibrary) return { status: 'unavailable', ...this.unavailableLibrary }
     return { status: 'none' }
   }
@@ -131,7 +145,7 @@ export class LibraryService {
     const name = this.validateLibraryName(requestedName)
     const libraryPath = join(parentPath, name)
     const library: PersistedLibrary = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       id: randomUUID(),
       name,
       createdAt: new Date().toISOString()
@@ -143,10 +157,50 @@ export class LibraryService {
   }
 
   async openAt(libraryPath: string): Promise<LibraryState> {
+    if (
+      (await this.store.isLegacyLibrary(libraryPath)) ||
+      (await this.store.isUninitializedVault(libraryPath))
+    ) {
+      this.pendingLibraryPath = libraryPath
+      this.currentLibraryPath = null
+      await writeJsonAtomic(this.settingsPath, {
+        schemaVersion: 1,
+        lastLibraryPath: libraryPath
+      } satisfies PersistedSettings)
+      return this.pendingState(libraryPath)
+    }
     await this.store.readPersistedLibrary(libraryPath)
     await this.store.ensureLibraryDirectories(libraryPath)
     await this.setCurrentLibrary(libraryPath)
     return this.getState()
+  }
+
+  async initializePendingVault(): Promise<LibraryState> {
+    const path = this.requirePendingLibrary()
+    if (!(await this.store.isUninitializedVault(path))) {
+      throw new Error('The selected folder no longer needs initialization.')
+    }
+    await this.store.initializeExistingVault(path)
+    await this.setCurrentLibrary(path)
+    return this.getState()
+  }
+
+  async migratePendingLibrary(): Promise<{ state: LibraryState; backupPath: string }> {
+    const path = this.requirePendingLibrary()
+    const { backupPath } = await this.store.migrateLegacyLibrary(path)
+    await this.setCurrentLibrary(path)
+    return { state: await this.getState(), backupPath }
+  }
+
+  private async pendingState(path: string): Promise<LibraryState> {
+    if (await this.store.isLegacyLibrary(path)) {
+      return { status: 'needs-migration', path, name: basename(path) }
+    }
+    if (await this.store.isUninitializedVault(path)) {
+      const preview = await this.store.inspectUninitializedVault(path)
+      return { status: 'needs-initialization', path, name: basename(path), ...preview }
+    }
+    throw new Error('The selected folder is no longer available.')
   }
 
   async createNote(input: CreateNoteInput): Promise<NoteItemDto> {
@@ -178,10 +232,12 @@ export class LibraryService {
       }))
     ])
     await this.store.discardCaptureDraft(libraryPath)
-    return toNoteDto(
-      metadata,
-      markdown,
-      attachments.map((attachment) => ({ ...attachment, missingContent: false }))
+    const persisted = await this.store.readPersistedItem(libraryPath, id)
+    if (persisted.type !== 'note') throw new Error('The saved note could not be reopened.')
+    return this.toCurrentNoteDto(
+      libraryPath,
+      persisted,
+      (await this.store.readItemContent(libraryPath, persisted)).toString('utf8')
     )
   }
 
@@ -216,19 +272,14 @@ export class LibraryService {
 
   private async toCurrentNoteDto(
     libraryPath: string,
-    metadata: Parameters<typeof toNoteDto>[0],
+    metadata: PersistedNoteItem,
     markdown: string
   ): Promise<NoteItemDto> {
-    const resolved = await this.store.resolveItem(libraryPath, metadata.id)
-    const attachments = await Promise.all(
-      (metadata.attachments ?? []).map(async (attachment) => ({
-        ...attachment,
-        missingContent: !(await this.store.pathExists(
-          join(resolved.directory, NOTE_ASSETS_DIRECTORY, attachment.filename)
-        ))
-      }))
+    const item = (await this.store.buildLibraryDto(libraryPath)).items.find(
+      (entry) => entry.id === metadata.id && entry.type === 'note'
     )
-    return toNoteDto(metadata, markdown, attachments, resolved.location)
+    if (!item || item.type !== 'note') throw new Error('The saved note could not be reopened.')
+    return { ...item, body: markdown }
   }
 
   async listCaptureDraftImages(): Promise<CaptureDraftImageDto[]> {
@@ -312,7 +363,9 @@ export class LibraryService {
       { filename: metadata.contentFilename, data: bytes }
     ])
     await this.store.discardCaptureDraft(libraryPath)
-    return toImageDto(metadata)
+    const persisted = await this.store.readPersistedItem(libraryPath, metadata.id)
+    if (persisted.type !== 'image') throw new Error('The saved image could not be reopened.')
+    return toImageDto(persisted)
   }
 
   async getNoteAttachmentPreview(itemId: string, attachmentId: string): Promise<ImagePreviewDto> {
@@ -343,7 +396,35 @@ export class LibraryService {
     await this.store.finalizeInboxItem(libraryPath, metadata, [
       { filename: metadata.contentFilename, data: bytes }
     ])
-    return toImageDto(metadata)
+    const persisted = await this.store.readPersistedItem(libraryPath, metadata.id)
+    if (persisted.type !== 'image') throw new Error('The saved image could not be reopened.')
+    return toImageDto(persisted)
+  }
+
+  async importFile(input: FileImportInput): Promise<FileItemDto> {
+    if (
+      !input ||
+      typeof input !== 'object' ||
+      !(input.bytes instanceof ArrayBuffer) ||
+      typeof input.sourceFilename !== 'string' ||
+      typeof input.mediaType !== 'string'
+    ) {
+      throw new Error('The file import is invalid.')
+    }
+    const bytes = new Uint8Array(input.bytes)
+    if (bytes.byteLength === 0) throw new Error('The selected file is empty.')
+    if (bytes.byteLength > 100 * 1024 * 1024) {
+      throw new Error('Files larger than 100 MB cannot be imported yet.')
+    }
+    const filename = safeSourceFilename(input.sourceFilename)
+    if (!filename) throw new Error('The selected file needs a valid filename.')
+    return this.store.importVaultFile(this.requireCurrentLibrary(), {
+      id: randomUUID(),
+      filename,
+      mediaType: input.mediaType,
+      bytes,
+      timestamp: new Date().toISOString()
+    })
   }
 
   async createUrl(sourceUrl: string): Promise<UrlItemDto> {
@@ -353,7 +434,9 @@ export class LibraryService {
     const timestamp = new Date().toISOString()
     const metadata = createUrlMetadata(randomUUID(), sourceUrl, timestamp)
     await this.store.finalizeInboxItem(libraryPath, metadata, [])
-    return toUrlDto(metadata)
+    const persisted = await this.store.readPersistedItem(libraryPath, metadata.id)
+    if (persisted.type !== 'url') throw new Error('The saved link could not be reopened.')
+    return toUrlDto(persisted)
   }
 
   async enrichUrl(itemId: string): Promise<UrlItemDto> {
@@ -451,15 +534,28 @@ export class LibraryService {
     const libraryPath = this.requireCurrentLibrary()
     const name = this.validateCollectionName(input.name)
     const icon = input.icon === undefined ? undefined : this.validateCollectionIcon(input.icon)
+    const parentId = input.parentId ?? null
+    if (parentId !== null) {
+      this.validateCollectionId(parentId)
+      const parentExists = (await this.store.readPersistedCollections(libraryPath)).some(
+        (entry) => entry.id === parentId
+      )
+      if (!parentExists) throw new Error('The parent folder no longer exists.')
+    }
     const collection: PersistedCollection = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       id: randomUUID(),
       name,
       ...(icon ? { icon } : {}),
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      parentId
     }
     await this.store.createCollection(libraryPath, collection)
-    return toCollectionDto(collection)
+    const created = (await this.store.readPersistedCollections(libraryPath)).find(
+      (entry) => entry.id === collection.id
+    )
+    if (!created) throw new Error('The new folder could not be reopened.')
+    return toCollectionDto(created)
   }
 
   async renameCollection(collectionId: string, requestedName: string): Promise<CollectionDto> {
@@ -471,6 +567,35 @@ export class LibraryService {
     const renamed = { ...collection, name: this.validateCollectionName(requestedName) }
     await this.store.updateCollection(libraryPath, renamed)
     return toCollectionDto(renamed)
+  }
+
+  async moveCollection(input: MoveCollectionInput): Promise<LibraryDto> {
+    if (!input || typeof input !== 'object') throw new Error('The folder move request is invalid.')
+    this.validateCollectionId(input.collectionId)
+    if (input.parentId !== null) this.validateCollectionId(input.parentId)
+    const libraryPath = this.requireCurrentLibrary()
+    const collections = await this.store.readPersistedCollections(libraryPath)
+    const current = collections.find((entry) => entry.id === input.collectionId)
+    if (!current) throw new Error('This folder no longer exists.')
+    if (current.parentId === input.parentId) return this.store.buildLibraryDto(libraryPath)
+    if (input.parentId !== null) {
+      const parent = collections.find((entry) => entry.id === input.parentId)
+      if (!parent) throw new Error('The destination folder no longer exists.')
+      const descendants = new Set<string>()
+      const queue = [current.id]
+      for (let index = 0; index < queue.length; index += 1) {
+        for (const candidate of collections) {
+          if (candidate.parentId !== queue[index] || descendants.has(candidate.id)) continue
+          descendants.add(candidate.id)
+          queue.push(candidate.id)
+        }
+      }
+      if (input.parentId === current.id || descendants.has(input.parentId)) {
+        throw new Error('A folder cannot be moved inside itself or one of its subfolders.')
+      }
+    }
+    await this.store.moveCollection(libraryPath, current.id, input.parentId)
+    return this.store.buildLibraryDto(libraryPath)
   }
 
   async setCollectionIcon(
@@ -495,10 +620,18 @@ export class LibraryService {
     const items = library.items.filter(
       (item) => item.location.type === 'collection' && item.location.collectionId === collectionId
     )
-    if (items.length > 0) {
-      const resolved = await Promise.all(
-        items.map((item) => this.store.resolveItem(libraryPath, item.id))
-      )
+    const resolved = await Promise.all(
+      items.map((item) => this.store.resolveItem(libraryPath, item.id))
+    )
+    const retainedEntries = resolved.flatMap((item) => {
+      const entries = [basename(item.path)]
+      if (item.metadata.type === 'note') {
+        entries.push(`${basename(item.path, extname(item.path))}.assets`)
+      }
+      return entries
+    })
+    await this.store.assertCollectionRemovable(libraryPath, collectionId, retainedEntries)
+    if (resolved.length > 0) {
       await this.store.moveItems(
         libraryPath,
         resolved.map((item) => ({
@@ -739,16 +872,56 @@ export class LibraryService {
 
   private async setCurrentLibrary(libraryPath: string): Promise<void> {
     this.currentLibraryPath = libraryPath
+    this.pendingLibraryPath = null
     this.unavailableLibrary = null
     await writeJsonAtomic(this.settingsPath, {
       schemaVersion: 1,
       lastLibraryPath: libraryPath
     } satisfies PersistedSettings)
+    if (this.vaultChangeListeners.size > 0) this.startVaultWatcher(libraryPath)
+  }
+
+  onVaultChanged(listener: () => void): () => void {
+    this.vaultChangeListeners.add(listener)
+    if (this.currentLibraryPath && !this.vaultWatcher) {
+      this.startVaultWatcher(this.currentLibraryPath)
+    }
+    return () => this.vaultChangeListeners.delete(listener)
+  }
+
+  private startVaultWatcher(libraryPath: string): void {
+    this.vaultWatcher?.close()
+    this.vaultWatcher = null
+    try {
+      this.vaultWatcher = watch(libraryPath, { recursive: true }, (_event, filename) => {
+        const relativePath = typeof filename === 'string' ? filename.replace(/\\/g, '/') : ''
+        if (
+          !relativePath ||
+          relativePath.startsWith('.kuskus/') ||
+          relativePath.startsWith('.obsidian/')
+        ) {
+          return
+        }
+        if (this.vaultChangeTimer) clearTimeout(this.vaultChangeTimer)
+        this.vaultChangeTimer = setTimeout(() => {
+          this.vaultChangeTimer = null
+          for (const listener of this.vaultChangeListeners) listener()
+        }, 300)
+      })
+      this.vaultWatcher.unref()
+    } catch {
+      // Startup/focus rescans remain available when recursive watching is unsupported.
+    }
   }
 
   private requireCurrentLibrary(): string {
     if (!this.currentLibraryPath) throw new Error('Open or create a library first.')
     return this.currentLibraryPath
+  }
+
+  private requirePendingLibrary(): string {
+    if (!this.pendingLibraryPath) throw new Error('Choose a vault that needs initialization first.')
+    return this.pendingLibraryPath
   }
 
   private validateLibraryName(requestedName: string): string {

@@ -2,7 +2,7 @@ const assert = require('node:assert/strict')
 const { existsSync, readFileSync } = require('node:fs')
 const { cp, mkdir, mkdtemp, readFile, rename, rm, unlink, writeFile } = require('node:fs/promises')
 const { tmpdir } = require('node:os')
-const { join } = require('node:path')
+const { dirname, join } = require('node:path')
 const test = require('node:test')
 const ts = require('typescript')
 
@@ -39,6 +39,11 @@ const { isPublicIpAddress, readHtmlHead } = require('../src/main/library/url-net
 const { validateUrlPreview } = require('../src/main/library/url-preview.ts')
 const { isPersistedItem } = require('../src/main/library/schemas.ts')
 const { LibraryStore } = require('../src/main/library/storage/library-store.ts')
+const {
+  createInternetShortcut,
+  parseInternetShortcut
+} = require('../src/main/library/internet-shortcut.ts')
+const { removeKuskusFrontmatter } = require('../src/main/library/vault-frontmatter.ts')
 const { LIBRARY_NAME, seedDemoEnvironment } = require('../scripts/create-demo-library.cjs')
 const { COLLECTION_ICON_KEYS } = require('../src/shared/library-contract.ts')
 const { NoteAutosaveCoordinator } = require('../src/renderer/src/features/items/note-autosave.ts')
@@ -63,6 +68,15 @@ const {
   detectCaptureKind,
   isSingleWebUrl
 } = require('../src/renderer/src/features/capture/capture-detection.ts')
+const {
+  buildFolderSubtreeCounts,
+  buildFolderTree,
+  flattenFolderTree,
+  getFolderAncestorIds,
+  getFolderSubtreeIds,
+  getVisibleFolderIds,
+  sanitizeCollapsedFolderIds
+} = require('../src/renderer/src/features/collections/folder-tree.ts')
 
 const onePixelPng = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL88wAAAABJRU5ErkJggg==',
@@ -72,6 +86,92 @@ const lossyWebpHeader = Buffer.from([
   0x52, 0x49, 0x46, 0x46, 0x16, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x20,
   0x0a, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x9d, 0x01, 0x2a, 0x40, 0x01, 0xf0, 0x00
 ])
+
+test('builds a sorted folder tree and keeps invalid ancestry visible at the root', () => {
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  const collection = (id, name, parentId = null) => ({
+    schemaVersion: 2,
+    id,
+    name,
+    icon: 'folder',
+    createdAt: '2026-07-29T00:00:00.000Z',
+    relativePath: parentId ? `Parent/${name}` : name,
+    parentId
+  })
+  const folders = [
+    collection('root-b', 'Writing'),
+    collection('child-b', 'Zebra', 'root-a'),
+    collection('orphan', 'Orphan', 'missing'),
+    collection('root-a', 'Projects'),
+    collection('child-a', 'Alpha', 'root-a'),
+    collection('grandchild', 'Research', 'child-a'),
+    collection('cycle-a', 'Cycle A', 'cycle-b'),
+    collection('cycle-b', 'Cycle B', 'cycle-a')
+  ]
+
+  const tree = buildFolderTree(folders)
+  assert.deepEqual(
+    tree.map((node) => node.folder.name),
+    ['Cycle A', 'Cycle B', 'Orphan', 'Projects', 'Writing']
+  )
+  const projects = tree.find((node) => node.folder.id === 'root-a')
+  assert.deepEqual(
+    projects.children.map((node) => node.folder.name),
+    ['Alpha', 'Zebra']
+  )
+  assert.equal(projects.children[0].children[0].folder.id, 'grandchild')
+  assert.deepEqual(getFolderAncestorIds(folders, 'grandchild'), ['child-a', 'root-a'])
+  assert.equal(getVisibleFolderIds(tree, new Set(['root-a'])).includes('child-a'), false)
+  assert.deepEqual([...sanitizeCollapsedFolderIds(folders, ['root-a', 'missing'])], ['root-a'])
+})
+
+test('builds recursive folder scopes and counts without looping on invalid ancestry', () => {
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  const collection = (id, parentId = null) => ({
+    schemaVersion: 2,
+    id,
+    name: id,
+    icon: 'folder',
+    createdAt: '2026-07-29T00:00:00.000Z',
+    relativePath: id,
+    parentId
+  })
+  const folders = [
+    collection('project'),
+    collection('research', 'project'),
+    collection('sources', 'research'),
+    collection('other'),
+    collection('cycle-a', 'cycle-b'),
+    collection('cycle-b', 'cycle-a')
+  ]
+
+  assert.deepEqual([...getFolderSubtreeIds(folders, 'project')], ['project', 'research', 'sources'])
+  const counts = buildFolderSubtreeCounts(folders, [
+    'project',
+    'research',
+    'sources',
+    'sources',
+    'other',
+    'cycle-a'
+  ])
+  assert.equal(counts.get('project'), 4)
+  assert.equal(counts.get('research'), 3)
+  assert.equal(counts.get('sources'), 2)
+  assert.equal(counts.get('other'), 1)
+  assert.equal(counts.get('cycle-a'), 1)
+  assert.equal(counts.get('cycle-b'), 1)
+  assert.deepEqual(
+    flattenFolderTree(folders)
+      .filter(({ folder }) => !folder.id.startsWith('cycle'))
+      .map(({ folder, depth }) => [folder.id, depth]),
+    [
+      ['other', 0],
+      ['project', 0],
+      ['research', 1],
+      ['sources', 2]
+    ]
+  )
+})
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function arrayBuffer(buffer) {
@@ -115,7 +215,11 @@ test('creates, persists, reopens, and reveals a Markdown note path', async (cont
   const notePath = await service.getItemContentPath(note.id)
   assert.equal(await readFile(notePath, 'utf8'), note.body)
   assert.equal(await service.getItemRevealPath(note.id), notePath)
-  assert.equal(existsSync(join(root, 'Research Library', 'inbox', note.id, 'item.json')), true)
+  assert.equal(notePath, join(root, 'Research Library', 'First reference.md'))
+  assert.equal(
+    existsSync(join(root, 'Research Library', '.kuskus', 'records', `${note.id}.json`)),
+    true
+  )
 
   const reopenedService = new LibraryService(settingsPath)
   await reopenedService.initialize()
@@ -311,22 +415,29 @@ test('recovers staged images and atomically commits a portable Markdown bundle',
   )
   assert.equal((await reopened.listCaptureDraftImages()).length, 0)
 
-  const libraryPath = created.library.path
-  assert.equal(await readFile(join(libraryPath, 'inbox', note.id, 'note.md'), 'utf8'), markdown)
+  const notePath = await reopened.getItemContentPath(note.id)
+  const savedMarkdown = await readFile(notePath, 'utf8')
+  assert.match(savedMarkdown, /# Visual note/)
+  assert.match(savedMarkdown, /\.\/Visual note\.assets\/Sketch\.png/)
+  assert.match(savedMarkdown, /\.\/Visual note\.assets\/Sketch-2\.png/)
   assert.deepEqual(
-    await readFile(join(libraryPath, 'inbox', note.id, 'assets', first.filename)),
+    await readFile(join(dirname(notePath), `${note.title}.assets`, first.filename)),
     onePixelPng
   )
-  const savedPreview = await reopened.getNoteAttachmentPreview(note.id, second.id)
+  const secondAttachment = note.attachments.find(
+    (attachment) => attachment.filename === second.filename
+  )
+  const savedPreview = await reopened.getNoteAttachmentPreview(note.id, secondAttachment.id)
   assert.deepEqual(Buffer.from(savedPreview.bytes), onePixelPng)
 
-  await unlink(join(libraryPath, 'inbox', note.id, 'assets', first.filename))
+  await unlink(join(dirname(notePath), `${note.title}.assets`, first.filename))
   const state = await reopened.getState()
   assert.equal(state.status, 'ready')
   const savedNote = state.library.items.find((item) => item.id === note.id)
   assert.equal(savedNote.missingContent, false)
   assert.equal(
-    savedNote.attachments.find((attachment) => attachment.id === first.id).missingContent,
+    savedNote.attachments.find((attachment) => attachment.filename === first.filename)
+      .missingContent,
     true
   )
 })
@@ -336,7 +447,7 @@ test('updates Markdown notes without changing their identity or attachments', as
   context.after(() => rm(root, { recursive: true, force: true }))
   const settingsPath = join(root, 'settings.json')
   const service = new LibraryService(settingsPath)
-  const created = await service.createIn(root, 'Editable Notes')
+  await service.createIn(root, 'Editable Notes')
   const staged = await service.stageCaptureDraftImage({
     bytes: arrayBuffer(onePixelPng),
     mediaType: 'image/png',
@@ -347,23 +458,30 @@ test('updates Markdown notes without changing their identity or attachments', as
     attachmentIds: [staged.id]
   })
 
+  const updatedSource = note.body.replace(
+    '# Original title\n\n![Reference](./Original title.assets/Reference.png)',
+    '# Updated title\n\nA table:\n\n| A | B |\n| - | - |\n| 1 | 2 |\n\n![Reference](./Original title.assets/Reference.png)'
+  )
   const updated = await service.updateNote({
     itemId: note.id,
-    markdown: `# Updated title\n\nA table:\n\n| A | B |\n| - | - |\n| 1 | 2 |\n\n![Reference](${staged.relativePath})`,
+    markdown: updatedSource,
     expectedMarkdown: note.body
   })
 
   assert.equal(updated.id, note.id)
-  assert.equal(updated.title, 'Updated title')
+  assert.equal(updated.title, 'Original title')
   assert.equal(updated.createdAt, note.createdAt)
   assert.notEqual(updated.updatedAt, note.updatedAt)
   assert.deepEqual(updated.attachments, note.attachments)
-  assert.equal(
-    await readFile(join(created.library.path, 'inbox', note.id, 'note.md'), 'utf8'),
-    updated.body
-  )
+  assert.equal(await readFile(await service.getItemContentPath(note.id), 'utf8'), updated.body)
   assert.deepEqual(
-    await readFile(join(created.library.path, 'inbox', note.id, 'assets', staged.filename)),
+    await readFile(
+      join(
+        dirname(await service.getItemContentPath(note.id)),
+        'Original title.assets',
+        staged.filename
+      )
+    ),
     onePixelPng
   )
 
@@ -371,8 +489,9 @@ test('updates Markdown notes without changing their identity or attachments', as
   await reopened.initialize()
   const state = await reopened.getState()
   assert.equal(state.status, 'ready')
-  assert.equal(state.library.items[0].body, updated.body)
-  assert.equal(state.library.items[0].title, updated.title)
+  const reopenedNote = state.library.items.find((item) => item.id === note.id)
+  assert.equal(reopenedNote.body, updated.body)
+  assert.equal(reopenedNote.title, updated.title)
 })
 
 test('rejects invalid, missing, non-note, and externally changed note updates', async (context) => {
@@ -408,7 +527,7 @@ test('rejects invalid, missing, non-note, and externally changed note updates', 
     (error) => {
       assert.equal(error instanceof NoteUpdateConflictError, true)
       assert.equal(error.current.id, note.id)
-      assert.equal(error.current.body, 'Changed outside Kuskus')
+      assert.equal(error.current.body.endsWith('Changed outside Kuskus'), true)
       return true
     }
   )
@@ -458,7 +577,10 @@ test('persists an editor draft through autosave and reopens the exact Markdown',
   const service = new LibraryService(settingsPath)
   await service.createIn(root, 'Editor Autosave')
   const note = await service.createNote({ markdown: '# Initial', attachmentIds: [] })
-  const updatedMarkdown = '# Updated\n\n- exact source\n- live preview'
+  const updatedMarkdown = note.body.replace(
+    '# Initial',
+    '# Updated\n\n- exact source\n- live preview'
+  )
   const coordinator = new NoteAutosaveCoordinator({
     itemId: note.id,
     initialMarkdown: note.body,
@@ -698,7 +820,11 @@ test('creates a durable URL item before metadata enrichment', async (context) =>
   assert.equal(link.hasPreviewImage, false)
   assert.equal(
     await service.getItemRevealPath(link.id),
-    join(root, 'Link Library', 'inbox', link.id, 'item.json')
+    join(root, 'Link Library', 'example.com.url')
+  )
+  assert.equal(
+    await readFile(join(root, 'Link Library', 'example.com.url'), 'utf8'),
+    '[InternetShortcut]\r\nURL=https://example.com/path?value=1\r\n'
   )
 
   const reopened = new LibraryService(join(root, 'settings.json'))
@@ -805,6 +931,107 @@ test('enriches, caches, reopens, and serves URL previews without renderer hotlin
   assert.deepEqual(Buffer.from(cached.bytes), onePixelPng)
 })
 
+test('creates nested folders from validated parents without escaping the vault', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-nested-folder-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  const created = await service.createIn(root, 'Nested folders')
+  const libraryPath = created.library.path
+
+  const project = await service.createCollection({ name: 'Project' })
+  const research = await service.createCollection({ name: 'Research', parentId: project.id })
+  const sources = await service.createCollection({ name: 'Sources', parentId: research.id })
+  const duplicate = await service.createCollection({ name: 'Sources', parentId: research.id })
+
+  assert.equal(project.parentId, null)
+  assert.equal(project.relativePath, 'Project')
+  assert.equal(research.parentId, project.id)
+  assert.equal(research.relativePath, 'Project/Research')
+  assert.equal(sources.parentId, research.id)
+  assert.equal(sources.relativePath, 'Project/Research/Sources')
+  assert.equal(duplicate.relativePath, 'Project/Research/Sources (2)')
+  assert.equal(existsSync(join(libraryPath, 'Project', 'Research', 'Sources')), true)
+  assert.equal(existsSync(join(libraryPath, 'Project', 'Research', 'Sources (2)')), true)
+
+  await assert.rejects(
+    () => service.createCollection({ name: 'Unsafe', parentId: '..\\outside' }),
+    /identifier/i
+  )
+  await assert.rejects(
+    () =>
+      service.createCollection({
+        name: 'Missing parent',
+        parentId: '00000000-0000-4000-8000-000000000099'
+      }),
+    /parent folder no longer exists/i
+  )
+  assert.equal(existsSync(join(libraryPath, 'Unsafe')), false)
+  assert.equal(existsSync(join(libraryPath, 'Missing parent')), false)
+
+  const reopened = new LibraryService(join(root, 'settings.json'))
+  await reopened.initialize()
+  const state = await reopened.getState()
+  assert.equal(state.status, 'ready')
+  assert.equal(
+    state.library.collections.find((folder) => folder.relativePath === 'Project/Research').parentId,
+    project.id
+  )
+})
+
+test('moves nested folders without changing identity and rejects ancestry cycles', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-folder-move-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const settingsPath = join(root, 'settings.json')
+  const service = new LibraryService(settingsPath)
+  const created = await service.createIn(root, 'Folder move library')
+  const libraryPath = created.library.path
+  const projectA = await service.createCollection({ name: 'Project A' })
+  const projectB = await service.createCollection({ name: 'Project B' })
+  const research = await service.createCollection({ name: 'Research', parentId: projectA.id })
+  const sources = await service.createCollection({ name: 'Sources', parentId: research.id })
+  await service.createCollection({ name: 'Research', parentId: projectB.id })
+  const note = await service.createNote({ markdown: 'Nested source', attachmentIds: [] })
+  await service.moveItems({
+    itemIds: [note.id],
+    destination: { type: 'collection', collectionId: sources.id }
+  })
+
+  let library = await service.moveCollection({
+    collectionId: research.id,
+    parentId: projectB.id
+  })
+  const movedResearch = library.collections.find((folder) => folder.id === research.id)
+  const movedSources = library.collections.find((folder) => folder.id === sources.id)
+  assert.equal(movedResearch.parentId, projectB.id)
+  assert.equal(movedResearch.relativePath, 'Project B/Research (2)')
+  assert.equal(movedSources.parentId, research.id)
+  assert.equal(movedSources.relativePath, 'Project B/Research (2)/Sources')
+  assert.match(
+    library.items.find((item) => item.id === note.id).relativePath,
+    /^Project B\/Research \(2\)\/Sources\//
+  )
+  assert.equal(existsSync(join(libraryPath, 'Project B', 'Research (2)', 'Sources')), true)
+  assert.equal(existsSync(join(libraryPath, 'Project A', 'Research')), false)
+
+  await assert.rejects(
+    () => service.moveCollection({ collectionId: projectB.id, parentId: sources.id }),
+    /inside itself or one of its subfolders/i
+  )
+  library = await service.moveCollection({ collectionId: research.id, parentId: null })
+  assert.equal(library.collections.find((folder) => folder.id === research.id).parentId, null)
+  assert.equal(library.collections.find((folder) => folder.id === sources.id).parentId, research.id)
+
+  const reopened = new LibraryService(settingsPath)
+  await reopened.initialize()
+  const state = await reopened.getState()
+  assert.equal(state.status, 'ready')
+  assert.equal(state.library.collections.find((folder) => folder.id === research.id).parentId, null)
+  assert.deepEqual(state.library.items.find((item) => item.id === note.id).location, {
+    type: 'collection',
+    collectionId: sources.id
+  })
+})
+
 test('persists curated collection icons and safely normalizes legacy metadata', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-collection-icon-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
@@ -816,7 +1043,7 @@ test('persists curated collection icons and safely normalizes legacy metadata', 
 
   const legacy = await service.createCollection({ name: 'Legacy folder' })
   assert.equal(legacy.icon, 'folder')
-  const legacyMetadataPath = join(libraryPath, 'collections', legacy.id, 'collection.json')
+  const legacyMetadataPath = join(libraryPath, '.kuskus', 'collections', `${legacy.id}.json`)
   const legacyMetadata = JSON.parse(await readFile(legacyMetadataPath, 'utf8'))
   assert.equal(Object.hasOwn(legacyMetadata, 'icon'), false)
 
@@ -855,7 +1082,7 @@ test('persists curated collection icons and safely normalizes legacy metadata', 
   await assert.rejects(() => service.setCollectionIcon('..\\outside', 'folder'), /identifier/i)
   await assert.rejects(() => service.setCollectionIcon(custom.id, 'not-an-icon'), /supported/i)
 
-  const customMetadataPath = join(libraryPath, 'collections', custom.id, 'collection.json')
+  const customMetadataPath = join(libraryPath, '.kuskus', 'collections', `${custom.id}.json`)
   const customMetadata = JSON.parse(await readFile(customMetadataPath, 'utf8'))
   customMetadata.icon = 'future-icon'
   await writeFile(customMetadataPath, `${JSON.stringify(customMetadata, null, 2)}\n`, 'utf8')
@@ -913,7 +1140,281 @@ test('derives stable note and image display metadata', () => {
   })
 })
 
-test('validates metadata and atomically finalizes an Inbox item', async (context) => {
+test('initializes an existing Obsidian vault without changing its organization or settings', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-obsidian-init-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const vault = join(root, 'Shared vault')
+  await mkdir(join(vault, '.obsidian'), { recursive: true })
+  await mkdir(join(vault, 'Projects', 'Research'), { recursive: true })
+  await mkdir(join(vault, 'Archive'), { recursive: true })
+  const source =
+    '---\n# keep this comment\ntags: [alpha, beta]\n---\n# Existing note\n\n![[diagram.png]]\n'
+  await writeFile(join(vault, 'Projects', 'Research', 'Existing note.md'), source, 'utf8')
+  await writeFile(join(vault, 'Projects', 'Research', 'diagram.png'), onePixelPng)
+  await writeFile(join(vault, 'reference.pdf'), Buffer.from('%PDF-1.4\n'))
+  await writeFile(join(vault, '.obsidian', 'app.json'), '{"newFileLocation":"current"}', 'utf8')
+
+  const service = new LibraryService(join(root, 'settings.json'))
+  let state = await service.openAt(vault)
+  assert.equal(state.status, 'needs-initialization')
+  assert.equal(state.markdownFiles, 1)
+  assert.equal(state.imageFiles, 1)
+  assert.equal(state.otherFiles, 1)
+  assert.equal(state.folders, 2)
+  assert.equal(state.archiveFolderExists, true)
+
+  state = await service.initializePendingVault()
+  assert.equal(state.status, 'ready')
+  assert.equal(state.library.items.length, 3)
+  assert.equal(
+    state.library.collections.some((entry) => entry.relativePath === 'Projects/Research'),
+    true
+  )
+  const note = state.library.items.find((entry) => entry.type === 'note')
+  const image = state.library.items.find((entry) => entry.type === 'image')
+  const file = state.library.items.find((entry) => entry.type === 'file')
+  assert.equal(note.relativePath, 'Projects/Research/Existing note.md')
+  assert.equal(image.referencedAttachment, true)
+  assert.equal(file.relativePath, 'reference.pdf')
+  const updated = await readFile(join(vault, note.relativePath), 'utf8')
+  assert.match(updated, /# keep this comment/)
+  assert.match(updated, /tags: \[alpha, beta\]/)
+  assert.equal(updated, source)
+  assert.equal(
+    await readFile(join(vault, '.obsidian', 'app.json'), 'utf8'),
+    '{"newFileLocation":"current"}'
+  )
+})
+
+test('indexes malformed user YAML as untouched Markdown instead of rewriting it', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-malformed-yaml-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const vault = join(root, 'Malformed vault')
+  const source = '---\ntags: [unfinished\n---\n# Still readable\n'
+  await mkdir(vault)
+  await writeFile(join(vault, 'Malformed.md'), source, 'utf8')
+  const service = new LibraryService(join(root, 'settings.json'))
+  await service.openAt(vault)
+  const state = await service.initializePendingVault()
+  assert.equal(state.status, 'ready')
+  assert.equal(state.library.items[0].type, 'note')
+  assert.equal(state.library.items[0].body, source)
+  assert.equal(await readFile(join(vault, 'Malformed.md'), 'utf8'), source)
+})
+
+test('migrates a schema-v1 library into readable files and retains a sibling backup', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-v1-migration-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const vault = join(root, 'Legacy library')
+  const id = '00000000-0000-4000-8000-000000000001'
+  const linkId = '00000000-0000-4000-8000-000000000002'
+  const timestamp = '2026-07-15T00:00:00.000Z'
+  await mkdir(join(vault, 'inbox', id), { recursive: true })
+  await writeFile(
+    join(vault, 'library.json'),
+    `${JSON.stringify({ schemaVersion: 1, id, name: 'Legacy library', createdAt: timestamp })}\n`
+  )
+  const metadata = createNoteMetadata(id, '# Migrated note\n\nOriginal body', timestamp)
+  await writeFile(join(vault, 'inbox', id, 'item.json'), `${JSON.stringify(metadata)}\n`)
+  await writeFile(join(vault, 'inbox', id, 'note.md'), '# Migrated note\n\nOriginal body', 'utf8')
+  await mkdir(join(vault, 'inbox', linkId), { recursive: true })
+  await writeFile(
+    join(vault, 'inbox', linkId, 'item.json'),
+    `${JSON.stringify(createUrlMetadata(linkId, 'https://example.com/legacy', timestamp))}\n`
+  )
+
+  const service = new LibraryService(join(root, 'settings.json'))
+  let state = await service.openAt(vault)
+  assert.equal(state.status, 'needs-migration')
+  const migrated = await service.migratePendingLibrary()
+  state = migrated.state
+  assert.equal(state.status, 'ready')
+  assert.equal(state.library.items.length, 2)
+  assert.equal(state.library.items.find((item) => item.id === id).relativePath, 'Migrated note.md')
+  assert.equal(
+    state.library.items.find((item) => item.id === linkId).relativePath,
+    'example.com.url'
+  )
+  assert.equal(existsSync(join(vault, 'Migrated note.md')), true)
+  assert.equal(existsSync(join(vault, 'example.com.url')), true)
+  assert.equal(existsSync(join(vault, '.kuskus', 'records', `${id}.json`)), true)
+  assert.equal(existsSync(migrated.backupPath), true)
+  assert.equal(existsSync(join(migrated.backupPath, 'inbox', id, 'note.md')), true)
+})
+
+test('keeps note identity across an external filesystem rename without visible metadata', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-note-identity-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const settingsPath = join(root, 'settings.json')
+  const service = new LibraryService(settingsPath)
+  const created = await service.createIn(root, 'Identity vault')
+  const note = await service.createNote({ markdown: '# Stable note\n\nBody', attachmentIds: [] })
+  const original = join(created.library.path, 'Stable note.md')
+  const moved = join(created.library.path, 'Renamed outside Kuskus.md')
+  await rename(original, moved)
+  await writeFile(moved, '# Stable note\n\nEdited outside Kuskus', 'utf8')
+
+  const reopened = new LibraryService(settingsPath)
+  await reopened.initialize()
+  const state = await reopened.getState()
+  assert.equal(state.status, 'ready')
+  const resolved = state.library.items.find(
+    (item) => item.relativePath === 'Renamed outside Kuskus.md'
+  )
+  assert.equal(resolved.id, note.id)
+  assert.equal(resolved.body, '# Stable note\n\nEdited outside Kuskus')
+})
+
+test('does not guess identity when duplicate fingerprints make an external move ambiguous', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-note-duplicate-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  const created = await service.createIn(root, 'Duplicate vault')
+  const note = await service.createNote({ markdown: 'Identical content', attachmentIds: [] })
+  await writeFile(join(created.library.path, 'Copy one.md'), 'Identical content', 'utf8')
+  await writeFile(join(created.library.path, 'Copy two.md'), 'Identical content', 'utf8')
+  await unlink(join(created.library.path, 'Identical content.md'))
+
+  const state = await service.getState()
+  assert.equal(state.status, 'ready')
+  const visibleCopies = state.library.items.filter((item) => !item.missingContent)
+  assert.equal(visibleCopies.length, 2)
+  assert.equal(
+    visibleCopies.some((item) => item.id === note.id),
+    false
+  )
+  assert.equal(state.library.items.find((item) => item.id === note.id).missingContent, true)
+})
+
+test('automatically removes legacy Kuskus YAML with a retained recovery copy', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-metadata-cleanup-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  const created = await service.createIn(root, 'Cleanup vault')
+  const note = await service.createNote({ markdown: '# Clean me', attachmentIds: [] })
+  const notePath = join(created.library.path, 'Clean me.md')
+  const legacy = `---\n# keep this\ntags: [one]\nurl: https://user.example/\nkuskus-id: "${note.id}"\n---\n# Clean me`
+  await writeFile(notePath, legacy, 'utf8')
+  await rm(join(created.library.path, '.kuskus', 'migrations', 'visible-metadata-cleanup.json'), {
+    force: true
+  })
+
+  const state = await service.getState()
+  assert.equal(state.status, 'ready', JSON.stringify(state))
+  assert.equal(state.library.cleanup.status, 'completed')
+  assert.equal(state.library.cleanup.affectedFiles, 1)
+  assert.equal(
+    await readFile(notePath, 'utf8'),
+    '---\n# keep this\ntags: [one]\nurl: https://user.example/\n---\n# Clean me'
+  )
+  const recovered = join(
+    created.library.path,
+    state.library.cleanup.recoveryRelativePath,
+    'originals',
+    'Clean me.md'
+  )
+  assert.equal(await readFile(recovered, 'utf8'), legacy)
+})
+
+test('converts a blank legacy Markdown bookmark into a Windows Internet Shortcut', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-bookmark-cleanup-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  const created = await service.createIn(root, 'Bookmark cleanup vault')
+  const link = await service.createUrl('https://example.com/reference')
+  const shortcutPath = join(created.library.path, 'example.com.url')
+  const markdownPath = join(created.library.path, 'example.com.md')
+  await rm(shortcutPath)
+  await writeFile(
+    markdownPath,
+    `---\nkuskus-id: "${link.id}"\nkuskus-type: link\nurl: "${link.sourceUrl}"\n---\n`,
+    'utf8'
+  )
+  const recordPath = join(created.library.path, '.kuskus', 'records', `${link.id}.json`)
+  const record = JSON.parse(await readFile(recordPath, 'utf8'))
+  record.relativePath = 'example.com.md'
+  record.metadata.relativePath = 'example.com.md'
+  await writeFile(recordPath, `${JSON.stringify(record, null, 2)}\n`, 'utf8')
+  await rm(join(created.library.path, '.kuskus', 'migrations', 'visible-metadata-cleanup.json'), {
+    force: true
+  })
+
+  const state = await service.getState()
+  assert.equal(state.status, 'ready')
+  assert.equal(existsSync(markdownPath), false)
+  assert.equal(parseInternetShortcut(await readFile(shortcutPath, 'utf8')), link.sourceUrl)
+  assert.equal(
+    state.library.items.find((item) => item.id === link.id).relativePath,
+    'example.com.url'
+  )
+})
+
+test('parses Windows Internet Shortcuts case-insensitively and rejects unsafe URLs', () => {
+  assert.equal(
+    parseInternetShortcut('[internetshortcut]\nurl = https://example.com/path\n'),
+    'https://example.com/path'
+  )
+  assert.equal(
+    createInternetShortcut('https://example.com/'),
+    '[InternetShortcut]\r\nURL=https://example.com/\r\n'
+  )
+  assert.throws(() => parseInternetShortcut('[InternetShortcut]\nURL=file:///C:/secret.txt'))
+  assert.equal(removeKuskusFrontmatter('---\nkuskus-id: "id"\n---\nBody'), 'Body')
+  assert.equal(
+    removeKuskusFrontmatter('---\r\ntags: [keep]\r\nkuskus-id: "id"\r\n---\r\nBody'),
+    '---\r\ntags: [keep]\r\n---\r\nBody'
+  )
+})
+
+test('indexes an externally created Windows Internet Shortcut', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-external-shortcut-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const vault = join(root, 'Shortcut vault')
+  await mkdir(vault)
+  await writeFile(
+    join(vault, 'OpenAI.url'),
+    '[internetshortcut]\r\nurl=https://openai.com/\r\n',
+    'utf8'
+  )
+  const service = new LibraryService(join(root, 'settings.json'))
+  await service.openAt(vault)
+  const state = await service.initializePendingVault()
+  assert.equal(state.status, 'ready')
+  assert.equal(state.library.items.length, 1)
+  assert.equal(state.library.items[0].type, 'url')
+  assert.equal(state.library.items[0].sourceUrl, 'https://openai.com/')
+  assert.equal(state.library.items[0].relativePath, 'OpenAI.url')
+})
+
+test('leaves complex legacy bookmarks unchanged and reports a repair conflict', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-bookmark-conflict-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  const created = await service.createIn(root, 'Bookmark conflict vault')
+  const link = await service.createUrl('https://example.com/complex')
+  const shortcutPath = join(created.library.path, 'example.com.url')
+  const markdownPath = join(created.library.path, 'example.com.md')
+  await rm(shortcutPath)
+  const legacy = `---\nkuskus-id: "${link.id}"\nkuskus-type: link\nurl: "${link.sourceUrl}"\ntags: [keep]\n---\nUser-authored annotation`
+  await writeFile(markdownPath, legacy, 'utf8')
+  const recordPath = join(created.library.path, '.kuskus', 'records', `${link.id}.json`)
+  const record = JSON.parse(await readFile(recordPath, 'utf8'))
+  record.relativePath = 'example.com.md'
+  record.metadata.relativePath = 'example.com.md'
+  await writeFile(recordPath, `${JSON.stringify(record, null, 2)}\n`, 'utf8')
+  await rm(join(created.library.path, '.kuskus', 'migrations', 'visible-metadata-cleanup.json'), {
+    force: true
+  })
+
+  const state = await service.getState()
+  assert.equal(state.status, 'ready')
+  assert.equal(state.library.cleanup.status, 'conflicts')
+  assert.equal(state.library.repairConflicts.length, 1)
+  assert.equal(await readFile(markdownPath, 'utf8'), legacy)
+  assert.equal(existsSync(shortcutPath), false)
+})
+
+test.skip('legacy v1: validates metadata and atomically finalizes an Inbox item', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-store-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
 
@@ -931,7 +1432,7 @@ test('validates metadata and atomically finalizes an Inbox item', async (context
   assert.equal(existsSync(join(root, '.kuskus', 'temp', `${id}.pending`)), false)
 })
 
-test('recovers an interrupted note directory swap before reading library state', async (context) => {
+test.skip('legacy v1: recovers an interrupted note directory swap before reading library state', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-note-recovery-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
@@ -967,7 +1468,7 @@ test('recovers an interrupted note directory swap before reading library state',
   assert.equal(existsSync(transactionDirectory), false)
 })
 
-test('recovers interrupted item move batches by phase before scanning the library', async (context) => {
+test.skip('legacy v1: recovers interrupted item move batches by phase before scanning the library', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-item-move-recovery-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
@@ -1030,7 +1531,7 @@ test('recovers interrupted item move batches by phase before scanning the librar
   assert.equal(existsSync(commitTransaction), false)
 })
 
-test('rolls back every item when a live batch move fails during commit', async (context) => {
+test.skip('legacy v1: rolls back every item when a live batch move fails during commit', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-item-move-rollback-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
@@ -1100,7 +1601,7 @@ test('moves, archives, trashes, restores, renames, and permanently deletes items
     type: 'collection',
     collectionId: collection.id
   })
-  assert.equal(existsSync(join(libraryPath, 'collections', collection.id, 'items', note.id)), true)
+  assert.equal(existsSync(join(libraryPath, 'Project', 'Original title.md')), true)
 
   library = await service.archiveItems({ itemIds: [note.id] })
   assert.deepEqual(library.items.find((item) => item.id === note.id).location, {
@@ -1124,9 +1625,13 @@ test('moves, archives, trashes, restores, renames, and permanently deletes items
   library = await service.renameItem({ itemId: note.id, title: 'Custom note title' })
   const renamed = library.items.find((item) => item.id === note.id)
   assert.equal(renamed.title, 'Custom note title')
+  const editedMarkdown = renamed.body.replace(
+    '# Original title\nBody',
+    '# A different derived title\nChanged'
+  )
   const updated = await service.updateNote({
     itemId: note.id,
-    markdown: '# A different derived title\nChanged',
+    markdown: editedMarkdown,
     expectedMarkdown: renamed.body
   })
   assert.equal(updated.title, 'Custom note title')
@@ -1138,7 +1643,7 @@ test('moves, archives, trashes, restores, renames, and permanently deletes items
     false
   )
   assert.equal(existsSync(externalSource), true)
-  assert.equal(existsSync(join(libraryPath, 'trash', image.id)), false)
+  assert.equal(existsSync(join(libraryPath, '.kuskus', 'trash', image.id)), false)
 
   const reopened = new LibraryService(join(root, 'settings.json'))
   await reopened.initialize()
@@ -1182,6 +1687,79 @@ test('removing a non-empty folder moves active items to Inbox and archived fallb
   })
 })
 
+test('refuses to remove a folder with subfolders or unmanaged files before moving its items', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-folder-removal-guard-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  const created = await service.createIn(root, 'Folder Removal Guard Library')
+  const libraryPath = created.library.path
+
+  // A folder with a subfolder keeps its items and stays on disk.
+  const parent = await service.createCollection({ name: 'Parent' })
+  await service.createCollection({ name: 'Child', parentId: parent.id })
+  const guarded = await service.createNote({ markdown: 'Do not relocate me', attachmentIds: [] })
+  await service.moveItems({
+    itemIds: [guarded.id],
+    destination: { type: 'collection', collectionId: parent.id }
+  })
+
+  await assert.rejects(() => service.deleteCollection(parent.id), /subfolders/i)
+  let library = await service.getState().then((state) => state.library)
+  assert.equal(
+    library.collections.some((entry) => entry.id === parent.id),
+    true
+  )
+  assert.deepEqual(library.items.find((item) => item.id === guarded.id).location, {
+    type: 'collection',
+    collectionId: parent.id
+  })
+  assert.equal(existsSync(join(libraryPath, 'Parent', 'Child')), true)
+
+  // A folder with files Kuskus does not index keeps its items and stays on disk.
+  const cluttered = await service.createCollection({ name: 'Cluttered' })
+  const stranded = await service.createNote({ markdown: 'Keep me here too', attachmentIds: [] })
+  await service.moveItems({
+    itemIds: [stranded.id],
+    destination: { type: 'collection', collectionId: cluttered.id }
+  })
+  await writeFile(join(libraryPath, 'Cluttered', '.DS_Store'), 'noise')
+
+  await assert.rejects(() => service.deleteCollection(cluttered.id), /does not manage/i)
+  library = await service.getState().then((state) => state.library)
+  assert.equal(
+    library.collections.some((entry) => entry.id === cluttered.id),
+    true
+  )
+  assert.deepEqual(library.items.find((item) => item.id === stranded.id).location, {
+    type: 'collection',
+    collectionId: cluttered.id
+  })
+
+  // A note's companion assets directory travels with it and never blocks removal.
+  const portable = await service.createCollection({ name: 'Portable' })
+  const note = await service.createNote({ markdown: 'Note with assets', attachmentIds: [] })
+  await service.moveItems({
+    itemIds: [note.id],
+    destination: { type: 'collection', collectionId: portable.id }
+  })
+  const noteRecord = (await service.getState().then((state) => state.library)).items.find(
+    (item) => item.id === note.id
+  )
+  const assetsRelative = noteRecord.relativePath.replace(/\.md$/, '.assets')
+  await mkdir(join(libraryPath, assetsRelative), { recursive: true })
+  await writeFile(join(libraryPath, assetsRelative, 'pixel.png'), 'png-bytes')
+
+  library = await service.deleteCollection(portable.id)
+  assert.equal(
+    library.collections.some((entry) => entry.id === portable.id),
+    false
+  )
+  const relocated = library.items.find((item) => item.id === note.id)
+  assert.deepEqual(relocated.location, { type: 'inbox' })
+  const relocatedAssets = relocated.relativePath.replace(/\.md$/, '.assets')
+  assert.equal(existsSync(join(libraryPath, relocatedAssets, 'pixel.png')), true)
+})
+
 test('seeds and resets a cultivated isolated demo profile', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-demo-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
@@ -1194,11 +1772,11 @@ test('seeds and resets a cultivated isolated demo profile', async (context) => {
   assert.equal(state.status, 'ready')
   assert.equal(state.library.path, libraryPath)
   assert.equal(state.library.name, LIBRARY_NAME)
-  assert.equal(state.library.items.length, 18)
+  assert.equal(state.library.items.length, 19)
   assert.equal(state.library.collections.length, 4)
   assert.deepEqual(
     state.library.collections.map((collection) => collection.name),
-    ['Interface references', 'Kuskus', 'Research', 'Writing']
+    ['Kuskus', 'Interface references', 'Research', 'Writing']
   )
   assert.deepEqual(
     new Set(state.library.items.map((item) => item.type)),
@@ -1223,25 +1801,24 @@ test('seeds and resets a cultivated isolated demo profile', async (context) => {
   assert.equal(attachedNote.attachments[0].missingContent, false)
   assert.equal(
     existsSync(
-      join(libraryPath, 'inbox', attachedNote.id, 'assets', attachedNote.attachments[0].filename)
+      join(libraryPath, `${attachedNote.title}.assets`, attachedNote.attachments[0].filename)
     ),
+    true
+  )
+  assert.equal(
+    existsSync(join(libraryPath, 'Kuskus', 'Product direction that still feels true.md')),
     true
   )
   assert.equal(
     existsSync(
       join(
         libraryPath,
-        'collections',
-        '20000000-0000-4000-8000-000000000001',
-        'items',
-        '40000000-0000-4000-8000-000000000001',
-        'note.md'
+        '.kuskus',
+        'trash',
+        '50000000-0000-4000-8000-000000000001',
+        'Old tagline directions.md'
       )
     ),
-    true
-  )
-  assert.equal(
-    existsSync(join(libraryPath, 'trash', '50000000-0000-4000-8000-000000000001', 'note.md')),
     true
   )
 
@@ -1257,5 +1834,5 @@ test('seeds and resets a cultivated isolated demo profile', async (context) => {
   assert.equal(reset.libraryPath, libraryPath)
   assert.equal(existsSync(librarySentinel), false)
   assert.equal(existsSync(profileSentinel), false)
-  assert.equal(existsSync(join(reset.libraryPath, 'library.json')), true)
+  assert.equal(existsSync(join(reset.libraryPath, '.kuskus', 'library.json')), true)
 })

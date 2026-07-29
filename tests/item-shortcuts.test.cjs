@@ -1,0 +1,56 @@
+const assert = require('node:assert/strict')
+const { readFileSync } = require('node:fs')
+const test = require('node:test')
+const ts = require('typescript')
+
+require.extensions['.ts'] = (module, filename) => {
+  const source = readFileSync(filename, 'utf8')
+  const output = ts.transpileModule(source, {
+    compilerOptions: {
+      target: ts.ScriptTarget.ES2022,
+      module: ts.ModuleKind.CommonJS,
+      esModuleInterop: true
+    },
+    fileName: filename
+  })
+  module._compile(output.outputText, filename)
+}
+
+const {
+  resolveItemShortcutTargets,
+  resolveRenameShortcutTarget
+} = require('../src/renderer/src/features/items/item-shortcuts.ts')
+
+test('selection takes precedence over the focused item', () => {
+  const targets = resolveItemShortcutTargets(
+    new Set(['selected-a', 'selected-b']),
+    'focused',
+    new Set(['selected-a', 'selected-b', 'focused'])
+  )
+
+  assert.deepEqual(targets, ['selected-a', 'selected-b'])
+})
+
+test('uses the focused item when there is no selection', () => {
+  const targets = resolveItemShortcutTargets(new Set(), 'focused', new Set(['focused']))
+
+  assert.deepEqual(targets, ['focused'])
+})
+
+test('ignores targets that are not visible', () => {
+  assert.deepEqual(
+    resolveItemShortcutTargets(new Set(['hidden']), 'focused', new Set(['focused'])),
+    []
+  )
+  assert.deepEqual(resolveItemShortcutTargets(new Set(), 'hidden', new Set(['visible'])), [])
+})
+
+test('returns no target when selection and focus are absent', () => {
+  assert.deepEqual(resolveItemShortcutTargets(new Set(), null, new Set(['visible'])), [])
+})
+
+test('rename accepts exactly one resolved target', () => {
+  assert.equal(resolveRenameShortcutTarget(['one']), 'one')
+  assert.equal(resolveRenameShortcutTarget([]), null)
+  assert.equal(resolveRenameShortcutTarget(['one', 'two']), null)
+})

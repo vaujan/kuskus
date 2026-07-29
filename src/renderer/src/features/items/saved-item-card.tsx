@@ -1,4 +1,5 @@
 import { ImageItemCard } from '@/features/items/image-item-card'
+import { FileItemCard } from '@/features/items/file-item-card'
 import type { LibraryView } from '@/features/items/item-view'
 import { NoteItemCard } from '@/features/items/note-item-card'
 import { UrlItemCard } from '@/features/items/url-item-card'
@@ -33,8 +34,16 @@ export function SavedItemCard({
       onActivate={onActivate}
       onOpen={onOpen}
     />
-  ) : (
+  ) : item.type === 'url' ? (
     <UrlItemCard
+      item={item}
+      view={view}
+      selected={selected}
+      onActivate={onActivate}
+      onOpen={onOpen}
+    />
+  ) : (
+    <FileItemCard
       item={item}
       view={view}
       selected={selected}

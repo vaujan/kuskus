@@ -338,7 +338,7 @@ Remove Explorer reveal and native local-file opening APIs from the product UI. C
 ## DEC-013: Standardize interface icons and persist collection icon keys
 
 Date: 2026-07-17
-Status: Accepted
+Status: Amended by DEC-033
 
 ### Context
 
@@ -884,3 +884,151 @@ ignoring all future edits.
   guarded-leave pipeline.
 - Split preview updates are immediate; the existing debounce applies only to persistence.
 - No storage schema, preload, IPC, main-process, attachment, or preview-renderer changes are required.
+
+## DEC-031: Make ordinary vault files authoritative
+
+Date: 2026-07-29
+Status: Accepted
+
+### Context
+
+Schema v1 made stable UUID packages authoritative. Although recoverable, the physical library was
+difficult to browse in Explorer and could not be shared live with an Obsidian vault without an
+import/export synchronization layer.
+
+### Decision
+
+Supersede DEC-003, DEC-011, and DEC-022 wherever they prescribe UUID-named visible directories,
+flat collections, metadata-backed titles, or package-directory lifecycle moves. Schema v2 treats
+visible filenames as titles, ordinary nested folders as collections, and Markdown or binary files
+as authoritative content. Stable item and collection identities, timestamps, fingerprints, icons,
+and recovery state live in human-readable records under `.kuskus/`.
+
+Kuskus and Obsidian may co-own the same folder. Kuskus preserves existing YAML with a
+comment-preserving parser, adds only its namespaced properties, ignores `.obsidian`, uses companion
+assets for new attachments, safely resolves core Obsidian links, and reconciles external edits from
+the main process. Initialization is explicit. Schema-v1 migration builds and verifies a sibling
+vault before swapping paths and permanently retaining the original as a timestamped backup.
+
+### Consequences
+
+- Explorer and Obsidian edits immediately change Kuskus titles and organization after reconciliation.
+- Renames and moves are validated filesystem operations; renderer contracts remain ID based.
+- Binary identity is inherently ambiguous after an offline rename plus content edit, so Kuskus does
+  not guess when fingerprints are duplicated.
+- Hidden records and previews are rebuildable support data, never the sole readable representation.
+- Older libraries require the guided migration; unsupported newer schemas and repair conflicts do
+  not receive automatic destructive rewrites.
+
+## DEC-032: Keep Kuskus identity out of visible files
+
+Date: 2026-07-29
+Status: Accepted
+
+### Context
+
+DEC-031 initially placed a stable UUID in every Markdown file. That made offline rename recovery
+stronger but made an otherwise ordinary vault visibly dependent on Kuskus and rewrote notes merely
+to index them.
+
+### Decision
+
+Supersede DEC-031 wherever it adds Kuskus-owned YAML. Normal Markdown remains byte-for-byte user
+content. Web bookmarks use Windows `.url` Internet Shortcuts, while stable identity and enrichment
+metadata remain under `.kuskus/records/`. Reconciliation uses exact relative path, unique filesystem
+identity, then unique content fingerprint; ambiguity creates a new identity rather than guessing.
+
+On the first compatible launch, automatically remove legacy Kuskus YAML only after creating a
+checksummed recovery copy. Convert blank generated bookmarks to `.url`; leave bookmarks with
+user-authored properties or body content unchanged and report them for repair.
+
+### Consequences
+
+- Opening or initializing a vault does not modify ordinary Markdown.
+- Explorer can open bookmark files directly in the default browser.
+- `.url` bookmarks are visible in the vault but do not behave as Obsidian Markdown notes.
+- An offline copy-delete move combined with a content edit can receive a new Kuskus identity.
+- Cleanup recovery copies are retained and never removed automatically.
+
+## DEC-033: Keep folder navigation text-first without deleting icon metadata
+
+Date: 2026-07-29
+Status: Superseded by DEC-035
+
+### Context
+
+Custom collection glyphs added visual noise to the nested folder tree and competed with disclosure
+chevrons, names, counts, and row actions.
+
+### Decision
+
+Do not render or offer editing for collection icons in the folder navigation or folder dialogs. Keep
+the existing validated icon field, IPC operation, stored values, and renderer registry intact for
+backward compatibility. New folders use the existing default icon value.
+
+### Consequences
+
+- Folder hierarchy is communicated through disclosure controls and indentation instead of glyphs.
+- Opening or editing a library never removes previously stored collection icon values.
+- Icon presentation can be restored later without a storage migration.
+
+## DEC-034: Reuse the main window and composer for global capture
+
+Date: 2026-07-29
+Status: Accepted
+
+### Context
+
+Fast capture needs an entry point from other applications, but a second capture window or an
+automatic clipboard-save path would duplicate draft state, detection, recovery, and native
+boundaries.
+
+### Decision
+
+Register fixed `Ctrl+Shift+Space` ownership in the Electron main process while Kuskus is running.
+The shortcut restores and focuses the single main window, then sends one typed preload event that
+selects Inbox and summons the existing New Item composer. Preload queues an early request until the
+renderer subscribes. Clipboard reads and authoritative writes remain explicit renderer actions.
+
+Use one application process so a second launch focuses the existing window instead of competing for
+the shortcut or active vault. Registration status is read through the narrow window bridge and is
+shown in Settings; collisions remain recoverable and do not prevent app startup.
+
+### Consequences
+
+- Global capture inherits the existing recoverable draft and confirmation behavior.
+- Closing Kuskus unregisters the shortcut; tray residency, launch-at-login, customization, and a
+  separate quick-capture window remain out of scope.
+- Foreground details and dialogs retain ownership when capture is summoned; the composer is prepared
+  behind them without forcing a close or save.
+
+## DEC-035: Treat nested folders as aggregate visual scopes
+
+Date: 2026-07-29
+Status: Accepted
+
+### Context
+
+Vault-native storage makes ordinary nested directories authoritative, but the initial text-only tree
+provided weak recognition, direct-only parent views, ambiguous flat move menus, and no drag-based
+organization. Those gaps made routine filing slower than the visual library workflow requires.
+
+### Decision
+
+Supersede DEC-033's presentation restriction. Render the existing validated collection icons and
+restore their picker while retaining compact rows, restrained contrast, separate disclosure controls,
+names, recursive counts, and right-click actions. Selecting a folder uses its complete subtree as the
+browsing, search, selection, and count scope; capture still targets the exact selected folder.
+
+Items and multi-selections use a renderer-owned drag payload and may be dropped on Inbox or a folder.
+Folder moves use a separate payload and one validated ID-only main-process operation for menu and drag
+interactions. The operation preserves identity, refuses self/descendant targets, resolves destination
+name collisions, and rewrites descendant collection and item paths with in-process rollback.
+
+### Consequences
+
+- Parent folders work as project-level visual views without flattening the vault on disk.
+- Internal organization drags cannot be mistaken for external file-import drags.
+- Folder icons improve recognition without becoming arbitrary SVG or color metadata.
+- Folder move failures retain the source directory and records; crash-recovery manifests remain a
+  future reliability hardening beyond the current in-process rollback used by collection rename.

@@ -29,7 +29,7 @@ export function createUrlMetadata(
 ): PersistedUrlItem {
   const url = validateWebUrl(sourceUrl)
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id,
     type: 'url',
     title: url.hostname,
@@ -79,7 +79,9 @@ export function toUrlDto(
     hasPreviewImage: metadata.previewImageUrl !== null,
     metadataStatus: metadata.metadataStatus,
     metadataError: metadata.metadataError,
-    location
+    location,
+    relativePath: metadata.relativePath ?? `${metadata.title}.md`,
+    referencedAttachment: false
   }
 }
 

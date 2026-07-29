@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type, @typescript-eslint/no-require-imports */
 
-const { dirname, join, resolve } = require('node:path')
+const { join, resolve } = require('node:path')
 const { existsSync } = require('node:fs')
 const { mkdir, readFile, rm, writeFile } = require('node:fs/promises')
 
@@ -111,17 +111,69 @@ async function writeJson(path, value) {
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, 'utf8')
 }
 
-async function writeItem(parent, item) {
-  const directory = join(parent, item.metadata.id)
+function safeFilename(value) {
+  return value
+    .replace(/[\\/:*?"<>|]/g, '-')
+    .replace(/[. ]+$/g, '')
+    .slice(0, 160)
+}
+
+async function writeVaultItem(libraryPath, relativeDirectory, item, location = 'active') {
+  const title = safeFilename(item.metadata.title)
+  const directory =
+    location === 'trash'
+      ? join(libraryPath, '.kuskus', 'trash', item.metadata.id)
+      : join(libraryPath, relativeDirectory)
   await mkdir(directory, { recursive: true })
-  await writeJson(join(directory, 'item.json'), item.metadata)
-  await Promise.all(
-    Object.entries(item.files).map(async ([filename, contents]) => {
-      const path = join(directory, filename)
-      await mkdir(dirname(path), { recursive: true })
-      await writeFile(path, contents)
-    })
-  )
+  let filename
+  let metadata = { ...item.metadata, schemaVersion: 2 }
+  if (metadata.type === 'note') {
+    filename = `${title}.md`
+    const assetDirectory = `${title}.assets`
+    const body = String(item.files['note.md']).replace(/\.\/assets\//g, `./${assetDirectory}/`)
+    await writeFile(join(directory, filename), body, 'utf8')
+    for (const [name, contents] of Object.entries(item.files)) {
+      if (!name.startsWith('assets/')) continue
+      await mkdir(join(directory, assetDirectory), { recursive: true })
+      await writeFile(join(directory, assetDirectory, name.slice('assets/'.length)), contents)
+    }
+    metadata = {
+      ...metadata,
+      contentFilename: filename,
+      attachments: (metadata.attachments ?? []).map((attachment) => ({
+        ...attachment,
+        relativePath: `./${assetDirectory}/${attachment.filename}`
+      }))
+    }
+  } else if (metadata.type === 'image') {
+    filename = metadata.sourceFilename || `${title}.png`
+    await writeFile(join(directory, filename), item.files[metadata.contentFilename])
+    metadata = { ...metadata, contentFilename: filename }
+  } else {
+    filename = `${title}.url`
+    await writeFile(
+      join(directory, filename),
+      `[InternetShortcut]\r\nURL=${metadata.sourceUrl}\r\n`,
+      'utf8'
+    )
+  }
+  const relativePath = join(
+    location === 'trash' ? join('.kuskus', 'trash', metadata.id) : relativeDirectory,
+    filename
+  ).replace(/\\/g, '/')
+  metadata = {
+    ...metadata,
+    title,
+    relativePath,
+    ...(location === 'trash' ? { trashedFrom: 'inbox' } : {})
+  }
+  await writeJson(join(libraryPath, '.kuskus', 'records', `${metadata.id}.json`), {
+    schemaVersion: 2,
+    id: metadata.id,
+    relativePath,
+    fingerprint: null,
+    metadata
+  })
 }
 
 async function inboxItems() {
@@ -280,18 +332,20 @@ async function seedDemoEnvironment({ root = DEFAULT_DEMO_ROOT, reset = false } =
   const demoRoot = resolve(root)
   const libraryPath = join(demoRoot, LIBRARY_NAME)
   const userDataPath = join(demoRoot, 'user-data')
-  const libraryFile = join(libraryPath, 'library.json')
+  const libraryFile = join(libraryPath, '.kuskus', 'library.json')
 
   if (reset) await rm(demoRoot, { recursive: true, force: true })
   if (!existsSync(libraryFile)) {
     await Promise.all([
-      mkdir(join(libraryPath, 'inbox'), { recursive: true }),
-      mkdir(join(libraryPath, 'trash'), { recursive: true }),
+      mkdir(join(libraryPath, 'Archive'), { recursive: true }),
+      mkdir(join(libraryPath, '.kuskus', 'records'), { recursive: true }),
+      mkdir(join(libraryPath, '.kuskus', 'collections'), { recursive: true }),
+      mkdir(join(libraryPath, '.kuskus', 'trash'), { recursive: true }),
       mkdir(join(libraryPath, '.kuskus', 'temp'), { recursive: true }),
       mkdir(userDataPath, { recursive: true })
     ])
     await writeJson(libraryFile, {
-      schemaVersion: 1,
+      schemaVersion: 2,
       id: ids.library,
       name: LIBRARY_NAME,
       createdAt: timestamp(104)
@@ -305,31 +359,33 @@ async function seedDemoEnvironment({ root = DEFAULT_DEMO_ROOT, reset = false } =
     ]
     const itemsByCollection = collectionItems()
     for (const [id, name, icon, daysAgo] of collections) {
-      const directory = join(libraryPath, 'collections', id)
-      await mkdir(join(directory, 'items'), { recursive: true })
-      await writeJson(join(directory, 'collection.json'), {
-        schemaVersion: 1,
+      const directory = join(libraryPath, name)
+      await mkdir(directory, { recursive: true })
+      await writeJson(join(libraryPath, '.kuskus', 'collections', `${id}.json`), {
+        schemaVersion: 2,
         id,
         name,
         icon,
-        createdAt: timestamp(daysAgo)
+        createdAt: timestamp(daysAgo),
+        relativePath: name,
+        parentId: null
       })
       await Promise.all(
-        (itemsByCollection.get(id) ?? []).map((item) => writeItem(join(directory, 'items'), item))
+        (itemsByCollection.get(id) ?? []).map((item) => writeVaultItem(libraryPath, name, item))
       )
     }
 
-    await Promise.all(
-      (await inboxItems()).map((item) => writeItem(join(libraryPath, 'inbox'), item))
-    )
-    await writeItem(
-      join(libraryPath, 'trash'),
+    await Promise.all((await inboxItems()).map((item) => writeVaultItem(libraryPath, '', item)))
+    await writeVaultItem(
+      libraryPath,
+      '',
       note(
         '50000000-0000-4000-8000-000000000001',
         'Old tagline directions',
         35,
         '# Old tagline directions\n\n- Your visual second brain\n- Bookmarks, but beautiful\n- Everything worth remembering\n\nToo broad and too loud. Keeping this in Trash until the simpler product language has survived dogfooding.'
-      )
+      ),
+      'trash'
     )
   } else {
     await mkdir(userDataPath, { recursive: true })

@@ -31,10 +31,16 @@ The MVP is complete when all golden workflows work against a real local library 
 - Move one or more items between Inbox and collections.
 - Archive with unarchive to the previous location.
 - Trash with restore and permanent deletion.
+- Windows-style renderer-local item commands: `F2` for single-item rename and `Delete` for
+  recoverable Trash or confirmed permanent deletion.
 
 ### Capture
 
 - A primary New Item toolbar action that summons one inline draft card at the beginning of the active content view.
+- An in-app `Ctrl+N` equivalent that opens or refocuses the same card while workspace shortcuts are
+  active.
+- A fixed `Ctrl+Shift+Space` system-wide shortcut that, while Kuskus is running, focuses the single
+  app instance and summons the same recoverable composer in Inbox without reading the clipboard.
 - No permanent capture tile or separate capture dialog.
 - Automatic input detection without requiring the user to choose a format first.
 - URL capture by paste with explicit confirmation, followed by a provisional card and background
@@ -56,6 +62,8 @@ The MVP is complete when all golden workflows work against a real local library 
 - Responsive Masonry view with format-aware cards and natural card heights.
 - Uniform Grid view.
 - Compact Table view with Name, Type, and Added columns.
+- Consistent selection-first, focused-item fallback for `F2` and `Delete` across Masonry, Grid, and
+  Table, suspended while editors, menus, details, or dialogs own the keyboard.
 - Expandable and hideable folder sidebar.
 - Persistent active-destination scope inside Search.
 - Responsive column count based on available width rather than a fixed number.
@@ -80,7 +88,6 @@ The MVP is complete when all golden workflows work against a real local library 
 
 ## Should have after the core is reliable
 
-- Global capture shortcut.
 - Browser extension.
 - Multiple library support.
 - Tags.
@@ -99,8 +106,20 @@ The MVP is complete when all golden workflows work against a real local library 
 - Offline full-page web snapshots.
 - OCR.
 - Rich-text or block editor.
-- Nested collections.
+- Plugin-specific Obsidian syntax beyond core properties, wikilinks, aliases, headings, and embeds.
 - Smart collections and advanced rules.
+
+## Vault-native scope amendment (2026-07-29)
+
+- Open and initialize an existing ordinary vault without changing `.obsidian`.
+- Recursively index supported Markdown, images, PDFs, and general files.
+- Treat root files as Inbox and nested ordinary folders as nested collections.
+- Store readable files in place with stable hidden records, visible Archive, and hidden Trash.
+- Render core Obsidian links and embeds safely; expose unresolved or ambiguous targets visibly.
+- Watch and reconcile external edits, while refusing destructive repair of malformed or conflicting data.
+- Migrate schema-v1 libraries through a verified sibling conversion and permanent user-owned backup.
+- Keep normal Markdown free of Kuskus properties; save web bookmarks as Windows `.url` Internet
+  Shortcuts and reconcile identity through hidden paths, filesystem identities, and fingerprints.
 - Public publishing.
 - Plugin marketplace.
 

@@ -1,4 +1,12 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  startTransition,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
 import {
   IconInbox as Inbox,
   IconPhoto as FileImage,
@@ -40,10 +48,16 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AddItemComposer, type ImportRequest } from '@/features/capture/add-item-composer'
+import { getFolderSubtreeIds } from '@/features/collections/folder-tree'
 import { SavedItemCard } from '@/features/items/saved-item-card'
 import { SavedItemsTable } from '@/features/items/saved-items-table'
+import { KUSKUS_ITEM_DRAG_TYPE } from '@/features/items/item-drag'
 import { ItemDetailDialog } from '@/features/items/item-detail-dialog'
 import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
+import {
+  resolveItemShortcutTargets,
+  resolveRenameShortcutTarget
+} from '@/features/items/item-shortcuts'
 import { BulkActionToolbar } from '@/features/library/bulk-action-toolbar'
 import { OrderedMasonry } from '@/features/library/ordered-masonry'
 import {
@@ -69,8 +83,11 @@ import type {
   LibraryItemDto,
   UrlItemDto
 } from '../../../../shared/library-contract'
+import type { GlobalCaptureShortcutStatus } from '../../../../shared/window-contract'
 import {
   notifyArchived,
+  notifyGlobalCapturePrepared,
+  notifyGlobalCaptureUnavailable,
   notifyPermanentlyDeleted,
   notifyRenamed,
   notifyRestored,
@@ -93,6 +110,7 @@ function itemMatchesRetrieval(
     item.title,
     item.type === 'note' ? item.body : '',
     item.type === 'image' ? (item.sourceFilename ?? item.contentFilename) : '',
+    item.type === 'file' ? `${item.sourceFilename} ${item.contentFilename}` : '',
     item.type === 'url' ? `${item.domain} ${item.sourceUrl} ${item.description ?? ''}` : ''
   ]
     .join(' ')
@@ -100,14 +118,19 @@ function itemMatchesRetrieval(
   return searchableText.includes(query)
 }
 
-function itemMatchesDestination(item: LibraryItemDto, destination: LibraryDestination): boolean {
+function itemMatchesDestination(
+  item: LibraryItemDto,
+  destination: LibraryDestination,
+  collectionSubtreeIds?: ReadonlySet<string> | null
+): boolean {
   if (destination.type === 'all') {
     return item.location.type === 'inbox' || item.location.type === 'collection'
   }
   if (destination.type === 'collection') {
-    return (
-      item.location.type === 'collection' && item.location.collectionId === destination.collectionId
-    )
+    if (item.location.type !== 'collection') return false
+    return collectionSubtreeIds
+      ? collectionSubtreeIds.has(item.location.collectionId)
+      : item.location.collectionId === destination.collectionId
   }
   return item.location.type === destination.type
 }
@@ -143,6 +166,8 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
   const [importRequest, setImportRequest] = useState<ImportRequest | null>(null)
   const [composerHasTransientWork, setComposerHasTransientWork] = useState(false)
   const [composerOwnedItemId, setComposerOwnedItemId] = useState<string | null>(null)
+  const [globalCaptureShortcutStatus, setGlobalCaptureShortcutStatus] =
+    useState<GlobalCaptureShortcutStatus | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [search, setSearch] = useState('')
   const [typeFilters, setTypeFilters] = useState<ItemTypeFilter[]>([])
@@ -154,6 +179,9 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
     if (stored === 'list') return 'table'
     return stored === 'grid' || stored === 'table' ? stored : 'visual'
   })
+  const [showReferencedAttachments, setShowReferencedAttachments] = useState(
+    () => localStorage.getItem('kuskus-show-referenced-attachments') === 'true'
+  )
   const [message, setMessage] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
@@ -170,6 +198,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
   const dragDepth = useRef(0)
   const enrichingUrlIds = useRef(new Set<string>())
   const pendingRevealItemId = useRef<string | null>(null)
+  const shortcutFailureNotified = useRef(false)
   const draftStorageKey = `kuskus-note-draft:${library.path}`
 
   const announceStatus = useCallback((message: string): void => {
@@ -199,19 +228,80 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
     localStorage.setItem(ITEM_SORT_STORAGE_KEY, sort)
   }, [sort])
 
+  useEffect(() => {
+    localStorage.setItem('kuskus-show-referenced-attachments', String(showReferencedAttachments))
+  }, [showReferencedAttachments])
+
+  const refreshVault = useCallback(async (): Promise<void> => {
+    const result = await window.kuskus.getState()
+    if (!result.ok || result.data.status !== 'ready') return
+    const refreshedLibrary = result.data.library
+    startTransition(() => setLibrary(refreshedLibrary))
+  }, [])
+
+  useEffect(() => {
+    const unsubscribe = window.kuskus.onVaultChanged(() => void refreshVault())
+    const onFocus = (): void => void refreshVault()
+    window.addEventListener('focus', onFocus)
+    return () => {
+      unsubscribe()
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [refreshVault])
+
+  const collectionSubtreeIds = useMemo(
+    () =>
+      destination.type === 'collection'
+        ? getFolderSubtreeIds(library.collections, destination.collectionId)
+        : null,
+    [destination, library.collections]
+  )
   const visibleItems = useMemo(() => {
     const query = deferredSearch.trim().toLocaleLowerCase()
     const filtered = library.items.filter(
       (item) =>
         item.id !== composerOwnedItemId &&
-        itemMatchesDestination(item, destination) &&
+        (showReferencedAttachments || !item.referencedAttachment) &&
+        itemMatchesDestination(item, destination, collectionSubtreeIds) &&
         itemMatchesRetrieval(item, query, typeFilters)
     )
     return sortItems(filtered, sort)
-  }, [composerOwnedItemId, deferredSearch, destination, library.items, sort, typeFilters])
+  }, [
+    collectionSubtreeIds,
+    composerOwnedItemId,
+    deferredSearch,
+    destination,
+    library.items,
+    showReferencedAttachments,
+    sort,
+    typeFilters
+  ])
   const destinationItems = useMemo(
-    () => library.items.filter((item) => itemMatchesDestination(item, destination)),
-    [destination, library.items]
+    () =>
+      library.items.filter((item) =>
+        itemMatchesDestination(item, destination, collectionSubtreeIds)
+      ),
+    [collectionSubtreeIds, destination, library.items]
+  )
+  const openVaultLink = useCallback(
+    (target: string): void => {
+      const normalized = target.replace(/\\/g, '/').replace(/\.md$/i, '').toLocaleLowerCase()
+      const matches = library.items.filter((item) => {
+        if (item.type === 'image') return false
+        const path = item.relativePath.replace(/\.md$/i, '').toLocaleLowerCase()
+        return path === normalized || item.title.toLocaleLowerCase() === normalized
+      })
+      if (matches.length !== 1) {
+        setMessage(
+          matches.length === 0
+            ? `The linked note “${target}” could not be found.`
+            : `The linked note “${target}” is ambiguous.`
+        )
+        return
+      }
+      setSelectedItemId(matches[0].id)
+    },
+    [library.items]
   )
   const selectAllVisibleItems = useCallback((): void => {
     setSelectedIds(new Set(visibleItems.map((item) => item.id)))
@@ -237,7 +327,8 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
       const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
       element.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest' })
     }
-    const kindLabel = revealed.type === 'note' ? 'note' : revealed.type === 'image' ? 'image' : 'link'
+    const kindLabel =
+      revealed.type === 'note' ? 'note' : revealed.type === 'image' ? 'image' : 'link'
     announceStatus(`Saved ${kindLabel}.`)
   }, [announceStatus, visibleItems])
 
@@ -278,7 +369,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
         library.items
           .filter(
             (item) =>
-              itemMatchesDestination(item, destination) &&
+              itemMatchesDestination(item, destination, collectionSubtreeIds) &&
               itemMatchesRetrieval(item, query.trim().toLocaleLowerCase(), filters)
           )
           .map((item) => item.id)
@@ -289,7 +380,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
       })
       setSelectionAnchorId((current) => (current && matchingIds.has(current) ? current : null))
     },
-    [destination, library.items]
+    [collectionSubtreeIds, destination, library.items]
   )
 
   const changeSearch = useCallback(
@@ -333,12 +424,12 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
       }
       setMessage('')
       const remainsVisible =
-        itemMatchesDestination(nextItem, destination) &&
+        itemMatchesDestination(nextItem, destination, collectionSubtreeIds) &&
         itemMatchesRetrieval(nextItem, search.trim().toLocaleLowerCase(), typeFilters)
       if (remainsVisible) pendingRevealItemId.current = nextItem.id
       return remainsVisible
     },
-    [destination, search, typeFilters]
+    [collectionSubtreeIds, destination, search, typeFilters]
   )
 
   const commitLinkItem = useCallback(
@@ -366,11 +457,11 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
       return {
         item: nextItem,
         remainsVisible:
-          itemMatchesDestination(nextItem, destination) &&
+          itemMatchesDestination(nextItem, destination, collectionSubtreeIds) &&
           itemMatchesRetrieval(nextItem, search.trim().toLocaleLowerCase(), typeFilters)
       }
     },
-    [destination, search, typeFilters]
+    [collectionSubtreeIds, destination, search, typeFilters]
   )
 
   const updateItem = useCallback((item: LibraryItemDto): void => {
@@ -390,14 +481,16 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
       setSelectedItemId((current) => {
         if (!current) return current
         const item = result.data.items.find((entry) => entry.id === current)
-        return item && itemMatchesDestination(item, destination) ? current : null
+        return item && itemMatchesDestination(item, destination, collectionSubtreeIds)
+          ? current
+          : null
       })
       setMessage('')
       setSelectedIds(new Set())
       setSelectionAnchorId(null)
       return result.data
     },
-    [destination]
+    [collectionSubtreeIds, destination]
   )
 
   const moveItemIds = useCallback(
@@ -410,6 +503,23 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
       }
     },
     [applyLibraryResult]
+  )
+
+  const beginItemDrag = useCallback(
+    (itemId: string, event: React.DragEvent<HTMLElement>): void => {
+      const itemIds = selectedIds.has(itemId) ? [...selectedIds] : [itemId]
+      if (!selectedIds.has(itemId)) {
+        setSelectedIds(new Set([itemId]))
+        setSelectionAnchorId(itemId)
+      }
+      event.dataTransfer.effectAllowed = 'move'
+      event.dataTransfer.setData(KUSKUS_ITEM_DRAG_TYPE, JSON.stringify(itemIds))
+      event.dataTransfer.setData(
+        'text/plain',
+        `${itemIds.length} Kuskus ${itemIds.length === 1 ? 'item' : 'items'}`
+      )
+    },
+    [selectedIds]
   )
 
   const archiveItemIds = useCallback(
@@ -593,24 +703,73 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
   )
 
   useEffect(() => {
-    const moveSelectionToTrash = (event: KeyboardEvent): void => {
+    const handleItemShortcut = (event: KeyboardEvent): void => {
       if (
         event.defaultPrevented ||
-        event.key !== 'Delete' ||
+        (event.key !== 'F2' && event.key !== 'Delete') ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.shiftKey ||
         selectedItemId !== null ||
-        selectedIds.size === 0 ||
-        destination.type === 'trash'
+        renameTarget !== null ||
+        deleteTargets.length > 0 ||
+        itemOperationBusy
       ) {
         return
       }
-      const target = event.target as HTMLElement | null
-      if (target?.closest('input, textarea, [contenteditable="true"]')) return
+
+      const target = event.target
+      if (
+        target instanceof Element &&
+        target.closest(
+          'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="menu"], [role="dialog"], [role="listbox"]'
+        )
+      ) {
+        return
+      }
+
+      const focusedItemId =
+        target instanceof Element
+          ? target.closest<HTMLElement>('[data-item-id]')?.dataset.itemId
+          : null
+      const visibleItemIds = new Set(visibleItems.map((item) => item.id))
+      const targetIds = resolveItemShortcutTargets(
+        selectedIds,
+        focusedItemId ?? null,
+        visibleItemIds
+      )
+      if (targetIds.length === 0) return
+
+      if (event.key === 'F2') {
+        if (destination.type === 'trash') return
+        const renameItemId = resolveRenameShortcutTarget(targetIds)
+        if (renameItemId === null) return
+        const item = visibleItems.find((candidate) => candidate.id === renameItemId)
+        if (!item) return
+
+        event.preventDefault()
+        setRenameTarget(item)
+        setRenameTitle(item.title)
+        return
+      }
+
       event.preventDefault()
-      void trashItemIds([...selectedIds])
+      if (destination.type === 'trash') setDeleteTargets(targetIds)
+      else void trashItemIds(targetIds)
     }
-    window.addEventListener('keydown', moveSelectionToTrash)
-    return () => window.removeEventListener('keydown', moveSelectionToTrash)
-  }, [destination.type, selectedIds, selectedItemId, trashItemIds])
+    window.addEventListener('keydown', handleItemShortcut)
+    return () => window.removeEventListener('keydown', handleItemShortcut)
+  }, [
+    deleteTargets.length,
+    destination.type,
+    itemOperationBusy,
+    renameTarget,
+    selectedIds,
+    selectedItemId,
+    trashItemIds,
+    visibleItems
+  ])
 
   useEffect(() => {
     const clearSelectionOnEscape = (event: KeyboardEvent): void => {
@@ -673,6 +832,36 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
     setComposerOpen(true)
     setComposerFocusRequest((request) => request + 1)
   }, [])
+
+  const prepareGlobalCapture = useCallback((): void => {
+    const modalOpen = document.querySelector('[role="dialog"]') !== null
+    setDestination({ type: 'inbox' })
+    setSearch('')
+    setTypeFilters([])
+    setSelectedIds(new Set())
+    setSelectionAnchorId(null)
+    setComposerOpen(true)
+    if (!modalOpen) setComposerFocusRequest((request) => request + 1)
+    announceStatus('Global capture ready in Inbox.')
+    if (modalOpen) notifyGlobalCapturePrepared()
+  }, [announceStatus])
+
+  useEffect(() => {
+    let active = true
+    void window.electron.window.getGlobalCaptureShortcutStatus().then((status) => {
+      if (!active) return
+      setGlobalCaptureShortcutStatus(status)
+      if (!status.registered && !shortcutFailureNotified.current) {
+        shortcutFailureNotified.current = true
+        notifyGlobalCaptureUnavailable()
+      }
+    })
+    const unsubscribe = window.electron.window.onGlobalCaptureRequested(prepareGlobalCapture)
+    return () => {
+      active = false
+      unsubscribe()
+    }
+  }, [prepareGlobalCapture])
 
   const changeComposerOpen = useCallback((open: boolean): void => {
     setComposerOpen(open)
@@ -806,6 +995,9 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
   }
 
   const selectedItemIds = [...selectedIds]
+  const selectedItemLocations = library.items
+    .filter((item) => selectedIds.has(item.id))
+    .map((item) => item.location)
 
   const addItemComposer = (
     <AddItemComposer
@@ -828,7 +1020,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
         const released = library.items.find((entry) => entry.id === itemId)
         if (
           released &&
-          itemMatchesDestination(released, destination) &&
+          itemMatchesDestination(released, destination, collectionSubtreeIds) &&
           itemMatchesRetrieval(released, search.trim().toLocaleLowerCase(), typeFilters)
         ) {
           pendingRevealItemId.current = itemId
@@ -850,11 +1042,13 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
           {...itemActions(item)}
           key={item.id}
         >
-          <div className="min-w-0" data-item-id={item.id}>
-            <div
-              className="group/saved-item relative"
-              data-selected={selectedIds.has(item.id)}
-            >
+          <div
+            className="min-w-0"
+            data-item-id={item.id}
+            draggable
+            onDragStart={(event) => beginItemDrag(item.id, event)}
+          >
+            <div className="group/saved-item relative" data-selected={selectedIds.has(item.id)}>
               <SavedItemCard
                 item={item}
                 view={view === 'visual' ? 'visual' : 'grid'}
@@ -892,17 +1086,22 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
       className="h-screen min-h-0 overflow-hidden bg-background text-foreground"
     >
       <LibrarySidebar
+        key={library.id}
         library={library}
         theme={theme}
         onThemeChange={setTheme}
         view={view}
         onViewChange={setView}
+        showReferencedAttachments={showReferencedAttachments}
+        onShowReferencedAttachmentsChange={setShowReferencedAttachments}
         destination={destination}
         onDestinationChange={changeDestination}
         onLibraryChange={setLibrary}
         onError={setMessage}
         onStatus={announceStatus}
+        onMoveItems={(itemIds, nextDestination) => void moveItemIds(itemIds, nextDestination)}
         librarySwitchBlocked={importRequest !== null || composerHasTransientWork}
+        globalCaptureShortcutStatus={globalCaptureShortcutStatus}
       />
       <SidebarInset>
         <AppToolbar
@@ -951,6 +1150,17 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                 selectedItemIds.length > 0 && 'pb-24 lg:pb-24'
               )}
             >
+              {library.repairConflicts.length > 0 && (
+                <Alert className="mb-4">
+                  <AlertTitle>Some legacy metadata needs review</AlertTitle>
+                  <AlertDescription>
+                    {library.repairConflicts.length} Markdown{' '}
+                    {library.repairConflicts.length === 1 ? 'file was' : 'files were'} left
+                    unchanged because removing the old bookmark metadata could hide user-authored
+                    content. The original files remain authoritative.
+                  </AlertDescription>
+                </Alert>
+              )}
               {message && (
                 <Alert className="mb-4" variant="destructive">
                   <AlertTitle>Unable to Complete Action</AlertTitle>
@@ -996,6 +1206,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                       selectedIds={selectedIds}
                       onActivate={activateItem}
                       onOpen={(itemId) => setSelectedItemId(itemId)}
+                      onDragStart={beginItemDrag}
                       renderActions={(item) => (
                         <ItemActionMenu
                           item={item}
@@ -1082,6 +1293,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
         </ScrollArea>
         <BulkActionToolbar
           selectedItemIds={selectedItemIds}
+          selectedItemLocations={selectedItemLocations}
           destination={destination}
           collections={library.collections}
           onMove={(itemIds, nextDestination) => void moveItemIds(itemIds, nextDestination)}
@@ -1106,6 +1318,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
             if (!open) setSelectedItemId(null)
           }}
           onItemUpdated={updateItem}
+          onOpenVaultLink={openVaultLink}
           renderActions={(guard) => {
             if (!selectedItem) return null
             const actions = itemActions(selectedItem)
@@ -1141,8 +1354,8 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
               <DialogHeader>
                 <DialogTitle>Rename item</DialogTitle>
                 <DialogDescription>
-                  This changes the title shown in Kuskus. The stored content filename stays the
-                  same.
+                  This renames the visible vault file. Kuskus keeps its stable identity and updates
+                  a companion assets folder when present.
                 </DialogDescription>
               </DialogHeader>
               <FieldGroup className="py-4">

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import {
   IconDots,
+  IconFile,
   IconLink,
   IconLoader2,
   IconPhoto,
@@ -175,6 +176,7 @@ export function AddItemComposer({
   const [stagingCount, setStagingCount] = useState(0)
   const [error, setError] = useState('')
   const [failedStage, setFailedStage] = useState<File | null>(null)
+  const [fileCandidate, setFileCandidate] = useState<File | null>(null)
   const [morphedItem, setMorphedItem] = useState<LibraryItemDto | null>(null)
   const [savingLink, setSavingLink] = useState<{
     domain: string
@@ -203,9 +205,14 @@ export function AddItemComposer({
     }
   }, [])
 
-  const hasDraft = draft.trim().length > 0 || attachments.length > 0 || failedStage !== null
+  const hasDraft =
+    draft.trim().length > 0 ||
+    attachments.length > 0 ||
+    failedStage !== null ||
+    fileCandidate !== null
   const hasTransientWork = saving || stagingCount > 0
   const captureKind = detectCaptureKind(draft, attachments.length)
+  const effectiveKind = fileCandidate ? 'file' : captureKind
 
   useEffect(() => onDraftStateChange(hasDraft), [hasDraft, onDraftStateChange])
   useEffect(
@@ -318,10 +325,10 @@ export function AddItemComposer({
   )
 
   const save = async (): Promise<void> => {
-    if (captureKind === 'empty' || saving || hasTransientWork) return
+    if (effectiveKind === 'empty' || saving || hasTransientWork) return
     setSaving(true)
     setError('')
-    const kind = captureKind
+    const kind = effectiveKind
     const minimumLinkState = kind === 'link' ? wait(LINK_SAVE_MINIMUM_MS) : Promise.resolve()
     const linkTimeout = kind === 'link' ? wait(LINK_SAVE_TIMEOUT_MS) : Promise.resolve()
     if (kind === 'link') {
@@ -361,25 +368,34 @@ export function AddItemComposer({
         return
       }
       const result =
-        kind === 'image'
-          ? await window.kuskus.commitCaptureDraftImage(attachments[0].id)
-          : await window.kuskus.createNote({
-              markdown: draft,
-              attachmentIds: attachments.map((attachment) => attachment.id)
+        kind === 'file' && fileCandidate
+          ? await window.kuskus.importFile({
+              bytes: await fileCandidate.arrayBuffer(),
+              sourceFilename: fileCandidate.name,
+              mediaType: fileCandidate.type || 'application/octet-stream'
             })
+          : kind === 'image'
+            ? await window.kuskus.commitCaptureDraftImage(attachments[0].id)
+            : await window.kuskus.createNote({
+                markdown: draft,
+                attachmentIds: attachments.map((attachment) => attachment.id)
+              })
       if (!result.ok) {
         setError(result.error)
         return
       }
       setDraft('')
       setAttachments([])
+      setFileCandidate(null)
       finishCreate(
         result.data,
-        captureKind === 'image'
-          ? 'Image saved to Inbox.'
-          : captureKind === 'link'
-            ? 'Link saved to Inbox. Loading page details…'
-            : 'Note saved to Inbox.'
+        kind === 'file'
+          ? 'File saved to Inbox.'
+          : captureKind === 'image'
+            ? 'Image saved to Inbox.'
+            : captureKind === 'link'
+              ? 'Link saved to Inbox. Loading page details…'
+              : 'Note saved to Inbox.'
       )
     } catch (caught) {
       setSavingLink(null)
@@ -400,6 +416,7 @@ export function AddItemComposer({
     setDraft('')
     setAttachments([])
     setFailedStage(null)
+    setFileCandidate(null)
     setError('')
     onOpenChange(false)
     onStatus('Draft discarded.')
@@ -429,7 +446,12 @@ export function AddItemComposer({
     onImportRequestHandled(importRequest.id)
     const timeout = window.setTimeout(() => {
       if ('file' in importRequest) {
-        void stageCaptureImage(importRequest.file)
+        if (importRequest.file.type.startsWith('image/')) {
+          void stageCaptureImage(importRequest.file)
+        } else {
+          setFileCandidate(importRequest.file)
+          onStatus('File ready to save.')
+        }
         return
       }
       const value = 'url' in importRequest ? importRequest.url : importRequest.text
@@ -446,6 +468,7 @@ export function AddItemComposer({
     importRequest,
     insertAtSelection,
     onImportRequestHandled,
+    onStatus,
     stageCaptureImage
   ])
 
@@ -502,15 +525,33 @@ export function AddItemComposer({
           ref={fileInputRef}
           className="sr-only"
           type="file"
-          accept="image/png,image/jpeg,image/gif,image/webp,image/bmp"
           tabIndex={-1}
           onChange={(event) => {
             const files = Array.from(event.currentTarget.files ?? [])
             event.currentTarget.value = ''
             if (files.length === 0) return
-            void stageCaptureImage(files[0])
+            if (files[0].type.startsWith('image/')) void stageCaptureImage(files[0])
+            else setFileCandidate(files[0])
           }}
         />
+        {fileCandidate ? (
+          <div className="flex items-center gap-3 rounded-xl bg-muted/45 p-3">
+            <IconFile className="size-6 text-muted-foreground" aria-hidden="true" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium">{fileCandidate.name}</p>
+              <p className="text-xs text-muted-foreground">Ready to copy into the vault</p>
+            </div>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              aria-label={`Remove ${fileCandidate.name}`}
+              disabled={hasTransientWork}
+              onClick={() => setFileCandidate(null)}
+            >
+              <IconX aria-hidden="true" />
+            </Button>
+          </div>
+        ) : null}
         {attachments.length > 0 ? (
           <div className="flex flex-col gap-2" aria-label="Draft images">
             {attachments.map((attachment) => (
@@ -552,7 +593,7 @@ export function AddItemComposer({
               : 'Write, paste a link, or drop an image…'
           }
           value={draft}
-          disabled={hasTransientWork}
+          disabled={hasTransientWork || fileCandidate !== null}
           onChange={(event) => {
             const value = event.target.value
             if (captureKind !== 'image' || !value) {
@@ -621,7 +662,7 @@ export function AddItemComposer({
               <DropdownMenuGroup>
                 <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
                   <IconPhotoPlus aria-hidden="true" />
-                  Add image
+                  Add file or image
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => {
@@ -648,22 +689,26 @@ export function AddItemComposer({
           <Button
             size="lg"
             className=""
-            disabled={captureKind === 'empty' || hasTransientWork}
+            disabled={effectiveKind === 'empty' || hasTransientWork}
             aria-keyshortcuts="Control+Enter Meta+Enter"
             onClick={() => void save()}
           >
             {saving ? <Spinner data-icon="inline-start" /> : null}
             {saving
-              ? captureKind === 'image'
-                ? 'Saving image…'
-                : captureKind === 'link'
-                  ? 'Saving link…'
-                  : 'Saving note…'
-              : captureKind === 'image'
-                ? 'Save image'
-                : captureKind === 'link'
-                  ? 'Save link'
-                  : 'Save note'}
+              ? effectiveKind === 'file'
+                ? 'Saving file…'
+                : captureKind === 'image'
+                  ? 'Saving image…'
+                  : captureKind === 'link'
+                    ? 'Saving link…'
+                    : 'Saving note…'
+              : effectiveKind === 'file'
+                ? 'Save file'
+                : captureKind === 'image'
+                  ? 'Save image'
+                  : captureKind === 'link'
+                    ? 'Save link'
+                    : 'Save note'}
             {!saving ? (
               <Kbd
                 className="ml-1 hidden bg-primary-foreground/15 text-primary-foreground sm:inline-flex"

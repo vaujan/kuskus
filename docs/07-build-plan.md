@@ -17,9 +17,30 @@ Deliverables:
 - Open an existing valid Kuskus library.
 - Reopen the last valid library on launch.
 - Display Inbox with a toolbar-summoned inline New Item card.
+- Open or refocus that card with in-app `Ctrl+N` while workspace shortcuts are active.
+- Register fixed `Ctrl+Shift+Space` while the single Kuskus process is running and route it through
+  the typed window bridge to the existing Inbox composer.
 - Accept Markdown without a permanent capture tile or modal.
 - Commit with Save or `Ctrl+Enter`.
-- Write `library.json`, `item.json`, and `note.md` according to the storage contract.
+- Write readable vault files plus hidden schema-v2 library, collection, and item records according
+  to the storage contract.
+
+## Vault-native redesign (completed 2026-07-29)
+
+- Added schema-v2 vault scanning, readable capture filenames, nested folder collections, companion
+  note assets, visible Archive, hidden Trash, and stable hidden records.
+- Added a collapsible nested-folder tree with per-library disclosure state and validated subfolder
+  creation from each parent folder's menu.
+- Added initialization preview/commit, guided schema-v1 sibling migration, startup/focus/watch
+  reconciliation, fingerprint-based binary recovery, and typed vault-change notifications.
+- Added core Obsidian frontmatter, wikilink, alias, heading, note-embed, and image-embed handling;
+  unresolved links remain safe and visible.
+- Added general-file items, referenced-attachment detection and preference, relative paths in DTOs,
+  filename-backed rename, and ID-only native operations.
+- Verification covers initialization, migration, lifecycle operations, conflicts, malformed input,
+  path validation, persistence, restart, lint, types, tests, and production build.
+- Removed visible Kuskus YAML from new notes, added `.url` Internet Shortcuts, filesystem-identity
+  reconciliation, unique-fingerprint fallback, and recoverable automatic cleanup of legacy metadata.
 - Read saved notes back into the interface after reload or restart.
 - Morph the draft into the newly saved first card.
 - Show `note.md` content in the in-app detail view.
@@ -86,10 +107,17 @@ Deliverables:
 
 - Inbox, All Items, collections, Archive, and Trash navigation.
 - Create, rename, and remove collections.
-- Move one or more items safely.
+- Present nested collections as a collapsible tree with validated folder icons and recursive counts.
+- Browse parent folders as aggregate subtree scopes while keeping capture destinations precise.
+- Move one or more items safely through tree-aware menus or drag and drop.
+- Reparent folders through a validated move dialog or drag and drop without changing identity.
+- Refuse non-empty nested-folder removal before moving any direct items.
 - Rename item display titles without renaming stored content files.
+- Rename the sole selected or focused visible item with renderer-local `F2` outside Trash.
 - Archive and unarchive one or more items safely.
 - Restore items from Trash.
+- Move selected or focused visible items to Trash with renderer-local `Delete`; in Trash, reuse the
+  permanent-delete confirmation.
 - Preserve or resolve active New Item drafts before navigation.
 
 Exit criteria:
@@ -119,6 +147,8 @@ Deliverables:
 - Missing-content and read-only-library recovery states.
 - Index rebuild path if an index has been introduced.
 - Keyboard and accessibility pass.
+- Selection-first `F2` and `Delete` commands across Masonry, Grid, and Table, with focused-item
+  fallback, menu labels, editable/menu/detail/dialog guards, and no modified Delete variants.
 - Seven-day dogfooding build.
 
 Exit criteria:
@@ -127,4 +157,4 @@ Exit criteria:
 
 ## Current milestone
 
-Milestone 1 was completed on 2026-07-14. The summoned New Item and Markdown image-attachment slice was completed on 2026-07-19. Milestone 2 continues with PDFs and general files. Library sorting by date added, title, and item type (Milestone 5 retrieval work) was completed on 2026-07-28.
+Milestone 1 was completed on 2026-07-14. The summoned New Item and Markdown image-attachment slice was completed on 2026-07-19. The global shortcut-first capture entry was completed on 2026-07-29. Renderer-local `F2` rename and `Delete` item commands were completed on 2026-07-29. Milestone 2 continues with PDFs and general files. Library sorting by date added, title, and item type (Milestone 5 retrieval work) was completed on 2026-07-28.

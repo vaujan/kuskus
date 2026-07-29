@@ -3,6 +3,7 @@ import {
   IconFileText as FileText,
   IconPhoto as FileImage,
   IconWorld as Globe2,
+  IconFile as File,
   type TablerIcon
 } from '@tabler/icons-react'
 
@@ -26,7 +27,8 @@ const CREATED_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
 const ITEM_TYPES: Record<LibraryItemDto['type'], { label: string; icon: TablerIcon }> = {
   note: { label: 'Note', icon: FileText },
   image: { label: 'Image', icon: FileImage },
-  url: { label: 'Link', icon: Globe2 }
+  url: { label: 'Link', icon: Globe2 },
+  file: { label: 'File', icon: File }
 }
 
 function hasMissingContent(item: LibraryItemDto): boolean {
@@ -38,6 +40,7 @@ export function SavedItemsTable({
   selectedIds,
   onActivate,
   onOpen,
+  onDragStart,
   renderActions,
   wrapRow
 }: {
@@ -45,6 +48,7 @@ export function SavedItemsTable({
   selectedIds: ReadonlySet<string>
   onActivate: (itemId: string, event: React.MouseEvent<HTMLTableRowElement>) => void
   onOpen: (itemId: string) => void
+  onDragStart?: (itemId: string, event: React.DragEvent<HTMLTableRowElement>) => void
   renderActions: (item: LibraryItemDto) => React.ReactNode
   wrapRow?: (item: LibraryItemDto, row: React.ReactElement) => React.ReactNode
 }): React.JSX.Element {
@@ -70,6 +74,7 @@ export function SavedItemsTable({
             <TableRow
               key={item.id}
               tabIndex={0}
+              draggable={onDragStart !== undefined}
               data-item-id={item.id}
               aria-label={`Open ${itemType.label.toLocaleLowerCase()} ${item.title}`}
               aria-haspopup="dialog"
@@ -77,6 +82,7 @@ export function SavedItemsTable({
               data-state={selected ? 'selected' : undefined}
               className="group/saved-item cursor-pointer transition-none active:bg-muted/70 focus-visible:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=selected]:bg-primary/10 data-[state=selected]:shadow-[inset_3px_0_0_var(--primary)] hover:data-[state=selected]:bg-primary/14"
               onClick={(event) => onActivate(item.id, event)}
+              onDragStart={(event) => onDragStart?.(item.id, event)}
               onKeyDown={(event) => {
                 if (event.key !== 'Enter') return
                 event.preventDefault()

@@ -35,6 +35,11 @@ The user launches Kuskus for the first time.
 - Kuskus never overwrites a non-Kuskus folder without explicit confirmation.
 - A missing, moved, or unreadable library produces a recovery screen rather than an empty library.
 - The library can be copied as one folder for backup.
+- Opening an ordinary folder shows an initialization preview before adding `.kuskus/`; Markdown
+  and `.obsidian` remain untouched. An existing visible Archive folder must be explicitly adopted.
+- Opening schema v1 starts guided conversion, verifies a sibling vault, and retains the original as
+  a timestamped sibling backup before reopening schema v2 at the original path.
+- External filesystem edits appear after the debounced watcher, focus reconciliation, or restart.
 - From an open workspace, the library actions allow creating or opening another library.
 - A library switch keeps library-scoped note drafts and is unavailable while a save or image import has transient in-memory work.
 
@@ -52,7 +57,9 @@ The user wants one obvious place to add any supported kind of content without ch
 
 ### Flow
 
-1. The user clicks **New item**.
+1. The user clicks **New item**, presses `Ctrl+N` while the Kuskus workspace owns the keyboard, or
+   presses `Ctrl+Shift+Space` from any application while Kuskus is running to summon capture in
+   Inbox.
 2. A normal-width draft card appears at the beginning of the active content view and receives keyboard focus.
 3. The surrounding saved-content canvas remains visible and interactive.
 4. The user does one of the following without selecting a content type:
@@ -99,10 +106,20 @@ The user wants one obvious place to add any supported kind of content without ch
 - The draft card visibly communicates Markdown support and provides a keyboard-reachable picker for supported image files.
 - Opening the card does not navigate away from the current collection.
 - At most one New Item card exists in a window.
+- `Ctrl+N` opens or refocuses that card only while Kuskus is focused and does not override an open
+  item detail or dialog.
 - A successful save produces exactly one item per detected URL, image, note, or imported file.
 - Repeated paste events cannot accidentally create duplicates because one event was handled twice.
 - Failed input remains recoverable in the card.
 - The draft and saved item work in Masonry, Grid, and Table views, even if their presentation differs.
+- The global shortcut restores and focuses Kuskus, clears Inbox retrieval filters, and summons the
+  existing composer without reading or saving clipboard content.
+- A retained library-scoped draft is reopened rather than replaced. Active saves, imports, item
+  details, and dialogs are not discarded, closed, or force-saved by the shortcut.
+- A shortcut registration conflict is visible in Settings and through one non-blocking notice per
+  app run. The shortcut is unavailable after Kuskus exits.
+- A second Kuskus launch focuses the existing process so only one process owns the shortcut and
+  active library.
 
 ## 3. Capture a URL
 
@@ -136,6 +153,8 @@ The user finds a useful webpage and copies its URL.
 - **Open link** in the detail launches the source in the default browser with the same feedback.
 - Every saved item detail exposes **Show in Explorer** for its validated library copy or metadata file.
 - The MVP saves a reference and metadata, not a guaranteed offline copy of the webpage.
+- The authoritative bookmark is a readable Windows `.url` Internet Shortcut. Double-clicking it in
+  Explorer opens the validated HTTP or HTTPS destination in the default browser.
 
 ## 4. Capture an image or screenshot
 
@@ -206,7 +225,8 @@ The user wants to save a short observation beside other project references.
 - Markdown remains the authoritative format and is saved exactly as entered. Opening a note or
   switching modes never normalizes its source. Local pasted images use portable relative references
   and render inline.
-- A note with images remains an ordinary `note.md` plus an `assets/` folder.
+- A newly created note with images remains an ordinary readable `.md` file plus a companion
+  `<note-name>.assets/` folder; existing vault attachment paths remain unchanged.
 - A note can be saved with only a body; a title may be derived from its first meaningful line.
 - Saved-note editing uses a GFM-aware source editor without block handles, slash commands, selection
   toolbars, or a proprietary document model. Highlighting and heading scale are presentational only.
@@ -250,9 +270,24 @@ The user has captured several items without organizing them.
 ### Acceptance criteria
 
 - Capture never requires choosing a collection first.
-- A new collection may use the default folder icon or an optional chosen icon.
-- The user can search for and change a collection icon later without changing its identity or name.
-- Invalid or unavailable icon metadata falls back to the default folder icon without hiding the collection.
+- New collections use the default folder icon and may receive another validated icon from the
+  folder menu. Icons remain subordinate to folder names and disclosure controls.
+- The folder sidebar presents vault nesting as an expandable tree and remembers collapsed branches
+  separately for each library. Selecting a folder reveals its ancestors; collapsing the active
+  folder's ancestor selects that ancestor so the active destination remains visible.
+- Hover, focus, selection, and drop feedback span the full folder row at every nesting depth while
+  disclosure controls, icons, and names remain indented. At most one transient folder drop target
+  is highlighted, and its highlight clears after a drop or cancelled drag.
+- The root Add Folder action creates a root folder. **Add subfolder** on a folder creates an
+  ordinary child directory inside that validated vault folder without navigating away.
+- Selecting a parent folder browses the items in its complete subtree; its count reflects that same
+  aggregate scope, while capture still saves into the exact selected folder.
+- Items and multi-selections can be dragged onto Inbox or a folder. Internal drags never invoke the
+  external file-import drop path, and collapsed folder targets expand after a short hover.
+- A folder can be moved to the root or another folder through its menu or by drag and drop. Moving
+  preserves folder and item identities, refuses ancestry cycles, and updates visible paths safely.
+- Removing a folder with subfolders is refused before any item moves. Removing a folder with direct
+  items states that those items will move to Inbox before confirmation.
 - Moving an item preserves its stable identity and metadata.
 - Moving files must not create duplicate content unless explicitly requested.
 - An interrupted move must not lose the item.
@@ -280,6 +315,12 @@ The user returns to a project and wants to rediscover a saved reference.
 - `Ctrl+F` or `Ctrl+K` focuses the scoped search; `Escape` clears an active query before leaving search.
 - `Ctrl+A` selects every item matching the current destination, search, and item-type filters when
   focus is outside a text field or editor. All Items does not cross into Archive or Trash.
+- `F2` opens the existing rename dialog for the sole selected item, or the focused visible card or
+  table row when nothing is selected. Multiple selections and Trash leave rename unchanged.
+- `Delete` moves the selected visible items, or the focused visible item, to Trash. In Trash it
+  opens the existing permanent-delete confirmation instead.
+- Item shortcuts are suspended while text editing, menus, item details, or dialogs own the keyboard,
+  and modified Delete variants do nothing.
 - Select All through `Ctrl+A` or `Cmd+A` is a snapshot: later filter changes prune hidden selections
   but do not silently select newly revealed or newly created items. `Escape` clears the item selection.
 - Changing view does not change item order or selection.
@@ -319,4 +360,6 @@ The user hides an inactive item or removes one accidentally or intentionally.
 - Restoring returns the item to its previous collection when possible.
 - Missing previous collections fall back to Inbox with visible feedback.
 - Permanent deletion requires clear confirmation.
+- Rename and deletion commands expose their `F2` and `Delete` equivalents in item overflow and
+  context menus across Masonry, Grid, and Table.
 - Kuskus never deletes the original external file from which an item was imported.

@@ -6,8 +6,10 @@ import {
   type CreateNoteInput,
   type CreateCollectionInput,
   type ImageImportInput,
+  type FileImportInput,
   type ItemMutationInput,
   type MoveItemsInput,
+  type MoveCollectionInput,
   type RenameItemInput,
   type UrlPreviewKind,
   type UpdateNoteInput
@@ -16,6 +18,11 @@ import { LibraryService, NoteUpdateConflictError } from '../library/library-serv
 import { errorResult } from './api-result'
 
 export function registerLibraryIpc(libraryService: LibraryService): void {
+  libraryService.onVaultChanged(() => {
+    for (const window of BrowserWindow.getAllWindows()) {
+      window.webContents.send(KUSKUS_CHANNELS.vaultChanged)
+    }
+  })
   ipcMain.handle(KUSKUS_CHANNELS.getLibraryState, async () => {
     try {
       return { ok: true, data: await libraryService.getState() }
@@ -70,6 +77,22 @@ export function registerLibraryIpc(libraryService: LibraryService): void {
 
     try {
       return { ok: true, data: await libraryService.openAt(selection.filePaths[0]) }
+    } catch (error) {
+      return errorResult(error)
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.initializeVault, async () => {
+    try {
+      return { ok: true, data: await libraryService.initializePendingVault() }
+    } catch (error) {
+      return errorResult(error)
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.migrateLibrary, async () => {
+    try {
+      return { ok: true, data: await libraryService.migratePendingLibrary() }
     } catch (error) {
       return errorResult(error)
     }
@@ -239,7 +262,10 @@ export function registerLibraryIpc(libraryService: LibraryService): void {
       typeof input !== 'object' ||
       typeof (input as Record<string, unknown>).name !== 'string' ||
       ((input as Record<string, unknown>).icon !== undefined &&
-        typeof (input as Record<string, unknown>).icon !== 'string')
+        typeof (input as Record<string, unknown>).icon !== 'string') ||
+      ((input as Record<string, unknown>).parentId !== undefined &&
+        (input as Record<string, unknown>).parentId !== null &&
+        typeof (input as Record<string, unknown>).parentId !== 'string')
     ) {
       return errorResult(new Error('Enter a valid folder name.'), 'invalid-input')
     }
@@ -260,6 +286,26 @@ export function registerLibraryIpc(libraryService: LibraryService): void {
       return { ok: true, data: await libraryService.renameCollection(id, name) }
     } catch (error) {
       return errorResult(error)
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.moveCollection, async (_event, input: unknown) => {
+    if (
+      !input ||
+      typeof input !== 'object' ||
+      typeof (input as Record<string, unknown>).collectionId !== 'string' ||
+      ((input as Record<string, unknown>).parentId !== null &&
+        typeof (input as Record<string, unknown>).parentId !== 'string')
+    ) {
+      return errorResult(new Error('The folder move request is invalid.'), 'invalid-input')
+    }
+    try {
+      return {
+        ok: true,
+        data: await libraryService.moveCollection(input as MoveCollectionInput)
+      }
+    } catch (error) {
+      return errorResult(error, 'invalid-input')
     }
   })
 
@@ -333,6 +379,14 @@ export function registerLibraryIpc(libraryService: LibraryService): void {
       return { ok: true, data: await libraryService.getImagePreview(itemId) }
     } catch (error) {
       return errorResult(error, 'not-found')
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.importFile, async (_event, input: unknown) => {
+    try {
+      return { ok: true, data: await libraryService.importFile(input as FileImportInput) }
+    } catch (error) {
+      return errorResult(error, 'invalid-input')
     }
   })
 

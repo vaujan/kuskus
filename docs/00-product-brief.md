@@ -55,6 +55,8 @@ Kuskus is successful when it can replace the creator's scattered reference workf
 During that period, the user must be able to:
 
 - Capture real links, images, notes, PDFs, and files.
+- Summon Inbox capture from another application with a system-wide keyboard shortcut while Kuskus
+  is running.
 - Organize them into collections or leave them in Inbox.
 - Browse different formats together.
 - Search for and reopen previously saved items.
@@ -78,8 +80,19 @@ During that period, the user must be able to:
 
 ## Open product questions
 
-- Whether nested collections are needed after dogfooding.
+- How deeply nested collections remain usable in the visual sidebar after dogfooding.
 - Whether tags add value beyond collections and search.
+
+## Vault-native storage amendment (2026-07-29)
+
+Kuskus is a visual client for an ordinary user-owned vault, not a package database. The same folder
+may be used live from Kuskus, Obsidian, and Explorer. Readable filenames define titles, ordinary
+nested folders define collections, and hidden Kuskus records exist only to preserve stable identity,
+presentation metadata, recovery data, and disposable derivatives. Kuskus never modifies `.obsidian`.
+
+- Visible notes contain no Kuskus-owned properties. Windows Internet Shortcut files are the
+  authoritative portable-on-Windows representation for saved web links and open directly from
+  Explorer.
 - Whether offline webpage snapshots are worth their complexity.
 - Whether imported files should eventually support linking in place as an alternative to copying.
 - Whether a browser extension is necessary after paste and drag-and-drop capture are proven.

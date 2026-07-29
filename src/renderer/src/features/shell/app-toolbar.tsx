@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import {
   IconAdjustmentsHorizontal,
   IconFileText,
+  IconFile,
   IconLink,
   IconPhoto,
   IconPlus,
@@ -42,7 +43,8 @@ import { cn } from '@/lib/utils'
 const TYPE_OPTIONS: Record<ItemTypeFilter, { label: string; icon: TablerIcon }> = {
   note: { label: 'Notes', icon: IconFileText },
   image: { label: 'Images', icon: IconPhoto },
-  url: { label: 'Links', icon: IconLink }
+  url: { label: 'Links', icon: IconLink },
+  file: { label: 'Files', icon: IconFile }
 }
 
 function ShellSidebarTrigger(): React.JSX.Element {
@@ -119,6 +121,27 @@ export function AppToolbar({
     window.addEventListener('keydown', focusSearch)
     return () => window.removeEventListener('keydown', focusSearch)
   }, [keyboardShortcutsEnabled])
+
+  useEffect(() => {
+    const openNewItem = (event: KeyboardEvent): void => {
+      if (
+        !keyboardShortcutsEnabled ||
+        event.defaultPrevented ||
+        !event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        event.shiftKey ||
+        event.key.toLocaleLowerCase() !== 'n' ||
+        document.querySelector('[role="dialog"]') !== null
+      ) {
+        return
+      }
+      event.preventDefault()
+      onNewItem()
+    }
+    window.addEventListener('keydown', openNewItem)
+    return () => window.removeEventListener('keydown', openNewItem)
+  }, [keyboardShortcutsEnabled, onNewItem])
 
   useEffect(() => {
     if (newItemFocusRequest > 0) newItemRef.current?.focus()
@@ -270,6 +293,7 @@ export function AppToolbar({
               ref={newItemRef}
               data-new-item-button
               aria-expanded={newItemOpen}
+              aria-keyshortcuts="Control+N"
               aria-label={hasDraft && !newItemOpen ? 'Continue New item draft' : 'Create new item'}
               onClick={onNewItem}
             >
@@ -277,6 +301,9 @@ export function AppToolbar({
               <span className="hidden @min-[44rem]/toolbar:inline">
                 {hasDraft && !newItemOpen ? 'Continue draft' : 'New item'}
               </span>
+              <Kbd className="ml-1 hidden bg-primary-foreground/15 text-primary-foreground @min-[56rem]/toolbar:inline-flex">
+                Ctrl+N
+              </Kbd>
               {hasDraft ? (
                 <span className="size-1.5 rounded-full bg-primary-foreground" aria-hidden="true" />
               ) : null}

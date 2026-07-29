@@ -10,11 +10,13 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Spinner } from '@/components/ui/spinner'
-import { CollectionIcon } from '@/features/collections/collection-icons'
-import type { CollectionIconKey } from '../../../../shared/library-contract'
 
 type FolderNameDialogMode =
-  { type: 'create'; icon: CollectionIconKey; onChooseIcon: () => void } | { type: 'rename' }
+  | {
+      type: 'create'
+      parentName?: string
+    }
+  | { type: 'rename' }
 
 export function FolderNameDialog({
   open,
@@ -34,6 +36,7 @@ export function FolderNameDialog({
   onSubmit: (name: string) => void
 }): React.JSX.Element {
   const isCreate = mode?.type === 'create'
+  const isSubfolder = isCreate && mode.parentName !== undefined
   const trimmedName = name.trim()
 
   return (
@@ -53,45 +56,33 @@ export function FolderNameDialog({
             }}
           >
             <DialogHeader>
-              <DialogTitle>{isCreate ? 'Add folder' : 'Rename folder'}</DialogTitle>
+              <DialogTitle>
+                {isSubfolder ? 'Add Subfolder' : isCreate ? 'Add Folder' : 'Rename Folder'}
+              </DialogTitle>
               <DialogDescription>
-                {isCreate
-                  ? 'Choose a name and optional icon for this folder.'
-                  : 'Enter a new name for this folder.'}
+                {isSubfolder
+                  ? `Choose a name for a folder inside ${mode.parentName}.`
+                  : isCreate
+                    ? 'Choose a name for this folder.'
+                    : 'Enter a new name for this folder.'}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-2">
               <Label htmlFor="folder-name">Folder name</Label>
-              <div className="flex items-center gap-2">
-                {mode.type === 'create' && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="size-10"
-                    aria-label="Choose folder icon"
-                    title="Choose folder icon"
-                    disabled={busy}
-                    onClick={mode.onChooseIcon}
-                  >
-                    <CollectionIcon icon={mode.icon} aria-hidden="true" />
-                  </Button>
-                )}
-                <Input
-                  id="folder-name"
-                  className="h-10 min-w-0 flex-1"
-                  autoFocus
-                  autoComplete="off"
-                  maxLength={80}
-                  placeholder={isCreate ? 'e.g. Design references' : undefined}
-                  value={name}
-                  disabled={busy}
-                  onFocus={(event) => {
-                    if (mode.type === 'rename') event.currentTarget.select()
-                  }}
-                  onChange={(event) => onNameChange(event.target.value)}
-                />
-              </div>
+              <Input
+                id="folder-name"
+                className="h-10"
+                autoFocus
+                autoComplete="off"
+                maxLength={80}
+                placeholder={isCreate ? 'e.g. Design references' : undefined}
+                value={name}
+                disabled={busy}
+                onFocus={(event) => {
+                  if (mode.type === 'rename') event.currentTarget.select()
+                }}
+                onChange={(event) => onNameChange(event.target.value)}
+              />
             </div>
             <DialogFooter>
               <Button
@@ -104,7 +95,15 @@ export function FolderNameDialog({
               </Button>
               <Button type="submit" disabled={!trimmedName || busy}>
                 {busy && <Spinner data-icon="inline-start" />}
-                {busy ? (isCreate ? 'Adding…' : 'Renaming…') : isCreate ? 'Add Folder' : 'Rename'}
+                {busy
+                  ? isCreate
+                    ? 'Adding…'
+                    : 'Renaming…'
+                  : isSubfolder
+                    ? 'Add Subfolder'
+                    : isCreate
+                      ? 'Add Folder'
+                      : 'Rename'}
               </Button>
             </DialogFooter>
           </form>

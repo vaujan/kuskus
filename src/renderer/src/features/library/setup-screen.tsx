@@ -58,6 +58,33 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
     if (result.ok) window.location.reload()
   }
 
+  const prepareSelectedVault = async (): Promise<void> => {
+    if (
+      busy ||
+      (initialState.status !== 'needs-initialization' && initialState.status !== 'needs-migration')
+    ) {
+      return
+    }
+    setBusy(true)
+    setError('')
+    const result =
+      initialState.status === 'needs-initialization'
+        ? await window.kuskus.initializeVault()
+        : await window.kuskus.migrateLibrary()
+    setBusy(false)
+    if (!result.ok) setError(result.error)
+    if (result.ok) window.location.reload()
+  }
+
+  const needsPreparation =
+    initialState.status === 'needs-initialization' || initialState.status === 'needs-migration'
+  const title =
+    initialState.status === 'needs-initialization'
+      ? 'Use This Folder as a Kuskus Vault'
+      : initialState.status === 'needs-migration'
+        ? 'Upgrade This Kuskus Library'
+        : 'Create Your Local Library'
+
   return (
     <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-background text-foreground">
       <header className="flex h-11 shrink-0 select-none items-center border-b px-3 [-webkit-app-region:drag]">
@@ -75,9 +102,13 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
               aria-hidden="true"
             />
             <div className="flex flex-col gap-1">
-              <CardTitle>Create Your Local Library</CardTitle>
+              <CardTitle>{title}</CardTitle>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Kuskus stores readable notes and metadata in a folder you control.
+                {initialState.status === 'needs-initialization'
+                  ? 'Kuskus will leave visible files untouched and keep identity and operational records in .kuskus.'
+                  : initialState.status === 'needs-migration'
+                    ? 'Kuskus will build a readable vault, verify it, and preserve the current library as a sibling backup.'
+                    : 'Kuskus stores readable notes and metadata in a folder you control.'}
               </p>
             </div>
           </CardHeader>
@@ -90,18 +121,37 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
                     description={initialState.path}
                   />
                 )}
-                <Field data-disabled={busy}>
-                  <FieldLabel htmlFor="library-name">Library Name</FieldLabel>
-                  <Input
-                    id="library-name"
-                    name="libraryName"
-                    autoComplete="off"
-                    value={name}
-                    maxLength={80}
-                    disabled={busy}
-                    onChange={(event) => setName(event.target.value)}
-                  />
-                </Field>
+                {initialState.status === 'needs-initialization' ? (
+                  <Alert>
+                    <AlertTitle>{initialState.name}</AlertTitle>
+                    <AlertDescription>
+                      {initialState.markdownFiles} Markdown files, {initialState.imageFiles} images,{' '}
+                      {initialState.otherFiles} other files, and {initialState.folders} folders will
+                      be indexed. Existing .obsidian settings are untouched.
+                      {initialState.archiveFolderExists
+                        ? ' Continuing explicitly adopts the existing Archive folder.'
+                        : ''}
+                    </AlertDescription>
+                  </Alert>
+                ) : initialState.status === 'needs-migration' ? (
+                  <Alert>
+                    <AlertTitle>{initialState.name}</AlertTitle>
+                    <AlertDescription className="break-all">{initialState.path}</AlertDescription>
+                  </Alert>
+                ) : (
+                  <Field data-disabled={busy}>
+                    <FieldLabel htmlFor="library-name">Library Name</FieldLabel>
+                    <Input
+                      id="library-name"
+                      name="libraryName"
+                      autoComplete="off"
+                      value={name}
+                      maxLength={80}
+                      disabled={busy}
+                      onChange={(event) => setName(event.target.value)}
+                    />
+                  </Field>
+                )}
                 {error && <LibraryAlert title="Unable to Continue" description={error} />}
               </FieldGroup>
             </CardContent>
@@ -110,13 +160,25 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
                 <FolderOpen data-icon="inline-start" aria-hidden="true" />
                 Open Existing
               </Button>
-              <Button type="submit" disabled={busy || !name.trim()}>
+              <Button
+                type={needsPreparation ? 'button' : 'submit'}
+                disabled={busy || (!needsPreparation && !name.trim())}
+                onClick={needsPreparation ? prepareSelectedVault : undefined}
+              >
                 {busy ? (
                   <Spinner data-icon="inline-start" />
                 ) : (
                   <Plus data-icon="inline-start" aria-hidden="true" />
                 )}
-                {busy ? 'Working…' : 'Create Library'}
+                {busy
+                  ? 'Working…'
+                  : initialState.status === 'needs-initialization'
+                    ? initialState.archiveFolderExists
+                      ? 'Adopt Archive and Initialize'
+                      : 'Initialize Vault'
+                    : initialState.status === 'needs-migration'
+                      ? 'Migrate and Keep Backup'
+                      : 'Create Library'}
               </Button>
             </CardFooter>
           </form>

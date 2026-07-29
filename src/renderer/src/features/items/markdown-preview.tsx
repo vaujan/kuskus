@@ -8,6 +8,7 @@ import remarkMath from 'remark-math'
 import { cn } from '@/lib/utils'
 import { useNoteAttachmentPreviews } from '@/features/items/use-note-attachment-previews'
 import type { NoteAttachmentDto } from '../../../../shared/library-contract'
+import { prepareObsidianMarkdown } from '@/features/items/obsidian-markdown'
 
 function EmbeddedImageState({ children }: { children: React.ReactNode }): React.JSX.Element {
   return (
@@ -25,12 +26,14 @@ export function MarkdownPreview({
   itemId,
   attachments = [],
   onOpenLink,
+  onOpenVaultLink,
   presentation = 'card'
 }: {
   value: string
   itemId?: string
   attachments?: NoteAttachmentDto[]
   onOpenLink?: (url: string) => void
+  onOpenVaultLink?: (target: string) => void
   presentation?: 'card' | 'detail'
 }): React.JSX.Element {
   const previewRef = useRef<HTMLDivElement>(null)
@@ -64,6 +67,22 @@ export function MarkdownPreview({
 
   const components: Components = {
     a: ({ href, children, ...props }) => {
+      if (href?.startsWith('kuskus-note:')) {
+        const target = decodeURIComponent(href.slice('kuskus-note:'.length))
+        return (
+          <a
+            {...props}
+            href={href}
+            onClick={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              onOpenVaultLink?.(target)
+            }}
+          >
+            {children}
+          </a>
+        )
+      }
       if (!href || !/^https?:\/\//i.test(href)) return <span>{children}</span>
       return (
         <a
@@ -129,16 +148,13 @@ export function MarkdownPreview({
       ref={previewRef}
       className={cn('relative', presentation === 'card' && 'max-h-80 overflow-hidden')}
     >
-      <div
-        className="typeset kuskus-typeset"
-        data-typeset-presentation={presentation}
-      >
+      <div className="typeset kuskus-typeset" data-typeset-presentation={presentation}>
         <ReactMarkdown
           remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
           rehypePlugins={[rehypeKatex]}
           components={components}
         >
-          {value}
+          {prepareObsidianMarkdown(value, attachments)}
         </ReactMarkdown>
       </div>
       {presentation === 'card' && isClipped ? (

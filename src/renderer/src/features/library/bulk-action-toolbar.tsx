@@ -14,16 +14,21 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
-  DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { FolderDropdownDestinationItems } from '@/features/collections/folder-destination-items'
 import type { LibraryDestination } from '@/features/shell/library-sidebar'
-import type { ActiveItemLocation, CollectionDto } from '../../../../shared/library-contract'
+import type {
+  ActiveItemLocation,
+  CollectionDto,
+  ItemLocation
+} from '../../../../shared/library-contract'
 
 interface BulkActionToolbarProps {
   selectedItemIds: string[]
+  selectedItemLocations: ItemLocation[]
   destination: LibraryDestination
   collections: CollectionDto[]
   onMove: (itemIds: string[], destination: ActiveItemLocation) => void
@@ -42,6 +47,7 @@ const actionLabelClassName = '@max-[34rem]/selection-toolbar:hidden'
 
 export function BulkActionToolbar({
   selectedItemIds,
+  selectedItemLocations,
   destination,
   collections,
   onMove,
@@ -100,22 +106,11 @@ export function BulkActionToolbar({
               </TooltipTrigger>
               <DropdownMenuContent align="center" side="top" sideOffset={10}>
                 <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={() => onMove(selectedItemIds, { type: 'inbox' })}>
-                    Inbox
-                  </DropdownMenuItem>
-                  {collections.map((collection) => (
-                    <DropdownMenuItem
-                      key={collection.id}
-                      onClick={() =>
-                        onMove(selectedItemIds, {
-                          type: 'collection',
-                          collectionId: collection.id
-                        })
-                      }
-                    >
-                      {collection.name}
-                    </DropdownMenuItem>
-                  ))}
+                  <FolderDropdownDestinationItems
+                    collections={collections}
+                    currentLocations={selectedItemLocations}
+                    onSelect={(nextDestination) => onMove(selectedItemIds, nextDestination)}
+                  />
                 </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>

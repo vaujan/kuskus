@@ -3,6 +3,8 @@ import {
   IconArchiveOff,
   IconArrowUpRight,
   IconFolderMinus,
+  IconKeyboard,
+  IconKeyboardOff,
   IconLinkOff,
   IconPencil,
   IconRestore,
@@ -202,5 +204,26 @@ export function notifyLinkOpenFailed(error: string, onRetry: () => void): void {
     duration: 6000,
     id: EXTERNAL_LINK_TOAST_ID,
     action: { label: 'Try again', onClick: onRetry }
+  })
+}
+
+export function notifyGlobalCapturePrepared(): void {
+  showVerbToast({
+    title: 'New item is ready in Inbox',
+    icon: <IconKeyboard />,
+    description: 'Finish the current dialog to continue capturing.',
+    duration: 4000,
+    id: 'global-capture-prepared'
+  })
+}
+
+export function notifyGlobalCaptureUnavailable(): void {
+  showVerbToast({
+    title: 'Global capture shortcut unavailable',
+    icon: <IconKeyboardOff />,
+    description: 'Another application may already use Ctrl+Shift+Space.',
+    destructive: true,
+    duration: 6000,
+    id: 'global-capture-unavailable'
   })
 }

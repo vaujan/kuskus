@@ -16,10 +16,15 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import {
+  FolderContextDestinationItems,
+  FolderDropdownDestinationItems
+} from '@/features/collections/folder-destination-items'
+import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuGroup,
   ContextMenuItem,
+  ContextMenuShortcut,
   ContextMenuSeparator,
   ContextMenuSub,
   ContextMenuSubContent,
@@ -31,6 +36,7 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuShortcut,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
@@ -97,9 +103,14 @@ function DropdownActions({
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem variant="destructive" onClick={onDeletePermanently}>
+          <DropdownMenuItem
+            variant="destructive"
+            aria-keyshortcuts="Delete"
+            onClick={onDeletePermanently}
+          >
             <IconTrashX aria-hidden="true" />
             Delete permanently
+            <DropdownMenuShortcut>Delete</DropdownMenuShortcut>
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </>
@@ -119,9 +130,10 @@ function DropdownActions({
             Open source link
           </DropdownMenuItem>
         ) : null}
-        <DropdownMenuItem onClick={onRename}>
+        <DropdownMenuItem aria-keyshortcuts="F2" onClick={onRename}>
           <IconPencil aria-hidden="true" />
           Rename
+          <DropdownMenuShortcut>F2</DropdownMenuShortcut>
         </DropdownMenuItem>
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
@@ -130,15 +142,11 @@ function DropdownActions({
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent>
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => onMove({ type: 'inbox' })}>Inbox</DropdownMenuItem>
-              {collections.map((collection) => (
-                <DropdownMenuItem
-                  key={collection.id}
-                  onClick={() => onMove({ type: 'collection', collectionId: collection.id })}
-                >
-                  {collection.name}
-                </DropdownMenuItem>
-              ))}
+              <FolderDropdownDestinationItems
+                collections={collections}
+                currentLocations={[item.location]}
+                onSelect={onMove}
+              />
             </DropdownMenuGroup>
           </DropdownMenuSubContent>
         </DropdownMenuSub>
@@ -160,9 +168,10 @@ function DropdownActions({
             Archive
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem variant="destructive" onClick={onTrash}>
+        <DropdownMenuItem variant="destructive" aria-keyshortcuts="Delete" onClick={onTrash}>
           <IconTrash aria-hidden="true" />
           Move to Trash
+          <DropdownMenuShortcut>Delete</DropdownMenuShortcut>
         </DropdownMenuItem>
       </DropdownMenuGroup>
     </>
@@ -190,9 +199,14 @@ function ContextActions(props: ItemActionMenuProps): React.JSX.Element {
         </ContextMenuGroup>
         <ContextMenuSeparator />
         <ContextMenuGroup>
-          <ContextMenuItem variant="destructive" onClick={props.onDeletePermanently}>
+          <ContextMenuItem
+            variant="destructive"
+            aria-keyshortcuts="Delete"
+            onClick={props.onDeletePermanently}
+          >
             <IconTrashX aria-hidden="true" />
             Delete permanently
+            <ContextMenuShortcut>Delete</ContextMenuShortcut>
           </ContextMenuItem>
         </ContextMenuGroup>
       </>
@@ -211,9 +225,10 @@ function ContextActions(props: ItemActionMenuProps): React.JSX.Element {
             Open source link
           </ContextMenuItem>
         ) : null}
-        <ContextMenuItem onClick={props.onRename}>
+        <ContextMenuItem aria-keyshortcuts="F2" onClick={props.onRename}>
           <IconPencil aria-hidden="true" />
           Rename
+          <ContextMenuShortcut>F2</ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuSub>
           <ContextMenuSubTrigger>
@@ -222,17 +237,11 @@ function ContextActions(props: ItemActionMenuProps): React.JSX.Element {
           </ContextMenuSubTrigger>
           <ContextMenuSubContent>
             <ContextMenuGroup>
-              <ContextMenuItem onClick={() => props.onMove({ type: 'inbox' })}>
-                Inbox
-              </ContextMenuItem>
-              {collections.map((collection) => (
-                <ContextMenuItem
-                  key={collection.id}
-                  onClick={() => props.onMove({ type: 'collection', collectionId: collection.id })}
-                >
-                  {collection.name}
-                </ContextMenuItem>
-              ))}
+              <FolderContextDestinationItems
+                collections={collections}
+                currentLocations={[item.location]}
+                onSelect={props.onMove}
+              />
             </ContextMenuGroup>
           </ContextMenuSubContent>
         </ContextMenuSub>
@@ -254,9 +263,10 @@ function ContextActions(props: ItemActionMenuProps): React.JSX.Element {
             Archive
           </ContextMenuItem>
         )}
-        <ContextMenuItem variant="destructive" onClick={props.onTrash}>
+        <ContextMenuItem variant="destructive" aria-keyshortcuts="Delete" onClick={props.onTrash}>
           <IconTrash aria-hidden="true" />
           Move to Trash
+          <ContextMenuShortcut>Delete</ContextMenuShortcut>
         </ContextMenuItem>
       </ContextMenuGroup>
     </>
@@ -267,8 +277,7 @@ export function ItemActionMenu(props: ItemActionMenuProps): React.JSX.Element {
   const [menuOpen, setMenuOpen] = useState(false)
   const actionButtonClassName = cn(
     'rounded-full shadow-sm transition-[opacity,scale] [transition-duration:var(--motion-duration-press)] [transition-timing-function:var(--motion-ease-out)]',
-    !props.alwaysVisible &&
-      'opacity-0 group-hover/saved-item:opacity-100 focus-visible:opacity-100'
+    !props.alwaysVisible && 'opacity-0 group-hover/saved-item:opacity-100 focus-visible:opacity-100'
   )
 
   return (

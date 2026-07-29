@@ -1,12 +1,18 @@
 import { BrowserWindow, ipcMain, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
 
-import { APP_ZOOM_FACTORS, WINDOW_CHANNELS } from '../../shared/window-contract'
+import {
+  APP_ZOOM_FACTORS,
+  WINDOW_CHANNELS,
+  type GlobalCaptureShortcutStatus
+} from '../../shared/window-contract'
 
 function windowFromEvent(event: IpcMainEvent | IpcMainInvokeEvent): BrowserWindow | null {
   return BrowserWindow.fromWebContents(event.sender)
 }
 
-export function registerWindowIpc(): void {
+export function registerWindowIpc(
+  getGlobalCaptureShortcutStatus: () => GlobalCaptureShortcutStatus
+): void {
   ipcMain.on(WINDOW_CHANNELS.minimize, (event) => windowFromEvent(event)?.minimize())
   ipcMain.on(WINDOW_CHANNELS.toggleMaximize, (event) => {
     const window = windowFromEvent(event)
@@ -32,4 +38,7 @@ export function registerWindowIpc(): void {
     window.webContents.setZoomFactor(zoomFactor)
     return zoomFactor
   })
+  ipcMain.handle(WINDOW_CHANNELS.getGlobalCaptureShortcutStatus, () =>
+    getGlobalCaptureShortcutStatus()
+  )
 }

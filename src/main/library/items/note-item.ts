@@ -49,7 +49,7 @@ export function createNoteMetadata(
   attachments: PersistedNoteItem['attachments'] = []
 ): PersistedNoteItem {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id,
     type: 'note',
     title: deriveNoteTitle(markdown),
@@ -71,7 +71,10 @@ export function updateNoteMetadata(
 ): PersistedNoteItem {
   return {
     ...metadata,
-    title: metadata.titleSource === 'custom' ? metadata.title : deriveNoteTitle(markdown),
+    title:
+      metadata.schemaVersion === 2 || metadata.titleSource === 'custom'
+        ? metadata.title
+        : deriveNoteTitle(markdown),
     updatedAt: timestamp
   }
 }
@@ -92,6 +95,8 @@ export function toNoteDto(
     updatedAt: metadata.updatedAt,
     missingContent: false,
     attachments,
-    location
+    location,
+    relativePath: metadata.relativePath ?? metadata.contentFilename,
+    referencedAttachment: false
   }
 }

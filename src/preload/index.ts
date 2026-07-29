@@ -3,8 +3,20 @@ import { KUSKUS_CHANNELS, type KuskusLibraryApi } from '../shared/library-contra
 import {
   WINDOW_CHANNELS,
   type AppZoomShortcut,
-  type ElectronWindowApi
+  type ElectronWindowApi,
+  type GlobalCaptureShortcutStatus
 } from '../shared/window-contract'
+
+const globalCaptureCallbacks = new Set<() => void>()
+let globalCaptureRequestPending = false
+
+ipcRenderer.on(WINDOW_CHANNELS.globalCaptureRequested, () => {
+  if (globalCaptureCallbacks.size === 0) {
+    globalCaptureRequestPending = true
+    return
+  }
+  for (const callback of globalCaptureCallbacks) callback()
+})
 
 const windowApi: ElectronWindowApi = {
   platform: process.platform,
@@ -29,6 +41,16 @@ const windowApi: ElectronWindowApi = {
 
     ipcRenderer.on(WINDOW_CHANNELS.zoomShortcut, listener)
     return () => ipcRenderer.removeListener(WINDOW_CHANNELS.zoomShortcut, listener)
+  },
+  getGlobalCaptureShortcutStatus: (): Promise<GlobalCaptureShortcutStatus> =>
+    ipcRenderer.invoke(WINDOW_CHANNELS.getGlobalCaptureShortcutStatus),
+  onGlobalCaptureRequested: (callback: () => void): (() => void) => {
+    globalCaptureCallbacks.add(callback)
+    if (globalCaptureRequestPending) {
+      globalCaptureRequestPending = false
+      queueMicrotask(callback)
+    }
+    return () => globalCaptureCallbacks.delete(callback)
   }
 }
 
@@ -36,6 +58,8 @@ const libraryApi: KuskusLibraryApi = {
   getState: () => ipcRenderer.invoke(KUSKUS_CHANNELS.getLibraryState),
   create: (name) => ipcRenderer.invoke(KUSKUS_CHANNELS.createLibrary, name),
   open: () => ipcRenderer.invoke(KUSKUS_CHANNELS.openLibrary),
+  initializeVault: () => ipcRenderer.invoke(KUSKUS_CHANNELS.initializeVault),
+  migrateLibrary: () => ipcRenderer.invoke(KUSKUS_CHANNELS.migrateLibrary),
   createNote: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.createNote, input),
   updateNote: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.updateNote, input),
   listCaptureDraftImages: () => ipcRenderer.invoke(KUSKUS_CHANNELS.listCaptureDraftImages),
@@ -55,6 +79,7 @@ const libraryApi: KuskusLibraryApi = {
   getUrlPreview: (itemId, kind) => ipcRenderer.invoke(KUSKUS_CHANNELS.getUrlPreview, itemId, kind),
   createCollection: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.createCollection, input),
   renameCollection: (id, name) => ipcRenderer.invoke(KUSKUS_CHANNELS.renameCollection, id, name),
+  moveCollection: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.moveCollection, input),
   setCollectionIcon: (id, icon) => ipcRenderer.invoke(KUSKUS_CHANNELS.setCollectionIcon, id, icon),
   deleteCollection: (id) => ipcRenderer.invoke(KUSKUS_CHANNELS.deleteCollection, id),
   renameItem: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.renameItem, input),
@@ -66,9 +91,15 @@ const libraryApi: KuskusLibraryApi = {
   permanentlyDeleteItems: (input) =>
     ipcRenderer.invoke(KUSKUS_CHANNELS.permanentlyDeleteItems, input),
   getImagePreview: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.getImagePreview, itemId),
+  importFile: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.importFile, input),
   copyLibraryPath: () => ipcRenderer.invoke(KUSKUS_CHANNELS.copyLibraryPath),
   showItemInExplorer: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.showItemInExplorer, itemId),
-  openExternalUrl: (url) => ipcRenderer.invoke(KUSKUS_CHANNELS.openExternalUrl, url)
+  openExternalUrl: (url) => ipcRenderer.invoke(KUSKUS_CHANNELS.openExternalUrl, url),
+  onVaultChanged: (callback) => {
+    const listener = (): void => callback()
+    ipcRenderer.on(KUSKUS_CHANNELS.vaultChanged, listener)
+    return () => ipcRenderer.removeListener(KUSKUS_CHANNELS.vaultChanged, listener)
+  }
 }
 
 contextBridge.exposeInMainWorld('electron', { window: windowApi })

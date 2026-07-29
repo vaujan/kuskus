@@ -5,26 +5,23 @@ import {
   type NoteAttachmentDto,
   type SupportedImageMediaType
 } from '../../shared/library-contract'
-import {
-  IMAGE_EXTENSIONS,
-  ITEM_ID_PATTERN,
-  NOTE_FILENAME,
-  RESERVED_WINDOWS_NAMES
-} from './constants'
+import { IMAGE_EXTENSIONS, ITEM_ID_PATTERN, RESERVED_WINDOWS_NAMES } from './constants'
 
 export interface PersistedLibrary {
-  schemaVersion: 1
+  schemaVersion: 1 | 2
   id: string
   name: string
   createdAt: string
 }
 
 export interface PersistedCollection {
-  schemaVersion: 1
+  schemaVersion: 1 | 2
   id: string
   name: string
   icon?: CollectionIconKey
   createdAt: string
+  relativePath?: string
+  parentId?: string | null
 }
 
 const COLLECTION_ICON_KEY_SET = new Set<string>(COLLECTION_ICON_KEYS)
@@ -34,11 +31,16 @@ export function isCollectionIconKey(value: unknown): value is CollectionIconKey 
 }
 
 export function toCollectionDto(collection: PersistedCollection): CollectionDto {
-  return { ...collection, icon: collection.icon ?? 'folder' }
+  return {
+    ...collection,
+    icon: collection.icon ?? 'folder',
+    relativePath: collection.relativePath ?? collection.name,
+    parentId: collection.parentId ?? null
+  }
 }
 
 export interface PersistedNoteItem {
-  schemaVersion: 1
+  schemaVersion: 1 | 2
   id: string
   type: 'note'
   title: string
@@ -52,6 +54,8 @@ export interface PersistedNoteItem {
   titleSource?: 'derived' | 'custom'
   trashedFrom?: 'inbox' | 'collection' | 'archive'
   attachments?: PersistedNoteAttachment[]
+  relativePath?: string
+  referencedAttachment?: false
 }
 
 export type PersistedNoteAttachment = Omit<NoteAttachmentDto, 'missingContent'>
@@ -71,7 +75,9 @@ export function isPersistedNoteAttachment(value: unknown): value is PersistedNot
     filename !== '..' &&
     !/[. ]$/.test(filename) &&
     !RESERVED_WINDOWS_NAMES.test(filename) &&
-    attachment.relativePath === `./assets/${filename}` &&
+    typeof attachment.relativePath === 'string' &&
+    /^\.\/(?:assets|[^\\/:*?"<>|]+\.assets)\/[^\\/:*?"<>|]+$/i.test(attachment.relativePath) &&
+    attachment.relativePath.endsWith(`/${filename}`) &&
     (attachment.sourceFilename === null || typeof attachment.sourceFilename === 'string') &&
     typeof attachment.mediaType === 'string' &&
     attachment.mediaType in IMAGE_EXTENSIONS &&
@@ -83,7 +89,7 @@ export function isPersistedNoteAttachment(value: unknown): value is PersistedNot
 }
 
 export interface PersistedImageItem {
-  schemaVersion: 1
+  schemaVersion: 1 | 2
   id: string
   type: 'image'
   title: string
@@ -99,10 +105,12 @@ export interface PersistedImageItem {
   originalCollectionId: string | null
   titleSource?: 'derived' | 'custom'
   trashedFrom?: 'inbox' | 'collection' | 'archive'
+  relativePath?: string
+  referencedAttachment?: boolean
 }
 
 export interface PersistedUrlItem {
-  schemaVersion: 1
+  schemaVersion: 1 | 2
   id: string
   type: 'url'
   title: string
@@ -124,9 +132,32 @@ export interface PersistedUrlItem {
   originalCollectionId: string | null
   titleSource?: 'derived' | 'custom'
   trashedFrom?: 'inbox' | 'collection' | 'archive'
+  relativePath?: string
+  referencedAttachment?: false
 }
 
-export type PersistedItem = PersistedNoteItem | PersistedImageItem | PersistedUrlItem
+export interface PersistedFileItem {
+  schemaVersion: 2
+  id: string
+  type: 'file'
+  title: string
+  createdAt: string
+  updatedAt: string
+  sourceUrl: null
+  sourceFilename: string
+  contentFilename: string
+  mediaType: string
+  size: number
+  note: ''
+  originalCollectionId: string | null
+  titleSource?: 'derived' | 'custom'
+  trashedFrom?: 'inbox' | 'collection' | 'archive'
+  relativePath?: string
+  referencedAttachment?: boolean
+}
+
+export type PersistedItem =
+  PersistedNoteItem | PersistedImageItem | PersistedUrlItem | PersistedFileItem
 
 export interface PersistedSettings {
   schemaVersion: 1
@@ -137,7 +168,7 @@ export function isPersistedLibrary(value: unknown): value is PersistedLibrary {
   if (!value || typeof value !== 'object') return false
   const library = value as Record<string, unknown>
   return (
-    library.schemaVersion === 1 &&
+    (library.schemaVersion === 1 || library.schemaVersion === 2) &&
     typeof library.id === 'string' &&
     typeof library.name === 'string' &&
     typeof library.createdAt === 'string'
@@ -151,7 +182,7 @@ export function parsePersistedCollection(
   if (!value || typeof value !== 'object') return null
   const collection = value as Record<string, unknown>
   if (
-    collection.schemaVersion !== 1 ||
+    ![1, 2].includes(Number(collection.schemaVersion)) ||
     collection.id !== collectionId ||
     typeof collection.name !== 'string' ||
     typeof collection.createdAt !== 'string'
@@ -159,7 +190,7 @@ export function parsePersistedCollection(
     return null
   }
   return {
-    schemaVersion: 1,
+    schemaVersion: collection.schemaVersion as 1 | 2,
     id: collection.id,
     name: collection.name,
     createdAt: collection.createdAt,
@@ -171,7 +202,7 @@ export function isPersistedItem(value: unknown, itemId: string): value is Persis
   if (!value || typeof value !== 'object') return false
   const item = value as Record<string, unknown>
   if (
-    item.schemaVersion !== 1 ||
+    ![1, 2].includes(Number(item.schemaVersion)) ||
     item.id !== itemId ||
     typeof item.title !== 'string' ||
     typeof item.createdAt !== 'string' ||
@@ -189,7 +220,9 @@ export function isPersistedItem(value: unknown, itemId: string): value is Persis
 
   if (item.type === 'note') {
     return (
-      item.contentFilename === NOTE_FILENAME &&
+      typeof item.contentFilename === 'string' &&
+      item.contentFilename.toLowerCase().endsWith('.md') &&
+      !/[\\/:*?"<>|]/.test(item.contentFilename) &&
       (item.attachments === undefined ||
         (Array.isArray(item.attachments) && item.attachments.every(isPersistedNoteAttachment)))
     )
@@ -212,12 +245,26 @@ export function isPersistedItem(value: unknown, itemId: string): value is Persis
       (item.metadataError === null || typeof item.metadataError === 'string')
     )
   }
+  if (item.type === 'file') {
+    return (
+      item.schemaVersion === 2 &&
+      typeof item.contentFilename === 'string' &&
+      item.contentFilename.length > 0 &&
+      !/[\\/:*?"<>|]/.test(item.contentFilename) &&
+      typeof item.sourceFilename === 'string' &&
+      typeof item.mediaType === 'string' &&
+      Number.isSafeInteger(item.size) &&
+      Number(item.size) >= 0
+    )
+  }
   if (item.type !== 'image' || typeof item.mediaType !== 'string') return false
   if (!(item.mediaType in IMAGE_EXTENSIONS)) return false
 
   const mediaType = item.mediaType as SupportedImageMediaType
   return (
-    item.contentFilename === `image.${IMAGE_EXTENSIONS[mediaType]}` &&
+    typeof item.contentFilename === 'string' &&
+    item.contentFilename.toLowerCase().endsWith(`.${IMAGE_EXTENSIONS[mediaType]}`) &&
+    !/[\\/:*?"<>|]/.test(item.contentFilename) &&
     (typeof item.sourceFilename === 'string' || item.sourceFilename === null) &&
     typeof item.width === 'number' &&
     Number.isSafeInteger(item.width) &&

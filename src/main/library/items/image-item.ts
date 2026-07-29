@@ -130,7 +130,7 @@ export function createImageMetadata(
 ): PersistedImageItem {
   const contentFilename = `image.${IMAGE_EXTENSIONS[detected.mediaType]}`
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     id,
     type: 'image',
     title: deriveImageTitle(sourceFilename),
@@ -151,5 +151,11 @@ export function toImageDto(
   metadata: PersistedImageItem,
   location: ItemLocation = { type: 'inbox' }
 ): ImageItemDto {
-  return { ...metadata, missingContent: false, location }
+  return {
+    ...metadata,
+    missingContent: false,
+    location,
+    relativePath: metadata.relativePath ?? metadata.contentFilename,
+    referencedAttachment: metadata.referencedAttachment ?? false
+  }
 }
