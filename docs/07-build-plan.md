@@ -1,7 +1,7 @@
 # Build Plan
 
 Status: Active  
-Last updated: 2026-07-14
+Last updated: 2026-08-02
 
 ## Delivery approach
 
@@ -18,8 +18,8 @@ Deliverables:
 - Reopen the last valid library on launch.
 - Display Inbox with a toolbar-summoned inline New Item card.
 - Open or refocus that card with in-app `Ctrl+N` while workspace shortcuts are active.
-- Register fixed `Ctrl+Shift+Space` while the single Kuskus process is running and route it through
-  the typed window bridge to the existing Inbox composer.
+- Register fixed `Ctrl+Shift+Space` while the single Kuskus process is running and route it to a
+  singleton bottom-right Inbox composer sharing its recoverable session with the inline surface.
 - Accept Markdown without a permanent capture tile or modal.
 - Commit with Save or `Ctrl+Enter`.
 - Write readable vault files plus hidden schema-v2 library, collection, and item records according
@@ -27,8 +27,8 @@ Deliverables:
 
 ## Vault-native redesign (completed 2026-07-29)
 
-- Added schema-v2 vault scanning, readable capture filenames, nested folder collections, companion
-  note assets, visible Archive, hidden Trash, and stable hidden records.
+- Added schema-v2 vault scanning, readable capture filenames, nested folder collections, legacy
+  companion-note asset compatibility, visible Archive, hidden Trash, and stable hidden records.
 - Added a collapsible nested-folder tree with per-library disclosure state and validated subfolder
   creation from each parent folder's menu.
 - Added initialization preview/commit, guided schema-v1 sibling migration, startup/focus/watch
@@ -70,6 +70,15 @@ Deliverables:
 - Image, PDF, and general-file cards.
 - In-app detail actions.
 - Interrupted-import recovery.
+- Durable general-file staging across quick-capture handoff and restart.
+- Durable FIFO capture submissions for notes, links, images, and files, with immediate fresh-session
+  reuse, restart resumption, exact-once item identity, and persistent recovery actions.
+- Independent sibling note images with stable item IDs, collision-safe names, standard relative
+  embeds, and destination snapshots that survive queue delay, retry, and restart.
+- A policy-based main-process attachment resolver implementing `same-folder` now while reserving
+  future vault-root, configured-folder, and note-subfolder placement without renderer or schema churn.
+- Reference-aware note and image move, rename, archive, Trash, restore, and permanent-delete behavior,
+  including stale-review protection and optional unused-image cleanup.
 
 Exit criteria:
 
@@ -79,10 +88,18 @@ Exit criteria:
 ### Image slice acceptance criteria
 
 - Clipboard bitmap and image-file paste/drop create exactly one image item through New Item or the focused content canvas.
-- Images added after Markdown begins are staged, recovered after restart, and finalized as portable note assets.
+- Images added after Markdown begins are staged, recovered after restart, and finalized as
+  independently indexed sibling files with portable relative Markdown links.
+- Stale schema-v1 `./assets/` drafts normalize in place when activated, and restart-recovered queues
+  replace both current and legacy aliases before the note is written.
+- Existing `.assets` embeds with spaces, percent signs, escaped characters, or parentheses render
+  and participate in reference tracking without changing their Markdown bytes.
 - The authoritative image is copied into the library via a temporary directory and survives restart.
 - Invalid image data, missing stored content, and unsafe item IDs produce visible errors without exposing arbitrary filesystem paths.
 - Image cards show a natural-ratio preview and open a larger in-app preview.
+- A supported image dragged over the content canvas reserves the first capture slot with a static
+  shadow card or row, hands off to the confirmation composer without losing an existing draft, and
+  never implies that the image was saved before explicit confirmation.
 
 ## Milestone 3: URL capture
 
@@ -110,6 +127,9 @@ Deliverables:
 - Present nested collections as a collapsible tree with validated folder icons and recursive counts.
 - Browse parent folders as aggregate subtree scopes while keeping capture destinations precise.
 - Move one or more items safely through tree-aware menus or drag and drop.
+- Keep dragged source items anchored and dimmed while a capped, elevated native preview follows the
+  pointer; multi-item previews identify their count and valid destinations provide restrained depth
+  feedback without obscuring the workspace.
 - Reparent folders through a validated move dialog or drag and drop without changing identity.
 - Refuse non-empty nested-folder removal before moving any direct items.
 - Rename item display titles without renaming stored content files.
@@ -132,7 +152,7 @@ Deliverables:
 - Uniform Grid view.
 - Compact Table view with Name, Type, and Added columns.
 - Search by title, note, URL/domain, and filename.
-- Type filters and basic sorting.
+- Type filters, referenced-attachment visibility, and basic sorting.
 - Persist sidebar and view preferences.
 
 Exit criteria:
@@ -149,6 +169,8 @@ Deliverables:
 - Keyboard and accessibility pass.
 - Selection-first `F2` and `Delete` commands across Masonry, Grid, and Table, with focused-item
   fallback, menu labels, editable/menu/detail/dialog guards, and no modified Delete variants.
+- Selection-aware item context and overflow menus across Masonry, Grid, and Table, with explicit
+  clicked-item and selected-item scopes for every organization and lifecycle action.
 - Seven-day dogfooding build.
 
 Exit criteria:
@@ -157,4 +179,9 @@ Exit criteria:
 
 ## Current milestone
 
-Milestone 1 was completed on 2026-07-14. The summoned New Item and Markdown image-attachment slice was completed on 2026-07-19. The global shortcut-first capture entry was completed on 2026-07-29. Renderer-local `F2` rename and `Delete` item commands were completed on 2026-07-29. Milestone 2 continues with PDFs and general files. Library sorting by date added, title, and item type (Milestone 5 retrieval work) was completed on 2026-07-28.
+Milestone 1 was completed on 2026-07-14. The summoned New Item and Markdown image-attachment slice
+was completed on 2026-07-19 and redesigned as Obsidian-compatible independent attachments on
+2026-08-02. The global shortcut-first capture entry was completed on 2026-07-29 and moved to the
+shared-session bottom-right popup on 2026-07-30. Renderer-local `F2` rename and `Delete` item commands
+were completed on 2026-07-29. Milestone 2 continues with PDFs and general files. Library sorting by
+date added, title, and item type (Milestone 5 retrieval work) was completed on 2026-07-28.

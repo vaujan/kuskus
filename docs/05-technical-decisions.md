@@ -411,7 +411,7 @@ stored `list` preference to `table` without changing authoritative library data.
 ## DEC-016: Summon capture from the toolbar and bundle local images with Markdown notes
 
 Date: 2026-07-19
-Status: Accepted
+Status: Superseded in attachment placement and lifecycle by DEC-040
 
 ### Context
 
@@ -975,7 +975,7 @@ backward compatibility. New folders use the existing default icon value.
 ## DEC-034: Reuse the main window and composer for global capture
 
 Date: 2026-07-29
-Status: Accepted
+Status: Superseded by DEC-038
 
 ### Context
 
@@ -1032,3 +1032,216 @@ name collisions, and rewrites descendant collection and item paths with in-proce
 - Folder icons improve recognition without becoming arbitrary SVG or color metadata.
 - Folder move failures retain the source directory and records; crash-recovery manifests remain a
   future reliability hardening beyond the current in-process rollback used by collection rename.
+
+## DEC-036: Apply optional Windows Mica through the typed window boundary
+
+Date: 2026-07-30
+Status: Superseded by DEC-037
+
+### Context
+
+Kuskus benefits from calmer separation between its navigation chrome and visual library, but a
+fully transparent Electron window weakens standard resizing and maximizing behavior. The appearance
+must remain optional, readable, and independent from authoritative vault content.
+
+### Decision
+
+On Windows 11 build 22621 or newer, enable the system-drawn Mica background by default and expose a
+persisted **Translucent background** preference in Settings. The renderer sends only a validated
+boolean through the typed window bridge; the main process determines platform support and applies
+`mica` or `none`. Renderer material tokens keep the sidebar structurally heavier while the toolbar
+and content canvas share one continuous material without stacking translucent layers. Cards and
+popup surfaces remain solid.
+
+Unsupported platforms retain the opaque theme. Reduced-transparency, increased-contrast, and
+forced-color media preferences also resolve the renderer surfaces to opaque colors without changing
+the stored choice. Electron's `transparent: true` window mode is not used.
+
+### Consequences
+
+- Window resizing, maximizing, caption controls, and the existing sandbox boundary remain intact.
+- The preference is disposable renderer-local presentation state and does not change the vault or
+  library schema.
+- macOS vibrancy and Linux compositor materials remain separate future platform work.
+
+## DEC-037: Use Acrylic and selective shell transparency on Windows
+
+Date: 2026-07-30
+Status: Accepted
+
+### Context
+
+The initial Mica treatment preserved the frameless window behavior but remained visually close to an
+opaque dark surface. Mica is a restrained wallpaper-tinted base material, and the renderer's heavier
+canvas and sidebar tints obscured most of that effect. The desired reference uses Acrylic with lower
+surface opacity and reserves solid colors for content-bearing surfaces.
+
+### Decision
+
+Supersede DEC-036's choice of Mica while retaining its typed preference boundary, supported Windows
+version, startup behavior, and accessibility fallbacks. Apply Electron's system-drawn `acrylic`
+background material when translucency is enabled. Use one lower-opacity renderer material for the
+toolbar and workspace and a slightly heavier sidebar tint. Material-specific semantic tokens give
+borders, cards, and sidebar interaction fills restrained translucency; dialogs, popovers, inputs,
+and previews remain solid. Folder selection uses the same fill and typography as other sidebar
+destinations without a folder-only ring. Continue to avoid Electron's `transparent: true` mode and
+retain the custom frameless caption controls.
+
+Amendment (2026-07-30, integration boundary): A renderer-local window-material controller owns the
+versioned presentation preference, migration from the original local-storage key, root
+`data-window-material` state, native synchronization, last-request-wins ordering, and rollback after
+native failure. The React hook only subscribes to the controller snapshot and exposes the checkbox
+interface. Acrylic token substitutions, shell selectors, and accessibility fallbacks live in a
+dedicated renderer stylesheet rather than the base theme. The main process remains authoritative
+for platform support and native material changes.
+
+Amendment (2026-07-30, quick capture): The separate quick-capture BrowserWindow is the exception to
+the solid popup-surface rule. On Windows 11 22H2 and newer it uses native Acrylic independently of
+the main-window preference when system Transparency effects are available, with a 38-percent
+composer tint over the native material. Native Windows frame geometry owns anti-aliased outer
+clipping; the renderer fills that geometry without a competing radius, transparent gutter, external
+border, shadow, or simulated CSS desktop blur. Unsupported platforms retain CSS-clipped opaque
+rounding. Reduced-transparency, increased-contrast, and forced-color modes paint an opaque surface.
+The typed material status distinguishes OS support from reduced transparency, preserves the user's
+stored preference while blocked, and reapplies both windows when Electron reports a native-theme
+change.
+
+### Consequences
+
+- The desktop color and Acrylic texture remain visible through the shell and lightly through cards
+  without weakening higher-priority dialog, input, popover, or preview surfaces.
+- Toolbar and workspace no longer read as differently colored horizontal bands.
+- The sidebar remains distinguishable through material weight rather than an opaque panel color.
+- Navigation hover and active states remain consistent across folder and non-folder destinations.
+- Acrylic behavior on resize, maximize, restore, focus, and custom caption controls requires focused
+  Windows verification because the native material is more sensitive than Mica on frameless windows.
+- Disabling translucency and all accessibility media fallbacks reproduce the existing opaque theme.
+
+## DEC-038: Present global capture in one shared-session popup
+
+Date: 2026-07-30
+Status: Accepted
+
+### Context
+
+DEC-034 avoided duplicated capture state by restoring the complete main window. In real use, that
+application switch interrupted the source task even though capture needs only the universal composer.
+A second renderer surface is useful only if it cannot fork drafts, lose staged files, or commit twice.
+
+### Decision
+
+Supersede DEC-034's main-window presentation while retaining its fixed shortcut, explicit commit,
+single process, registration reporting, and no-clipboard-read constraints. `Ctrl+Shift+Space` opens
+one frameless, taskbar-hidden quick-capture window at the bottom-right of the pointer's monitor. The
+main window remains unchanged. An unavailable library reveals the existing main recovery flow.
+
+A main-process capture-session service persists revisioned text per library in app-local state and
+broadcasts one active editing owner between the inline and popup renderers. Staged images remain in
+the controlled vault temporary area; general files now stage there before commit as well. Typed IPC
+exposes session, ownership, staging, validated popup sizing, hide, and main-window handoff operations
+without renderer paths or arbitrary window bounds. Successful popup capture confirms for 650 ms and
+hides after authoritative local persistence; optional URL metadata continues independently.
+
+### Consequences
+
+- Global capture no longer changes the main window's destination, filters, selection, dialogs, or
+  visibility. The popup exposes no visible window actions; Escape and ordinary focus loss hide it,
+  while the main-window handoff remains an internal recovery route when no usable library exists.
+- Popup and inline capture are two presentations of one recoverable draft and cannot edit
+  concurrently; the legacy local-storage text draft migrates on first use.
+- General-file selection becomes durable staging rather than renderer-only `File` state, so window
+  handoff and restart preserve it without modifying the external source.
+- Closing the main window destroys the popup and quits normally on Windows. Tray residency,
+  launch-at-login, shortcut customization, automatic clipboard reads, and multiple capture windows
+  remain out of scope.
+
+## DEC-039: Hand accepted captures to a durable FIFO queue
+
+Date: 2026-07-31
+Status: Accepted
+
+### Context
+
+The shared capture session kept its saving flag until an authoritative vault write completed. The
+quick window could hide before then, but reopening it exposed the same busy composer. The single
+note-draft and file-draft directories also meant that removing the flag alone would let a later
+capture overwrite assets still needed by the earlier save.
+
+### Decision
+
+Save first snapshots the revisioned session into a submission with a reserved final item ID,
+submission timestamp, and job-specific staged assets under `.kuskus/temp/capture-queue/`. A
+crash-recoverable handoff resets the shared session only after that submission is durable. Quick
+capture then hides immediately and may reopen with a fresh session.
+
+A main-process FIFO worker serializes authoritative vault writes. Pending and processing submissions
+resume after restart; the reserved item ID reconciles a crash after finalization without creating a
+duplicate. URL enrichment begins only after the bookmark is authoritative and does not occupy the
+queue. Failed submissions retain their immutable payload and expose Retry, Restore to composer, and
+explicit Discard through a compact issue banner and main-window recovery view.
+
+### Consequences
+
+- Background saving does not own the shared session or prevent another quick capture.
+- Notes, links, images, and files share one ordering and exact-once boundary.
+- Submission timestamps, rather than variable filesystem completion times, define capture order.
+- Temporary queue data may be the recovery copy until ordinary user-readable vault content is
+  finalized; it is retained across restart and removed only after success or explicit discard.
+- Active draft staging remains single-session and ownership protected, while accepted assets are
+  immutable and isolated by submission ID.
+
+## DEC-040: Store new note attachments as independent Obsidian-compatible files
+
+Date: 2026-08-02
+Status: Accepted
+
+### Context
+
+DEC-016 coupled pasted images to a generated `<note-name>.assets/` directory. That layout made the
+files less natural in an ordinary vault, made independent image lifecycle actions unreliable, and
+reduced interoperability with Obsidian vaults whose attachments may live beside a note, at the root,
+or in shared and nested folders. Attachment placement may become user-configurable later, but the
+current milestone must not introduce a setting or depend on `.obsidian` configuration.
+
+### Decision
+
+Supersede DEC-016's attachment placement and lifecycle while retaining its composer and recoverable
+staging behavior. New pasted note images are collision-safe independent files beside the final note,
+use their staged UUID as the stable item ID, and are embedded with standard URL-encoded relative
+Markdown links. Markdown is authoritative for reference relationships; hidden records preserve
+identity and validated paths without owning the relationship. Existing `.assets` notes and arbitrary
+Obsidian attachment paths remain supported without migration, and `.obsidian` is never read or
+modified.
+
+All capture and storage callers use one main-process placement resolver. It accepts a validated vault,
+final note path, candidate filename, and versionable policy. An absent policy resolves to
+`same-folder`, the only current implementation. The boundary reserves future `vault-root`,
+`specific-folder`, and `note-subfolder` strategies without adding a preference field, picker, UI, or
+renderer capture-schema dependency now. Durable submissions snapshot their capture destination and
+persist every resolved note and image path before background processing.
+
+Independent lifecycle operations are reference-aware. Moving a note leaves images in place and
+rewrites its relative embeds. Renaming, moving, archiving, or collision-restoring an image rewrites
+inbound Markdown with rollback. Trash intentionally leaves references unchanged after a warning that
+is guarded by an opaque reference revision. Permanent note deletion may offer an unchecked cleanup
+of images with no remaining reference from active, archived, or trashed notes. Legacy companion
+directories retain their coupled behavior.
+
+Move **Show referenced attachments** from Settings to a persistent per-device Visibility filter.
+Referenced items remain hidden by default; the value participates in the active-filter badge and
+resets with **Clear filters**.
+
+### Consequences
+
+- New Kuskus notes use an ordinary layout that Obsidian can open without a generated attachment
+  directory or Kuskus-specific link syntax.
+- Attachment paths, preview lookup, scanning, reference rewriting, and deletion inspection cannot
+  assume siblings or `.assets`.
+- One balanced Markdown-image parser owns extraction and rewriting. Legacy unencoded destinations
+  that standards renderers reject are repaired only in the presentation copy; source Markdown stays
+  byte-for-byte unchanged.
+- Schema-v1 `./assets/` capture placeholders remain readable and are normalized before a stale draft
+  is displayed or a queued submission is finalized.
+- Accepted captures cannot be redirected by a later folder or future placement-policy change.
+- Image Trash is recoverable but may intentionally leave a visible missing embed until restore.
+- Attachment-location settings remain feasible without promising them in the current milestone.

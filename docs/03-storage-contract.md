@@ -1,7 +1,7 @@
 # Storage Contract
 
 Status: Accepted v2
-Last updated: 2026-07-29
+Last updated: 2026-08-02
 
 ## Core guarantees
 
@@ -45,7 +45,23 @@ them in the default browser. Enrichment data remains in the hidden record and ma
 provisional shortcut once only when it has not been externally renamed. Standard Markdown links and
 Obsidian wikilinks, aliases, headings, note embeds, and image embeds remain supported in notes.
 
-New note attachments use `<note-name>.assets/` and portable relative Markdown links. Existing attachment paths are not reorganized. Referenced image and file records remain indexed but their standalone cards are hidden by default; the presentation preference can show all files.
+New note attachments are independent files in the note's folder and use URL-encoded relative
+Markdown links such as `![Sketch](./Sketch.png)`. Each receives its staged attachment UUID as its
+stable item ID and an ordinary image record. Existing relative embeds, Obsidian wikilinks, root
+images, shared or nested attachment folders, and legacy Kuskus `<note-name>.assets/` layouts are
+indexed without automatic reorganization. Referenced image and file records remain indexed but
+their standalone cards are hidden by default; the per-device Filter preference can show them.
+Scanning and presentation share a balanced Markdown-image parser, so URL-encoded or angle-bracketed
+destinations and legacy generated paths containing spaces, escaped characters, or nested
+parentheses resolve consistently. Parser-safe presentation repair is renderer-only and never
+rewrites an existing authoritative Markdown file.
+
+All new attachment placement goes through one main-process resolver. Its validated inputs are the
+vault, final note path, candidate filename, and a placement policy. The absent policy resolves to
+`same-folder`, which is the only implemented policy. The boundary can later support `vault-root`,
+`specific-folder`, or `note-subfolder` without changing renderer capture requests or note schemas;
+no setting field or attachment-location UI is part of this contract version. Kuskus never reads or
+modifies `.obsidian` to determine placement.
 
 ## Binary and collection identity
 
@@ -67,9 +83,26 @@ an error, repair state, or read-only state. They never trigger destructive norma
 writes and moves live under `.kuskus/temp/` and use staging plus rollback where a multi-path
 operation cannot be atomic.
 
+Durable capture submissions snapshot their active collection, then reserve and persist the resolved
+note and attachment destinations before finalization. Finalization writes attachment files and
+records first and the note last, and recovery resumes idempotently from those stored destinations.
+Hidden attachment metadata may retain any validated vault-contained relative path and stable ID, but
+the authoritative reference relationship is always derived from Markdown. Schema-v1 staged capture
+aliases under `./assets/` are normalized when read and again during finalization; recovered captures
+therefore produce independent sibling images and current relative embeds without losing draft text.
+
 ## Archive and Trash
 
-Archive is a configurable visible folder. If `Archive` already exists during initialization, the preview must make adoption explicit or allow another name. Trash lives at `.kuskus/trash/` and retains source-location metadata for restore. Permanent deletion affects only the controlled vault copy and derived caches after confirmation.
+Archive is a configurable visible folder. If `Archive` already exists during initialization, the
+preview must make adoption explicit or allow another name. Trash lives at `.kuskus/trash/` and
+retains the exact previous relative path plus source-location metadata for restore. Moving a note
+leaves independent attachments in place and rewrites its tracked relative embeds. Moving or renaming
+an attachment outside Trash rewrites inbound Markdown references with rollback; moving it to Trash
+leaves Markdown unchanged after a revision-checked warning. Permanent note deletion may separately
+move confirmed, currently unreferenced images to Trash. Permanent deletion affects only controlled
+vault copies and derived caches after confirmation. Permanently deleting a referenced attachment
+requires the same revision-checked reference confirmation and identifies every affected note before
+commit. Legacy `.assets` companions remain coupled to their note for lifecycle compatibility.
 
 ## Initialization
 

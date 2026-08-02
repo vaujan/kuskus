@@ -57,10 +57,11 @@ The user wants one obvious place to add any supported kind of content without ch
 
 ### Flow
 
-1. The user clicks **New item**, presses `Ctrl+N` while the Kuskus workspace owns the keyboard, or
-   presses `Ctrl+Shift+Space` from any application while Kuskus is running to summon capture in
-   Inbox.
-2. A normal-width draft card appears at the beginning of the active content view and receives keyboard focus.
+1. The user clicks **New item** or presses `Ctrl+N` while the Kuskus workspace owns the keyboard.
+   From another application, the user may press `Ctrl+Shift+Space` while Kuskus is running.
+2. In-app capture appears as a normal-width draft card at the beginning of the active content view.
+   Global capture appears as the same composer in a focused bottom-right Inbox popup without
+   restoring or changing the main window.
 3. The surrounding saved-content canvas remains visible and interactive.
 4. The user does one of the following without selecting a content type:
    - Pastes one URL.
@@ -90,7 +91,9 @@ The user wants one obvious place to add any supported kind of content without ch
 - The detected item is committed with **Save link**, **Save image**, or **Save note**, or with
   `Ctrl+Enter`.
 - `Escape` hides the card and retains unfinished content; discard is a separate explicit action.
-- After a successful commit, keyboard focus returns to **New item** unless the user has started another action.
+- Quick capture hides as soon as the submission is durably accepted. Its authoritative write may
+  continue in a FIFO background queue without blocking a fresh composer session.
+- After a successful inline commit, keyboard focus returns to **New item** unless the user has started another action.
 
 ### Destination and ordering
 
@@ -105,21 +108,32 @@ The user wants one obvious place to add any supported kind of content without ch
 - The user never has to choose **URL**, **Image**, **File**, or **Note** before pasting.
 - The draft card visibly communicates Markdown support and provides a keyboard-reachable picker for supported image files.
 - Opening the card does not navigate away from the current collection.
-- At most one New Item card exists in a window.
+- One library-scoped capture session is shared by the inline card and quick-capture popup, with only
+  one surface accepting edits at a time.
 - `Ctrl+N` opens or refocuses that card only while Kuskus is focused and does not override an open
   item detail or dialog.
 - A successful save produces exactly one item per detected URL, image, note, or imported file.
+- Reopening quick capture immediately after Save presents a fresh editable session even while one
+  or more accepted submissions are still being written.
+- Accepted submissions survive restart, preserve submission order and time, and never reuse the
+  mutable staged assets of a later draft. Each submission also retains the final note and image
+  destinations resolved when it was accepted, so a delayed retry cannot drift to another folder.
+- Background failures remain recoverable without replacing or disabling the fresh composer.
 - Repeated paste events cannot accidentally create duplicates because one event was handled twice.
 - Failed input remains recoverable in the card.
 - The draft and saved item work in Masonry, Grid, and Table views, even if their presentation differs.
-- The global shortcut restores and focuses Kuskus, clears Inbox retrieval filters, and summons the
-  existing composer without reading or saving clipboard content.
+- The global shortcut opens or focuses one taskbar-hidden composer popup on the pointer's monitor
+  without restoring, navigating, searching, filtering, or changing selection in the main window.
+- After the popup hides, opening New item in the main window continues the exact same draft inline.
 - A retained library-scoped draft is reopened rather than replaced. Active saves, imports, item
-  details, and dialogs are not discarded, closed, or force-saved by the shortcut.
-- A shortcut registration conflict is visible in Settings and through one non-blocking notice per
-  app run. The shortcut is unavailable after Kuskus exits.
+  details, and dialogs are not discarded, closed, or force-saved by the shortcut. Escape and
+  ordinary popup focus loss hide and retain the draft.
+- A shortcut registration conflict is visible in the Settings dialog and through one non-blocking
+  notice per app run. The shortcut is unavailable after Kuskus exits.
 - A second Kuskus launch focuses the existing process so only one process owns the shortcut and
   active library.
+- When no ready library exists, the shortcut reveals the main setup, migration, or recovery flow
+  instead of accepting temporary capture content.
 
 ## 3. Capture a URL
 
@@ -225,8 +239,10 @@ The user wants to save a short observation beside other project references.
 - Markdown remains the authoritative format and is saved exactly as entered. Opening a note or
   switching modes never normalizes its source. Local pasted images use portable relative references
   and render inline.
-- A newly created note with images remains an ordinary readable `.md` file plus a companion
-  `<note-name>.assets/` folder; existing vault attachment paths remain unchanged.
+- A newly created note with images remains an ordinary readable `.md` file plus independently
+  indexed image files in the same folder. It uses URL-encoded relative Markdown embeds such as
+  `![Sketch](./Sketch.png)`; existing vault attachment paths and legacy `.assets` folders remain
+  unchanged.
 - A note can be saved with only a body; a title may be derived from its first meaningful line.
 - Saved-note editing uses a GFM-aware source editor without block handles, slash commands, selection
   toolbars, or a proprietary document model. Highlighting and heading scale are presentational only.
@@ -311,7 +327,9 @@ The user returns to a project and wants to rediscover a saved reference.
 - The active destination remains visible as a persistent scope label inside Search, including when
   the sidebar is hidden and while a query is entered.
 - Search covers at least title, note text, domain, and filename.
-- Search and item-type filters combine within the active context and can be cleared without navigating away.
+- Search, item-type filters, and **Show referenced attachments** combine within the active context
+  and can be cleared without navigating away. Referenced files are hidden by default, the visibility
+  filter persists per device, and its active state contributes to the Filter badge.
 - `Ctrl+F` or `Ctrl+K` focuses the scoped search; `Escape` clears an active query before leaving search.
 - `Ctrl+A` selects every item matching the current destination, search, and item-type filters when
   focus is outside a text field or editor. All Items does not cross into Archive or Trash.
@@ -321,6 +339,12 @@ The user returns to a project and wants to rediscover a saved reference.
   opens the existing permanent-delete confirmation instead.
 - Item shortcuts are suspended while text editing, menus, item details, or dialogs own the keyboard,
   and modified Delete variants do nothing.
+- Opening an item context or overflow menu from a selected item preserves the complete visible
+  selection. Opening one from an unselected item replaces the selection with that item.
+- Move, Archive, Unarchive, Move to Trash, Restore, and permanent deletion from an item menu apply
+  to the complete selection; Open, Open source URL, Rename, and Show in Explorer apply only to the
+  item whose menu was opened. Multi-item menus label both scopes explicitly; single-item menus use
+  the ordinary compact action layout without redundant scope labels.
 - Select All through `Ctrl+A` or `Cmd+A` is a snapshot: later filter changes prune hidden selections
   but do not silently select newly revealed or newly created items. `Escape` clears the item selection.
 - Changing view does not change item order or selection.
@@ -338,6 +362,17 @@ The user returns to a project and wants to rediscover a saved reference.
 - The expanded sidebar can be resized from 208 to 384 pixels with a pointer or keyboard, and its width is restored on the next launch.
 - The standard keyboard zoom shortcuts resize the complete application interface, including the sidebar, toolbar, content, and dialogs, without adding permanent toolbar controls.
 - The selected zoom level is restored on the next launch; `Ctrl+-`, `Ctrl++`, and `Ctrl+0` remain available as keyboard equivalents.
+- On Windows 11 22H2 or newer, the application uses native Acrylic by default when Windows
+  Transparency effects are available. **Translucent background** in the Settings dialog can disable
+  it immediately and restores the chosen state on restart. Reduced-transparency and unsupported
+  systems use the opaque presentation without discarding the saved preference.
+- The toolbar and workspace read as one continuous, visibly translucent material. The sidebar uses
+  a slightly heavier tint. Borders, cards, and sidebar hover/active fills use restrained translucent
+  tokens, while dialogs, popovers, inputs, and preview surfaces stay solid.
+- Folder rows use the same hover and selected-state fill, typography, and focus treatment as Inbox,
+  All Items, Archive, and Trash without an additional selected-state ring.
+- Reduced-transparency, increased-contrast, and forced-color preferences keep the shell surfaces
+  opaque even when the stored translucency preference remains enabled.
 
 ## 9. Archive, delete, and recover an item
 
@@ -360,6 +395,17 @@ The user hides an inactive item or removes one accidentally or intentionally.
 - Restoring returns the item to its previous collection when possible.
 - Missing previous collections fall back to Inbox with visible feedback.
 - Permanent deletion requires clear confirmation.
+- Moving a note leaves independent images at their current paths and rewrites the note's relative
+  embeds. Renaming, moving, archiving, or collision-restoring an image rewrites inbound references
+  transactionally.
+- Moving a referenced image to Trash first warns with affected note names and requires a current
+  reference review. Confirmed deletion leaves the Markdown unchanged so the note shows a
+  missing-image warning; restoring to the original path repairs it without rewriting.
+- Permanently deleting notes offers an unchecked **Also move unused images to Trash** option only
+  for images with no remaining references from active, archived, or trashed notes.
+- Legacy companion `.assets` directories retain their existing note-coupled move and delete behavior.
 - Rename and deletion commands expose their `F2` and `Delete` equivalents in item overflow and
   context menus across Masonry, Grid, and Table.
+- Item overflow and context menus apply lifecycle actions to the complete selection and preserve the
+  same Undo, reference-warning, and permanent-delete confirmation safeguards as the bulk toolbar.
 - Kuskus never deletes the original external file from which an item was imported.

@@ -39,21 +39,28 @@ The MVP is complete when all golden workflows work against a real local library 
 - A primary New Item toolbar action that summons one inline draft card at the beginning of the active content view.
 - An in-app `Ctrl+N` equivalent that opens or refocuses the same card while workspace shortcuts are
   active.
-- A fixed `Ctrl+Shift+Space` system-wide shortcut that, while Kuskus is running, focuses the single
-  app instance and summons the same recoverable composer in Inbox without reading the clipboard.
-- No permanent capture tile or separate capture dialog.
+- A fixed `Ctrl+Shift+Space` system-wide shortcut that, while Kuskus is running, opens the same
+  recoverable Inbox composer in a singleton bottom-right quick-capture window without reading the
+  clipboard or changing the main window.
+- No permanent capture tile or modal capture dialog; the non-modal quick-capture window is the
+  system-wide entry surface.
 - Automatic input detection without requiring the user to choose a format first.
 - URL capture by paste with explicit confirmation, followed by a provisional card and background
   metadata enrichment.
 - Clipboard image capture through the same recoverable, explicitly committed draft card.
-- Drag-and-drop or paste import for images, PDFs, and general files.
+- Recoverable staged drag-and-drop or paste import for images, PDFs, and general files across
+  inline/quick-capture handoff and restart.
 - Plain-text or Markdown quick notes with text-and-image draft recovery and explicit commit.
 - Highlighted plain Markdown editing for saved notes with visible Read/Markdown/Split switching,
   guarded autosave, keyboard emphasis shortcuts, and reviewable conflict detection.
-- Local images embedded in notes as relative Markdown assets.
+- Local images embedded in notes as independently indexed sibling files with portable relative
+  Markdown links. Existing Obsidian attachment layouts and legacy Kuskus `.assets` notes remain
+  supported without migration.
 - A draft card that morphs into the newly saved, newest-first card.
 - Direct paste into the focused content view using the same detection and saving pipeline.
 - Visible progress and failure feedback.
+- Durable FIFO submission handoff so consecutive quick captures never wait for prior vault writes;
+  pending work resumes after restart and failed work remains explicitly recoverable.
 - Type-specific **Save image**, **Save link**, and **Save note** confirmation before authoritative
   item creation.
 
@@ -72,6 +79,7 @@ The MVP is complete when all golden workflows work against a real local library 
 
 - Search by title, note text, URL/domain, and filename.
 - Filter by item type.
+- Hide referenced attachments by default and expose their per-device visibility in the Filter menu.
 - Sort by date added, title, or item type.
 - Open an item using its primary action.
 - Open a URL in the default browser.
@@ -85,6 +93,8 @@ The MVP is complete when all golden workflows work against a real local library 
 - Preserve the original external file during import and deletion.
 - Make generated previews and indexes safe to rebuild.
 - Present actionable errors instead of silently failing.
+- Inspect Markdown references before image deletion, reject stale reviews, and offer safe unused-image
+  cleanup when a note is permanently deleted.
 
 ## Should have after the core is reliable
 
@@ -120,6 +130,8 @@ The MVP is complete when all golden workflows work against a real local library 
 - Migrate schema-v1 libraries through a verified sibling conversion and permanent user-owned backup.
 - Keep normal Markdown free of Kuskus properties; save web bookmarks as Windows `.url` Internet
   Shortcuts and reconcile identity through hidden paths, filesystem identities, and fingerprints.
+- Preserve `.obsidian` byte-for-byte and support root, sibling, shared, and nested Obsidian attachment
+  paths without using `.obsidian` as Kuskus configuration.
 - Public publishing.
 - Plugin marketplace.
 

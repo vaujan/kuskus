@@ -50,9 +50,18 @@ Sidebar visibility and the most recently selected width should persist between l
 - The current library is shown as context in the final row at the bottom of the sidebar. Clicking
   anywhere on that row opens **Open Another Library**, **Create New Library**, and **Copy Library
   Path** actions without presenting the identity row as a destination selector.
-- A **Settings** row appears immediately above the library identity. Its menu contains the persisted
-  Masonry, Grid, and Table selection plus explicit Light and Dark appearance choices. System mode,
-  accent color, and font controls may appear as clearly disabled future options until implemented.
+- A **Settings** row appears immediately above the library identity. It opens a centered modal
+  Settings dialog with General, Appearance, and Library categories. Appearance contains the
+  persisted Masonry, Grid, and Table selection plus explicit Light and Dark choices. Settings apply
+  immediately; unavailable future controls are omitted until implemented.
+- On Windows, Appearance includes **Translucent background**. It is enabled by default on Windows
+  11 22H2 or newer, applies native Acrylic behind a visibly translucent, continuous toolbar/content
+  material and a slightly heavier sidebar, and persists as app-local presentation state. Borders,
+  cards, and sidebar interaction fills use restrained translucent semantic tokens; dialogs,
+  popovers, inputs, and preview surfaces remain solid. When Windows Transparency effects are off,
+  the checked preference remains stored but the control is disabled with guidance to Accessibility
+  settings and the renderer becomes opaque. Older Windows versions show the platform requirement;
+  non-Windows builds omit the control.
 - Inbox is a primary destination, visually separate from user-created folders.
 - The **Folders** heading's add action is revealed on hover or keyboard focus. Each folder shows its
   destination item count at rest. Its overflow action replaces that count only while the row is
@@ -78,6 +87,11 @@ Settings
 Requirements:
 
 - The selected destination has a clear active state.
+- Folder destinations use the same active and hover surface as the primary and lifecycle sidebar
+  destinations; nesting does not add a second selected-state outline.
+- Sidebar rows use a full-width, square-edged interaction surface. Selection adds a three-pixel blue
+  rail at the sidebar edge plus a restrained semantic tint; hover uses only a weaker tint, and
+  keyboard focus and drag-over retain separate inset rings.
 - Navigation item counts use tabular numerals and reflect destination totals rather than active
   search or type filters. Folder counts include descendants, include zero, and update after moves.
 - Collection actions are available from both the overflow control and a right-click context menu.
@@ -89,6 +103,10 @@ Requirements:
   subfolders cannot be removed, and refusal happens before any item mutation.
 - Nested collection rows form a semantic expandable tree, retain stable selection across folder
   renames, and use a separate keyboard-accessible chevron so selecting a folder never toggles it.
+- Folder icons and names remain on one fixed alignment rail at every nesting depth. Disclosure
+  controls overlay the leading utility gutter only for folders with children; faint guide lines and
+  branch connectors communicate depth without shifting content and visually cap their offset after
+  four levels.
 - Folder branches start expanded, remember collapsed folder IDs per library as disposable local UI
   state, reveal the selected folder's ancestors, and select an active descendant's ancestor when
   that branch is collapsed.
@@ -97,15 +115,21 @@ Requirements:
 - Selecting a folder displays its complete subtree while capture targets the exact selected folder.
 - Item and multi-item drags may target Inbox or any folder. Folder drags reparent folders; dropping
   on the Folders section moves to the root. Invalid ancestry targets are refused without mutation.
+- Item drags use a capped, elevated preview that preserves the pointer's grab offset. The source
+  item remains in its layout position at reduced opacity; multi-item drags add restrained stacked
+  depth and a count badge. Inbox and folder targets respond with a small lift plus an inset shadow.
 - Move menus and dialogs preserve tree indentation and icons, identify the current destination, and
   disambiguate same-name folders in different branches.
 
-The Settings menu shows the fixed `Ctrl+Shift+Space` **Global capture** shortcut and whether its
-system-wide registration is available. A registration conflict also produces one non-blocking
-notice per app run. The shortcut cannot be changed or disabled in the first version.
+The General category in the Settings dialog shows the fixed `Ctrl+Shift+Space` **Global capture**
+shortcut and whether its system-wide registration is available. A registration conflict also
+produces one non-blocking notice per app run. The shortcut cannot be changed or disabled in the
+first version.
 
-The Settings menu includes **Show referenced attachments**. It is off by default so assets already
-embedded by notes do not duplicate the visual canvas, while enabling it reveals every indexed file.
+The Settings dialog has no empty Library category. **Show referenced attachments** lives in a
+**Visibility** group in the toolbar Filter menu. It is off by default so images already embedded by
+notes do not duplicate the visual canvas. The preference persists per device, contributes to the
+active-filter badge, applies in Masonry, Grid, and Table, and resets with **Clear filters**.
 An uninitialized vault uses a preview screen listing detected notes, images, files, folders, and the
 exact Kuskus metadata changes. Schema-v1 libraries use a migration screen that explains the retained
 sibling backup and reports completion or a recoverable failure.
@@ -194,7 +218,8 @@ A primary **New item** button appears in the toolbar's right action zone. The re
 - Appears as a standalone full-width card above Table.
 - Receives keyboard focus without dimming, blurring, or disabling the saved-content canvas.
 - Accepts URLs, clipboard images, dropped or selected images, plain text, and Markdown without a type picker.
-- Keeps the active destination visible; the current implementation saves to Inbox until collection item persistence is available.
+- Keeps the active destination visible; inline capture snapshots the exact active collection, while
+  quick capture and non-collection contexts target Inbox.
 - Uses a short interruptible opacity/scale entrance and an instant reduced-motion alternative.
 
 ### Detection and feedback
@@ -202,7 +227,10 @@ A primary **New item** button appears in the toolbar's right action zone. The re
 - A single URL remains editable, is recognized as a link, and may display the recognized domain.
 - An image in an empty card is validated into controlled temporary storage, shows an immediate
   preview, and remains an image draft until confirmed.
-- An image added after Markdown has begun is staged as a local note attachment, receives a collision-safe readable filename, and inserts a relative Markdown reference at the cursor.
+- An image added after Markdown has begun is staged as a local note attachment, receives a
+  collision-safe readable filename, and inserts a URL-encoded relative Markdown reference at the
+  cursor. On save it becomes an independently browsable sibling file, hidden by the referenced-file
+  filter by default.
 - A URL added after Markdown has begun remains part of the note.
 - Multiple files show the detected count and per-import or aggregate progress.
 - Text remains editable as Markdown.
@@ -229,23 +257,61 @@ A primary **New item** button appears in the toolbar's right action zone. The re
 ### Direct capture
 
 - Pasting while the content canvas has focus invokes the same detection and saving pipeline without requiring a preliminary click.
-- Pressing `Ctrl+Shift+Space` while Kuskus is running restores and focuses the main window, selects
-  Inbox, clears search and type filters, and opens the existing composer without reading the
-  clipboard. Existing drafts are retained and still require explicit confirmation.
-- If an item detail or another dialog is open, the shortcut prepares New Item behind it and provides
-  a brief notice without closing, discarding, or force-saving the foreground work.
+- Pressing `Ctrl+Shift+Space` while Kuskus is running opens or focuses the shared composer in a
+  singleton bottom-right Inbox popup without reading the clipboard. The main window retains its
+  visibility, destination, retrieval, selection, detail, and dialog state.
+- The popup and inline card share one revisioned library-scoped session. Summoning global capture
+  transfers editing ownership to the popup without replacing the draft or allowing duplicate saves.
 - Direct paste summons the populated draft card so its destination, detected type, and confirmation
   action are visible; it does not bypass explicit commit.
-- Dragging valid files over the window reveals a clear drop target connected to New Item.
+- Dragging a supported image over the window reserves the first New Item slot with a static neutral
+  silhouette instead of covering the canvas. Visual and Grid use a shadow card and Table uses a
+  shadow row. On drop, the silhouette cross-fades into the existing confirmation composer; an open
+  draft remains mounted and unchanged beneath the temporary silhouette.
+- Unsupported-only file drags do not reserve a slot. Dropping them preserves the existing visible
+  error behavior, and dropping a valid image still requires explicit **Save image** confirmation.
 - Paste and drop events are ignored by the global capture handler when a different text field intentionally owns them.
+
+### Quick-capture window
+
+- The frameless, non-resizable window is 416 pixels wide when space allows, has no taskbar button,
+  and sits 16 pixels from the bottom-right work-area edges on the pointer's monitor. Its direct
+  composer height is validated and capped at approximately 70 percent of that work area.
+- Inbox remains the implicit fixed destination without a visible destination label or selector.
+  The popup has no header or visible window actions.
+- The universal composer fills the rounded BrowserWindow as one continuous surface. It has no
+  transparent gutter, external border, edge ring, shadow, or separately painted nested card or
+  input panel. The save action always displays its `Ctrl+Enter` cue in this surface.
+- Windows 11 22H2 and newer use native Acrylic beneath a 38-percent composer tint when Windows
+  Transparency effects are available. Windows owns the outer rounded clipping so renderer material
+  cannot bleed through square corners. Unsupported Windows versions, macOS, and Linux use the same
+  rounded shape with an opaque CSS-clipped surface and no simulated desktop blur. Reduced-
+  transparency, increased-contrast, and forced-color modes also paint an opaque accessible surface;
+  forced colors may add an inset system outline.
+- The renderer applies no opacity, scale, or position animation. Windows may use its native show
+  animation while providing anti-aliased system corners.
+- Escape or ordinary focus loss hides the window and retains unfinished content. Native
+  file selection temporarily suppresses focus-loss dismissal.
+- Save durably hands the current content and staged assets to an independent FIFO submission, resets
+  the shared session, and hides the popup immediately after acceptance. The full vault write and URL
+  enrichment may continue independently.
+- The shortcut may immediately reopen a fresh editable composer while earlier submissions remain
+  pending. Pending submissions never set the shared session's editing lock.
+- A compact issue banner appears only when background captures fail. It opens the main-window
+  recovery view without replacing the fresh draft.
+- After the popup hides, opening New item in the main window continues the exact shared session in
+  the inline composer.
+- When no usable library is configured, the shortcut opens the main setup or recovery surface.
 
 ### Cancellation and draft safety
 
-- `Escape` and Close hide the card when no save, stage, or import is active.
+- `Escape` hides the card when no save, stage, or import is active.
 - Hidden text, links, and staged local images remain recoverable per library across card reopen,
   library switches, and app restart.
 - Discard is explicit and removes both the renderer-local text and controlled staged assets.
 - A failed import remains visible with Retry and Remove actions.
+- A failed accepted submission retains its immutable content and staged assets until the user
+  retries it, restores it into an empty composer, or explicitly discards it.
 - Changing collections while a draft or import is active must resolve, preserve, or explicitly cancel that work; it must not silently lose it.
 
 ## Card anatomy
@@ -298,12 +364,22 @@ remote renderer requests.
 - Escape clears the current item selection after any open contextual menu handles it first.
 - `F2` renames the sole selected item, or the focused visible card or row when no selection exists.
   It is a quiet no-op for multiple selections and in Trash.
-- `Delete` moves selected items, or the focused visible card or row, to Trash without confirmation
-  and exposes Undo. In Trash it opens permanent-delete confirmation. Modified variants such as
-  `Shift+Delete` do nothing.
+- `Delete` moves selected items, or the focused visible card or row, to Trash and exposes Undo.
+  Referenced images first open a warning listing up to five affected note names plus a remaining
+  count and require confirmation against the inspected reference revision. In Trash it opens
+  permanent-delete confirmation. Modified variants such as `Shift+Delete` do nothing.
 - `F2` and `Delete` are renderer-local and are suspended while text editing, menus, item details, or
   dialogs own the keyboard.
-- Right-click and the overflow control expose the same context menu.
+- Right-click and the overflow control expose the same context menu. Opening either menu on a
+  selected item preserves the complete visible selection; opening it on an unselected item replaces
+  the selection with that item.
+- When more than one item is selected, the menu separates **This item** actions from a count-labelled
+  **N selected** group. A single-item menu omits both scope labels and uses the ordinary compact
+  action layout. Open, Open source URL, Rename, and Show in Explorer affect only the item whose menu
+  was opened. Move,
+  Archive, Unarchive, Move to Trash, Restore, and permanent deletion affect every selected item.
+  Their concise action labels do not repeat the count already shown by **N selected**. Move evaluates
+  the current locations of the complete selection.
 
 Minimum context menu:
 
@@ -317,8 +393,9 @@ Minimum context menu:
 - Move to Trash, with `Delete` shown.
 - Restore or permanently delete when viewing Trash, with `Delete` shown for permanent deletion.
 
-Selecting one or more items reveals a compact contextual action toolbar centered above the bottom
-edge of the content pane. The toolbar floats independently of the saved-content scroll viewport,
+Selecting more than one item reveals a compact contextual action toolbar centered above the bottom
+edge of the content pane. A single selected item retains selection feedback but does not reveal or
+reserve layout space for the bulk toolbar. The toolbar floats independently of the saved-content scroll viewport,
 uses the same translucent material as popup menus, and does not shift the item layout. Its actions
 match the active destination, remain keyboard accessible, and collapse from icon-and-label controls
 to icon-only controls with accessible names and tooltips when space is constrained. The scroll
@@ -425,7 +502,8 @@ The detail interface must not become a general-purpose knowledge-management prop
 - Search is scoped to the active context by default.
 - The interface makes the scope visible.
 - Search covers title, note text, domain/URL, and filename.
-- Filter initially supports item type.
+- Filter supports item type and a Visibility group for referenced attachments. Non-default type or
+  visibility values activate the Filter badge and **Clear filters** resets both.
 - Sorting offers newest first, oldest first, title A–Z, title Z–A, and grouping by item type within
   the active context. Sorting lives with item-type filtering in the retrieval zone's Filter menu,
   and an active non-default sort is visible on that control at rest.
@@ -433,6 +511,11 @@ The detail interface must not become a general-purpose knowledge-management prop
   selection.
 - Clearing search and filters returns to the previous collection view.
 - Empty results distinguish "no saved items" from "no matches."
+- Empty capture destinations (All Items, Inbox, and collections) offer a primary **New item**
+  action and a quiet hint of capture methods, including the global capture shortcut when it is
+  registered. Archive and Trash keep explanatory copy without capture actions.
+- No-results states expose separate **Clear search** and **Remove type filters** actions that
+  appear only when the corresponding retrieval input is active.
 
 ## States
 
@@ -448,7 +531,10 @@ Required states include:
 - Missing local content.
 - Read-only or unavailable library.
 - No search results.
-- Trash and permanent-delete confirmation.
+- Referenced-image Trash review, missing-image warnings, and a distinct referenced-attachment
+  warning within permanent-delete confirmation. The warning names affected notes and explains that
+  Trash restore will no longer be available. Eligible note deletion also offers an unchecked
+  **Also move unused images to Trash** option.
 
 ## Accessibility and keyboard behavior
 
@@ -460,6 +546,8 @@ Required states include:
 - Color is not the only indication of selection, error, or item type.
 - The content collection uses predictable focus movement.
 - Reduced-motion preferences are respected.
+- Reduced-transparency, increased-contrast, and forced-color preferences replace translucent shell
+  tokens with their opaque theme equivalents without changing the stored user preference.
 - Shortcut-driven sidebar, search, selection, editor-overlay, and item-detail state changes are
   instantaneous. Occasional dialogs, tooltips, capture transitions, and drag-over feedback use the
   shared motion timings; reduced motion removes positional and scale movement while retaining
