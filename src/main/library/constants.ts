@@ -7,6 +7,8 @@ export const NOTE_FILENAME = 'note.md'
 export const NOTE_ASSETS_DIRECTORY = 'assets'
 export const NOTE_DRAFT_DIRECTORY = 'note-draft'
 export const NOTE_DRAFT_MANIFEST = 'draft.json'
+export const FILE_DRAFT_DIRECTORY = 'file-draft'
+export const FILE_DRAFT_MANIFEST = 'draft.json'
 export const URL_PREVIEW_DIRECTORY = 'thumbnails'
 export const ITEM_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i

@@ -86,7 +86,7 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
         : 'Create Your Local Library'
 
   return (
-    <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-background text-foreground">
+    <div className="window-canvas flex h-screen min-h-0 flex-col overflow-hidden text-foreground">
       <header className="flex h-11 shrink-0 select-none items-center border-b px-3 [-webkit-app-region:drag]">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <Library className="size-4 text-primary" aria-hidden="true" />

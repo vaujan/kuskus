@@ -3,8 +3,6 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
-@import '@fontsource-variable/instrument-sans/wght.css';
-@import '@fontsource-variable/jetbrains-mono/wght.css';
 @import 'katex/dist/katex.min.css';
 @import '@fontsource-variable/inter';
 @import '@fontsource-variable/ibm-plex-sans';
@@ -13,7 +11,61 @@
 @import '@fontsource/ibm-plex-mono/500.css';
 
 @import './theme.css';
+@import './window-material.css';
 @import './typeset.css';
 @import './markdown.css';
 @import './shell.css';
 @import './motion.css';
+
+html[data-surface='quick-capture'],
+html[data-surface='quick-capture'] body,
+html[data-surface='quick-capture'] #root {
+  height: 100%;
+  background: transparent;
+}
+
+.quick-capture-shell {
+  display: flex;
+  height: 100vh;
+  max-height: 100vh;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: calc(var(--radius) + 5px);
+  background: var(--popover);
+  color: var(--popover-foreground);
+}
+
+html[data-quick-capture-material='acrylic'] .quick-capture-shell {
+  background: color-mix(in oklch, var(--popover) 38%, transparent);
+}
+
+html[data-quick-capture-corners='native'] .quick-capture-shell {
+  border-radius: 0;
+}
+
+.quick-capture-composer {
+  flex: 1;
+  min-height: 0;
+
+  overflow: auto;
+}
+
+.quick-capture-composer [data-slot='card'] {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .quick-capture-shell {
+    background: var(--popover);
+  }
+}
+
+@media (forced-colors: active) {
+  .quick-capture-shell {
+    background: Canvas;
+    color: CanvasText;
+    box-shadow: inset 0 0 0 1px CanvasText;
+  }
+}

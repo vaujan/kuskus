@@ -129,20 +129,53 @@ async function writeVaultItem(libraryPath, relativeDirectory, item, location = '
   let metadata = { ...item.metadata, schemaVersion: 2 }
   if (metadata.type === 'note') {
     filename = `${title}.md`
-    const assetDirectory = `${title}.assets`
-    const body = String(item.files['note.md']).replace(/\.\/assets\//g, `./${assetDirectory}/`)
+    const body = String(item.files['note.md']).replace(/\.\/assets\//g, './')
     await writeFile(join(directory, filename), body, 'utf8')
     for (const [name, contents] of Object.entries(item.files)) {
       if (!name.startsWith('assets/')) continue
-      await mkdir(join(directory, assetDirectory), { recursive: true })
-      await writeFile(join(directory, assetDirectory, name.slice('assets/'.length)), contents)
+      const attachmentFilename = name.slice('assets/'.length)
+      await writeFile(join(directory, attachmentFilename), contents)
+      const attachment = (metadata.attachments ?? []).find(
+        (candidate) => candidate.filename === attachmentFilename
+      )
+      if (attachment) {
+        const attachmentRelativePath = join(relativeDirectory, attachmentFilename).replace(
+          /\\/g,
+          '/'
+        )
+        const attachmentMetadata = {
+          schemaVersion: 2,
+          id: attachment.id,
+          type: 'image',
+          title: attachmentFilename.replace(/\.[^.]+$/, ''),
+          createdAt: metadata.createdAt,
+          updatedAt: metadata.updatedAt,
+          sourceUrl: null,
+          sourceFilename: attachment.sourceFilename,
+          contentFilename: attachmentFilename,
+          mediaType: attachment.mediaType,
+          width: attachment.width,
+          height: attachment.height,
+          note: '',
+          originalCollectionId: null,
+          relativePath: attachmentRelativePath,
+          referencedAttachment: true
+        }
+        await writeJson(join(libraryPath, '.kuskus', 'records', `${attachment.id}.json`), {
+          schemaVersion: 2,
+          id: attachment.id,
+          relativePath: attachmentRelativePath,
+          fingerprint: null,
+          metadata: attachmentMetadata
+        })
+      }
     }
     metadata = {
       ...metadata,
       contentFilename: filename,
       attachments: (metadata.attachments ?? []).map((attachment) => ({
         ...attachment,
-        relativePath: `./${assetDirectory}/${attachment.filename}`
+        relativePath: `./${attachment.filename}`
       }))
     }
   } else if (metadata.type === 'image') {

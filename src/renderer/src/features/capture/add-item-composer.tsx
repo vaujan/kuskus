@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import {
+  IconAlertCircle,
   IconDots,
   IconFile,
   IconLink,
@@ -22,17 +23,29 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Kbd } from '@/components/ui/kbd'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { Spinner } from '@/components/ui/spinner'
 import { Textarea } from '@/components/ui/textarea'
 import { ItemCard, ItemCardCaption, ItemCardSurface } from '@/features/items/item-card'
 import { SavedItemCard } from '@/features/items/saved-item-card'
 import type { LibraryView } from '@/features/items/item-view'
 import { composeMarkdownCapture, detectCaptureKind } from '@/features/capture/capture-detection'
+import { useCaptureSession } from '@/features/capture/use-capture-session'
+import { useCaptureQueue } from '@/features/capture/use-capture-queue'
+import { cn } from '@/lib/utils'
+import type { CaptureSurface } from '../../../../shared/capture-contract'
 import type {
+  ActiveItemLocation,
+  CaptureDraftFileDto,
   CaptureDraftImageDto,
   LibraryItemDto,
   UrlItemDto
 } from '../../../../shared/library-contract'
+import {
+  encodeMarkdownImageTarget,
+  normalizeStagedAttachmentMarkdown,
+  removeStagedAttachmentMarkdown
+} from '../../../../shared/markdown-image-references'
 
 export type ImportRequest =
   { id: number; file: File } | { id: number; url: string } | { id: number; text: string }
@@ -101,7 +114,7 @@ function markdownImage(attachment: CaptureDraftImageDto): string {
     .replace(/\.[^.]+$/, '')
     .replaceAll('[', '')
     .replaceAll(']', '')
-  return `![${alt || 'Image'}](${attachment.relativePath})`
+  return `![${alt || 'Image'}](${encodeMarkdownImageTarget(attachment.relativePath)})`
 }
 
 function DraftImage({ attachment }: { attachment: CaptureDraftImageDto }): React.JSX.Element {
@@ -141,6 +154,9 @@ export function AddItemComposer({
   open,
   focusRequest,
   discardRequest,
+  libraryId,
+  destination = { type: 'inbox' },
+  surface = 'main',
   draftStorageKey,
   importRequest,
   view,
@@ -148,16 +164,22 @@ export function AddItemComposer({
   onImportRequestHandled,
   onCreated,
   onLinkCommitted,
-  onLinkUpdated,
   onLinkReleased,
   onStatus,
   onDraftStateChange,
-  onTransientWorkChange
+  onTransientWorkChange,
+  completionDelayMs = MORPH_DURATION_MS,
+  completeLinkAfterLocalSave = false,
+  dismissNoteInBackground = false,
+  onFileDialogActiveChange
 }: {
   open: boolean
   focusRequest: number
   discardRequest: number
-  draftStorageKey: string
+  libraryId: string
+  destination?: ActiveItemLocation
+  surface?: CaptureSurface
+  draftStorageKey?: string
   importRequest: ImportRequest | null
   view: LibraryView
   onOpenChange: (open: boolean) => void
@@ -169,15 +191,28 @@ export function AddItemComposer({
   onStatus: (message: string) => void
   onDraftStateChange: (hasDraft: boolean) => void
   onTransientWorkChange: (hasTransientWork: boolean) => void
+  completionDelayMs?: number
+  completeLinkAfterLocalSave?: boolean
+  dismissNoteInBackground?: boolean
+  onFileDialogActiveChange?: (active: boolean) => void
 }): React.JSX.Element | null {
-  const [draft, setDraft] = useState(() => localStorage.getItem(draftStorageKey) ?? '')
+  const captureSession = useCaptureSession({
+    libraryId,
+    surface,
+    legacyStorageKey: draftStorageKey
+  })
+  const { queue } = useCaptureQueue(libraryId)
+  const draft = captureSession.markdown
+  const setDraft = captureSession.setMarkdown
   const [attachments, setAttachments] = useState<CaptureDraftImageDto[]>([])
   const [saving, setSaving] = useState(false)
   const [stagingCount, setStagingCount] = useState(0)
   const [error, setError] = useState('')
   const [failedStage, setFailedStage] = useState<File | null>(null)
-  const [fileCandidate, setFileCandidate] = useState<File | null>(null)
+  const [fileCandidate, setFileCandidate] = useState<CaptureDraftFileDto | null>(null)
   const [morphedItem, setMorphedItem] = useState<LibraryItemDto | null>(null)
+  const [exiting, setExiting] = useState(false)
+  const [exitingDraft, setExitingDraft] = useState('')
   const [savingLink, setSavingLink] = useState<{
     domain: string
     phase: 'saving' | 'preview'
@@ -187,23 +222,40 @@ export function AddItemComposer({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const handledImportRequest = useRef<number | null>(null)
   const handledDiscardRequest = useRef(discardRequest)
+  const previousRevision = useRef(captureSession.revision)
 
   useEffect(() => {
-    if (draft) localStorage.setItem(draftStorageKey, draft)
-    else localStorage.removeItem(draftStorageKey)
-  }, [draft, draftStorageKey])
+    if (
+      captureSession.revision !== previousRevision.current &&
+      !captureSession.markdown &&
+      !captureSession.busy
+    ) {
+      setError('')
+      setFailedStage(null)
+      setSavingLink(null)
+      setMorphedItem(null)
+      setExiting(false)
+      setExitingDraft('')
+    }
+    previousRevision.current = captureSession.revision
+  }, [captureSession.busy, captureSession.markdown, captureSession.revision])
 
   useEffect(() => {
     let active = true
-    void window.kuskus.listCaptureDraftImages().then((result) => {
+    void Promise.all([
+      window.kuskus.listCaptureDraftImages(),
+      window.kuskus.getCaptureDraftFile()
+    ]).then(([images, file]) => {
       if (!active) return
-      if (result.ok) setAttachments(result.data)
-      else setError(result.error)
+      if (images.ok) setAttachments(images.data)
+      else setError(images.error)
+      if (file.ok) setFileCandidate(file.data)
+      else setError(file.error)
     })
     return () => {
       active = false
     }
-  }, [])
+  }, [captureSession.assetsRevision])
 
   const hasDraft =
     draft.trim().length > 0 ||
@@ -211,22 +263,37 @@ export function AddItemComposer({
     failedStage !== null ||
     fileCandidate !== null
   const hasTransientWork = saving || stagingCount > 0
+  const surfaceActive = captureSession.owner === surface
+  const captureBlocked = hasTransientWork || exiting || (captureSession.loaded && !surfaceActive)
+  const savingFeedback = saving || exiting
   const captureKind = detectCaptureKind(draft, attachments.length)
   const effectiveKind = fileCandidate ? 'file' : captureKind
+  const displayedError = error || captureSession.error
+
+  useEffect(() => {
+    if (!captureSession.loaded || !surfaceActive || attachments.length === 0) return
+    const normalized = normalizeStagedAttachmentMarkdown(draft, attachments)
+    if (normalized !== draft) setDraft(normalized)
+  }, [attachments, captureSession.loaded, draft, setDraft, surfaceActive])
 
   useEffect(() => onDraftStateChange(hasDraft), [hasDraft, onDraftStateChange])
   useEffect(
-    () => onTransientWorkChange(hasTransientWork),
-    [hasTransientWork, onTransientWorkChange]
+    () => onTransientWorkChange(hasTransientWork || captureSession.busy || queue.pendingCount > 0),
+    [captureSession.busy, hasTransientWork, onTransientWorkChange, queue.pendingCount]
   )
 
   useEffect(() => {
+    if (surfaceActive) void captureSession.setBusy(hasTransientWork)
+  }, [captureSession.setBusy, hasTransientWork, surfaceActive])
+
+  useEffect(() => {
     if (!open) return
+    void captureSession.claim()
     window.requestAnimationFrame(() => {
       rootRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
       editorRef.current?.focus()
     })
-  }, [focusRequest, open])
+  }, [captureSession.claim, focusRequest, open])
 
   const insertAtSelection = useCallback(
     (value: string, start?: number, end?: number): void => {
@@ -247,6 +314,10 @@ export function AddItemComposer({
 
   const stageCaptureImage = useCallback(
     async (file: File, selectionStart?: number, selectionEnd?: number): Promise<void> => {
+      if (fileCandidate) {
+        setError('Save or remove the staged file before adding an image.')
+        return
+      }
       if (!file.type.startsWith('image/')) {
         setError('Only PNG, JPEG, GIF, WebP, and BMP images are supported.')
         return
@@ -268,6 +339,7 @@ export function AddItemComposer({
         const noteIntent = draft.trim().length > 0
         const imageCandidate = !noteIntent && attachments.length === 1
         setAttachments((current) => [...current, result.data])
+        void captureSession.touchAssets()
         if (noteIntent) {
           insertAtSelection(markdownImage(result.data), selectionStart, selectionEnd)
           onStatus('Image added to the Markdown draft.')
@@ -284,26 +356,65 @@ export function AddItemComposer({
         setStagingCount((count) => Math.max(0, count - 1))
       }
     },
-    [attachments, draft, insertAtSelection, onStatus]
+    [attachments, captureSession, draft, fileCandidate, insertAtSelection, onStatus, setDraft]
+  )
+
+  const stageCaptureFile = useCallback(
+    async (file: File): Promise<void> => {
+      if (draft.trim() || attachments.length > 0) {
+        setError('Save or discard the current note before staging a separate file.')
+        return
+      }
+      setStagingCount((count) => count + 1)
+      setError('')
+      try {
+        const result = await window.kuskus.stageCaptureDraftFile({
+          bytes: await file.arrayBuffer(),
+          sourceFilename: file.name,
+          mediaType: file.type || 'application/octet-stream'
+        })
+        if (!result.ok) {
+          setError(result.error)
+          return
+        }
+        setFileCandidate(result.data)
+        void captureSession.touchAssets()
+        onStatus('File ready to save.')
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : 'The file could not be staged.')
+      } finally {
+        setStagingCount((count) => Math.max(0, count - 1))
+      }
+    },
+    [attachments.length, captureSession, draft, onStatus]
   )
 
   const finishCreate = useCallback(
-    (item: LibraryItemDto, message: string): void => {
+    async (item: LibraryItemDto, message: string): Promise<void> => {
+      if (dismissNoteInBackground && item.type === 'note') {
+        setError('')
+        const remainsVisible = await onCreated(item)
+        onStatus(
+          remainsVisible
+            ? message
+            : 'Saved successfully, but hidden by the current location, search, or filters.'
+        )
+        return
+      }
+
       setMorphedItem(item)
       setError('')
-      window.setTimeout(() => {
-        void Promise.resolve(onCreated(item)).then((remainsVisible) => {
-          setMorphedItem(null)
-          onOpenChange(false)
-          onStatus(
-            remainsVisible
-              ? message
-              : 'Saved successfully, but hidden by the current location, search, or filters.'
-          )
-        })
-      }, MORPH_DURATION_MS)
+      await wait(completionDelayMs)
+      const remainsVisible = await onCreated(item)
+      setMorphedItem(null)
+      onOpenChange(false)
+      onStatus(
+        remainsVisible
+          ? message
+          : 'Saved successfully, but hidden by the current location, search, or filters.'
+      )
     },
-    [onCreated, onOpenChange, onStatus]
+    [completionDelayMs, dismissNoteInBackground, onCreated, onOpenChange, onStatus]
   )
 
   const finishCommittedLink = useCallback(
@@ -311,7 +422,7 @@ export function AddItemComposer({
       setMorphedItem(item)
       setSavingLink(null)
       setError('')
-      await wait(MORPH_DURATION_MS)
+      await wait(completionDelayMs)
       onLinkReleased(item.id)
       setMorphedItem(null)
       onOpenChange(false)
@@ -321,15 +432,18 @@ export function AddItemComposer({
           : 'Saved successfully, but hidden by the current location, search, or filters.'
       )
     },
-    [onLinkReleased, onOpenChange, onStatus]
+    [completionDelayMs, onLinkReleased, onOpenChange, onStatus]
   )
 
   const save = async (): Promise<void> => {
-    if (effectiveKind === 'empty' || saving || hasTransientWork) return
+    if (effectiveKind === 'empty' || saving || captureBlocked) return
     setSaving(true)
     setError('')
     const kind = effectiveKind
-    const minimumLinkState = kind === 'link' ? wait(LINK_SAVE_MINIMUM_MS) : Promise.resolve()
+    const minimumLinkState =
+      kind === 'link' && !completeLinkAfterLocalSave
+        ? wait(LINK_SAVE_MINIMUM_MS)
+        : Promise.resolve()
     const linkTimeout = kind === 'link' ? wait(LINK_SAVE_TIMEOUT_MS) : Promise.resolve()
     if (kind === 'link') {
       let domain = draft.trim()
@@ -341,53 +455,46 @@ export function AddItemComposer({
       setSavingLink({ domain, phase: 'saving' })
     }
     try {
-      if (kind === 'link') {
-        const created = await window.kuskus.createUrl(draft.trim())
-        if (!created.ok) {
-          setSavingLink(null)
-          setError(created.error)
-          return
-        }
-        const committed = await onLinkCommitted(created.data)
-        let latestItem = committed.item
-        setDraft('')
-        setAttachments([])
-        setSavingLink({ domain: latestItem.domain, phase: 'preview' })
-        const preparation = window.kuskus.enrichUrl(latestItem.id).then(async (result) => {
-          if (!result.ok) return latestItem
-          latestItem = result.data
-          onLinkUpdated(latestItem)
-          if (latestItem.hasPreviewImage) {
-            await window.kuskus.getUrlPreview(latestItem.id, 'preview').catch(() => undefined)
-          }
-          return latestItem
-        })
-        await Promise.race([preparation, linkTimeout])
-        await minimumLinkState
-        await finishCommittedLink(latestItem, committed.remainsVisible)
+      const revision = await captureSession.flush()
+      const submitted = await window.capture.submit({
+        libraryId,
+        expectedRevision: revision,
+        kind: kind === 'link' ? 'url' : kind,
+        attachmentIds: attachments.map((attachment) => attachment.id),
+        fileId: fileCandidate?.id ?? null,
+        destination
+      })
+      if (!submitted.ok) {
+        setSavingLink(null)
+        setError(submitted.error)
         return
       }
-      const result =
-        kind === 'file' && fileCandidate
-          ? await window.kuskus.importFile({
-              bytes: await fileCandidate.arrayBuffer(),
-              sourceFilename: fileCandidate.name,
-              mediaType: fileCandidate.type || 'application/octet-stream'
-            })
-          : kind === 'image'
-            ? await window.kuskus.commitCaptureDraftImage(attachments[0].id)
-            : await window.kuskus.createNote({
-                markdown: draft,
-                attachmentIds: attachments.map((attachment) => attachment.id)
-              })
+
+      setAttachments([])
+      setFileCandidate(null)
+      setFailedStage(null)
+      setSavingLink(null)
+      if (surface === 'quick') {
+        onOpenChange(false)
+        onStatus('Capture accepted.')
+        return
+      }
+
+      if (kind === 'link') setSavingLink({ domain: draft.trim(), phase: 'preview' })
+      const result = await window.capture.waitForSubmission(submitted.data.id)
       if (!result.ok) {
+        setSavingLink(null)
         setError(result.error)
         return
       }
-      setDraft('')
-      setAttachments([])
-      setFileCandidate(null)
-      finishCreate(
+      if (result.data.type === 'url') {
+        const committed = await onLinkCommitted(result.data)
+        await minimumLinkState
+        await Promise.race([Promise.resolve(), linkTimeout])
+        await finishCommittedLink(committed.item, committed.remainsVisible)
+        return
+      }
+      await finishCreate(
         result.data,
         kind === 'file'
           ? 'File saved to Inbox.'
@@ -414,13 +521,14 @@ export function AddItemComposer({
       return
     }
     setDraft('')
+    await captureSession.clear()
     setAttachments([])
     setFailedStage(null)
     setFileCandidate(null)
     setError('')
     onOpenChange(false)
     onStatus('Draft discarded.')
-  }, [hasTransientWork, onOpenChange, onStatus])
+  }, [captureSession, hasTransientWork, onOpenChange, onStatus, setDraft])
 
   useEffect(() => {
     if (discardRequest === handledDiscardRequest.current) return
@@ -435,8 +543,8 @@ export function AddItemComposer({
       return
     }
     setAttachments((current) => current.filter((entry) => entry.id !== attachment.id))
-    const syntax = markdownImage(attachment)
-    setDraft((current) => current.replace(syntax, '').replace(/\n{3,}/g, '\n\n'))
+    setDraft((current) => removeStagedAttachmentMarkdown(current, attachment))
+    void captureSession.touchAssets()
     onStatus('Image removed from the draft.')
   }
 
@@ -449,8 +557,7 @@ export function AddItemComposer({
         if (importRequest.file.type.startsWith('image/')) {
           void stageCaptureImage(importRequest.file)
         } else {
-          setFileCandidate(importRequest.file)
-          onStatus('File ready to save.')
+          void stageCaptureFile(importRequest.file)
         }
         return
       }
@@ -469,6 +576,7 @@ export function AddItemComposer({
     insertAtSelection,
     onImportRequestHandled,
     onStatus,
+    stageCaptureFile,
     stageCaptureImage
   ])
 
@@ -514,39 +622,111 @@ export function AddItemComposer({
     )
   }
 
+  const editor = (
+    <Textarea
+      ref={editorRef}
+      className={cn(
+        'min-h-32 resize-none border-0 bg-transparent px-1 py-2 text-sm leading-6 shadow-none [field-sizing:content] placeholder:text-muted-foreground/70 focus-visible:ring-0',
+        surface === 'quick' ? 'min-h-full max-h-none overflow-hidden' : 'max-h-96 overflow-y-auto'
+      )}
+      aria-label="Markdown note or link"
+      placeholder={
+        captureKind === 'image'
+          ? 'Add text to turn this into a note…'
+          : 'Write, paste a link, or drop an image…'
+      }
+      value={exiting ? exitingDraft : draft}
+      disabled={captureBlocked || fileCandidate !== null}
+      onChange={(event) => {
+        const value = event.target.value
+        if (captureKind !== 'image' || !value) {
+          setDraft(value)
+          return
+        }
+        const converted = composeMarkdownCapture([markdownImage(attachments[0])], value)
+        setDraft(converted)
+        window.requestAnimationFrame(() => {
+          editorRef.current?.setSelectionRange(converted.length, converted.length)
+        })
+      }}
+      onPaste={handlePaste}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+          event.preventDefault()
+          void save()
+        } else if (event.key === 'Escape' && !hasTransientWork) {
+          event.preventDefault()
+          onOpenChange(false)
+          onStatus(hasDraft ? 'Draft retained. Use Continue draft to return.' : 'New item closed.')
+        }
+      }}
+    />
+  )
+
   return (
     <Card
       ref={rootRef}
-      className="gap-0 rounded-lg overflow-hidden py-0 shadow-[0_0_0_1px_color-mix(in_oklch,var(--ring)_25%,transparent),0_10px_28px_-22px_rgb(0_0_0/0.3)] animate-in fade-in zoom-in-[0.98] [animation-duration:var(--capture-morph-duration)] [animation-timing-function:var(--motion-ease-out)] motion-reduce:animate-none"
+      aria-busy={savingFeedback}
+      className={cn(
+        'gap-0 overflow-hidden rounded-lg py-0 transition-[opacity,transform,filter] [transition-duration:80ms] ease-in',
+        surface === 'quick' && 'h-full',
+        'animate-in fade-in zoom-in-[0.98] [animation-duration:var(--capture-morph-duration)] [animation-timing-function:var(--motion-ease-out)]',
+        exiting && '-translate-y-3 opacity-0 blur-[4px]',
+        'motion-reduce:translate-y-0 motion-reduce:animate-none motion-reduce:blur-none motion-reduce:transition-none'
+      )}
       style={MORPH_STYLE}
     >
-      <CardContent className="flex flex-col gap-3 p-3">
+      <CardContent
+        className={cn('flex flex-col gap-3 p-3', surface === 'quick' && 'min-h-full flex-1')}
+      >
+        {queue.failures.length > 0 ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="h-auto justify-start gap-2 border-destructive/30 px-3 py-2 text-left text-destructive"
+            onClick={() => window.capture.openRecovery()}
+          >
+            <IconAlertCircle className="size-4 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 flex-1 text-xs">
+              {queue.failures.length}{' '}
+              {queue.failures.length === 1 ? 'capture needs' : 'captures need'} attention
+            </span>
+          </Button>
+        ) : null}
         <input
           ref={fileInputRef}
           className="sr-only"
           type="file"
           tabIndex={-1}
           onChange={(event) => {
+            onFileDialogActiveChange?.(false)
             const files = Array.from(event.currentTarget.files ?? [])
             event.currentTarget.value = ''
             if (files.length === 0) return
             if (files[0].type.startsWith('image/')) void stageCaptureImage(files[0])
-            else setFileCandidate(files[0])
+            else void stageCaptureFile(files[0])
           }}
         />
         {fileCandidate ? (
-          <div className="flex items-center gap-3 rounded-xl bg-muted/45 p-3">
+          <div className="flex items-center gap-3 rounded-xl bg-card/50 backdrop-blur-2xl p-3">
             <IconFile className="size-6 text-muted-foreground" aria-hidden="true" />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{fileCandidate.name}</p>
+              <p className="truncate text-sm font-medium">{fileCandidate.filename}</p>
               <p className="text-xs text-muted-foreground">Ready to copy into the vault</p>
             </div>
             <Button
               size="icon-sm"
               variant="ghost"
-              aria-label={`Remove ${fileCandidate.name}`}
-              disabled={hasTransientWork}
-              onClick={() => setFileCandidate(null)}
+              aria-label={`Remove ${fileCandidate.filename}`}
+              disabled={captureBlocked}
+              onClick={() => {
+                void window.kuskus.removeCaptureDraftFile().then((result) => {
+                  if (result.ok) {
+                    setFileCandidate(null)
+                    void captureSession.touchAssets()
+                  } else setError(result.error)
+                })
+              }}
             >
               <IconX aria-hidden="true" />
             </Button>
@@ -574,7 +754,7 @@ export function AddItemComposer({
                   size="icon-sm"
                   variant="ghost"
                   aria-label={`Remove ${attachment.filename}`}
-                  disabled={hasTransientWork}
+                  disabled={captureBlocked}
                   onClick={() => void removeAttachment(attachment)}
                 >
                   <IconX aria-hidden="true" />
@@ -583,53 +763,26 @@ export function AddItemComposer({
             ))}
           </div>
         ) : null}
-        <Textarea
-          ref={editorRef}
-          className="min-h-32 max-h-96 resize-none overflow-y-auto border-0 bg-transparent px-1 py-2 text-sm leading-6 shadow-none [field-sizing:content] placeholder:text-muted-foreground/70 focus-visible:ring-0"
-          aria-label="Markdown note or link"
-          placeholder={
-            captureKind === 'image'
-              ? 'Add text to turn this into a note…'
-              : 'Write, paste a link, or drop an image…'
-          }
-          value={draft}
-          disabled={hasTransientWork || fileCandidate !== null}
-          onChange={(event) => {
-            const value = event.target.value
-            if (captureKind !== 'image' || !value) {
-              setDraft(value)
-              return
-            }
-            const converted = composeMarkdownCapture([markdownImage(attachments[0])], value)
-            setDraft(converted)
-            window.requestAnimationFrame(() => {
-              editorRef.current?.setSelectionRange(converted.length, converted.length)
-            })
-          }}
-          onPaste={handlePaste}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-              event.preventDefault()
-              void save()
-            } else if (event.key === 'Escape' && !hasTransientWork) {
-              event.preventDefault()
-              onOpenChange(false)
-              onStatus(
-                hasDraft ? 'Draft retained. Use Continue draft to return.' : 'New item closed.'
-              )
-            }
-          }}
-        />
+        {surface === 'quick' ? (
+          <ScrollArea
+            className="min-h-0 flex-1"
+            viewportClassName="focus-visible:ring-0 focus-visible:outline-none"
+          >
+            {editor}
+          </ScrollArea>
+        ) : (
+          editor
+        )}
         {stagingCount > 0 ? (
           <p className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
             <Spinner /> Staging {stagingCount} {stagingCount === 1 ? 'image' : 'images'}…
           </p>
         ) : null}
-        {error ? (
+        {displayedError ? (
           <Alert variant="destructive">
             <AlertTitle>Unable to add content</AlertTitle>
             <AlertDescription className="flex flex-col gap-2">
-              <span>{error}</span>
+              <span>{displayedError}</span>
               {failedStage ? (
                 <Button
                   size="sm"
@@ -643,7 +796,9 @@ export function AddItemComposer({
             </AlertDescription>
           </Alert>
         ) : null}
-        <div className="flex items-center justify-end gap-2">
+        <div
+          className={cn('flex items-center justify-end gap-2', surface === 'quick' && 'mt-auto')}
+        >
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -652,7 +807,7 @@ export function AddItemComposer({
                   variant="ghost"
                   size="icon"
                   aria-label="More new item actions"
-                  disabled={hasTransientWork}
+                  disabled={captureBlocked}
                 />
               }
             >
@@ -660,7 +815,15 @@ export function AddItemComposer({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
+                <DropdownMenuItem
+                  onClick={() => {
+                    onFileDialogActiveChange?.(true)
+                    fileInputRef.current?.click()
+                    window.addEventListener('focus', () => onFileDialogActiveChange?.(false), {
+                      once: true
+                    })
+                  }}
+                >
                   <IconPhotoPlus aria-hidden="true" />
                   Add file or image
                 </DropdownMenuItem>
@@ -689,12 +852,12 @@ export function AddItemComposer({
           <Button
             size="lg"
             className=""
-            disabled={effectiveKind === 'empty' || hasTransientWork}
+            disabled={effectiveKind === 'empty' || captureBlocked}
             aria-keyshortcuts="Control+Enter Meta+Enter"
             onClick={() => void save()}
           >
-            {saving ? <Spinner data-icon="inline-start" /> : null}
-            {saving
+            {savingFeedback ? <Spinner data-icon="inline-start" /> : null}
+            {savingFeedback
               ? effectiveKind === 'file'
                 ? 'Saving file…'
                 : captureKind === 'image'
@@ -709,9 +872,13 @@ export function AddItemComposer({
                   : captureKind === 'link'
                     ? 'Save link'
                     : 'Save note'}
-            {!saving ? (
+            {!savingFeedback ? (
               <Kbd
-                className="ml-1 hidden bg-primary-foreground/15 text-primary-foreground sm:inline-flex"
+                className={
+                  surface === 'quick'
+                    ? 'ml-1 bg-primary-foreground/15 text-primary-foreground'
+                    : 'ml-1 hidden bg-primary-foreground/15 text-primary-foreground sm:inline-flex'
+                }
                 aria-hidden="true"
               >
                 Ctrl+Enter

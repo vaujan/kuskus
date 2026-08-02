@@ -8,6 +8,7 @@ import remarkMath from 'remark-math'
 import { cn } from '@/lib/utils'
 import { useNoteAttachmentPreviews } from '@/features/items/use-note-attachment-previews'
 import type { NoteAttachmentDto } from '../../../../shared/library-contract'
+import { markdownImageTargetKey } from '../../../../shared/markdown-image-references'
 import { prepareObsidianMarkdown } from '@/features/items/obsidian-markdown'
 
 function EmbeddedImageState({ children }: { children: React.ReactNode }): React.JSX.Element {
@@ -39,12 +40,12 @@ export function MarkdownPreview({
   const previewRef = useRef<HTMLDivElement>(null)
   const [isClipped, setIsClipped] = useState(false)
   const previews = useNoteAttachmentPreviews(itemId ?? '', itemId ? attachments : [])
-  const localImages = new Map(
-    attachments.map((attachment) => [
-      attachment.relativePath,
-      { attachment, preview: previews[attachment.id] ?? null }
-    ])
-  )
+  const localImages = new Map<string, { attachment: NoteAttachmentDto; preview: string | null }>()
+  for (const attachment of attachments) {
+    const value = { attachment, preview: previews[attachment.id] ?? null }
+    localImages.set(markdownImageTargetKey(attachment.relativePath), value)
+    localImages.set(markdownImageTargetKey(attachment.filename), value)
+  }
 
   useLayoutEffect(() => {
     if (presentation === 'detail') return
@@ -101,7 +102,7 @@ export function MarkdownPreview({
     },
     img: ({ src, alt }) => {
       const source = typeof src === 'string' ? src : ''
-      const local = localImages.get(source)
+      const local = localImages.get(markdownImageTargetKey(source))
       if (local) {
         if (local.attachment.missingContent) {
           return (
@@ -146,7 +147,11 @@ export function MarkdownPreview({
   return (
     <div
       ref={previewRef}
-      className={cn('relative', presentation === 'card' && 'max-h-80 overflow-hidden')}
+      className={cn(
+        'relative',
+        presentation === 'card' && 'max-h-80 overflow-hidden',
+        presentation === 'card' && isClipped && 'kuskus-card-content-fade'
+      )}
     >
       <div className="typeset kuskus-typeset" data-typeset-presentation={presentation}>
         <ReactMarkdown
@@ -157,12 +162,6 @@ export function MarkdownPreview({
           {prepareObsidianMarkdown(value, attachments)}
         </ReactMarkdown>
       </div>
-      {presentation === 'card' && isClipped ? (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-linear-to-b from-transparent to-card"
-        />
-      ) : null}
     </div>
   )
 }

@@ -38,17 +38,21 @@ function hasMissingContent(item: LibraryItemDto): boolean {
 export function SavedItemsTable({
   items,
   selectedIds,
+  draggedIds,
   onActivate,
   onOpen,
   onDragStart,
+  onDragEnd,
   renderActions,
   wrapRow
 }: {
   items: LibraryItemDto[]
   selectedIds: ReadonlySet<string>
+  draggedIds?: ReadonlySet<string>
   onActivate: (itemId: string, event: React.MouseEvent<HTMLTableRowElement>) => void
   onOpen: (itemId: string) => void
   onDragStart?: (itemId: string, event: React.DragEvent<HTMLTableRowElement>) => void
+  onDragEnd?: () => void
   renderActions: (item: LibraryItemDto) => React.ReactNode
   wrapRow?: (item: LibraryItemDto, row: React.ReactElement) => React.ReactNode
 }): React.JSX.Element {
@@ -80,9 +84,11 @@ export function SavedItemsTable({
               aria-haspopup="dialog"
               aria-selected={selected}
               data-state={selected ? 'selected' : undefined}
-              className="group/saved-item cursor-pointer transition-none active:bg-muted/70 focus-visible:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=selected]:bg-primary/10 data-[state=selected]:shadow-[inset_3px_0_0_var(--primary)] hover:data-[state=selected]:bg-primary/14"
+              data-dragging={draggedIds?.has(item.id)}
+              className="group/saved-item cursor-pointer transition-[opacity] [transition-duration:var(--motion-duration-press)] [transition-timing-function:var(--motion-ease-out)] active:bg-muted/70 focus-visible:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[dragging=true]:opacity-40 data-[state=selected]:bg-primary/10 data-[state=selected]:shadow-[inset_3px_0_0_var(--primary)] hover:data-[state=selected]:bg-primary/14"
               onClick={(event) => onActivate(item.id, event)}
               onDragStart={(event) => onDragStart?.(item.id, event)}
+              onDragEnd={onDragEnd}
               onKeyDown={(event) => {
                 if (event.key !== 'Enter') return
                 event.preventDefault()
@@ -116,7 +122,11 @@ export function SavedItemsTable({
                   {CREATED_DATE_FORMATTER.format(new Date(item.createdAt))}
                 </time>
               </TableCell>
-              <TableCell className="p-1" onClick={(event) => event.stopPropagation()}>
+              <TableCell
+                data-drag-preview-hidden
+                className="p-1"
+                onClick={(event) => event.stopPropagation()}
+              >
                 {renderActions(item)}
               </TableCell>
             </TableRow>

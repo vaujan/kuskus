@@ -14,24 +14,27 @@ import type {
   ImagePreviewDto,
   CollectionDto,
   ItemMutationInput,
+  InspectItemDeletionInput,
+  ItemDeletionInspectionDto,
+  PermanentlyDeleteItemsInput,
+  TrashItemsInput,
   LibraryDto,
+  LibraryItemDto,
   LibraryState,
   MoveItemsInput,
   MoveCollectionInput,
   NoteItemDto,
   CaptureDraftImageDto,
+  CaptureDraftFileDto,
   UpdateNoteInput,
   RenameItemInput,
   UrlItemDto,
   UrlPreviewDto,
   UrlPreviewKind
 } from '../../shared/library-contract'
-import {
-  ITEM_ID_PATTERN,
-  NOTE_ASSETS_DIRECTORY,
-  NOTE_FILENAME,
-  RESERVED_WINDOWS_NAMES
-} from './constants'
+import { encodeMarkdownImageTarget } from '../../shared/markdown-image-references'
+import type { CaptureSubmissionRecord } from '../capture/capture-submission-record'
+import { ITEM_ID_PATTERN, NOTE_FILENAME, RESERVED_WINDOWS_NAMES } from './constants'
 import {
   createImageMetadata,
   detectImage,
@@ -88,6 +91,149 @@ export class LibraryService {
     dependencies: Partial<UrlNetworkDependencies> = {}
   ) {
     this.urlNetwork = { ...defaultUrlNetworkDependencies, ...dependencies }
+  }
+
+  isReadyForCapture(): boolean {
+    return this.currentLibraryPath !== null
+  }
+
+  async getCaptureContext(): Promise<{ libraryId: string; libraryPath: string }> {
+    const libraryPath = this.requireCurrentLibrary()
+    const library = await this.store.readPersistedLibrary(libraryPath)
+    return { libraryId: library.id, libraryPath }
+  }
+
+  async prepareCaptureSubmission(record: CaptureSubmissionRecord): Promise<void> {
+    const { libraryId, libraryPath } = await this.getCaptureContext()
+    if (record.libraryId !== libraryId) throw new Error('The capture library is no longer active.')
+    if (
+      record.destination.type === 'collection' &&
+      !(await this.store.collectionExists(libraryPath, record.destination.collectionId))
+    ) {
+      throw new Error('The capture destination folder no longer exists.')
+    }
+    await this.store.prepareCaptureSubmission(libraryPath, record)
+  }
+
+  async listCaptureSubmissions(): Promise<CaptureSubmissionRecord[]> {
+    return this.store.listCaptureSubmissions(this.requireCurrentLibrary())
+  }
+
+  async updateCaptureSubmission(record: CaptureSubmissionRecord): Promise<void> {
+    await this.store.writeCaptureSubmission(this.requireCurrentLibrary(), record)
+  }
+
+  async discardCaptureSubmission(submissionId: string): Promise<void> {
+    await this.store.discardCaptureSubmission(this.requireCurrentLibrary(), submissionId)
+  }
+
+  async discardActiveCaptureDraft(): Promise<void> {
+    await this.store.discardCaptureDraft(this.requireCurrentLibrary())
+    await this.store.discardCaptureDraftFile(this.requireCurrentLibrary())
+  }
+
+  async restoreCaptureSubmissionDraft(submissionId: string): Promise<void> {
+    await this.store.restoreCaptureSubmissionDraft(this.requireCurrentLibrary(), submissionId)
+  }
+
+  async commitCaptureSubmission(record: CaptureSubmissionRecord): Promise<LibraryItemDto> {
+    const libraryPath = this.requireCurrentLibrary()
+    let existing: PersistedItem | null = null
+    try {
+      existing = await this.store.readPersistedItem(libraryPath, record.id)
+    } catch {
+      // No authoritative item exists yet.
+    }
+    if (existing) {
+      const item = (await this.store.buildLibraryDto(libraryPath)).items.find(
+        (candidate) => candidate.id === existing.id
+      )
+      if (item) return item
+      throw new Error('The saved capture could not be reopened.')
+    }
+
+    if (record.kind === 'url') {
+      validateWebUrl(record.markdown)
+      const metadata = createUrlMetadata(record.id, record.markdown, record.submittedAt)
+      await this.store.finalizeInboxItem(libraryPath, metadata, [], record.destination)
+      const saved = (await this.store.buildLibraryDto(libraryPath)).items.find(
+        (candidate) => candidate.id === record.id
+      )
+      if (!saved || saved.type !== 'url') throw new Error('The saved link could not be reopened.')
+      return saved
+    }
+
+    if (record.kind === 'file') {
+      if (!record.fileId) throw new Error('The submitted file is missing.')
+      const { file, bytes } = await this.store.readCaptureSubmissionFile(
+        libraryPath,
+        record.id,
+        record.fileId
+      )
+      return this.store.importVaultFile(
+        libraryPath,
+        {
+          id: record.id,
+          filename: file.filename,
+          mediaType: file.mediaType,
+          bytes,
+          timestamp: record.submittedAt
+        },
+        record.destination
+      )
+    }
+
+    const staged = await Promise.all(
+      record.attachmentIds.map((attachmentId) =>
+        this.store.readCaptureSubmissionAttachment(libraryPath, record.id, attachmentId)
+      )
+    )
+    if (record.kind === 'image') {
+      if (staged.length !== 1) throw new Error('The submitted image is no longer valid.')
+      const detected = detectImage(staged[0].bytes)
+      if (!detected) throw new Error('The submitted image content is invalid.')
+      const metadata = createImageMetadata(
+        record.id,
+        staged[0].attachment.sourceFilename,
+        detected,
+        record.submittedAt
+      )
+      await this.store.finalizeInboxItem(
+        libraryPath,
+        metadata,
+        [{ filename: metadata.contentFilename, data: staged[0].bytes }],
+        record.destination
+      )
+      const saved = (await this.store.buildLibraryDto(libraryPath)).items.find(
+        (candidate) => candidate.id === record.id
+      )
+      if (!saved || saved.type !== 'image')
+        throw new Error('The saved image could not be reopened.')
+      return saved
+    }
+
+    if (!record.markdown.trim()) throw new Error('Write something before saving the note.')
+    const attachments = staged.map(({ attachment }) => attachment)
+    const metadata = createNoteMetadata(record.id, record.markdown, record.submittedAt, attachments)
+    await this.store.finalizeInboxItem(
+      libraryPath,
+      metadata,
+      [
+        { filename: NOTE_FILENAME, data: record.markdown },
+        ...staged.map(({ attachment, bytes }) => ({
+          filename: attachment.filename,
+          data: bytes
+        }))
+      ],
+      record.destination
+    )
+    const persisted = await this.store.readPersistedItem(libraryPath, record.id)
+    if (persisted.type !== 'note') throw new Error('The saved note could not be reopened.')
+    return this.toCurrentNoteDto(
+      libraryPath,
+      persisted,
+      (await this.store.readItemContent(libraryPath, persisted)).toString('utf8')
+    )
   }
 
   async initialize(): Promise<void> {
@@ -227,7 +373,7 @@ export class LibraryService {
     await this.store.finalizeInboxItem(libraryPath, metadata, [
       { filename: NOTE_FILENAME, data: markdown },
       ...staged.map(({ attachment, bytes }) => ({
-        filename: `${NOTE_ASSETS_DIRECTORY}/${attachment.filename}`,
+        filename: attachment.filename,
         data: bytes
       }))
     ])
@@ -309,7 +455,7 @@ export class LibraryService {
     const attachment = {
       id: randomUUID(),
       filename,
-      relativePath: `./${NOTE_ASSETS_DIRECTORY}/${filename}`,
+      relativePath: `./${encodeMarkdownImageTarget(filename)}`,
       sourceFilename: safeSourceFilename(input.sourceFilename),
       mediaType: detected.mediaType,
       width: detected.width,
@@ -325,7 +471,11 @@ export class LibraryService {
   }
 
   async discardCaptureDraft(): Promise<void> {
-    await this.store.discardCaptureDraft(this.requireCurrentLibrary())
+    const libraryPath = this.requireCurrentLibrary()
+    await Promise.all([
+      this.store.discardCaptureDraft(libraryPath),
+      this.store.discardCaptureDraftFile(libraryPath)
+    ])
   }
 
   async getCaptureDraftImagePreview(attachmentId: string): Promise<ImagePreviewDto> {
@@ -368,6 +518,44 @@ export class LibraryService {
     return toImageDto(persisted)
   }
 
+  async getCaptureDraftFile(): Promise<CaptureDraftFileDto | null> {
+    const libraryPath = this.requireCurrentLibrary()
+    const file = await this.store.readCaptureDraftFile(libraryPath)
+    if (!file) return null
+    return {
+      ...file,
+      missingContent: !(await this.store.pathExists(
+        join(libraryPath, '.kuskus', 'temp', 'file-draft', file.filename)
+      ))
+    }
+  }
+
+  async stageCaptureDraftFile(input: FileImportInput): Promise<CaptureDraftFileDto> {
+    const { bytes, filename, mediaType } = this.validateFileImport(input)
+    const file = { id: randomUUID(), filename, mediaType, size: bytes.byteLength }
+    await this.store.stageCaptureDraftFile(this.requireCurrentLibrary(), file, bytes)
+    return { ...file, missingContent: false }
+  }
+
+  async removeCaptureDraftFile(): Promise<void> {
+    await this.store.discardCaptureDraftFile(this.requireCurrentLibrary())
+  }
+
+  async commitCaptureDraftFile(fileId: string): Promise<FileItemDto> {
+    this.validateItemId(fileId, 'item')
+    const libraryPath = this.requireCurrentLibrary()
+    const { file, bytes } = await this.store.readCaptureDraftFileBytes(libraryPath, fileId)
+    const item = await this.store.importVaultFile(libraryPath, {
+      id: randomUUID(),
+      filename: file.filename,
+      mediaType: file.mediaType,
+      bytes,
+      timestamp: new Date().toISOString()
+    })
+    await this.store.discardCaptureDraftFile(libraryPath)
+    return item
+  }
+
   async getNoteAttachmentPreview(itemId: string, attachmentId: string): Promise<ImagePreviewDto> {
     this.validateItemId(itemId, 'item')
     this.validateItemId(attachmentId, 'attachment')
@@ -402,6 +590,21 @@ export class LibraryService {
   }
 
   async importFile(input: FileImportInput): Promise<FileItemDto> {
+    const { bytes, filename, mediaType } = this.validateFileImport(input)
+    return this.store.importVaultFile(this.requireCurrentLibrary(), {
+      id: randomUUID(),
+      filename,
+      mediaType,
+      bytes,
+      timestamp: new Date().toISOString()
+    })
+  }
+
+  private validateFileImport(input: FileImportInput): {
+    bytes: Uint8Array
+    filename: string
+    mediaType: string
+  } {
     if (
       !input ||
       typeof input !== 'object' ||
@@ -418,13 +621,7 @@ export class LibraryService {
     }
     const filename = safeSourceFilename(input.sourceFilename)
     if (!filename) throw new Error('The selected file needs a valid filename.')
-    return this.store.importVaultFile(this.requireCurrentLibrary(), {
-      id: randomUUID(),
-      filename,
-      mediaType: input.mediaType,
-      bytes,
-      timestamp: new Date().toISOString()
-    })
+    return { bytes, filename, mediaType: input.mediaType }
   }
 
   async createUrl(sourceUrl: string): Promise<UrlItemDto> {
@@ -739,9 +936,31 @@ export class LibraryService {
     return this.store.buildLibraryDto(libraryPath)
   }
 
-  async trashItems(input: ItemMutationInput): Promise<LibraryDto> {
+  async inspectItemDeletion(input: InspectItemDeletionInput): Promise<ItemDeletionInspectionDto> {
     const itemIds = this.validateItemMutationInput(input)
+    if (input.mode !== 'trash' && input.mode !== 'permanent') {
+      throw new Error('The deletion inspection mode is invalid.')
+    }
+    return this.store.inspectItemDeletion(this.requireCurrentLibrary(), itemIds, input.mode)
+  }
+
+  async trashItems(input: TrashItemsInput): Promise<LibraryDto> {
+    const itemIds = this.validateItemMutationInput(input)
+    this.validateDeletionReview(input.referenceRevision, input.confirmedReferencedItemIds)
     const libraryPath = this.requireCurrentLibrary()
+    const inspection = await this.store.inspectItemDeletion(libraryPath, itemIds, 'trash')
+    if (input.referenceRevision && input.referenceRevision !== inspection.revision) {
+      throw new Error('References changed while this action was open. Review the deletion again.')
+    }
+    if (inspection.referencedItems.length > 0) {
+      const confirmed = new Set(input.confirmedReferencedItemIds ?? [])
+      if (
+        !input.referenceRevision ||
+        inspection.referencedItems.some((item) => !confirmed.has(item.itemId))
+      ) {
+        throw new Error('Review the notes that reference this image before moving it to Trash.')
+      }
+    }
     const items = await Promise.all(
       itemIds.map((itemId) => this.store.resolveItem(libraryPath, itemId))
     )
@@ -766,7 +985,8 @@ export class LibraryService {
         const metadata: PersistedItem = {
           ...item.metadata,
           originalCollectionId,
-          trashedFrom: from
+          trashedFrom: from,
+          trashedFromRelativePath: item.relativePath
         }
         return {
           item,
@@ -814,15 +1034,36 @@ export class LibraryService {
     return this.store.buildLibraryDto(libraryPath)
   }
 
-  async permanentlyDeleteItems(input: ItemMutationInput): Promise<LibraryDto> {
+  async permanentlyDeleteItems(input: PermanentlyDeleteItemsInput): Promise<LibraryDto> {
     const itemIds = this.validateItemMutationInput(input)
+    this.validateDeletionReview(input.referenceRevision, input.confirmedReferencedItemIds)
+    this.validateDeletionReview(input.referenceRevision, input.cleanupImageIds)
     const libraryPath = this.requireCurrentLibrary()
+    const inspection = await this.store.inspectItemDeletion(libraryPath, itemIds, 'permanent')
+    if (input.referenceRevision && input.referenceRevision !== inspection.revision) {
+      throw new Error('References changed while this action was open. Review the deletion again.')
+    }
+    if (inspection.referencedItems.length > 0) {
+      const confirmed = new Set(input.confirmedReferencedItemIds ?? [])
+      if (
+        !input.referenceRevision ||
+        inspection.referencedItems.some((item) => !confirmed.has(item.itemId))
+      ) {
+        throw new Error('Review the notes that reference this image before deleting it forever.')
+      }
+    }
+    const eligibleCleanup = new Set(inspection.cleanupCandidates.map((item) => item.itemId))
+    const cleanupImageIds = input.cleanupImageIds ?? []
+    if (cleanupImageIds.some((id) => !eligibleCleanup.has(id))) {
+      throw new Error('An attachment selected for cleanup is still referenced or unavailable.')
+    }
     await this.store.permanentlyDeleteItems(libraryPath, itemIds)
     await Promise.all(
       itemIds.map((itemId) =>
         this.store.removeUrlPreviewCache(libraryPath, itemId).catch(() => undefined)
       )
     )
+    if (cleanupImageIds.length > 0) await this.trashItems({ itemIds: cleanupImageIds })
     return this.store.buildLibraryDto(libraryPath)
   }
 
@@ -981,6 +1222,24 @@ export class LibraryService {
     return itemIds as string[]
   }
 
+  private validateDeletionReview(revision: unknown, itemIds: unknown): void {
+    if (
+      revision !== undefined &&
+      (typeof revision !== 'string' || !/^[0-9a-f]{64}$/i.test(revision))
+    ) {
+      throw new Error('The deletion review is invalid.')
+    }
+    if (
+      itemIds !== undefined &&
+      (!Array.isArray(itemIds) ||
+        itemIds.length > 1000 ||
+        itemIds.some((itemId) => typeof itemId !== 'string' || !ITEM_ID_PATTERN.test(itemId)) ||
+        new Set(itemIds).size !== itemIds.length)
+    ) {
+      throw new Error('The deletion review contains invalid items.')
+    }
+  }
+
   private validateDestination(value: unknown): ActiveItemLocation {
     if (!value || typeof value !== 'object') throw new Error('Choose a valid destination.')
     const destination = value as Record<string, unknown>
@@ -1009,12 +1268,14 @@ export class LibraryService {
   private clearLifecycleMetadata(metadata: PersistedItem): PersistedItem {
     const next = { ...metadata, originalCollectionId: null }
     delete next.trashedFrom
+    delete next.trashedFromRelativePath
     return next
   }
 
   private withoutTrashedFrom(metadata: PersistedItem): PersistedItem {
     const next = { ...metadata }
     delete next.trashedFrom
+    delete next.trashedFromRelativePath
     return next
   }
 

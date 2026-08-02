@@ -26,7 +26,7 @@ export function noteAttachmentFilename(
   const extension = IMAGE_EXTENSIONS[detected.mediaType]
   const requestedBase = (sourceFilename ?? 'pasted-image')
     .replace(/\.[^.]+$/, '')
-    .replace(/[\\/:*?"<>|]/g, '_')
+    .replace(/[\\/:*?"<>|()[\]#%]/g, '_')
     .replace(/\.+/g, '-')
     .replace(/\s+/g, '-')
     .replace(/^-+|-+$/g, '')

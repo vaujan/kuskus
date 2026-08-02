@@ -21,6 +21,11 @@
     --typeset-size: 16px;
   }
 
+  .kuskus-card-content-fade {
+    -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 4rem), transparent);
+    mask-image: linear-gradient(to bottom, black calc(100% - 4rem), transparent);
+  }
+
   .kuskus-typeset
     *:not(:where(.not-typeset, [data-not-typeset], .not-typeset *, [data-not-typeset] *)) {
     &:where(h1, h2, h3, h4, h5, h6) {

@@ -77,6 +77,8 @@ export function AppToolbar({
   totalCount,
   typeFilters,
   onTypeFilterChange,
+  showReferencedAttachments,
+  onShowReferencedAttachmentsChange,
   onClearFilters,
   sort,
   onSortChange
@@ -95,6 +97,8 @@ export function AppToolbar({
   totalCount: number
   typeFilters: ItemTypeFilter[]
   onTypeFilterChange: (type: ItemTypeFilter, selected: boolean) => void
+  showReferencedAttachments: boolean
+  onShowReferencedAttachmentsChange: (show: boolean) => void
   onClearFilters: () => void
   sort: ItemSort
   onSortChange: (sort: ItemSort) => void
@@ -148,7 +152,7 @@ export function AppToolbar({
   }, [newItemFocusRequest])
 
   return (
-    <header className="flex h-12 shrink-0 select-none items-center bg-background [-webkit-app-region:drag]">
+    <header className="window-toolbar flex h-12 shrink-0 select-none items-center [-webkit-app-region:drag]">
       <div className="@container/toolbar min-w-0 flex-1">
         <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 px-2 @min-[44rem]/toolbar:grid-cols-[minmax(12rem,1fr)_minmax(16rem,40rem)_minmax(12rem,1fr)] @min-[44rem]/toolbar:gap-2 @min-[44rem]/toolbar:px-5 @min-[64rem]/toolbar:px-7">
           <div className="flex justify-start">
@@ -230,7 +234,11 @@ export function AppToolbar({
                   <Button
                     className="min-w-8 px-2.5"
                     variant={
-                      typeFilters.length > 0 || sort !== DEFAULT_ITEM_SORT ? 'secondary' : 'ghost'
+                      typeFilters.length > 0 ||
+                      showReferencedAttachments ||
+                      sort !== DEFAULT_ITEM_SORT
+                        ? 'secondary'
+                        : 'ghost'
                     }
                     aria-label={`Sort and filter ${searchScope}`}
                   />
@@ -238,9 +246,9 @@ export function AppToolbar({
               >
                 <IconAdjustmentsHorizontal data-icon="inline-start" aria-hidden="true" />
                 <span className="hidden @min-[56rem]/toolbar:inline">Filter</span>
-                {typeFilters.length > 0 ? (
+                {typeFilters.length > 0 || showReferencedAttachments ? (
                   <Badge variant="secondary" className="tabular-nums">
-                    {typeFilters.length}
+                    {typeFilters.length + Number(showReferencedAttachments)}
                   </Badge>
                 ) : null}
               </DropdownMenuTrigger>
@@ -276,7 +284,17 @@ export function AppToolbar({
                     )
                   })}
                 </DropdownMenuGroup>
-                {typeFilters.length > 0 ? (
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Visibility</DropdownMenuLabel>
+                  <DropdownMenuCheckboxItem
+                    checked={showReferencedAttachments}
+                    onCheckedChange={onShowReferencedAttachmentsChange}
+                  >
+                    Show referenced attachments
+                  </DropdownMenuCheckboxItem>
+                </DropdownMenuGroup>
+                {typeFilters.length > 0 || showReferencedAttachments ? (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>

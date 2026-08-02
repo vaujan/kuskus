@@ -6,11 +6,13 @@ import { LoadingScreen } from '@/app/loading-screen'
 import { SetupScreen } from '@/features/library/setup-screen'
 import { Workspace } from '@/features/library/workspace'
 import { useAppZoom } from '@/hooks/use-app-zoom'
+import { useTranslucentBackground } from '@/hooks/use-translucent-background'
 import type { LibraryState } from '../../shared/library-contract'
 
 function App(): React.JSX.Element {
   const [state, setState] = useState<LibraryState | null>(null)
   useAppZoom()
+  const translucentBackground = useTranslucentBackground()
 
   useEffect(() => {
     let mounted = true
@@ -31,7 +33,7 @@ function App(): React.JSX.Element {
       {!state ? (
         <LoadingScreen />
       ) : state.status === 'ready' ? (
-        <Workspace initialLibrary={state.library} />
+        <Workspace initialLibrary={state.library} translucentBackground={translucentBackground} />
       ) : (
         <SetupScreen initialState={state} />
       )}

@@ -17,6 +17,8 @@ require.extensions['.ts'] = (module, filename) => {
 }
 
 const {
+  hasBulkItemSelection,
+  resolveItemMenuTargets,
   resolveItemShortcutTargets,
   resolveRenameShortcutTarget
 } = require('../src/renderer/src/features/items/item-shortcuts.ts')
@@ -53,4 +55,39 @@ test('rename accepts exactly one resolved target', () => {
   assert.equal(resolveRenameShortcutTarget(['one']), 'one')
   assert.equal(resolveRenameShortcutTarget([]), null)
   assert.equal(resolveRenameShortcutTarget(['one', 'two']), null)
+})
+
+test('item menu preserves the visible selection when opened from a selected item', () => {
+  assert.deepEqual(
+    resolveItemMenuTargets(
+      new Set(['selected-a', 'selected-b', 'stale']),
+      'selected-b',
+      new Set(['selected-a', 'selected-b'])
+    ),
+    ['selected-a', 'selected-b']
+  )
+})
+
+test('item menu targets only an unselected clicked item', () => {
+  assert.deepEqual(
+    resolveItemMenuTargets(
+      new Set(['selected-a', 'selected-b']),
+      'clicked',
+      new Set(['selected-a', 'selected-b', 'clicked'])
+    ),
+    ['clicked']
+  )
+})
+
+test('item menu ignores a clicked item that is no longer visible', () => {
+  assert.deepEqual(
+    resolveItemMenuTargets(new Set(['selected']), 'hidden', new Set(['selected'])),
+    []
+  )
+})
+
+test('bulk action toolbar requires more than one selected item', () => {
+  assert.equal(hasBulkItemSelection(0), false)
+  assert.equal(hasBulkItemSelection(1), false)
+  assert.equal(hasBulkItemSelection(2), true)
 })

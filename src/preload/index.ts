@@ -1,14 +1,23 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import {
+  CAPTURE_CHANNELS,
+  type CaptureApi,
+  type CaptureQueueDto,
+  type CaptureSessionDto
+} from '../shared/capture-contract'
 import { KUSKUS_CHANNELS, type KuskusLibraryApi } from '../shared/library-contract'
 import {
   WINDOW_CHANNELS,
   type AppZoomShortcut,
   type ElectronWindowApi,
-  type GlobalCaptureShortcutStatus
+  type GlobalCaptureShortcutStatus,
+  type TranslucentBackgroundStatus
 } from '../shared/window-contract'
 
 const globalCaptureCallbacks = new Set<() => void>()
 let globalCaptureRequestPending = false
+const quickCaptureCallbacks = new Set<() => void>()
+let quickCaptureRequestPending = false
 
 ipcRenderer.on(WINDOW_CHANNELS.globalCaptureRequested, () => {
   if (globalCaptureCallbacks.size === 0) {
@@ -16,6 +25,14 @@ ipcRenderer.on(WINDOW_CHANNELS.globalCaptureRequested, () => {
     return
   }
   for (const callback of globalCaptureCallbacks) callback()
+})
+
+ipcRenderer.on(CAPTURE_CHANNELS.quickCaptureActivated, () => {
+  if (quickCaptureCallbacks.size === 0) {
+    quickCaptureRequestPending = true
+    return
+  }
+  for (const callback of quickCaptureCallbacks) callback()
 })
 
 const windowApi: ElectronWindowApi = {
@@ -26,6 +43,16 @@ const windowApi: ElectronWindowApi = {
   isMaximized: (): Promise<boolean> => ipcRenderer.invoke(WINDOW_CHANNELS.isMaximized),
   setZoomFactor: (zoomFactor): Promise<number> =>
     ipcRenderer.invoke(WINDOW_CHANNELS.setZoomFactor, zoomFactor),
+  setTranslucentBackground: (enabled): Promise<TranslucentBackgroundStatus> =>
+    ipcRenderer.invoke(WINDOW_CHANNELS.setTranslucentBackground, enabled),
+  onReducedTransparencyChange: (callback: (reduced: boolean) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, reduced: boolean): void => {
+      callback(reduced)
+    }
+
+    ipcRenderer.on(WINDOW_CHANNELS.reducedTransparencyChanged, listener)
+    return () => ipcRenderer.removeListener(WINDOW_CHANNELS.reducedTransparencyChanged, listener)
+  },
   onMaximizedChange: (callback: (isMaximized: boolean) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, isMaximized: boolean): void => {
       callback(isMaximized)
@@ -72,6 +99,12 @@ const libraryApi: KuskusLibraryApi = {
     ipcRenderer.invoke(KUSKUS_CHANNELS.getCaptureDraftImagePreview, attachmentId),
   commitCaptureDraftImage: (attachmentId) =>
     ipcRenderer.invoke(KUSKUS_CHANNELS.commitCaptureDraftImage, attachmentId),
+  getCaptureDraftFile: () => ipcRenderer.invoke(KUSKUS_CHANNELS.getCaptureDraftFile),
+  stageCaptureDraftFile: (input) =>
+    ipcRenderer.invoke(KUSKUS_CHANNELS.stageCaptureDraftFile, input),
+  removeCaptureDraftFile: () => ipcRenderer.invoke(KUSKUS_CHANNELS.removeCaptureDraftFile),
+  commitCaptureDraftFile: (fileId) =>
+    ipcRenderer.invoke(KUSKUS_CHANNELS.commitCaptureDraftFile, fileId),
   getNoteAttachmentPreview: (itemId, attachmentId) =>
     ipcRenderer.invoke(KUSKUS_CHANNELS.getNoteAttachmentPreview, itemId, attachmentId),
   createUrl: (url) => ipcRenderer.invoke(KUSKUS_CHANNELS.createUrl, url),
@@ -90,6 +123,7 @@ const libraryApi: KuskusLibraryApi = {
   restoreItems: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.restoreItems, input),
   permanentlyDeleteItems: (input) =>
     ipcRenderer.invoke(KUSKUS_CHANNELS.permanentlyDeleteItems, input),
+  inspectItemDeletion: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.inspectItemDeletion, input),
   getImagePreview: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.getImagePreview, itemId),
   importFile: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.importFile, input),
   copyLibraryPath: () => ipcRenderer.invoke(KUSKUS_CHANNELS.copyLibraryPath),
@@ -102,5 +136,56 @@ const libraryApi: KuskusLibraryApi = {
   }
 }
 
+const captureApi: CaptureApi = {
+  getSession: (libraryId) => ipcRenderer.invoke(CAPTURE_CHANNELS.getSession, libraryId),
+  updateSession: (input) => ipcRenderer.invoke(CAPTURE_CHANNELS.updateSession, input),
+  clearSession: (libraryId) => ipcRenderer.invoke(CAPTURE_CHANNELS.clearSession, libraryId),
+  touchAssets: (libraryId) => ipcRenderer.invoke(CAPTURE_CHANNELS.touchAssets, libraryId),
+  setBusy: (libraryId, busy) => ipcRenderer.invoke(CAPTURE_CHANNELS.setBusy, libraryId, busy),
+  claimSurface: (libraryId, surface) =>
+    ipcRenderer.invoke(CAPTURE_CHANNELS.claimSurface, libraryId, surface),
+  submit: (input) => ipcRenderer.invoke(CAPTURE_CHANNELS.submit, input),
+  waitForSubmission: (id) => ipcRenderer.invoke(CAPTURE_CHANNELS.waitForSubmission, id),
+  getQueue: (libraryId) => ipcRenderer.invoke(CAPTURE_CHANNELS.getQueue, libraryId),
+  retrySubmission: (id) => ipcRenderer.invoke(CAPTURE_CHANNELS.retrySubmission, id),
+  restoreSubmission: (id) => ipcRenderer.invoke(CAPTURE_CHANNELS.restoreSubmission, id),
+  discardSubmission: (id) => ipcRenderer.invoke(CAPTURE_CHANNELS.discardSubmission, id),
+  hideQuickCapture: () => ipcRenderer.send(CAPTURE_CHANNELS.hideQuickCapture),
+  openMainCapture: () => ipcRenderer.send(CAPTURE_CHANNELS.openMainCapture),
+  openRecovery: () => ipcRenderer.send(CAPTURE_CHANNELS.openRecovery),
+  setQuickCaptureHeight: (height) =>
+    ipcRenderer.send(CAPTURE_CHANNELS.setQuickCaptureHeight, height),
+  setQuickCaptureBlurSuppressed: (suppressed) =>
+    ipcRenderer.send(CAPTURE_CHANNELS.setQuickCaptureBlurSuppressed, suppressed),
+  onSessionChanged: (callback: (session: CaptureSessionDto) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, session: CaptureSessionDto): void => {
+      callback(session)
+    }
+    ipcRenderer.on(CAPTURE_CHANNELS.sessionChanged, listener)
+    return () => ipcRenderer.removeListener(CAPTURE_CHANNELS.sessionChanged, listener)
+  },
+  onQueueChanged: (callback: (queue: CaptureQueueDto) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, queue: CaptureQueueDto): void => {
+      callback(queue)
+    }
+    ipcRenderer.on(CAPTURE_CHANNELS.queueChanged, listener)
+    return () => ipcRenderer.removeListener(CAPTURE_CHANNELS.queueChanged, listener)
+  },
+  onRecoveryRequested: (callback: () => void): (() => void) => {
+    const listener = (): void => callback()
+    ipcRenderer.on(CAPTURE_CHANNELS.recoveryRequested, listener)
+    return () => ipcRenderer.removeListener(CAPTURE_CHANNELS.recoveryRequested, listener)
+  },
+  onQuickCaptureActivated: (callback: () => void): (() => void) => {
+    quickCaptureCallbacks.add(callback)
+    if (quickCaptureRequestPending) {
+      quickCaptureRequestPending = false
+      queueMicrotask(callback)
+    }
+    return () => quickCaptureCallbacks.delete(callback)
+  }
+}
+
 contextBridge.exposeInMainWorld('electron', { window: windowApi })
 contextBridge.exposeInMainWorld('kuskus', libraryApi)
+contextBridge.exposeInMainWorld('capture', captureApi)

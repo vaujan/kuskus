@@ -19,6 +19,7 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { FolderDropdownDestinationItems } from '@/features/collections/folder-destination-items'
+import { hasBulkItemSelection } from '@/features/items/item-shortcuts'
 import type { LibraryDestination } from '@/features/shell/library-sidebar'
 import type {
   ActiveItemLocation,
@@ -58,7 +59,7 @@ export function BulkActionToolbar({
   onDeletePermanently,
   onClearSelection
 }: BulkActionToolbarProps): React.JSX.Element {
-  const visible = selectedItemIds.length > 0
+  const visible = hasBulkItemSelection(selectedItemIds.length)
 
   return (
     <div className="@container/selection-toolbar pointer-events-none absolute inset-x-0 bottom-5 z-40 flex justify-center px-4">

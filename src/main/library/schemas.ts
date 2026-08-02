@@ -53,6 +53,7 @@ export interface PersistedNoteItem {
   originalCollectionId: string | null
   titleSource?: 'derived' | 'custom'
   trashedFrom?: 'inbox' | 'collection' | 'archive'
+  trashedFromRelativePath?: string
   attachments?: PersistedNoteAttachment[]
   relativePath?: string
   referencedAttachment?: false
@@ -76,8 +77,9 @@ export function isPersistedNoteAttachment(value: unknown): value is PersistedNot
     !/[. ]$/.test(filename) &&
     !RESERVED_WINDOWS_NAMES.test(filename) &&
     typeof attachment.relativePath === 'string' &&
-    /^\.\/(?:assets|[^\\/:*?"<>|]+\.assets)\/[^\\/:*?"<>|]+$/i.test(attachment.relativePath) &&
-    attachment.relativePath.endsWith(`/${filename}`) &&
+    attachment.relativePath.length > 2 &&
+    attachment.relativePath.length <= 1024 &&
+    /^(?:\.\/|(?:\.\.\/)+)[^\\\0]+$/.test(attachment.relativePath) &&
     (attachment.sourceFilename === null || typeof attachment.sourceFilename === 'string') &&
     typeof attachment.mediaType === 'string' &&
     attachment.mediaType in IMAGE_EXTENSIONS &&
@@ -105,6 +107,7 @@ export interface PersistedImageItem {
   originalCollectionId: string | null
   titleSource?: 'derived' | 'custom'
   trashedFrom?: 'inbox' | 'collection' | 'archive'
+  trashedFromRelativePath?: string
   relativePath?: string
   referencedAttachment?: boolean
 }
@@ -132,6 +135,7 @@ export interface PersistedUrlItem {
   originalCollectionId: string | null
   titleSource?: 'derived' | 'custom'
   trashedFrom?: 'inbox' | 'collection' | 'archive'
+  trashedFromRelativePath?: string
   relativePath?: string
   referencedAttachment?: false
 }
@@ -152,6 +156,7 @@ export interface PersistedFileItem {
   originalCollectionId: string | null
   titleSource?: 'derived' | 'custom'
   trashedFrom?: 'inbox' | 'collection' | 'archive'
+  trashedFromRelativePath?: string
   relativePath?: string
   referencedAttachment?: boolean
 }

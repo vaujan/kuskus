@@ -1,0 +1,72 @@
+:root {
+  --window-canvas: var(--background);
+  --window-sidebar: var(--sidebar);
+  --window-toolbar: var(--background);
+}
+
+:root[data-window-material='acrylic'] {
+  --card: oklch(1 0 0 / 78%);
+  --border: oklch(0.3 0.008 220 / 16%);
+  --sidebar-accent: oklch(1 0 0 / 52%);
+  --sidebar-selection: oklch(0.61 0.14 246 / 92%);
+  --window-canvas: oklch(0.995 0 0 / 68%);
+  --window-sidebar: oklch(0.985 0.003 210 / 74%);
+  --window-toolbar: var(--window-canvas);
+}
+
+:root.dark[data-window-material='acrylic'] {
+  --card: oklch(0.2 0.008 223.9 / 70%);
+  --border: oklch(1 0 0 / 13%);
+  --sidebar-accent: oklch(1 0 0 / 9%);
+  --sidebar-selection: oklch(0.68 0.14 246 / 94%);
+  --window-canvas: oklch(0.16 0.008 223.9 / 52%);
+  --window-sidebar: oklch(0.19 0.009 223.9 / 64%);
+  --window-toolbar: var(--window-canvas);
+}
+
+.window-root,
+.window-canvas {
+  background-color: var(--background);
+}
+
+.window-canvas {
+  background-color: var(--window-canvas);
+}
+
+.window-toolbar {
+  background-color: var(--window-toolbar);
+}
+
+html[data-window-material='acrylic'] [data-slot='sidebar-inner'] {
+  background-color: var(--window-sidebar);
+}
+
+html[data-window-material='acrylic'] .window-root,
+html[data-window-material='acrylic'] [data-slot='sidebar-inset'] {
+  background-color: transparent;
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  :root[data-window-material='acrylic'] {
+    --card: var(--opaque-card);
+    --border: var(--opaque-border);
+    --sidebar-accent: var(--opaque-sidebar-accent);
+    --sidebar-selection: var(--opaque-sidebar-selection);
+    --window-canvas: var(--background);
+    --window-sidebar: var(--sidebar);
+    --window-toolbar: var(--background);
+  }
+}
+
+@media (forced-colors: active) {
+  :root[data-window-material='acrylic'] {
+    --card: Canvas;
+    --border: CanvasText;
+    --sidebar-accent: Highlight;
+    --sidebar-accent-foreground: HighlightText;
+    --sidebar-selection: Highlight;
+    --window-canvas: Canvas;
+    --window-sidebar: Canvas;
+    --window-toolbar: Canvas;
+  }
+}

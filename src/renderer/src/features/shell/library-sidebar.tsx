@@ -2,31 +2,20 @@ import {
   IconArchive,
   IconChevronRight,
   IconCopy,
-  IconDeviceDesktop,
   IconDots,
   IconFolder,
   IconFolderOpen,
   IconIcons,
   IconInbox,
   IconLibrary,
-  IconKeyboard,
-  IconLayoutDashboard,
-  IconLayoutGrid,
-  IconMoon,
-  IconPalette,
   IconPencil,
   IconPlus,
   IconSettings,
-  IconSun,
-  IconTable,
-  IconTrash,
-  IconTypography,
-  type TablerIcon
+  IconTrash
 } from '@tabler/icons-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,17 +44,13 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuCheckboxItem,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
-import { Kbd } from '@/components/ui/kbd'
 import {
   Sidebar as AppSidebar,
   SidebarContent,
@@ -88,6 +73,7 @@ import { CollectionIcon } from '@/features/collections/collection-icons'
 import { FolderIconPickerDialog } from '@/features/collections/folder-icon-picker-dialog'
 import { FolderMoveDialog } from '@/features/collections/folder-move-dialog'
 import { FolderNameDialog } from '@/features/collections/folder-name-dialog'
+import { SettingsDialog } from '@/features/shell/settings-dialog'
 import {
   hasKuskusFolderDrag,
   KUSKUS_FOLDER_DRAG_TYPE,
@@ -122,12 +108,6 @@ export type LibraryDestination =
   | { type: 'collection'; collectionId: string }
   | { type: 'archive' }
   | { type: 'trash' }
-
-const VIEW_OPTIONS: Array<{ value: LibraryView; label: string; icon: TablerIcon }> = [
-  { value: 'visual', label: 'Masonry', icon: IconLayoutDashboard },
-  { value: 'grid', label: 'Grid', icon: IconLayoutGrid },
-  { value: 'table', label: 'Table', icon: IconTable }
-]
 
 const FOLDER_TREE_STORAGE_VERSION = 'v1'
 
@@ -271,12 +251,13 @@ function FolderTree({
   onRemove: (folderId: string, name: string) => void
 }): React.JSX.Element {
   return (
-    <SidebarMenu aria-label="Folders">
-      {nodes.map((node) => (
+    <SidebarMenu aria-label="Folders" className="gap-0">
+      {nodes.map((node, index) => (
         <FolderTreeItem
           key={node.folder.id}
           node={node}
           depth={depth}
+          isLast={index === nodes.length - 1}
           collapsedIds={collapsedIds}
           selectedId={selectedId}
           activeDropTarget={activeDropTarget}
@@ -301,11 +282,13 @@ function FolderTree({
 type FolderTreeItemProps = Omit<React.ComponentProps<typeof FolderTree>, 'nodes'> & {
   node: FolderTreeNode
   depth: number
+  isLast: boolean
 }
 
 function FolderTreeItem({
   node,
   depth,
+  isLast,
   collapsedIds,
   selectedId,
   activeDropTarget,
@@ -326,6 +309,7 @@ function FolderTreeItem({
   const hasChildren = children.length > 0
   const expanded = hasChildren && !collapsedIds.has(folder.id)
   const childListId = `folder-children-${folder.id}`
+  const guideOffset = 5 + Math.min(depth, 4) * 3
   const dropTarget = { type: 'folder', id: folder.id } as const
   const dropActive = activeDropTarget?.type === 'folder' && activeDropTarget.id === folder.id
   const expandTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -358,13 +342,12 @@ function FolderTreeItem({
             <div
               draggable
               className={cn(
-                'group/folder-row relative flex h-8 w-full min-w-0 items-center rounded-xl text-sidebar-foreground/70 ring-sidebar-ring outline-hidden transition-[background-color,color,box-shadow] [transition-duration:var(--motion-duration-tooltip)] [transition-timing-function:var(--motion-ease-out)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground has-[:focus-visible]:ring-3 motion-reduce:transition-none',
+                'group/folder-row relative -mx-2 flex h-8 w-[calc(100%+1rem)] min-w-0 items-center overflow-hidden text-sidebar-foreground/70 ring-inset ring-sidebar-ring outline-hidden before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-sidebar-selection before:opacity-0 transition-[background-color,color,box-shadow,scale] [transition-duration:var(--motion-duration-tooltip)] [transition-timing-function:var(--motion-ease-out)] hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground has-[:focus-visible]:ring-3 motion-reduce:scale-100 motion-reduce:transition-none',
                 selectedId === folder.id &&
-                  'bg-sidebar-accent font-medium text-sidebar-accent-foreground ring-1 ring-sidebar-ring/30',
+                  'bg-sidebar-accent font-medium text-sidebar-accent-foreground before:opacity-100 hover:bg-sidebar-accent',
                 dropActive &&
-                  'bg-sidebar-accent text-sidebar-accent-foreground ring-2 ring-sidebar-ring'
+                  'scale-[1.01] bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--sidebar-ring)_45%,transparent),0_8px_18px_-14px_rgba(0,0,0,0.35)] ring-2 ring-sidebar-ring'
               )}
-              style={{ paddingInlineStart: `${depth * 0.75}rem` }}
               onDragStart={(event) => {
                 event.dataTransfer.effectAllowed = 'move'
                 event.dataTransfer.setData(KUSKUS_FOLDER_DRAG_TYPE, folder.id)
@@ -427,10 +410,27 @@ function FolderTreeItem({
             />
           }
         >
+          {depth > 0 && (
+            <>
+              <span
+                aria-hidden="true"
+                className={cn(
+                  'pointer-events-none absolute top-0 z-[1] w-px bg-sidebar-border/80',
+                  isLast ? 'h-4' : 'h-full'
+                )}
+                style={{ left: `${guideOffset}px` }}
+              />
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute top-1/2 z-[1] h-px bg-sidebar-border/80"
+                style={{ left: `${guideOffset}px`, width: `${20 - guideOffset}px` }}
+              />
+            </>
+          )}
           {hasChildren ? (
             <button
               type="button"
-              className="ml-1 flex size-6 shrink-0 items-center justify-center text-inherit outline-hidden hover:text-sidebar-accent-foreground [&_svg]:size-4"
+              className="absolute inset-y-0 left-0 z-10 flex w-5 shrink-0 items-center justify-center text-inherit outline-hidden hover:text-sidebar-accent-foreground [&_svg]:size-4"
               aria-controls={childListId}
               aria-expanded={expanded}
               aria-label={`${expanded ? 'Collapse' : 'Expand'} ${folder.name}`}
@@ -446,18 +446,16 @@ function FolderTreeItem({
                 <IconChevronRight aria-hidden="true" />
               </span>
             </button>
-          ) : (
-            <span className="ml-1 size-6 shrink-0" aria-hidden="true" />
-          )}
+          ) : null}
           <SidebarMenuButton
-            className="h-8 w-auto min-w-0 flex-1 rounded-none bg-transparent px-0 pr-8 text-inherit hover:bg-transparent hover:text-inherit focus-visible:ring-0 active:bg-transparent active:text-inherit has-[>svg:first-child]:pl-0! data-active:bg-transparent data-active:text-inherit"
+            className="ml-5 mr-0 h-8 w-auto min-w-0 flex-1 bg-transparent px-0 pr-8 text-inherit before:hidden hover:bg-transparent hover:text-inherit focus-visible:ring-0 active:bg-transparent active:text-inherit data-active:bg-transparent data-active:text-inherit"
             isActive={selectedId === folder.id}
             onClick={() => onSelect(folder.id)}
           >
             <CollectionIcon icon={folder.icon} aria-hidden="true" />
             <span>{folder.name}</span>
           </SidebarMenuButton>
-          <SidebarMenuBadge className="font-mono font-normal text-sidebar-foreground/60 opacity-100 transition-opacity [transition-duration:var(--motion-duration-tooltip)] [transition-timing-function:var(--motion-ease-out)] group-hover/folder-row:opacity-0 group-has-[:focus-visible]/folder-row:opacity-0 motion-reduce:transition-none">
+          <SidebarMenuBadge className="right-4 font-mono font-normal text-sidebar-foreground/60 opacity-100 transition-opacity [transition-duration:var(--motion-duration-tooltip)] [transition-timing-function:var(--motion-ease-out)] group-hover/folder-row:opacity-0 group-has-[:focus-visible]/folder-row:opacity-0 motion-reduce:transition-none">
             {counts.get(folder.id) ?? 0}
           </SidebarMenuBadge>
           <DropdownMenu>
@@ -466,7 +464,7 @@ function FolderTreeItem({
                 <SidebarMenuAction
                   aria-label={`Manage ${folder.name}`}
                   title={`Manage ${folder.name}`}
-                  className="opacity-0 transition-opacity [transition-duration:var(--motion-duration-tooltip)] [transition-timing-function:var(--motion-ease-out)] group-hover/folder-row:opacity-100 group-has-[:focus-visible]/folder-row:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none"
+                  className="right-3 opacity-0 transition-opacity [transition-duration:var(--motion-duration-tooltip)] [transition-timing-function:var(--motion-ease-out)] group-hover/folder-row:opacity-100 group-has-[:focus-visible]/folder-row:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none"
                 />
               }
             >
@@ -484,13 +482,14 @@ function FolderTreeItem({
       {expanded ? (
         <SidebarMenuSub
           id={childListId}
-          className="m-0 w-full translate-x-0 gap-0.5 border-l-0 px-0 py-0"
+          className="m-0 w-full translate-x-0 gap-0 border-l-0 px-0 py-0"
         >
-          {children.map((child) => (
+          {children.map((child, index) => (
             <FolderTreeItem
               key={child.folder.id}
               node={child}
               depth={depth + 1}
+              isLast={index === children.length - 1}
               collapsedIds={collapsedIds}
               selectedId={selectedId}
               activeDropTarget={activeDropTarget}
@@ -520,8 +519,6 @@ export function LibrarySidebar({
   onThemeChange,
   view,
   onViewChange,
-  showReferencedAttachments,
-  onShowReferencedAttachmentsChange,
   destination,
   onDestinationChange,
   onLibraryChange,
@@ -529,15 +526,17 @@ export function LibrarySidebar({
   onError,
   onStatus,
   librarySwitchBlocked,
-  globalCaptureShortcutStatus
+  globalCaptureShortcutStatus,
+  translucentBackgroundEnabled,
+  translucentBackgroundSupported,
+  translucentBackgroundReduced,
+  onTranslucentBackgroundChange
 }: {
   library: LibraryDto
   theme: Theme
   onThemeChange: (theme: Theme) => void
   view: LibraryView
   onViewChange: (view: LibraryView) => void
-  showReferencedAttachments: boolean
-  onShowReferencedAttachmentsChange: (show: boolean) => void
   destination: LibraryDestination
   onDestinationChange: (destination: LibraryDestination) => void
   onLibraryChange: (library: LibraryDto) => void
@@ -546,6 +545,10 @@ export function LibrarySidebar({
   onStatus: (message: string) => void
   librarySwitchBlocked: boolean
   globalCaptureShortcutStatus: GlobalCaptureShortcutStatus | null
+  translucentBackgroundEnabled: boolean
+  translucentBackgroundSupported: boolean | null
+  translucentBackgroundReduced: boolean
+  onTranslucentBackgroundChange: (enabled: boolean) => void
 }): React.JSX.Element {
   const [folderDialog, setFolderDialog] = useState<FolderDialogState>(null)
   const [folderName, setFolderName] = useState('')
@@ -556,6 +559,8 @@ export function LibrarySidebar({
   const [folderToDelete, setFolderToDelete] = useState<{ id: string; name: string } | null>(null)
   const [iconPickerFolderId, setIconPickerFolderId] = useState<string | null>(null)
   const [folderToMoveId, setFolderToMoveId] = useState<string | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const settingsTriggerRef = useRef<HTMLButtonElement>(null)
   const [inboxDropActive, setInboxDropActive] = useState(false)
   const [activeFolderDropTarget, setActiveFolderDropTarget] = useState<FolderDropTarget>(null)
   const [storedCollapsedFolderIds, setStoredCollapsedFolderIds] = useState(() =>
@@ -806,8 +811,9 @@ export function LibrarySidebar({
                   <SidebarMenuButton
                     isActive={destination.type === 'inbox'}
                     className={cn(
+                      'transition-[background-color,color,box-shadow,scale] [transition-duration:var(--motion-duration-tooltip)] [transition-timing-function:var(--motion-ease-out)] motion-reduce:scale-100 motion-reduce:transition-none',
                       inboxDropActive &&
-                        'bg-sidebar-accent text-sidebar-accent-foreground ring-2 ring-sidebar-ring'
+                        'scale-[1.01] bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--sidebar-ring)_45%,transparent),0_8px_18px_-14px_rgba(0,0,0,0.35)] ring-2 ring-sidebar-ring'
                     )}
                     onClick={() => onDestinationChange({ type: 'inbox' })}
                     onDragEnter={(event) => {
@@ -958,103 +964,16 @@ export function LibrarySidebar({
         <SidebarFooter className="[-webkit-app-region:no-drag]">
           <SidebarMenu>
             <SidebarMenuItem>
-              <DropdownMenu>
-                <DropdownMenuTrigger render={<SidebarMenuButton aria-label="Open Settings" />}>
-                  <IconSettings aria-hidden="true" />
-                  <span>Settings</span>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56" side="right" sideOffset={8}>
-                  <DropdownMenuGroup>
-                    <DropdownMenuLabel>View</DropdownMenuLabel>
-                    <DropdownMenuRadioGroup
-                      value={view}
-                      onValueChange={(value) => onViewChange(value as LibraryView)}
-                    >
-                      {VIEW_OPTIONS.map((option) => {
-                        const Icon = option.icon
-                        return (
-                          <DropdownMenuRadioItem key={option.value} value={option.value}>
-                            <Icon aria-hidden="true" />
-                            {option.label}
-                          </DropdownMenuRadioItem>
-                        )
-                      })}
-                    </DropdownMenuRadioGroup>
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    <DropdownMenuLabel>Capture</DropdownMenuLabel>
-                    <div className="flex min-h-9 items-center gap-2 px-2 py-1.5 text-sm">
-                      <IconKeyboard
-                        className="size-4 shrink-0 text-muted-foreground"
-                        aria-hidden="true"
-                      />
-                      <span>Global capture</span>
-                      <Badge
-                        className="ml-auto"
-                        variant={
-                          globalCaptureShortcutStatus === null ||
-                          globalCaptureShortcutStatus.registered
-                            ? 'secondary'
-                            : 'destructive'
-                        }
-                      >
-                        {globalCaptureShortcutStatus === null
-                          ? 'Checking'
-                          : globalCaptureShortcutStatus.registered
-                            ? 'Available'
-                            : 'Unavailable'}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between gap-2 px-2 pb-1.5 text-xs text-muted-foreground">
-                      <span>Summon New item in Inbox</span>
-                      <Kbd>{globalCaptureShortcutStatus?.accelerator ?? 'Ctrl+Shift+Space'}</Kbd>
-                    </div>
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    <DropdownMenuLabel>Vault files</DropdownMenuLabel>
-                    <DropdownMenuCheckboxItem
-                      checked={showReferencedAttachments}
-                      onCheckedChange={onShowReferencedAttachmentsChange}
-                    >
-                      Show referenced attachments
-                    </DropdownMenuCheckboxItem>
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    <DropdownMenuLabel>Appearance</DropdownMenuLabel>
-                    <DropdownMenuRadioGroup
-                      value={theme}
-                      onValueChange={(value) => onThemeChange(value as Theme)}
-                    >
-                      <DropdownMenuRadioItem value="light">
-                        <IconSun aria-hidden="true" />
-                        Light
-                      </DropdownMenuRadioItem>
-                      <DropdownMenuRadioItem value="dark">
-                        <IconMoon aria-hidden="true" />
-                        Dark
-                      </DropdownMenuRadioItem>
-                      <DropdownMenuRadioItem disabled value="system">
-                        <IconDeviceDesktop aria-hidden="true" />
-                        System
-                        <span className="ml-auto text-xs text-muted-foreground">Coming soon</span>
-                      </DropdownMenuRadioItem>
-                    </DropdownMenuRadioGroup>
-                    <DropdownMenuItem disabled>
-                      <IconPalette aria-hidden="true" />
-                      Accent color
-                      <span className="ml-auto text-xs text-muted-foreground">Coming soon</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem disabled>
-                      <IconTypography aria-hidden="true" />
-                      Font
-                      <span className="ml-auto text-xs text-muted-foreground">Coming soon</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <SidebarMenuButton
+                ref={settingsTriggerRef}
+                aria-label="Open Settings"
+                aria-haspopup="dialog"
+                aria-expanded={settingsOpen}
+                onClick={() => setSettingsOpen(true)}
+              >
+                <IconSettings aria-hidden="true" />
+                <span>Settings</span>
+              </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
           <SidebarSeparator className="mx-1" />
@@ -1165,6 +1084,20 @@ export function LibrarySidebar({
         onMove={(parentId) => {
           if (folderToMoveId) void moveFolder(folderToMoveId, parentId)
         }}
+      />
+      <SettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        finalFocusRef={settingsTriggerRef}
+        theme={theme}
+        onThemeChange={onThemeChange}
+        view={view}
+        onViewChange={onViewChange}
+        globalCaptureShortcutStatus={globalCaptureShortcutStatus}
+        translucentBackgroundEnabled={translucentBackgroundEnabled}
+        translucentBackgroundSupported={translucentBackgroundSupported}
+        translucentBackgroundReduced={translucentBackgroundReduced}
+        onTranslucentBackgroundChange={onTranslucentBackgroundChange}
       />
       <Dialog
         open={creatingLibrary}

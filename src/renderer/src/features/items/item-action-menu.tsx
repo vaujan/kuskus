@@ -11,7 +11,7 @@ import {
   IconTrash,
   IconTrashX
 } from '@tabler/icons-react'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -24,6 +24,7 @@ import {
   ContextMenuContent,
   ContextMenuGroup,
   ContextMenuItem,
+  ContextMenuLabel,
   ContextMenuShortcut,
   ContextMenuSeparator,
   ContextMenuSub,
@@ -36,6 +37,7 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuShortcut,
   DropdownMenuSeparator,
   DropdownMenuSub,
@@ -44,9 +46,11 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { hasBulkItemSelection } from '@/features/items/item-shortcuts'
 import type {
   ActiveItemLocation,
   CollectionDto,
+  ItemLocation,
   LibraryItemDto
 } from '../../../../shared/library-contract'
 
@@ -66,209 +70,220 @@ export interface ItemActionHandlers {
 interface ItemActionMenuProps extends ItemActionHandlers {
   item: LibraryItemDto
   collections: CollectionDto[]
+  targetCount: number
+  targetLocations: readonly ItemLocation[]
+  onMenuOpen?: () => void
   alwaysVisible?: boolean
   showQuickSourceAction?: boolean
 }
 
-function DropdownActions({
-  item,
-  collections,
-  onOpen,
-  onRename,
-  onMove,
-  onReveal,
-  onArchive,
-  onUnarchive,
-  onTrash,
-  onRestore,
-  onDeletePermanently,
-  onOpenSource
-}: ItemActionMenuProps): React.JSX.Element {
-  if (item.location.type === 'trash') {
-    return (
-      <>
-        <DropdownMenuGroup>
-          <DropdownMenuItem onClick={onOpen}>
-            <IconEye aria-hidden="true" />
-            Open
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onReveal}>
-            <IconFolderOpen aria-hidden="true" />
-            Show in Explorer
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onRestore}>
-            <IconRestore aria-hidden="true" />
-            Restore
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem
-            variant="destructive"
-            aria-keyshortcuts="Delete"
-            onClick={onDeletePermanently}
-          >
-            <IconTrashX aria-hidden="true" />
-            Delete permanently
-            <DropdownMenuShortcut>Delete</DropdownMenuShortcut>
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </>
-    )
-  }
+function selectedItemsLabel(count: number): string {
+  return `${count} selected`
+}
 
-  return (
-    <>
-      <DropdownMenuGroup>
-        <DropdownMenuItem onClick={onOpen}>
-          <IconEye aria-hidden="true" />
-          Open
-        </DropdownMenuItem>
-        {item.type === 'url' ? (
-          <DropdownMenuItem onClick={onOpenSource}>
-            <IconExternalLink aria-hidden="true" />
-            Open source link
-          </DropdownMenuItem>
-        ) : null}
-        <DropdownMenuItem aria-keyshortcuts="F2" onClick={onRename}>
-          <IconPencil aria-hidden="true" />
-          Rename
-          <DropdownMenuShortcut>F2</DropdownMenuShortcut>
-        </DropdownMenuItem>
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <IconFolder aria-hidden="true" />
-            Move to
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
-            <DropdownMenuGroup>
-              <FolderDropdownDestinationItems
-                collections={collections}
-                currentLocations={[item.location]}
-                onSelect={onMove}
-              />
-            </DropdownMenuGroup>
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-        <DropdownMenuItem onClick={onReveal}>
-          <IconFolderOpen aria-hidden="true" />
-          Show in Explorer
-        </DropdownMenuItem>
-      </DropdownMenuGroup>
-      <DropdownMenuSeparator />
-      <DropdownMenuGroup>
-        {item.location.type === 'archive' ? (
-          <DropdownMenuItem onClick={onUnarchive}>
-            <IconArchiveOff aria-hidden="true" />
-            Unarchive
-          </DropdownMenuItem>
-        ) : (
-          <DropdownMenuItem onClick={onArchive}>
-            <IconArchive aria-hidden="true" />
-            Archive
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem variant="destructive" aria-keyshortcuts="Delete" onClick={onTrash}>
-          <IconTrash aria-hidden="true" />
-          Move to Trash
-          <DropdownMenuShortcut>Delete</DropdownMenuShortcut>
-        </DropdownMenuItem>
-      </DropdownMenuGroup>
-    </>
+type MenuSurface = 'dropdown' | 'context'
+
+function ActionGroup({
+  surface,
+  children
+}: {
+  surface: MenuSurface
+  children: ReactNode
+}): React.JSX.Element {
+  return surface === 'dropdown' ? (
+    <DropdownMenuGroup>{children}</DropdownMenuGroup>
+  ) : (
+    <ContextMenuGroup>{children}</ContextMenuGroup>
   )
 }
 
-function ContextActions(props: ItemActionMenuProps): React.JSX.Element {
-  const { item, collections } = props
-  if (item.location.type === 'trash') {
-    return (
-      <>
-        <ContextMenuGroup>
-          <ContextMenuItem onClick={props.onOpen}>
-            <IconEye aria-hidden="true" />
-            Open
-          </ContextMenuItem>
-          <ContextMenuItem onClick={props.onReveal}>
-            <IconFolderOpen aria-hidden="true" />
-            Show in Explorer
-          </ContextMenuItem>
-          <ContextMenuItem onClick={props.onRestore}>
+function ActionLabel({
+  surface,
+  children
+}: {
+  surface: MenuSurface
+  children: ReactNode
+}): React.JSX.Element {
+  const className = children === 'This item' ? undefined : 'tabular-nums'
+  return surface === 'dropdown' ? (
+    <DropdownMenuLabel className={className}>{children}</DropdownMenuLabel>
+  ) : (
+    <ContextMenuLabel className={className}>{children}</ContextMenuLabel>
+  )
+}
+
+function ActionSeparator({ surface }: { surface: MenuSurface }): React.JSX.Element {
+  return surface === 'dropdown' ? <DropdownMenuSeparator /> : <ContextMenuSeparator />
+}
+
+function ActionItem({
+  surface,
+  onClick,
+  children,
+  destructive = false,
+  shortcut
+}: {
+  surface: MenuSurface
+  onClick: () => void
+  children: ReactNode
+  destructive?: boolean
+  shortcut?: 'F2' | 'Delete'
+}): React.JSX.Element {
+  const content = (
+    <>
+      {children}
+      {shortcut ? (
+        surface === 'dropdown' ? (
+          <DropdownMenuShortcut>{shortcut}</DropdownMenuShortcut>
+        ) : (
+          <ContextMenuShortcut>{shortcut}</ContextMenuShortcut>
+        )
+      ) : null}
+    </>
+  )
+  const commonProps = {
+    'aria-keyshortcuts': shortcut,
+    onClick,
+    variant: destructive ? ('destructive' as const) : ('default' as const)
+  }
+  return surface === 'dropdown' ? (
+    <DropdownMenuItem {...commonProps}>{content}</DropdownMenuItem>
+  ) : (
+    <ContextMenuItem {...commonProps}>{content}</ContextMenuItem>
+  )
+}
+
+function MoveAction({
+  surface,
+  collections,
+  targetLocations,
+  onMove
+}: Pick<ItemActionMenuProps, 'collections' | 'targetLocations' | 'onMove'> & {
+  surface: MenuSurface
+}): React.JSX.Element {
+  const destinations =
+    surface === 'dropdown' ? (
+      <FolderDropdownDestinationItems
+        collections={collections}
+        currentLocations={targetLocations}
+        onSelect={onMove}
+      />
+    ) : (
+      <FolderContextDestinationItems
+        collections={collections}
+        currentLocations={targetLocations}
+        onSelect={onMove}
+      />
+    )
+
+  return surface === 'dropdown' ? (
+    <DropdownMenuSub>
+      <DropdownMenuSubTrigger>
+        <IconFolder aria-hidden="true" />
+        Move to
+      </DropdownMenuSubTrigger>
+      <DropdownMenuSubContent>
+        <DropdownMenuGroup>{destinations}</DropdownMenuGroup>
+      </DropdownMenuSubContent>
+    </DropdownMenuSub>
+  ) : (
+    <ContextMenuSub>
+      <ContextMenuSubTrigger>
+        <IconFolder aria-hidden="true" />
+        Move to
+      </ContextMenuSubTrigger>
+      <ContextMenuSubContent>
+        <ContextMenuGroup>{destinations}</ContextMenuGroup>
+      </ContextMenuSubContent>
+    </ContextMenuSub>
+  )
+}
+
+function ItemActions({
+  surface,
+  ...props
+}: ItemActionMenuProps & { surface: MenuSurface }): React.JSX.Element {
+  const { item, targetCount } = props
+  const bulk = hasBulkItemSelection(targetCount)
+  const inTrash = item.location.type === 'trash'
+
+  return (
+    <>
+      <ActionGroup surface={surface}>
+        {bulk ? <ActionLabel surface={surface}>This item</ActionLabel> : null}
+        <ActionItem surface={surface} onClick={props.onOpen}>
+          <IconEye aria-hidden="true" />
+          Open
+        </ActionItem>
+        {!inTrash && item.type === 'url' ? (
+          <ActionItem surface={surface} onClick={props.onOpenSource}>
+            <IconExternalLink aria-hidden="true" />
+            Open source link
+          </ActionItem>
+        ) : null}
+        {!inTrash ? (
+          <ActionItem surface={surface} shortcut="F2" onClick={props.onRename}>
+            <IconPencil aria-hidden="true" />
+            Rename
+          </ActionItem>
+        ) : null}
+        {!inTrash && !bulk ? <MoveAction surface={surface} {...props} /> : null}
+        <ActionItem surface={surface} onClick={props.onReveal}>
+          <IconFolderOpen aria-hidden="true" />
+          Show in Explorer
+        </ActionItem>
+        {inTrash && !bulk ? (
+          <ActionItem surface={surface} onClick={props.onRestore}>
             <IconRestore aria-hidden="true" />
             Restore
-          </ContextMenuItem>
-        </ContextMenuGroup>
-        <ContextMenuSeparator />
-        <ContextMenuGroup>
-          <ContextMenuItem
-            variant="destructive"
-            aria-keyshortcuts="Delete"
+          </ActionItem>
+        ) : null}
+      </ActionGroup>
+      <ActionSeparator surface={surface} />
+      <ActionGroup surface={surface}>
+        {bulk ? (
+          <>
+            <ActionLabel surface={surface}>{selectedItemsLabel(targetCount)}</ActionLabel>
+            {inTrash ? (
+              <ActionItem surface={surface} onClick={props.onRestore}>
+                <IconRestore aria-hidden="true" />
+                Restore
+              </ActionItem>
+            ) : (
+              <MoveAction surface={surface} {...props} />
+            )}
+          </>
+        ) : null}
+        {inTrash ? (
+          <ActionItem
+            surface={surface}
+            destructive
+            shortcut="Delete"
             onClick={props.onDeletePermanently}
           >
             <IconTrashX aria-hidden="true" />
             Delete permanently
-            <ContextMenuShortcut>Delete</ContextMenuShortcut>
-          </ContextMenuItem>
-        </ContextMenuGroup>
-      </>
-    )
-  }
-  return (
-    <>
-      <ContextMenuGroup>
-        <ContextMenuItem onClick={props.onOpen}>
-          <IconEye aria-hidden="true" />
-          Open
-        </ContextMenuItem>
-        {item.type === 'url' ? (
-          <ContextMenuItem onClick={props.onOpenSource}>
-            <IconExternalLink aria-hidden="true" />
-            Open source link
-          </ContextMenuItem>
-        ) : null}
-        <ContextMenuItem aria-keyshortcuts="F2" onClick={props.onRename}>
-          <IconPencil aria-hidden="true" />
-          Rename
-          <ContextMenuShortcut>F2</ContextMenuShortcut>
-        </ContextMenuItem>
-        <ContextMenuSub>
-          <ContextMenuSubTrigger>
-            <IconFolder aria-hidden="true" />
-            Move to
-          </ContextMenuSubTrigger>
-          <ContextMenuSubContent>
-            <ContextMenuGroup>
-              <FolderContextDestinationItems
-                collections={collections}
-                currentLocations={[item.location]}
-                onSelect={props.onMove}
-              />
-            </ContextMenuGroup>
-          </ContextMenuSubContent>
-        </ContextMenuSub>
-        <ContextMenuItem onClick={props.onReveal}>
-          <IconFolderOpen aria-hidden="true" />
-          Show in Explorer
-        </ContextMenuItem>
-      </ContextMenuGroup>
-      <ContextMenuSeparator />
-      <ContextMenuGroup>
-        {item.location.type === 'archive' ? (
-          <ContextMenuItem onClick={props.onUnarchive}>
-            <IconArchiveOff aria-hidden="true" />
-            Unarchive
-          </ContextMenuItem>
+          </ActionItem>
         ) : (
-          <ContextMenuItem onClick={props.onArchive}>
-            <IconArchive aria-hidden="true" />
-            Archive
-          </ContextMenuItem>
+          <>
+            {item.location.type === 'archive' ? (
+              <ActionItem surface={surface} onClick={props.onUnarchive}>
+                <IconArchiveOff aria-hidden="true" />
+                Unarchive
+              </ActionItem>
+            ) : (
+              <ActionItem surface={surface} onClick={props.onArchive}>
+                <IconArchive aria-hidden="true" />
+                Archive
+              </ActionItem>
+            )}
+            <ActionItem surface={surface} destructive shortcut="Delete" onClick={props.onTrash}>
+              <IconTrash aria-hidden="true" />
+              Move to Trash
+            </ActionItem>
+          </>
         )}
-        <ContextMenuItem variant="destructive" aria-keyshortcuts="Delete" onClick={props.onTrash}>
-          <IconTrash aria-hidden="true" />
-          Move to Trash
-          <ContextMenuShortcut>Delete</ContextMenuShortcut>
-        </ContextMenuItem>
-      </ContextMenuGroup>
+      </ActionGroup>
     </>
   )
 }
@@ -304,7 +319,13 @@ export function ItemActionMenu(props: ItemActionMenuProps): React.JSX.Element {
           <TooltipContent>Open source link</TooltipContent>
         </Tooltip>
       ) : null}
-      <DropdownMenu open={menuOpen} onOpenChange={(open) => setMenuOpen(open)}>
+      <DropdownMenu
+        open={menuOpen}
+        onOpenChange={(open) => {
+          if (open) props.onMenuOpen?.()
+          setMenuOpen(open)
+        }}
+      >
         <DropdownMenuTrigger
           render={
             <Button
@@ -318,8 +339,8 @@ export function ItemActionMenu(props: ItemActionMenuProps): React.JSX.Element {
         >
           <IconDots aria-hidden="true" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-52">
-          <DropdownActions {...props} />
+        <DropdownMenuContent align="end" className="w-60">
+          <ItemActions surface="dropdown" {...props} />
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -331,10 +352,10 @@ export function ItemContextMenu({
   ...props
 }: ItemActionMenuProps & { children: React.ReactElement }): React.JSX.Element {
   return (
-    <ContextMenu>
+    <ContextMenu onOpenChange={(open) => open && props.onMenuOpen?.()}>
       <ContextMenuTrigger render={children} />
-      <ContextMenuContent className="w-52">
-        <ContextActions {...props} />
+      <ContextMenuContent className="w-60">
+        <ItemActions surface="context" {...props} />
       </ContextMenuContent>
     </ContextMenu>
   )

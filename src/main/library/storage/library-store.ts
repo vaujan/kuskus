@@ -1,10 +1,12 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { access, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { access, cp, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve, sep } from 'node:path'
 
 import type {
+  ActiveItemLocation,
   CollectionDto,
   FileItemDto,
+  ItemDeletionInspectionDto,
   ItemLocation,
   LibraryDto,
   LibraryItemDto,
@@ -14,6 +16,20 @@ import type {
 } from '../../../shared/library-contract'
 import type { UrlPreviewKind, UrlPreviewMediaType } from '../../../shared/library-contract'
 import {
+  encodeMarkdownImageTarget,
+  markdownImageTargetKey,
+  normalizeMarkdownImageTarget,
+  rewriteMarkdownImageDestinations,
+  stagedAttachmentAliases
+} from '../../../shared/markdown-image-references'
+import {
+  isCaptureSubmissionRecord,
+  normalizeCaptureSubmissionRecord,
+  type CaptureSubmissionRecord
+} from '../../capture/capture-submission-record'
+import {
+  FILE_DRAFT_DIRECTORY,
+  FILE_DRAFT_MANIFEST,
   IMAGE_EXTENSIONS,
   ITEM_ID_PATTERN,
   NOTE_DRAFT_DIRECTORY,
@@ -38,10 +54,13 @@ import {
   type PersistedNoteItem
 } from '../schemas'
 import { createInternetShortcut, parseInternetShortcut } from '../internet-shortcut'
+import { markdownPathForAttachment, resolveAttachmentPlacement } from '../attachment-placement'
 import {
-  extractVaultReferences,
+  extractVaultReferenceTargets,
   readVaultFrontmatter,
-  removeKuskusFrontmatter
+  removeKuskusFrontmatter,
+  resolveVaultReferencePath,
+  rewriteVaultReferences
 } from '../vault-frontmatter'
 import { URL_PREVIEW_EXTENSIONS } from '../url-preview'
 import { readJson, writeJsonAtomic } from './json-file'
@@ -51,6 +70,8 @@ const LIBRARY_FILENAME = 'library.json'
 const RECORDS_DIRECTORY = 'records'
 const COLLECTION_RECORDS_DIRECTORY = 'collections'
 const TRASH_DIRECTORY = 'trash'
+const CAPTURE_QUEUE_DIRECTORY = 'capture-queue'
+const CAPTURE_SUBMISSION_MANIFEST = 'submission.json'
 const DEFAULT_ARCHIVE_DIRECTORY = 'Archive'
 const MARKDOWN_EXTENSION = '.md'
 const INTERNET_SHORTCUT_EXTENSION = '.url'
@@ -69,6 +90,10 @@ interface VaultItemRecord {
   metadata: PersistedItem
 }
 
+type AttachmentItemRecord = VaultItemRecord & {
+  metadata: PersistedImageItem | PersistedFileItem
+}
+
 interface VaultCollectionRecord extends PersistedCollection {
   schemaVersion: 2
   relativePath: string
@@ -79,6 +104,85 @@ interface CleanupMarker extends VaultCleanupDto {
   schemaVersion: 1
   conflicts: VaultRepairConflictDto[]
   completedAt: string
+}
+
+function isAttachmentItemRecord(record: VaultItemRecord): record is AttachmentItemRecord {
+  return record.metadata.type === 'image' || record.metadata.type === 'file'
+}
+
+function pathKey(path: string): string {
+  return resolve(path).toLocaleLowerCase()
+}
+
+function attachmentMetadataFromDto(attachment: NoteAttachmentDto): PersistedNoteAttachment {
+  return {
+    id: attachment.id,
+    filename: attachment.filename,
+    relativePath: attachment.relativePath,
+    sourceFilename: attachment.sourceFilename,
+    mediaType: attachment.mediaType,
+    width: attachment.width,
+    height: attachment.height
+  }
+}
+
+function attachmentsEqual(
+  left: readonly PersistedNoteAttachment[],
+  right: readonly PersistedNoteAttachment[]
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((attachment, index) => {
+      const candidate = right[index]
+      return (
+        candidate !== undefined &&
+        attachment.id === candidate.id &&
+        attachment.filename === candidate.filename &&
+        attachment.relativePath === candidate.relativePath &&
+        attachment.sourceFilename === candidate.sourceFilename &&
+        attachment.mediaType === candidate.mediaType &&
+        attachment.width === candidate.width &&
+        attachment.height === candidate.height
+      )
+    })
+  )
+}
+
+function normalizeDraftManifestAttachments(value: unknown): PersistedNoteAttachment[] {
+  if (!value || typeof value !== 'object') return []
+  const manifest = value as Record<string, unknown>
+  const attachments = Array.isArray(manifest.attachments)
+    ? manifest.attachments.filter(isPersistedNoteAttachment)
+    : []
+  if (manifest.schemaVersion !== 1) return attachments
+  return attachments.map((attachment) =>
+    markdownImageTargetKey(attachment.relativePath) ===
+    markdownImageTargetKey(`./assets/${attachment.filename}`)
+      ? { ...attachment, relativePath: `./${encodeMarkdownImageTarget(attachment.filename)}` }
+      : attachment
+  )
+}
+
+export interface PersistedCaptureDraftFile {
+  id: string
+  filename: string
+  mediaType: string
+  size: number
+}
+
+function isPersistedCaptureDraftFile(value: unknown): value is PersistedCaptureDraftFile {
+  if (!value || typeof value !== 'object') return false
+  const candidate = value as Record<string, unknown>
+  return (
+    typeof candidate.id === 'string' &&
+    ITEM_ID_PATTERN.test(candidate.id) &&
+    typeof candidate.filename === 'string' &&
+    candidate.filename.length > 0 &&
+    typeof candidate.mediaType === 'string' &&
+    typeof candidate.size === 'number' &&
+    Number.isSafeInteger(candidate.size) &&
+    candidate.size > 0
+  )
 }
 
 export interface ResolvedLibraryItem {
@@ -173,6 +277,46 @@ export class LibraryStore {
       suffix += 1
     }
     return candidate
+  }
+
+  private async rewriteInboundReferences(
+    libraryPath: string,
+    replacements: ReadonlyMap<string, string>
+  ): Promise<void> {
+    if (replacements.size === 0) return
+    const records = await this.readItemRecords(libraryPath)
+    const updates: Array<{ path: string; source: string; next: string }> = []
+    for (const record of records) {
+      if (record.metadata.type !== 'note') continue
+      const path = this.resolveInside(libraryPath, record.relativePath)
+      if (!(await this.pathExists(path))) continue
+      const source = await readFile(path, 'utf8')
+      const next = rewriteVaultReferences(source, path, path, libraryPath, replacements)
+      if (next !== source) updates.push({ path, source, next })
+    }
+    const committed: Array<{ path: string; previous: string }> = []
+    try {
+      for (const update of updates) {
+        const temporary = `${update.path}.${randomUUID()}.reference-update`
+        const previous = `${update.path}.${randomUUID()}.previous`
+        await writeFile(temporary, update.next, 'utf8')
+        await rename(update.path, previous)
+        try {
+          await rename(temporary, update.path)
+        } catch (error) {
+          await rename(previous, update.path)
+          throw error
+        }
+        committed.push({ path: update.path, previous })
+      }
+      await Promise.all(committed.map((entry) => rm(entry.previous, { force: true })))
+    } catch (error) {
+      for (const entry of committed.reverse()) {
+        await rm(entry.path, { force: true })
+        await rename(entry.previous, entry.path)
+      }
+      throw error
+    }
   }
 
   async prepareNewLibrary(libraryPath: string, library: PersistedLibrary): Promise<void> {
@@ -776,12 +920,16 @@ export class LibraryStore {
     }
 
     const references = new Set<string>()
+    const availablePaths = records.map((record) =>
+      this.resolveInside(libraryPath, record.relativePath)
+    )
     for (const record of records) {
       if (record.metadata.type !== 'note') continue
       const notePath = this.resolveInside(libraryPath, record.relativePath)
       const source = await readFile(notePath, 'utf8')
-      for (const target of extractVaultReferences(source)) {
-        const candidate = slash(relative(libraryPath, resolve(dirname(notePath), target)))
+      for (const reference of extractVaultReferenceTargets(source)) {
+        const target = resolveVaultReferencePath(reference, notePath, libraryPath, availablePaths)
+        const candidate = slash(relative(libraryPath, target))
         references.add(candidate.toLowerCase())
       }
     }
@@ -1112,10 +1260,25 @@ export class LibraryStore {
     record: VaultItemRecord,
     source: string
   ): Promise<NoteAttachmentDto[]> {
+    if (record.metadata.type !== 'note') return []
+
     const notePath = this.resolveInside(libraryPath, record.relativePath)
     const attachments: NoteAttachmentDto[] = []
-    for (const reference of extractVaultReferences(source)) {
-      const target = resolve(dirname(notePath), reference)
+    const seenTargets = new Set<string>()
+    const itemRecords = await this.readItemRecords(libraryPath)
+    const attachmentRecords = itemRecords.filter(isAttachmentItemRecord)
+    const attachmentRecordIds = new Set(attachmentRecords.map((item) => item.id))
+    const availablePaths = itemRecords.flatMap((item) => [
+      this.resolveInside(libraryPath, item.relativePath),
+      ...(item.metadata.trashedFromRelativePath
+        ? [this.resolveInside(libraryPath, item.metadata.trashedFromRelativePath)]
+        : [])
+    ])
+    for (const reference of extractVaultReferenceTargets(source)) {
+      const target = resolveVaultReferencePath(reference, notePath, libraryPath, availablePaths)
+      const targetKey = pathKey(target)
+      if (seenTargets.has(targetKey)) continue
+      seenTargets.add(targetKey)
       const relativePath = slash(relative(dirname(notePath), target))
       if (!target.startsWith(`${resolve(libraryPath)}${sep}`) || !isImageExtension(extname(target)))
         continue
@@ -1123,7 +1286,8 @@ export class LibraryStore {
       let height = 1
       let mediaType = mimeForExtension(extname(target)) as NoteAttachmentDto['mediaType']
       let missingContent = true
-      if (await this.pathExists(target)) {
+      const targetExists = await this.pathExists(target)
+      if (targetExists) {
         const detected = detectImage(await readFile(target))
         if (detected) {
           width = detected.width
@@ -1132,9 +1296,13 @@ export class LibraryStore {
           missingContent = false
         }
       }
-      const binaryRecord = (await this.readItemRecords(libraryPath)).find(
-        (entry) =>
-          entry.relativePath.toLowerCase() === slash(relative(libraryPath, target)).toLowerCase()
+      const binaryRecord = this.attachmentRecordForTarget(
+        libraryPath,
+        notePath,
+        record.metadata,
+        target,
+        attachmentRecords,
+        targetExists
       )
       attachments.push({
         id: binaryRecord?.id ?? randomUUID(),
@@ -1147,7 +1315,68 @@ export class LibraryStore {
         missingContent
       })
     }
+    await this.reconcileNoteAttachmentMetadata(
+      libraryPath,
+      notePath,
+      record,
+      record.metadata,
+      attachments.filter((attachment) => attachmentRecordIds.has(attachment.id))
+    )
     return attachments
+  }
+
+  private attachmentRecordForTarget(
+    libraryPath: string,
+    notePath: string,
+    noteMetadata: PersistedNoteItem,
+    target: string,
+    attachmentRecords: readonly AttachmentItemRecord[],
+    targetExists: boolean
+  ): AttachmentItemRecord | undefined {
+    const targetRelativePath = slash(relative(libraryPath, target)).toLowerCase()
+    const exactActiveRecord = attachmentRecords.find(
+      (entry) =>
+        targetExists &&
+        !entry.relativePath.startsWith(`${KUSKUS_DIRECTORY}/`) &&
+        entry.relativePath.toLowerCase() === targetRelativePath
+    )
+    if (exactActiveRecord) return exactActiveRecord
+
+    for (const attachment of noteMetadata.attachments ?? []) {
+      const storedTarget = resolve(
+        dirname(notePath),
+        normalizeMarkdownImageTarget(attachment.relativePath)
+      )
+      if (pathKey(storedTarget) !== pathKey(target)) continue
+      const persistedRecord = attachmentRecords.find(
+        (entry) =>
+          entry.id === attachment.id &&
+          (entry.relativePath.toLowerCase() === targetRelativePath ||
+            entry.metadata.trashedFromRelativePath?.toLowerCase() === targetRelativePath)
+      )
+      if (persistedRecord) return persistedRecord
+    }
+
+    const historicalRecords = attachmentRecords.filter(
+      (entry) => entry.metadata.trashedFromRelativePath?.toLowerCase() === targetRelativePath
+    )
+    return historicalRecords.length === 1 ? historicalRecords[0] : undefined
+  }
+
+  private async reconcileNoteAttachmentMetadata(
+    libraryPath: string,
+    notePath: string,
+    record: VaultItemRecord,
+    noteMetadata: PersistedNoteItem,
+    attachments: readonly NoteAttachmentDto[]
+  ): Promise<void> {
+    if (!(await this.pathExists(notePath))) return
+    const persistedAttachments = attachments.map(attachmentMetadataFromDto)
+    if (attachmentsEqual(noteMetadata.attachments ?? [], persistedAttachments)) return
+    await this.writeItemRecord(libraryPath, {
+      ...record,
+      metadata: { ...noteMetadata, attachments: persistedAttachments }
+    })
   }
 
   async createCollection(libraryPath: string, collection: PersistedCollection): Promise<void> {
@@ -1325,14 +1554,191 @@ export class LibraryStore {
     return this.kuskusPath(libraryPath, 'temp', NOTE_DRAFT_DIRECTORY)
   }
 
+  private captureDraftFileDirectory(libraryPath: string): string {
+    return this.kuskusPath(libraryPath, 'temp', FILE_DRAFT_DIRECTORY)
+  }
+
+  private captureQueueDirectory(libraryPath: string): string {
+    return this.kuskusPath(libraryPath, 'temp', CAPTURE_QUEUE_DIRECTORY)
+  }
+
+  private captureSubmissionDirectory(libraryPath: string, submissionId: string): string {
+    if (!ITEM_ID_PATTERN.test(submissionId)) throw new Error('The capture submission is invalid.')
+    return join(this.captureQueueDirectory(libraryPath), submissionId)
+  }
+
+  async prepareCaptureSubmission(
+    libraryPath: string,
+    record: CaptureSubmissionRecord
+  ): Promise<void> {
+    const destination = this.captureSubmissionDirectory(libraryPath, record.id)
+    try {
+      const existing = await readJson<unknown>(join(destination, CAPTURE_SUBMISSION_MANIFEST))
+      if (isCaptureSubmissionRecord(existing)) return
+    } catch {
+      // Continue with a clean prepared directory.
+    }
+    const preparing = join(this.captureQueueDirectory(libraryPath), `.${record.id}.preparing`)
+    await rm(preparing, { recursive: true, force: true })
+    await mkdir(preparing, { recursive: true })
+    const noteDraft = this.captureDraftDirectory(libraryPath)
+    const fileDraft = this.captureDraftFileDirectory(libraryPath)
+    if (await this.pathExists(noteDraft)) {
+      await cp(noteDraft, join(preparing, NOTE_DRAFT_DIRECTORY), { recursive: true })
+    }
+    if (await this.pathExists(fileDraft)) {
+      await cp(fileDraft, join(preparing, FILE_DRAFT_DIRECTORY), { recursive: true })
+    }
+    await writeJsonAtomic(join(preparing, CAPTURE_SUBMISSION_MANIFEST), record)
+    await mkdir(this.captureQueueDirectory(libraryPath), { recursive: true })
+    await rename(preparing, destination)
+  }
+
+  async listCaptureSubmissions(libraryPath: string): Promise<CaptureSubmissionRecord[]> {
+    let entries: string[]
+    try {
+      entries = await readdir(this.captureQueueDirectory(libraryPath))
+    } catch {
+      return []
+    }
+    const records: CaptureSubmissionRecord[] = []
+    for (const entry of entries) {
+      if (!ITEM_ID_PATTERN.test(entry)) continue
+      try {
+        const value = await readJson<unknown>(
+          join(this.captureSubmissionDirectory(libraryPath, entry), CAPTURE_SUBMISSION_MANIFEST)
+        )
+        if (isCaptureSubmissionRecord(value)) records.push(normalizeCaptureSubmissionRecord(value))
+      } catch {
+        // Malformed recovery data stays on disk for manual inspection.
+      }
+    }
+    return records
+  }
+
+  async readCaptureSubmission(
+    libraryPath: string,
+    submissionId: string
+  ): Promise<CaptureSubmissionRecord> {
+    const value = await readJson<unknown>(
+      join(this.captureSubmissionDirectory(libraryPath, submissionId), CAPTURE_SUBMISSION_MANIFEST)
+    )
+    if (!isCaptureSubmissionRecord(value)) throw new Error('The capture submission is invalid.')
+    return normalizeCaptureSubmissionRecord(value)
+  }
+
+  async writeCaptureSubmission(
+    libraryPath: string,
+    record: CaptureSubmissionRecord
+  ): Promise<void> {
+    await writeJsonAtomic(
+      join(this.captureSubmissionDirectory(libraryPath, record.id), CAPTURE_SUBMISSION_MANIFEST),
+      normalizeCaptureSubmissionRecord(record)
+    )
+  }
+
+  async discardCaptureSubmission(libraryPath: string, submissionId: string): Promise<void> {
+    await rm(this.captureSubmissionDirectory(libraryPath, submissionId), {
+      recursive: true,
+      force: true
+    })
+  }
+
+  async restoreCaptureSubmissionDraft(libraryPath: string, submissionId: string): Promise<void> {
+    const directory = this.captureSubmissionDirectory(libraryPath, submissionId)
+    const noteDraft = join(directory, NOTE_DRAFT_DIRECTORY)
+    const fileDraft = join(directory, FILE_DRAFT_DIRECTORY)
+    if (
+      (await this.pathExists(this.captureDraftDirectory(libraryPath))) ||
+      (await this.pathExists(this.captureDraftFileDirectory(libraryPath)))
+    ) {
+      throw new Error('Save or discard the current staged draft first.')
+    }
+    if (await this.pathExists(noteDraft)) {
+      await cp(noteDraft, this.captureDraftDirectory(libraryPath), { recursive: true })
+    }
+    if (await this.pathExists(fileDraft)) {
+      await cp(fileDraft, this.captureDraftFileDirectory(libraryPath), { recursive: true })
+    }
+  }
+
+  async readCaptureSubmissionAttachment(
+    libraryPath: string,
+    submissionId: string,
+    attachmentId: string
+  ): Promise<{ attachment: PersistedNoteAttachment; bytes: Buffer }> {
+    const directory = join(
+      this.captureSubmissionDirectory(libraryPath, submissionId),
+      NOTE_DRAFT_DIRECTORY
+    )
+    const manifest = await readJson<unknown>(join(directory, NOTE_DRAFT_MANIFEST))
+    const attachments = normalizeDraftManifestAttachments(manifest)
+    const attachment = attachments.find((entry) => entry.id === attachmentId)
+    if (!attachment) throw new Error('The submitted image no longer exists.')
+    return { attachment, bytes: await readFile(join(directory, attachment.filename)) }
+  }
+
+  async readCaptureSubmissionFile(
+    libraryPath: string,
+    submissionId: string,
+    fileId: string
+  ): Promise<{ file: PersistedCaptureDraftFile; bytes: Buffer }> {
+    const directory = join(
+      this.captureSubmissionDirectory(libraryPath, submissionId),
+      FILE_DRAFT_DIRECTORY
+    )
+    const value = await readJson<unknown>(join(directory, FILE_DRAFT_MANIFEST))
+    if (!isPersistedCaptureDraftFile(value) || value.id !== fileId) {
+      throw new Error('The submitted file no longer exists.')
+    }
+    return { file: value, bytes: await readFile(join(directory, value.filename)) }
+  }
+
+  async readCaptureDraftFile(libraryPath: string): Promise<PersistedCaptureDraftFile | null> {
+    try {
+      const value = await readJson<unknown>(
+        join(this.captureDraftFileDirectory(libraryPath), FILE_DRAFT_MANIFEST)
+      )
+      return isPersistedCaptureDraftFile(value) ? value : null
+    } catch {
+      return null
+    }
+  }
+
+  async stageCaptureDraftFile(
+    libraryPath: string,
+    file: PersistedCaptureDraftFile,
+    bytes: Uint8Array
+  ): Promise<void> {
+    const directory = this.captureDraftFileDirectory(libraryPath)
+    await rm(directory, { recursive: true, force: true })
+    await mkdir(directory, { recursive: true })
+    await writeFile(join(directory, file.filename), bytes)
+    await writeJsonAtomic(join(directory, FILE_DRAFT_MANIFEST), file)
+  }
+
+  async readCaptureDraftFileBytes(
+    libraryPath: string,
+    fileId: string
+  ): Promise<{ file: PersistedCaptureDraftFile; bytes: Buffer }> {
+    const file = await this.readCaptureDraftFile(libraryPath)
+    if (!file || file.id !== fileId) throw new Error('The staged file no longer exists.')
+    return {
+      file,
+      bytes: await readFile(join(this.captureDraftFileDirectory(libraryPath), file.filename))
+    }
+  }
+
+  async discardCaptureDraftFile(libraryPath: string): Promise<void> {
+    await rm(this.captureDraftFileDirectory(libraryPath), { recursive: true, force: true })
+  }
+
   async readCaptureDraftAttachments(libraryPath: string): Promise<PersistedNoteAttachment[]> {
     try {
       const value = await readJson<unknown>(
         join(this.captureDraftDirectory(libraryPath), NOTE_DRAFT_MANIFEST)
       )
-      if (!value || typeof value !== 'object') return []
-      const attachments = (value as Record<string, unknown>).attachments
-      return Array.isArray(attachments) ? attachments.filter(isPersistedNoteAttachment) : []
+      return normalizeDraftManifestAttachments(value)
     } catch {
       return []
     }
@@ -1348,7 +1754,7 @@ export class LibraryStore {
     await writeFile(join(directory, attachment.filename), bytes)
     const attachments = await this.readCaptureDraftAttachments(libraryPath)
     await writeJsonAtomic(join(directory, NOTE_DRAFT_MANIFEST), {
-      schemaVersion: 1,
+      schemaVersion: 2,
       attachments: [...attachments.filter((entry) => entry.id !== attachment.id), attachment]
     })
   }
@@ -1361,7 +1767,7 @@ export class LibraryStore {
     const remaining = attachments.filter((entry) => entry.id !== attachmentId)
     if (remaining.length === 0) return this.discardCaptureDraft(libraryPath)
     await writeJsonAtomic(join(directory, NOTE_DRAFT_MANIFEST), {
-      schemaVersion: 1,
+      schemaVersion: 2,
       attachments: remaining
     })
   }
@@ -1387,7 +1793,8 @@ export class LibraryStore {
   async finalizeInboxItem(
     libraryPath: string,
     metadata: PersistedItem,
-    files: Array<{ filename: string; data: string | Uint8Array }>
+    files: Array<{ filename: string; data: string | Uint8Array }>,
+    location: ActiveItemLocation = { type: 'inbox' }
   ): Promise<void> {
     await this.readPersistedLibrary(libraryPath)
     let filename: string
@@ -1415,42 +1822,142 @@ export class LibraryStore {
         'General files are indexed from the vault but are not captured through this operation.'
       )
     }
-    const destination = await this.uniquePath(libraryPath, filename)
-    const temporary = this.kuskusPath(libraryPath, 'temp', `${metadata.id}.capture`)
-    await mkdir(temporary, { recursive: true })
-    const stagedContent = join(temporary, basename(destination))
-    await writeFile(stagedContent, content)
-    let attachments: PersistedNoteAttachment[] | undefined
-    if (metadata.type === 'note' && metadata.attachments?.length) {
-      const assetDirectoryName = `${basename(destination, MARKDOWN_EXTENSION)}.assets`
-      const stagedAssets = join(temporary, assetDirectoryName)
-      await mkdir(stagedAssets, { recursive: true })
-      attachments = []
-      for (const attachment of metadata.attachments) {
-        const file = files.find((entry) => entry.filename.endsWith(`/${attachment.filename}`))
-        if (!file) throw new Error(`The attachment ${attachment.filename} is missing.`)
-        await writeFile(join(stagedAssets, attachment.filename), file.data)
-        attachments.push({
-          ...attachment,
-          relativePath: `./${assetDirectoryName}/${attachment.filename}`
+    const recoveryMarker = this.kuskusPath(
+      libraryPath,
+      'temp',
+      `${metadata.id}.capture-recovery.json`
+    )
+    let destination: string
+    let recoveredAttachmentPaths: Array<{ id: string; relativePath: string }> = []
+    try {
+      const marker = await readJson<unknown>(recoveryMarker)
+      const relativePath =
+        marker && typeof marker === 'object'
+          ? (marker as Record<string, unknown>).relativePath
+          : null
+      if (typeof relativePath !== 'string') throw new Error('Invalid capture recovery marker.')
+      destination = this.resolveInside(libraryPath, relativePath)
+      const attachmentPaths = (marker as Record<string, unknown>).attachmentPaths
+      if (Array.isArray(attachmentPaths)) {
+        recoveredAttachmentPaths = attachmentPaths.flatMap((entry) => {
+          if (!entry || typeof entry !== 'object') return []
+          const candidate = entry as Record<string, unknown>
+          return typeof candidate.id === 'string' && typeof candidate.relativePath === 'string'
+            ? [{ id: candidate.id, relativePath: candidate.relativePath }]
+            : []
         })
       }
-      let markdown = await readFile(stagedContent, 'utf8')
-      for (let index = 0; index < metadata.attachments.length; index += 1) {
-        markdown = markdown
-          .split(metadata.attachments[index].relativePath)
-          .join(attachments[index].relativePath)
+    } catch {
+      const directory = await this.destinationDirectory(libraryPath, location, metadata.id)
+      await mkdir(directory, { recursive: true })
+      destination = await this.uniquePath(directory, filename)
+      if (metadata.type === 'note') {
+        for (const attachment of metadata.attachments ?? []) {
+          const placement = resolveAttachmentPlacement({
+            libraryPath,
+            notePath: destination,
+            filename: attachment.filename
+          })
+          const attachmentPath = await this.uniquePath(placement.directory, attachment.filename)
+          recoveredAttachmentPaths.push({
+            id: attachment.id,
+            relativePath: slash(relative(libraryPath, attachmentPath))
+          })
+        }
       }
-      await writeFile(stagedContent, markdown, 'utf8')
+      await writeJsonAtomic(recoveryMarker, {
+        schemaVersion: 2,
+        relativePath: slash(relative(libraryPath, destination)),
+        attachmentPaths: recoveredAttachmentPaths
+      })
     }
-    await rename(stagedContent, destination)
-    const stagedAssetDirectory = join(
-      temporary,
-      `${basename(destination, MARKDOWN_EXTENSION)}.assets`
-    )
-    if (await this.pathExists(stagedAssetDirectory)) {
-      await rename(stagedAssetDirectory, join(dirname(destination), basename(stagedAssetDirectory)))
+    if (
+      metadata.type === 'note' &&
+      (metadata.attachments ?? []).some(
+        (attachment) => !recoveredAttachmentPaths.some((entry) => entry.id === attachment.id)
+      )
+    ) {
+      recoveredAttachmentPaths = []
+      for (const attachment of metadata.attachments ?? []) {
+        const placement = resolveAttachmentPlacement({
+          libraryPath,
+          notePath: destination,
+          filename: attachment.filename
+        })
+        const attachmentPath = await this.uniquePath(placement.directory, attachment.filename)
+        recoveredAttachmentPaths.push({
+          id: attachment.id,
+          relativePath: slash(relative(libraryPath, attachmentPath))
+        })
+      }
+      await writeJsonAtomic(recoveryMarker, {
+        schemaVersion: 2,
+        relativePath: slash(relative(libraryPath, destination)),
+        attachmentPaths: recoveredAttachmentPaths
+      })
     }
+    const temporary = this.kuskusPath(libraryPath, 'temp', `${metadata.id}.capture`)
+    const stagedContent = join(temporary, basename(destination))
+    const destinationAlreadyFinalized = await this.pathExists(destination)
+    if (!destinationAlreadyFinalized) {
+      await mkdir(temporary, { recursive: true })
+      await writeFile(stagedContent, content)
+    }
+    let attachments: PersistedNoteAttachment[] | undefined
+    if (metadata.type === 'note' && metadata.attachments?.length) {
+      attachments = []
+      for (const attachment of metadata.attachments) {
+        const file = files.find((entry) => basename(entry.filename) === attachment.filename)
+        if (!file) throw new Error(`The attachment ${attachment.filename} is missing.`)
+        const reserved = recoveredAttachmentPaths.find((entry) => entry.id === attachment.id)
+        if (!reserved) throw new Error(`The attachment ${attachment.filename} has no destination.`)
+        const attachmentPath = this.resolveInside(libraryPath, reserved.relativePath)
+        const relativePath = markdownPathForAttachment(destination, attachmentPath)
+        attachments.push({ ...attachment, filename: basename(attachmentPath), relativePath })
+        if (!(await this.pathExists(attachmentPath))) {
+          const stagedAttachment = join(temporary, `${attachment.id}${extname(attachmentPath)}`)
+          await writeFile(stagedAttachment, file.data)
+          await rename(stagedAttachment, attachmentPath)
+        }
+        const bytes = Buffer.from(file.data)
+        const detected = detectImage(bytes)
+        if (!detected) throw new Error(`The attachment ${attachment.filename} is invalid.`)
+        const imageMetadata = {
+          ...createImageMetadata(
+            attachment.id,
+            attachment.sourceFilename ?? basename(attachmentPath),
+            detected,
+            metadata.createdAt
+          ),
+          relativePath: reserved.relativePath,
+          referencedAttachment: true
+        } satisfies PersistedImageItem
+        await this.writeItemRecord(libraryPath, {
+          schemaVersion: 2,
+          id: attachment.id,
+          relativePath: reserved.relativePath,
+          fingerprint: await this.fingerprint(attachmentPath),
+          fileIdentity: await this.fileIdentity(attachmentPath),
+          recovery: { lastSeenAt: new Date().toISOString(), missingSince: null },
+          metadata: imageMetadata
+        })
+      }
+      if (!destinationAlreadyFinalized) {
+        let markdown = await readFile(stagedContent, 'utf8')
+        const replacements = new Map<string, string>()
+        for (let index = 0; index < metadata.attachments.length; index += 1) {
+          for (const alias of stagedAttachmentAliases(metadata.attachments[index])) {
+            replacements.set(alias, encodeMarkdownImageTarget(attachments[index].relativePath))
+          }
+        }
+        markdown = rewriteMarkdownImageDestinations(
+          markdown,
+          (reference) => replacements.get(markdownImageTargetKey(reference.destination)) ?? null
+        )
+        await writeFile(stagedContent, markdown, 'utf8')
+      }
+    }
+    if (!destinationAlreadyFinalized) await rename(stagedContent, destination)
     await rm(temporary, { recursive: true, force: true })
     const relativePath = slash(relative(libraryPath, destination))
     const nextMetadata = {
@@ -1470,19 +1977,53 @@ export class LibraryStore {
       recovery: { lastSeenAt: new Date().toISOString(), missingSince: null },
       metadata: nextMetadata
     })
+    await rm(recoveryMarker, { force: true })
   }
 
   async importVaultFile(
     libraryPath: string,
-    input: { id: string; filename: string; mediaType: string; bytes: Uint8Array; timestamp: string }
+    input: {
+      id: string
+      filename: string
+      mediaType: string
+      bytes: Uint8Array
+      timestamp: string
+    },
+    location: ActiveItemLocation = { type: 'inbox' }
   ): Promise<FileItemDto> {
     await this.readPersistedLibrary(libraryPath)
     const extension = extname(input.filename)
     const safeFilename = `${safeStem(basename(input.filename, extension), 'Imported file')}${extension}`
-    const destination = await this.uniquePath(libraryPath, safeFilename)
+    const recoveryMarker = this.kuskusPath(
+      libraryPath,
+      'temp',
+      `${input.id}.file-import-recovery.json`
+    )
+    let destination: string
+    try {
+      const marker = await readJson<unknown>(recoveryMarker)
+      const markedRelativePath =
+        marker && typeof marker === 'object'
+          ? (marker as Record<string, unknown>).relativePath
+          : null
+      if (typeof markedRelativePath !== 'string') {
+        throw new Error('Invalid file recovery marker.')
+      }
+      destination = this.resolveInside(libraryPath, markedRelativePath)
+    } catch {
+      const directory = await this.destinationDirectory(libraryPath, location, input.id)
+      await mkdir(directory, { recursive: true })
+      destination = await this.uniquePath(directory, safeFilename)
+      await writeJsonAtomic(recoveryMarker, {
+        schemaVersion: 1,
+        relativePath: slash(relative(libraryPath, destination))
+      })
+    }
     const temporary = this.kuskusPath(libraryPath, 'temp', `${input.id}.file-import`)
-    await writeFile(temporary, input.bytes)
-    await rename(temporary, destination)
+    if (!(await this.pathExists(destination))) {
+      await writeFile(temporary, input.bytes)
+      await rename(temporary, destination)
+    }
     const relativePath = slash(relative(libraryPath, destination))
     const metadata: PersistedFileItem = {
       schemaVersion: 2,
@@ -1510,22 +2051,13 @@ export class LibraryStore {
       recovery: { lastSeenAt: new Date().toISOString(), missingSince: null },
       metadata
     })
-    return {
-      schemaVersion: 2,
-      id: metadata.id,
-      type: 'file',
-      title: metadata.title,
-      createdAt: metadata.createdAt,
-      updatedAt: metadata.updatedAt,
-      sourceFilename: metadata.sourceFilename,
-      contentFilename: metadata.contentFilename,
-      mediaType: metadata.mediaType,
-      size: metadata.size,
-      missingContent: false,
-      location: { type: 'inbox' },
-      relativePath,
-      referencedAttachment: false
-    }
+    await rm(recoveryMarker, { force: true })
+    const saved = (await this.buildLibraryDto(libraryPath)).items.find(
+      (candidate): candidate is FileItemDto =>
+        candidate.id === metadata.id && candidate.type === 'file'
+    )
+    if (!saved) throw new Error('The imported file could not be reopened.')
+    return saved
   }
 
   async resolveItem(libraryPath: string, itemId: string): Promise<ResolvedLibraryItem> {
@@ -1564,12 +2096,40 @@ export class LibraryStore {
           dirname(destination),
           `${basename(destination, MARKDOWN_EXTENSION)}.assets`
         )
-        if ((await this.pathExists(oldAssets)) && !(await this.pathExists(newAssets))) {
+        const movedLegacyAssets =
+          (await this.pathExists(oldAssets)) && !(await this.pathExists(newAssets))
+        if (movedLegacyAssets) {
           await rename(oldAssets, newAssets)
-          let source = await readFile(destination, 'utf8')
-          source = source.split(`./${basename(oldAssets)}/`).join(`./${basename(newAssets)}/`)
-          await writeFile(destination, source, 'utf8')
         }
+        const source = await readFile(destination, 'utf8')
+        const replacements = new Map<string, string>()
+        const availablePaths = (await this.readItemRecords(libraryPath)).flatMap((record) => [
+          this.resolveInside(libraryPath, record.relativePath),
+          ...(record.metadata.trashedFromRelativePath
+            ? [this.resolveInside(libraryPath, record.metadata.trashedFromRelativePath)]
+            : [])
+        ])
+        for (const reference of extractVaultReferenceTargets(source)) {
+          const previousTarget = resolveVaultReferencePath(reference, path, libraryPath, [
+            ...availablePaths,
+            oldAssets
+          ])
+          const nextTarget =
+            movedLegacyAssets && previousTarget.startsWith(`${oldAssets}${sep}`)
+              ? join(newAssets, relative(oldAssets, previousTarget))
+              : previousTarget
+          replacements.set(previousTarget, nextTarget)
+        }
+        const rewritten = rewriteVaultReferences(
+          source,
+          path,
+          destination,
+          libraryPath,
+          replacements
+        )
+        if (rewritten !== source) await writeFile(destination, rewritten, 'utf8')
+      } else if (resolved.metadata.type === 'image' || resolved.metadata.type === 'file') {
+        await this.rewriteInboundReferences(libraryPath, new Map([[path, destination]]))
       }
       path = destination
     }
@@ -1735,6 +2295,9 @@ export class LibraryStore {
       assets: string | null
       original: string
       originalAssets: string | null
+      destination: string | null
+      destinationAssets: string | null
+      referenceReplacements: Map<string, string> | null
     }> = []
     try {
       for (const request of requests) {
@@ -1760,7 +2323,10 @@ export class LibraryStore {
           file: stagedFile,
           assets: stagedAssets,
           original: request.item.path,
-          originalAssets
+          originalAssets,
+          destination: null,
+          destinationAssets: null,
+          referenceReplacements: null
         })
       }
       for (const entry of staged) {
@@ -1772,19 +2338,74 @@ export class LibraryStore {
         await mkdir(directory, { recursive: true })
         const destination = await this.uniquePath(directory, basename(entry.original))
         await rename(entry.file, destination)
+        entry.destination = destination
+        let legacyAssetDestination: string | null = null
         if (entry.assets) {
           const assetDestination = join(
             directory,
             `${basename(destination, MARKDOWN_EXTENSION)}.assets`
           )
           await rename(entry.assets, assetDestination)
-          const oldName = entry.originalAssets ? basename(entry.originalAssets) : ''
-          const newName = basename(assetDestination)
-          if (oldName && oldName !== newName) {
-            let source = await readFile(destination, 'utf8')
-            source = source.split(`./${oldName}/`).join(`./${newName}/`)
-            await writeFile(destination, source, 'utf8')
+          legacyAssetDestination = assetDestination
+          entry.destinationAssets = assetDestination
+        }
+        let nextRequestMetadata = entry.request.metadata
+        if (entry.request.item.metadata.type === 'note') {
+          const source = await readFile(destination, 'utf8')
+          const replacements = new Map<string, string>()
+          const availablePaths = (await this.readItemRecords(libraryPath)).flatMap((record) => [
+            this.resolveInside(libraryPath, record.relativePath),
+            ...(record.metadata.trashedFromRelativePath
+              ? [this.resolveInside(libraryPath, record.metadata.trashedFromRelativePath)]
+              : [])
+          ])
+          for (const reference of extractVaultReferenceTargets(source)) {
+            const previousTarget = resolveVaultReferencePath(
+              reference,
+              entry.original,
+              libraryPath,
+              [...availablePaths, entry.originalAssets ?? entry.original]
+            )
+            const nextTarget =
+              entry.originalAssets &&
+              legacyAssetDestination &&
+              previousTarget.startsWith(`${entry.originalAssets}${sep}`)
+                ? join(legacyAssetDestination, relative(entry.originalAssets, previousTarget))
+                : previousTarget
+            replacements.set(previousTarget, nextTarget)
           }
+          entry.referenceReplacements = replacements
+          const rewritten = rewriteVaultReferences(
+            source,
+            entry.original,
+            destination,
+            libraryPath,
+            replacements
+          )
+          if (rewritten !== source) await writeFile(destination, rewritten, 'utf8')
+          if (nextRequestMetadata.type === 'note' && nextRequestMetadata.attachments) {
+            nextRequestMetadata = {
+              ...nextRequestMetadata,
+              attachments: nextRequestMetadata.attachments.map((attachment) => {
+                const previousTarget = resolve(dirname(entry.original), attachment.relativePath)
+                const nextTarget = replacements.get(previousTarget) ?? previousTarget
+                return {
+                  ...attachment,
+                  relativePath: markdownPathForAttachment(destination, nextTarget)
+                }
+              })
+            }
+          }
+        } else if (
+          entry.request.destination.type !== 'trash' &&
+          (entry.request.item.metadata.type === 'image' ||
+            entry.request.item.metadata.type === 'file')
+        ) {
+          const previousPath = entry.request.item.metadata.trashedFromRelativePath
+            ? this.resolveInside(libraryPath, entry.request.item.metadata.trashedFromRelativePath)
+            : entry.original
+          entry.referenceReplacements = new Map([[previousPath, destination]])
+          await this.rewriteInboundReferences(libraryPath, entry.referenceReplacements)
         }
         const relativePath = slash(relative(libraryPath, destination))
         const record = (await this.readItemRecords(libraryPath)).find(
@@ -1796,19 +2417,70 @@ export class LibraryStore {
           relativePath,
           fingerprint: record?.fingerprint ?? null,
           metadata: {
-            ...entry.request.metadata,
+            ...nextRequestMetadata,
             schemaVersion: 2,
             relativePath,
-            contentFilename: entry.request.metadata.type === 'url' ? null : basename(destination)
+            contentFilename: nextRequestMetadata.type === 'url' ? null : basename(destination)
           } as PersistedItem
         })
       }
       await rm(transaction, { recursive: true, force: true })
     } catch (error) {
       for (const entry of staged.reverse()) {
-        if (await this.pathExists(entry.file)) await rename(entry.file, entry.original)
-        if (entry.assets && entry.originalAssets && (await this.pathExists(entry.assets))) {
-          await rename(entry.assets, entry.originalAssets)
+        try {
+          if (entry.destination && (await this.pathExists(entry.destination))) {
+            if (entry.referenceReplacements) {
+              const reversed = new Map(
+                [...entry.referenceReplacements].map(([from, to]) => [to, from])
+              )
+              if (entry.request.item.metadata.type === 'note') {
+                const source = await readFile(entry.destination, 'utf8')
+                const restored = rewriteVaultReferences(
+                  source,
+                  entry.destination,
+                  entry.original,
+                  libraryPath,
+                  reversed
+                )
+                if (restored !== source) await writeFile(entry.destination, restored, 'utf8')
+              } else if (entry.request.destination.type !== 'trash') {
+                await this.rewriteInboundReferences(libraryPath, reversed)
+              }
+            }
+            await rename(entry.destination, entry.original)
+          } else if (await this.pathExists(entry.file)) {
+            await rename(entry.file, entry.original)
+          }
+          if (
+            entry.destinationAssets &&
+            entry.originalAssets &&
+            (await this.pathExists(entry.destinationAssets))
+          ) {
+            await rename(entry.destinationAssets, entry.originalAssets)
+          } else if (
+            entry.assets &&
+            entry.originalAssets &&
+            (await this.pathExists(entry.assets))
+          ) {
+            await rename(entry.assets, entry.originalAssets)
+          }
+          const relativePath = slash(relative(libraryPath, entry.original))
+          await this.writeItemRecord(libraryPath, {
+            schemaVersion: 2,
+            id: entry.request.item.metadata.id,
+            relativePath,
+            fingerprint: await this.fingerprint(entry.original),
+            fileIdentity: await this.fileIdentity(entry.original),
+            recovery: { lastSeenAt: new Date().toISOString(), missingSince: null },
+            metadata: {
+              ...entry.request.item.metadata,
+              relativePath,
+              contentFilename:
+                entry.request.item.metadata.type === 'url' ? null : basename(entry.original)
+            } as PersistedItem
+          })
+        } catch {
+          // Preserve the original failure; startup scanning can reconcile any remaining paths.
         }
       }
       throw error
@@ -1823,6 +2495,71 @@ export class LibraryStore {
       const trashRoot = this.kuskusPath(libraryPath, TRASH_DIRECTORY, itemId)
       await rm(trashRoot, { recursive: true, force: true })
       await rm(this.itemRecordPath(libraryPath, itemId), { force: true })
+    }
+  }
+
+  async inspectItemDeletion(
+    libraryPath: string,
+    itemIds: string[],
+    mode: 'trash' | 'permanent'
+  ): Promise<ItemDeletionInspectionDto> {
+    const library = await this.buildLibraryDto(libraryPath)
+    const selected = new Set(itemIds)
+    const selectedItems = library.items.filter((item) => selected.has(item.id))
+    const notes = library.items.filter((item) => item.type === 'note')
+    const references = new Map<string, Array<{ id: string; title: string }>>()
+    for (const note of notes) {
+      for (const attachment of note.attachments) {
+        const entries = references.get(attachment.id) ?? []
+        if (!entries.some((entry) => entry.id === note.id))
+          entries.push({ id: note.id, title: note.title })
+        references.set(attachment.id, entries)
+      }
+    }
+    const referencedItems = selectedItems.flatMap((item) => {
+      if (item.type !== 'image' && item.type !== 'file') return []
+      const noteReferences = references.get(item.id) ?? []
+      return noteReferences.length > 0
+        ? [
+            {
+              itemId: item.id,
+              title: item.title,
+              noteTitles: noteReferences.slice(0, 5).map((entry) => entry.title),
+              referenceCount: noteReferences.length
+            }
+          ]
+        : []
+    })
+    const cleanupIds = new Set<string>()
+    if (mode === 'permanent') {
+      for (const note of selectedItems) {
+        if (note.type !== 'note') continue
+        for (const attachment of note.attachments) {
+          const remaining = (references.get(attachment.id) ?? []).some(
+            (entry) => !selected.has(entry.id)
+          )
+          if (!remaining) cleanupIds.add(attachment.id)
+        }
+      }
+    }
+    const cleanupCandidates = library.items.flatMap((item) =>
+      cleanupIds.has(item.id) && item.type === 'image' && item.location.type !== 'trash'
+        ? [{ itemId: item.id, title: item.title }]
+        : []
+    )
+    const revisionPayload = JSON.stringify({
+      mode,
+      selected: [...selected].sort(),
+      referencedItems,
+      cleanupCandidates,
+      notes: notes
+        .map((note) => ({ id: note.id, updatedAt: note.updatedAt }))
+        .sort((a, b) => a.id.localeCompare(b.id))
+    })
+    return {
+      revision: createHash('sha256').update(revisionPayload).digest('hex'),
+      referencedItems,
+      cleanupCandidates
     }
   }
 }

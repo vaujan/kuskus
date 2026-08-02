@@ -10,6 +10,10 @@ export const KUSKUS_CHANNELS = {
   discardCaptureDraft: 'library:discard-capture-draft',
   getCaptureDraftImagePreview: 'library:get-capture-draft-image-preview',
   commitCaptureDraftImage: 'library:commit-capture-draft-image',
+  getCaptureDraftFile: 'library:get-capture-draft-file',
+  stageCaptureDraftFile: 'library:stage-capture-draft-file',
+  removeCaptureDraftFile: 'library:remove-capture-draft-file',
+  commitCaptureDraftFile: 'library:commit-capture-draft-file',
   getNoteAttachmentPreview: 'library:get-note-attachment-preview',
   createUrl: 'library:create-url',
   enrichUrl: 'library:enrich-url',
@@ -26,6 +30,7 @@ export const KUSKUS_CHANNELS = {
   trashItems: 'library:trash-items',
   restoreItems: 'library:restore-items',
   permanentlyDeleteItems: 'library:permanently-delete-items',
+  inspectItemDeletion: 'library:inspect-item-deletion',
   getImagePreview: 'library:get-image-preview',
   importFile: 'library:import-file',
   copyLibraryPath: 'library:copy-library-path',
@@ -53,6 +58,39 @@ export type ItemLocation =
 
 export interface ItemMutationInput {
   itemIds: string[]
+}
+
+export interface InspectItemDeletionInput extends ItemMutationInput {
+  mode: 'trash' | 'permanent'
+}
+
+export interface ReferencedItemWarningDto {
+  itemId: string
+  title: string
+  noteTitles: string[]
+  referenceCount: number
+}
+
+export interface CleanupImageCandidateDto {
+  itemId: string
+  title: string
+}
+
+export interface ItemDeletionInspectionDto {
+  revision: string
+  referencedItems: ReferencedItemWarningDto[]
+  cleanupCandidates: CleanupImageCandidateDto[]
+}
+
+export interface TrashItemsInput extends ItemMutationInput {
+  referenceRevision?: string
+  confirmedReferencedItemIds?: string[]
+}
+
+export interface PermanentlyDeleteItemsInput extends ItemMutationInput {
+  referenceRevision?: string
+  confirmedReferencedItemIds?: string[]
+  cleanupImageIds?: string[]
 }
 
 export interface MoveItemsInput extends ItemMutationInput {
@@ -91,6 +129,14 @@ export interface NoteAttachmentDto {
 }
 
 export type CaptureDraftImageDto = NoteAttachmentDto
+
+export interface CaptureDraftFileDto {
+  id: string
+  filename: string
+  mediaType: string
+  size: number
+  missingContent: boolean
+}
 
 export interface CreateNoteInput {
   markdown: string
@@ -316,6 +362,10 @@ export interface KuskusLibraryApi {
   discardCaptureDraft: () => Promise<ApiResult<null>>
   getCaptureDraftImagePreview: (attachmentId: string) => Promise<ApiResult<ImagePreviewDto>>
   commitCaptureDraftImage: (attachmentId: string) => Promise<ApiResult<ImageItemDto>>
+  getCaptureDraftFile: () => Promise<ApiResult<CaptureDraftFileDto | null>>
+  stageCaptureDraftFile: (input: FileImportInput) => Promise<ApiResult<CaptureDraftFileDto>>
+  removeCaptureDraftFile: () => Promise<ApiResult<null>>
+  commitCaptureDraftFile: (fileId: string) => Promise<ApiResult<FileItemDto>>
   getNoteAttachmentPreview: (
     itemId: string,
     attachmentId: string
@@ -332,9 +382,12 @@ export interface KuskusLibraryApi {
   moveItems: (input: MoveItemsInput) => Promise<ApiResult<LibraryDto>>
   archiveItems: (input: ItemMutationInput) => Promise<ApiResult<LibraryDto>>
   unarchiveItems: (input: ItemMutationInput) => Promise<ApiResult<LibraryDto>>
-  trashItems: (input: ItemMutationInput) => Promise<ApiResult<LibraryDto>>
+  inspectItemDeletion: (
+    input: InspectItemDeletionInput
+  ) => Promise<ApiResult<ItemDeletionInspectionDto>>
+  trashItems: (input: TrashItemsInput) => Promise<ApiResult<LibraryDto>>
   restoreItems: (input: ItemMutationInput) => Promise<ApiResult<LibraryDto>>
-  permanentlyDeleteItems: (input: ItemMutationInput) => Promise<ApiResult<LibraryDto>>
+  permanentlyDeleteItems: (input: PermanentlyDeleteItemsInput) => Promise<ApiResult<LibraryDto>>
   getImagePreview: (itemId: string) => Promise<ApiResult<ImagePreviewDto>>
   importFile: (input: FileImportInput) => Promise<ApiResult<FileItemDto>>
   copyLibraryPath: () => Promise<ApiResult<null>>

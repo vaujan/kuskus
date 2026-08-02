@@ -1,4 +1,12 @@
+import { dirname, relative, resolve } from 'node:path'
+
 import { isMap, parseDocument } from 'yaml'
+
+import {
+  normalizeMarkdownImageTarget,
+  parseMarkdownImageReferences,
+  rewriteMarkdownImageDestinations
+} from '../../shared/markdown-image-references'
 
 export interface VaultFrontmatter {
   aliases: string[]
@@ -9,6 +17,11 @@ export interface VaultFrontmatter {
   kuskusType: string | null
   kuskusUrl: string | null
   userPropertyCount: number
+}
+
+export interface VaultReferenceTarget {
+  kind: 'markdown' | 'wikilink'
+  target: string
 }
 
 const OPENING = /^---[\t ]*\r?\n/
@@ -127,17 +140,125 @@ export function removeKuskusFrontmatter(source: string, removeLinkFields = false
   return `${opening[0]}${yamlWithClosingBreak}${closing[0]}${trailingNewline}${body}`
 }
 
-export function extractVaultReferences(source: string): string[] {
+export function extractVaultReferenceTargets(source: string): VaultReferenceTarget[] {
   const body = stripVaultFrontmatter(source)
-  const references = new Set<string>()
+  const references = new Map<string, VaultReferenceTarget>()
   for (const match of body.matchAll(
     /!\[\[[^\]]*?([^\]|#]+\.[A-Za-z0-9]{1,12})(?:[|#][^\]]*)?\]\]/g
   )) {
-    references.add(match[1].trim().replace(/\\/g, '/'))
+    const target = match[1].trim().replace(/\\/g, '/')
+    references.set(`wikilink:${target}`, { kind: 'wikilink', target })
   }
-  for (const match of body.matchAll(/!\[[^\]]*\]\((?!https?:|data:)([^)]+)\)/gi)) {
-    const target = match[1].trim().replace(/^<|>$/g, '').split(/[?#]/, 1)[0].replace(/\\/g, '/')
-    if (target) references.add(decodeURIComponent(target))
+  for (const reference of parseMarkdownImageReferences(body)) {
+    if (/^(?:https?:|data:)/i.test(reference.destination)) continue
+    const target = normalizeMarkdownImageTarget(reference.destination)
+    if (target) references.set(`markdown:${target}`, { kind: 'markdown', target })
   }
-  return [...references]
+  return [...references.values()]
+}
+
+export function extractVaultReferences(source: string): string[] {
+  return extractVaultReferenceTargets(source).map((reference) => reference.target)
+}
+
+export function resolveVaultReferencePath(
+  reference: VaultReferenceTarget,
+  sourceNotePath: string,
+  libraryPath: string,
+  availablePaths: Iterable<string> = []
+): string {
+  const target = reference.target.replace(/\\/g, '/')
+  if (reference.kind === 'markdown') {
+    return target.startsWith('/')
+      ? resolve(libraryPath, target.replace(/^\/+/, ''))
+      : resolve(dirname(sourceNotePath), target)
+  }
+  if (target.startsWith('./') || target.startsWith('../')) {
+    return resolve(dirname(sourceNotePath), target)
+  }
+
+  const normalizedAvailable = [...availablePaths].map((path) => resolve(path))
+  const vaultCandidate = resolve(libraryPath, target.replace(/^\/+/, ''))
+  if (
+    normalizedAvailable.some(
+      (path) => path.toLocaleLowerCase() === vaultCandidate.toLocaleLowerCase()
+    )
+  ) {
+    return vaultCandidate
+  }
+  const siblingCandidate = resolve(dirname(sourceNotePath), target)
+  if (
+    normalizedAvailable.some(
+      (path) => path.toLocaleLowerCase() === siblingCandidate.toLocaleLowerCase()
+    )
+  ) {
+    return siblingCandidate
+  }
+  const suffix = `/${target.toLocaleLowerCase()}`
+  const matches = normalizedAvailable.filter((path) =>
+    path.replace(/\\/g, '/').toLocaleLowerCase().endsWith(suffix)
+  )
+  return matches.length === 1 ? matches[0] : vaultCandidate
+}
+
+function encodedRelativePath(fromFile: string, toFile: string): string {
+  const value = relative(dirname(fromFile), toFile).replace(/\\/g, '/')
+  const portable = value.startsWith('.') ? value : `./${value}`
+  return portable
+    .split('/')
+    .map((segment) =>
+      segment === '.' || segment === '..'
+        ? segment
+        : encodeURIComponent(segment).replace(
+            /[!'()*]/g,
+            (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`
+          )
+    )
+    .join('/')
+}
+
+function safeDecodeURIComponent(value: string): string {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
+}
+
+export function rewriteVaultReferences(
+  source: string,
+  sourceNotePath: string,
+  destinationNotePath: string,
+  libraryPath: string,
+  replacements: ReadonlyMap<string, string>
+): string {
+  const normalized = new Map(
+    [...replacements].map(([from, to]) => [resolve(from).toLocaleLowerCase(), resolve(to)])
+  )
+  const replaceTarget = (target: string, wikilink: boolean): string | null => {
+    const decoded = safeDecodeURIComponent(target.replace(/^<|>$/g, '').split(/[?#]/, 1)[0])
+    const absolute = resolveVaultReferencePath(
+      { kind: wikilink ? 'wikilink' : 'markdown', target: decoded },
+      sourceNotePath,
+      libraryPath,
+      normalized.keys()
+    )
+    const replacement = normalized.get(absolute.toLocaleLowerCase())
+    if (!replacement) return null
+    return wikilink
+      ? relative(resolve(libraryPath), replacement).replace(/\\/g, '/')
+      : encodedRelativePath(destinationNotePath, replacement)
+  }
+  let next = source.replace(/!\[\[([^\]]+?)\]\]/g, (match, body: string) => {
+    const separator = body.search(/[|#]/)
+    const target = separator < 0 ? body : body.slice(0, separator)
+    const suffix = separator < 0 ? '' : body.slice(separator)
+    const replacement = replaceTarget(target.trim(), true)
+    return replacement ? `![[${replacement}${suffix}]]` : match
+  })
+  next = rewriteMarkdownImageDestinations(next, (reference) => {
+    if (/^(?:https?:|data:)/i.test(reference.destination)) return null
+    return replaceTarget(reference.destination, false)
+  })
+  return next
 }

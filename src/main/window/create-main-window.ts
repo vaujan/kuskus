@@ -4,6 +4,7 @@ import { is } from '@electron-toolkit/utils'
 
 import icon from '../../../resources/icon.png?asset'
 import { WINDOW_CHANNELS, type AppZoomShortcut } from '../../shared/window-contract'
+import { OPAQUE_WINDOW_BACKGROUND } from './window-material'
 
 export function createMainWindow(): BrowserWindow {
   const isMac = process.platform === 'darwin'
@@ -13,6 +14,7 @@ export function createMainWindow(): BrowserWindow {
     minWidth: 680,
     minHeight: 500,
     show: false,
+    backgroundColor: OPAQUE_WINDOW_BACKGROUND,
     autoHideMenuBar: true,
     frame: isMac,
     ...(isMac ? { titleBarStyle: 'hiddenInset' as const } : {}),

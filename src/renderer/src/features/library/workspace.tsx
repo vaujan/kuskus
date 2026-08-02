@@ -8,8 +8,8 @@ import {
   useState
 } from 'react'
 import {
+  IconAlertTriangle,
   IconInbox as Inbox,
-  IconPhoto as FileImage,
   IconSearch as Search,
   IconX as X
 } from '@tabler/icons-react'
@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/dialog'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { Kbd } from '@/components/ui/kbd'
 import {
   Empty,
   EmptyContent,
@@ -45,16 +46,21 @@ import {
   EmptyTitle
 } from '@/components/ui/empty'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Switch } from '@/components/ui/switch'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AddItemComposer, type ImportRequest } from '@/features/capture/add-item-composer'
+import { ExternalDropShadow } from '@/features/capture/external-drop-shadow'
+import { CaptureRecoveryDialog } from '@/features/capture/capture-recovery-dialog'
 import { getFolderSubtreeIds } from '@/features/collections/folder-tree'
 import { SavedItemCard } from '@/features/items/saved-item-card'
 import { SavedItemsTable } from '@/features/items/saved-items-table'
-import { KUSKUS_ITEM_DRAG_TYPE } from '@/features/items/item-drag'
+import { KUSKUS_ITEM_DRAG_TYPE, setKuskusItemDragPreview } from '@/features/items/item-drag'
 import { ItemDetailDialog } from '@/features/items/item-detail-dialog'
 import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
 import {
+  hasBulkItemSelection,
+  resolveItemMenuTargets,
   resolveItemShortcutTargets,
   resolveRenameShortcutTarget
 } from '@/features/items/item-shortcuts'
@@ -75,10 +81,12 @@ import { type ItemTypeFilter, type LibraryView } from '@/features/items/item-vie
 import { AppToolbar } from '@/features/shell/app-toolbar'
 import { LibrarySidebar, type LibraryDestination } from '@/features/shell/library-sidebar'
 import { useTheme } from '@/hooks/use-theme'
+import type { TranslucentBackgroundPreference } from '@/hooks/use-translucent-background'
 import { cn } from '@/lib/utils'
 import type {
   ActiveItemLocation,
   ApiResult,
+  ItemDeletionInspectionDto,
   LibraryDto,
   LibraryItemDto,
   UrlItemDto
@@ -146,7 +154,25 @@ function destinationLabel(destination: LibraryDestination, library: LibraryDto):
   )
 }
 
-export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): React.JSX.Element {
+function hasFileDrag(dataTransfer: DataTransfer): boolean {
+  return Array.from(dataTransfer.types).includes('Files')
+}
+
+function hasSupportedImageDrag(dataTransfer: DataTransfer): boolean {
+  return (
+    Array.from(dataTransfer.items).some(
+      (item) => item.kind === 'file' && item.type.startsWith('image/')
+    ) || Array.from(dataTransfer.files).some((file) => file.type.startsWith('image/'))
+  )
+}
+
+export function Workspace({
+  initialLibrary,
+  translucentBackground
+}: {
+  initialLibrary: LibraryDto
+  translucentBackground: TranslucentBackgroundPreference
+}): React.JSX.Element {
   const [library, setLibrary] = useState(initialLibrary)
   const [sidebarHidden, setSidebarHidden] = useState(
     () => localStorage.getItem('kuskus-sidebar-hidden') === 'true'
@@ -162,6 +188,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
   const [composerHasDraft, setComposerHasDraft] = useState(false)
   const [composerFocusRequest, setComposerFocusRequest] = useState(0)
   const [composerDiscardRequest, setComposerDiscardRequest] = useState(0)
+  const [captureRecoveryOpen, setCaptureRecoveryOpen] = useState(false)
   const [newItemFocusRequest, setNewItemFocusRequest] = useState(0)
   const [importRequest, setImportRequest] = useState<ImportRequest | null>(null)
   const [composerHasTransientWork, setComposerHasTransientWork] = useState(false)
@@ -169,6 +196,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
   const [globalCaptureShortcutStatus, setGlobalCaptureShortcutStatus] =
     useState<GlobalCaptureShortcutStatus | null>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [draggedItemIds, setDraggedItemIds] = useState<ReadonlySet<string>>(() => new Set())
   const [search, setSearch] = useState('')
   const [typeFilters, setTypeFilters] = useState<ItemTypeFilter[]>([])
   const [sort, setSort] = useState<ItemSort>(() =>
@@ -191,6 +219,24 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
   const [renameTarget, setRenameTarget] = useState<LibraryItemDto | null>(null)
   const [renameTitle, setRenameTitle] = useState('')
   const [deleteTargets, setDeleteTargets] = useState<string[]>([])
+  const [deleteInspection, setDeleteInspection] = useState<ItemDeletionInspectionDto | null>(null)
+  const [cleanupUnusedImages, setCleanupUnusedImages] = useState(false)
+  const [trashReview, setTrashReview] = useState<{
+    itemIds: string[]
+    inspection: ItemDeletionInspectionDto
+  } | null>(null)
+
+  const requestPermanentDelete = useCallback((itemIds: string[]): void => {
+    setDeleteInspection(null)
+    setCleanupUnusedImages(false)
+    setDeleteTargets(itemIds)
+  }, [])
+
+  const closePermanentDelete = useCallback((): void => {
+    setDeleteTargets([])
+    setDeleteInspection(null)
+    setCleanupUnusedImages(false)
+  }, [])
   const [itemOperationBusy, setItemOperationBusy] = useState(false)
   const [theme, setTheme] = useTheme()
   const deferredSearch = useDeferredValue(search)
@@ -276,6 +322,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
     sort,
     typeFilters
   ])
+  const visibleItemIds = useMemo(() => new Set(visibleItems.map((item) => item.id)), [visibleItems])
   const destinationItems = useMemo(
     () =>
       library.items.filter((item) =>
@@ -406,22 +453,12 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
 
   const addCreatedItem = useCallback(
     async (item: LibraryItemDto): Promise<boolean> => {
-      let nextItem = item
-      if (destination.type === 'collection') {
-        const result = await window.kuskus.moveItems({
-          itemIds: [item.id],
-          destination: { type: 'collection', collectionId: destination.collectionId }
-        })
-        if (!result.ok) {
-          setMessage(result.error)
-          return false
-        } else {
-          setLibrary(result.data)
-          nextItem = result.data.items.find((entry) => entry.id === item.id) ?? item
-        }
-      } else {
-        setLibrary((current) => ({ ...current, items: [item, ...current.items] }))
-      }
+      const refreshed = await window.kuskus.getState()
+      const nextLibrary =
+        refreshed.ok && refreshed.data.status === 'ready' ? refreshed.data.library : null
+      const nextItem = nextLibrary?.items.find((entry) => entry.id === item.id) ?? item
+      if (nextLibrary) setLibrary(nextLibrary)
+      else setLibrary((current) => ({ ...current, items: [item, ...current.items] }))
       setMessage('')
       const remainsVisible =
         itemMatchesDestination(nextItem, destination, collectionSubtreeIds) &&
@@ -435,25 +472,14 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
   const commitLinkItem = useCallback(
     async (item: UrlItemDto): Promise<{ item: UrlItemDto; remainsVisible: boolean }> => {
       setComposerOwnedItemId(item.id)
-      let nextItem = item
-      if (destination.type === 'collection') {
-        const result = await window.kuskus.moveItems({
-          itemIds: [item.id],
-          destination: { type: 'collection', collectionId: destination.collectionId }
-        })
-        if (result.ok) {
-          setLibrary(result.data)
-          const moved = result.data.items.find((entry) => entry.id === item.id)
-          if (moved?.type === 'url') nextItem = moved
-          setMessage('')
-        } else {
-          setLibrary((current) => ({ ...current, items: [item, ...current.items] }))
-          setMessage(`${result.error} The link was kept in Inbox.`)
-        }
-      } else {
-        setLibrary((current) => ({ ...current, items: [item, ...current.items] }))
-        setMessage('')
-      }
+      const refreshed = await window.kuskus.getState()
+      const nextLibrary =
+        refreshed.ok && refreshed.data.status === 'ready' ? refreshed.data.library : null
+      const candidate = nextLibrary?.items.find((entry) => entry.id === item.id)
+      const nextItem = candidate?.type === 'url' ? candidate : item
+      if (nextLibrary) setLibrary(nextLibrary)
+      else setLibrary((current) => ({ ...current, items: [item, ...current.items] }))
+      setMessage('')
       return {
         item: nextItem,
         remainsVisible:
@@ -518,9 +544,30 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
         'text/plain',
         `${itemIds.length} Kuskus ${itemIds.length === 1 ? 'item' : 'items'}`
       )
+      setKuskusItemDragPreview({
+        dataTransfer: event.dataTransfer,
+        source: event.currentTarget,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        itemCount: itemIds.length
+      })
+      setDraggedItemIds(new Set(itemIds))
     },
     [selectedIds]
   )
+
+  const endItemDrag = useCallback((): void => {
+    setDraggedItemIds(new Set())
+  }, [])
+
+  useEffect(() => {
+    window.addEventListener('dragend', endItemDrag)
+    window.addEventListener('drop', endItemDrag)
+    return () => {
+      window.removeEventListener('dragend', endItemDrag)
+      window.removeEventListener('drop', endItemDrag)
+    }
+  }, [endItemDrag])
 
   const archiveItemIds = useCallback(
     async (itemIds: string[], showUndo = true): Promise<void> => {
@@ -576,7 +623,19 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
     async (itemIds: string[], showUndo = true): Promise<void> => {
       setItemOperationBusy(true)
       try {
-        const result = await window.kuskus.trashItems({ itemIds })
+        const inspected = await window.kuskus.inspectItemDeletion({ itemIds, mode: 'trash' })
+        if (!inspected.ok) {
+          setMessage(inspected.error)
+          return
+        }
+        if (inspected.data.referencedItems.length > 0) {
+          setTrashReview({ itemIds, inspection: inspected.data })
+          return
+        }
+        const result = await window.kuskus.trashItems({
+          itemIds,
+          referenceRevision: inspected.data.revision
+        })
         if (!applyLibraryResult(result)) return
         if (showUndo) {
           notifyTrashed(itemIds.length, () => {
@@ -591,6 +650,30 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
     },
     [applyLibraryResult]
   )
+
+  const confirmReferencedTrash = async (): Promise<void> => {
+    if (!trashReview || itemOperationBusy) return
+    setItemOperationBusy(true)
+    try {
+      const result = await window.kuskus.trashItems({
+        itemIds: trashReview.itemIds,
+        referenceRevision: trashReview.inspection.revision,
+        confirmedReferencedItemIds: trashReview.inspection.referencedItems.map(
+          (item) => item.itemId
+        )
+      })
+      if (!applyLibraryResult(result)) return
+      const count = trashReview.itemIds.length
+      setTrashReview(null)
+      notifyTrashed(count, () => {
+        void window.kuskus
+          .restoreItems({ itemIds: trashReview.itemIds })
+          .then((undoResult) => applyLibraryResult(undoResult))
+      })
+    } finally {
+      setItemOperationBusy(false)
+    }
+  }
 
   const restoreItemIds = useCallback(
     async (itemIds: string[], notify = true): Promise<void> => {
@@ -661,6 +744,15 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
     [selectionAnchorId, visibleItems]
   )
 
+  const prepareItemMenu = useCallback(
+    (itemId: string): void => {
+      if (selectedIds.has(itemId)) return
+      setSelectedIds(new Set([itemId]))
+      setSelectionAnchorId(itemId)
+    },
+    [selectedIds]
+  )
+
   const activateItem = useCallback(
     (itemId: string, event: Pick<React.MouseEvent, 'shiftKey' | 'ctrlKey' | 'metaKey'>): void => {
       if (event.shiftKey || event.ctrlKey || event.metaKey) {
@@ -676,25 +768,26 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
   )
 
   const itemActions = useCallback(
-    (item: LibraryItemDto): ItemActionHandlers => ({
+    (item: LibraryItemDto, targetIds: string[]): ItemActionHandlers => ({
       onOpen: () => setSelectedItemId(item.id),
       onRename: () => {
         setRenameTarget(item)
         setRenameTitle(item.title)
       },
-      onMove: (nextDestination) => void moveItemIds([item.id], nextDestination),
+      onMove: (nextDestination) => void moveItemIds(targetIds, nextDestination),
       onReveal: () => void revealItem(item.id),
-      onArchive: () => void archiveItemIds([item.id]),
-      onUnarchive: () => void unarchiveItemIds([item.id]),
-      onTrash: () => void trashItemIds([item.id]),
-      onRestore: () => void restoreItemIds([item.id]),
-      onDeletePermanently: () => setDeleteTargets([item.id]),
+      onArchive: () => void archiveItemIds(targetIds),
+      onUnarchive: () => void unarchiveItemIds(targetIds),
+      onTrash: () => void trashItemIds(targetIds),
+      onRestore: () => void restoreItemIds(targetIds),
+      onDeletePermanently: () => requestPermanentDelete(targetIds),
       onOpenSource: () => void openSource(item)
     }),
     [
       archiveItemIds,
       moveItemIds,
       openSource,
+      requestPermanentDelete,
       restoreItemIds,
       revealItem,
       trashItemIds,
@@ -733,7 +826,6 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
         target instanceof Element
           ? target.closest<HTMLElement>('[data-item-id]')?.dataset.itemId
           : null
-      const visibleItemIds = new Set(visibleItems.map((item) => item.id))
       const targetIds = resolveItemShortcutTargets(
         selectedIds,
         focusedItemId ?? null,
@@ -755,7 +847,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
       }
 
       event.preventDefault()
-      if (destination.type === 'trash') setDeleteTargets(targetIds)
+      if (destination.type === 'trash') requestPermanentDelete(targetIds)
       else void trashItemIds(targetIds)
     }
     window.addEventListener('keydown', handleItemShortcut)
@@ -765,9 +857,11 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
     destination.type,
     itemOperationBusy,
     renameTarget,
+    requestPermanentDelete,
     selectedIds,
     selectedItemId,
     trashItemIds,
+    visibleItemIds,
     visibleItems
   ])
 
@@ -829,9 +923,10 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
   ])
 
   const openComposer = useCallback((): void => {
+    void window.capture.claimSurface(library.id, 'main')
     setComposerOpen(true)
     setComposerFocusRequest((request) => request + 1)
-  }, [])
+  }, [library.id])
 
   const prepareGlobalCapture = useCallback((): void => {
     const modalOpen = document.querySelector('[role="dialog"]') !== null
@@ -862,6 +957,24 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
       unsubscribe()
     }
   }, [prepareGlobalCapture])
+
+  useEffect(
+    () =>
+      window.capture.onSessionChanged((session) => {
+        if (session.libraryId === library.id && session.owner === 'quick') {
+          setComposerOpen(false)
+        }
+      }),
+    [library.id]
+  )
+
+  useEffect(
+    () =>
+      window.capture.onRecoveryRequested(() => {
+        setCaptureRecoveryOpen(true)
+      }),
+    []
+  )
 
   const changeComposerOpen = useCallback((open: boolean): void => {
     setComposerOpen(open)
@@ -980,13 +1093,20 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
   }
 
   const confirmPermanentDelete = async (): Promise<void> => {
-    if (deleteTargets.length === 0 || itemOperationBusy) return
+    if (deleteTargets.length === 0 || !deleteInspection || itemOperationBusy) return
     setItemOperationBusy(true)
     try {
-      const result = await window.kuskus.permanentlyDeleteItems({ itemIds: deleteTargets })
+      const result = await window.kuskus.permanentlyDeleteItems({
+        itemIds: deleteTargets,
+        referenceRevision: deleteInspection.revision,
+        confirmedReferencedItemIds: deleteInspection.referencedItems.map((item) => item.itemId),
+        cleanupImageIds: cleanupUnusedImages
+          ? deleteInspection.cleanupCandidates.map((item) => item.itemId)
+          : []
+      })
       if (!applyLibraryResult(result)) return
       const count = deleteTargets.length
-      setDeleteTargets([])
+      closePermanentDelete()
       setSelectedItemId(null)
       notifyPermanentlyDeleted(count)
     } finally {
@@ -994,10 +1114,56 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
     }
   }
 
+  useEffect(() => {
+    if (deleteTargets.length === 0) return
+    let active = true
+    void window.kuskus
+      .inspectItemDeletion({ itemIds: deleteTargets, mode: 'permanent' })
+      .then((result) => {
+        if (!active) return
+        if (result.ok) setDeleteInspection(result.data)
+        else setMessage(result.error)
+      })
+    return () => {
+      active = false
+    }
+  }, [deleteTargets])
+
   const selectedItemIds = [...selectedIds]
+  const deleteReviewNoteTitles = deleteInspection
+    ? deleteInspection.referencedItems.flatMap((item) => item.noteTitles).slice(0, 5)
+    : []
+  const deleteReviewReferenceCount =
+    deleteInspection?.referencedItems.reduce((count, item) => count + item.referenceCount, 0) ?? 0
+  const trashReviewNoteTitles = trashReview
+    ? trashReview.inspection.referencedItems.flatMap((item) => item.noteTitles).slice(0, 5)
+    : []
+  const trashReviewReferenceCount =
+    trashReview?.inspection.referencedItems.reduce(
+      (count, item) => count + item.referenceCount,
+      0
+    ) ?? 0
   const selectedItemLocations = library.items
     .filter((item) => selectedIds.has(item.id))
     .map((item) => item.location)
+  const getItemMenuProps = (
+    item: LibraryItemDto
+  ): ItemActionHandlers & {
+    targetCount: number
+    targetLocations: LibraryItemDto['location'][]
+    onMenuOpen?: () => void
+  } => {
+    const targetIds = resolveItemMenuTargets(selectedIds, item.id, visibleItemIds)
+    const targetIdSet = new Set(targetIds)
+    return {
+      targetCount: targetIds.length,
+      targetLocations: library.items
+        .filter((candidate) => targetIdSet.has(candidate.id))
+        .map((candidate) => candidate.location),
+      onMenuOpen: () => prepareItemMenu(item.id),
+      ...itemActions(item, targetIds)
+    }
+  }
 
   const addItemComposer = (
     <AddItemComposer
@@ -1005,6 +1171,13 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
       open={composerOpen}
       focusRequest={composerFocusRequest}
       discardRequest={composerDiscardRequest}
+      libraryId={library.id}
+      destination={
+        destination.type === 'collection'
+          ? { type: 'collection', collectionId: destination.collectionId }
+          : { type: 'inbox' }
+      }
+      surface="main"
       draftStorageKey={draftStorageKey}
       importRequest={importRequest}
       view={view}
@@ -1032,21 +1205,50 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
     />
   )
 
+  const externalImageImportPending =
+    importRequest !== null &&
+    'file' in importRequest &&
+    importRequest.file.type.startsWith('image/')
+  const showExternalDropShadow = isDragging || externalImageImportPending
+  const captureSlot = (
+    <div className={cn('relative min-w-0', !composerOpen && !showExternalDropShadow && 'hidden')}>
+      <div
+        inert={showExternalDropShadow ? true : undefined}
+        className={cn(
+          'transition-opacity [transition-duration:var(--motion-duration-press)] [transition-timing-function:var(--motion-ease-out)]',
+          showExternalDropShadow && 'opacity-0'
+        )}
+      >
+        {addItemComposer}
+      </div>
+      <ExternalDropShadow
+        active={showExternalDropShadow}
+        label={
+          isDragging ? 'Release the image to add it to New Item' : 'Preparing image in New Item'
+        }
+        overlay={composerOpen}
+        view={view}
+      />
+    </div>
+  )
+
   const cardLayoutContent = (
     <>
-      <div className={cn('min-w-0', !composerOpen && 'hidden')}>{addItemComposer}</div>
+      {captureSlot}
       {visibleItems.map((item) => (
         <ItemContextMenu
           item={item}
           collections={library.collections}
-          {...itemActions(item)}
+          {...getItemMenuProps(item)}
           key={item.id}
         >
           <div
-            className="min-w-0"
+            className="min-w-0 transition-opacity [transition-duration:var(--motion-duration-press)] [transition-timing-function:var(--motion-ease-out)] data-[dragging=true]:opacity-40"
+            data-dragging={draggedItemIds.has(item.id)}
             data-item-id={item.id}
             draggable
             onDragStart={(event) => beginItemDrag(item.id, event)}
+            onDragEnd={endItemDrag}
           >
             <div className="group/saved-item relative" data-selected={selectedIds.has(item.id)}>
               <SavedItemCard
@@ -1057,6 +1259,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                 onOpen={() => setSelectedItemId(item.id)}
               />
               <div
+                data-drag-preview-hidden
                 className="absolute top-2 right-2 z-30"
                 onClick={(event) => event.stopPropagation()}
               >
@@ -1064,7 +1267,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                   item={item}
                   collections={library.collections}
                   showQuickSourceAction
-                  {...itemActions(item)}
+                  {...getItemMenuProps(item)}
                 />
               </div>
             </div>
@@ -1083,7 +1286,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
       onWidthChange={setSidebarWidth}
       minWidth={MIN_SIDEBAR_WIDTH}
       maxWidth={MAX_SIDEBAR_WIDTH}
-      className="h-screen min-h-0 overflow-hidden bg-background text-foreground"
+      className="window-root h-screen min-h-0 overflow-hidden text-foreground"
     >
       <LibrarySidebar
         key={library.id}
@@ -1092,8 +1295,6 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
         onThemeChange={setTheme}
         view={view}
         onViewChange={setView}
-        showReferencedAttachments={showReferencedAttachments}
-        onShowReferencedAttachmentsChange={setShowReferencedAttachments}
         destination={destination}
         onDestinationChange={changeDestination}
         onLibraryChange={setLibrary}
@@ -1102,6 +1303,10 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
         onMoveItems={(itemIds, nextDestination) => void moveItemIds(itemIds, nextDestination)}
         librarySwitchBlocked={importRequest !== null || composerHasTransientWork}
         globalCaptureShortcutStatus={globalCaptureShortcutStatus}
+        translucentBackgroundEnabled={translucentBackground.enabled}
+        translucentBackgroundSupported={translucentBackground.supported}
+        translucentBackgroundReduced={translucentBackground.reducedTransparency}
+        onTranslucentBackgroundChange={translucentBackground.setEnabled}
       />
       <SidebarInset>
         <AppToolbar
@@ -1119,24 +1324,33 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
           totalCount={destinationItems.length}
           typeFilters={typeFilters}
           onTypeFilterChange={changeTypeFilter}
-          onClearFilters={() => setTypeFilters([])}
+          showReferencedAttachments={showReferencedAttachments}
+          onShowReferencedAttachmentsChange={setShowReferencedAttachments}
+          onClearFilters={() => {
+            setTypeFilters([])
+            setShowReferencedAttachments(false)
+          }}
           sort={sort}
           onSortChange={setSort}
         />
         <ScrollArea
-          className="min-h-0 min-w-0 flex-1"
+          className="window-canvas min-h-0 min-w-0 flex-1"
           viewportClassName="dark:library-scroll-viewport focus-visible:ring-0 focus-visible:outline-none"
         >
           <main
             className="relative min-h-full"
             onDragEnter={(event) => {
-              if (!Array.from(event.dataTransfer.types).includes('Files')) return
+              if (!hasFileDrag(event.dataTransfer)) return
               event.preventDefault()
               dragDepth.current += 1
-              setIsDragging(true)
+              setIsDragging(hasSupportedImageDrag(event.dataTransfer))
             }}
             onDragOver={(event) => {
-              if (Array.from(event.dataTransfer.types).includes('Files')) event.preventDefault()
+              if (!hasFileDrag(event.dataTransfer)) return
+              event.preventDefault()
+              const supported = hasSupportedImageDrag(event.dataTransfer)
+              event.dataTransfer.dropEffect = supported ? 'copy' : 'none'
+              setIsDragging(supported)
             }}
             onDragLeave={() => {
               dragDepth.current = Math.max(0, dragDepth.current - 1)
@@ -1147,7 +1361,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
             <div
               className={cn(
                 'min-h-full px-5 pt-3 pb-5 lg:px-7 lg:pt-4 lg:pb-7',
-                selectedItemIds.length > 0 && 'pb-24 lg:pb-24'
+                hasBulkItemSelection(selectedItemIds.length) && 'pb-24 lg:pb-24'
               )}
             >
               {library.repairConflicts.length > 0 && (
@@ -1184,34 +1398,23 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                   </AlertAction>
                 </Alert>
               )}
-              <Empty
-                aria-hidden={!isDragging}
-                data-active={isDragging}
-                className="drop-target pointer-events-none absolute inset-4 z-40 min-h-72 scale-[0.98] border border-dashed border-primary bg-background/94 opacity-0 shadow-xl backdrop-blur-md transition-[opacity,scale] [transition-duration:var(--motion-duration-press)] [transition-timing-function:var(--motion-ease-out)] data-[active=true]:scale-100 data-[active=true]:opacity-100 motion-reduce:transition-opacity motion-reduce:data-[active=false]:scale-100 motion-reduce:data-[active=true]:scale-100"
-              >
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <FileImage aria-hidden="true" />
-                  </EmptyMedia>
-                  <EmptyTitle>Drop image to add it to Inbox</EmptyTitle>
-                  <EmptyDescription>The original file stays untouched.</EmptyDescription>
-                </EmptyHeader>
-              </Empty>
               {view === 'table' ? (
                 <div className="flex flex-col gap-4">
-                  <div className={cn('min-w-0', !composerOpen && 'hidden')}>{addItemComposer}</div>
+                  {captureSlot}
                   {visibleItems.length > 0 ? (
                     <SavedItemsTable
                       items={visibleItems}
                       selectedIds={selectedIds}
+                      draggedIds={draggedItemIds}
                       onActivate={activateItem}
                       onOpen={(itemId) => setSelectedItemId(itemId)}
                       onDragStart={beginItemDrag}
+                      onDragEnd={endItemDrag}
                       renderActions={(item) => (
                         <ItemActionMenu
                           item={item}
                           collections={library.collections}
-                          {...itemActions(item)}
+                          {...getItemMenuProps(item)}
                         />
                       )}
                       wrapRow={(item, row) => (
@@ -1219,7 +1422,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                           key={item.id}
                           item={item}
                           collections={library.collections}
-                          {...itemActions(item)}
+                          {...getItemMenuProps(item)}
                         >
                           {row}
                         </ItemContextMenu>
@@ -1246,18 +1449,32 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                     </EmptyDescription>
                   </EmptyHeader>
                   <EmptyContent>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        changeSearch('')
-                        setTypeFilters([])
-                        setSelectedIds(new Set())
-                        setSelectionAnchorId(null)
-                      }}
-                    >
-                      Clear search and filters
-                    </Button>
+                    {search.trim().length > 0 ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          changeSearch('')
+                          setSelectedIds(new Set())
+                          setSelectionAnchorId(null)
+                        }}
+                      >
+                        Clear search
+                      </Button>
+                    ) : null}
+                    {typeFilters.length > 0 ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setTypeFilters([])
+                          setSelectedIds(new Set())
+                          setSelectionAnchorId(null)
+                        }}
+                      >
+                        Remove type filters
+                      </Button>
+                    ) : null}
                   </EmptyContent>
                 </Empty>
               )}
@@ -1283,9 +1500,35 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                         ? 'Archived items stay here until you unarchive or trash them.'
                         : destination.type === 'trash'
                           ? 'Items moved to Trash remain recoverable until permanently deleted.'
-                          : 'Add a note, paste an image, or drop one anywhere in this window.'}
+                          : destination.type === 'all'
+                            ? 'A private, local library for links, images, notes, and files.'
+                            : destination.type === 'collection'
+                              ? 'Capture a link, image, note, or file right into this folder.'
+                              : 'Everything you capture lands here until you organize it.'}
                     </EmptyDescription>
                   </EmptyHeader>
+                  {destination.type !== 'archive' && destination.type !== 'trash' ? (
+                    <EmptyContent>
+                      <Button size="sm" aria-keyshortcuts="Control+N" onClick={openComposer}>
+                        New item
+                        <Kbd className="ml-1 bg-primary-foreground/15 text-primary-foreground">
+                          Ctrl+N
+                        </Kbd>
+                      </Button>
+                      <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                        <span>Paste or drop anywhere in this window</span>
+                        {globalCaptureShortcutStatus?.registered ? (
+                          <>
+                            <span aria-hidden="true">·</span>
+                            <span>
+                              Capture from any app with{' '}
+                              <Kbd>{globalCaptureShortcutStatus.accelerator}</Kbd>
+                            </span>
+                          </>
+                        ) : null}
+                      </div>
+                    </EmptyContent>
+                  ) : null}
                 </Empty>
               )}
             </div>
@@ -1301,7 +1544,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
           onUnarchive={(itemIds) => void unarchiveItemIds(itemIds)}
           onTrash={(itemIds) => void trashItemIds(itemIds)}
           onRestore={(itemIds) => void restoreItemIds(itemIds)}
-          onDeletePermanently={setDeleteTargets}
+          onDeletePermanently={requestPermanentDelete}
           onClearSelection={clearSelection}
         />
         <p className="sr-only" aria-live="polite" aria-atomic="true">
@@ -1321,11 +1564,13 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
           onOpenVaultLink={openVaultLink}
           renderActions={(guard) => {
             if (!selectedItem) return null
-            const actions = itemActions(selectedItem)
+            const actions = itemActions(selectedItem, [selectedItem.id])
             return (
               <ItemActionMenu
                 item={selectedItem}
                 collections={library.collections}
+                targetCount={1}
+                targetLocations={[selectedItem.location]}
                 alwaysVisible
                 {...actions}
                 onRename={() => guard(actions.onRename)}
@@ -1354,8 +1599,8 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
               <DialogHeader>
                 <DialogTitle>Rename item</DialogTitle>
                 <DialogDescription>
-                  This renames the visible vault file. Kuskus keeps its stable identity and updates
-                  a companion assets folder when present.
+                  This renames the visible vault file. Kuskus keeps its stable identity, updates
+                  inbound references, and moves a legacy companion assets folder when present.
                 </DialogDescription>
               </DialogHeader>
               <FieldGroup className="py-4">
@@ -1391,10 +1636,10 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
         <AlertDialog
           open={deleteTargets.length > 0}
           onOpenChange={(open) => {
-            if (!open && !itemOperationBusy) setDeleteTargets([])
+            if (!open && !itemOperationBusy) closePermanentDelete()
           }}
         >
-          <AlertDialogContent size="sm">
+          <AlertDialogContent size="sm" className="max-w-sm!">
             <AlertDialogHeader>
               <AlertDialogTitle>
                 Permanently delete {deleteTargets.length === 1 ? 'this item' : 'these items'}?
@@ -1405,11 +1650,60 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
                   : `${deleteTargets.length} library items will be removed and cannot be restored. Original external sources are never deleted.`}
               </AlertDialogDescription>
             </AlertDialogHeader>
+            {deleteInspection && deleteInspection.referencedItems.length > 0 ? (
+              <div className="space-y-4">
+                <Alert variant="destructive" className="border-destructive/25 bg-destructive/10">
+                  <IconAlertTriangle aria-hidden="true" />
+                  <AlertTitle className="text-foreground">
+                    {deleteReviewReferenceCount}{' '}
+                    {deleteReviewReferenceCount === 1 ? 'place' : 'places'} in your notes will keep
+                    showing a missing image
+                  </AlertTitle>
+                  <AlertDescription>
+                    You cannot restore{' '}
+                    {deleteInspection.referencedItems.length === 1 ? 'this image' : 'these images'}{' '}
+                    from Trash after this action.
+                  </AlertDescription>
+                </Alert>
+                <div className="space-y-2 text-left">
+                  <p className="text-xs font-medium text-muted-foreground">Affected notes</p>
+                  <ul className="flex max-h-40 flex-col gap-1 overflow-y-auto rounded-xl bg-muted/55 px-3 py-2.5 text-sm ring-1 ring-foreground/6">
+                    {deleteReviewNoteTitles.map((title, index) => (
+                      <li key={`${title}:${index}`} className="truncate text-foreground">
+                        {title}
+                      </li>
+                    ))}
+                    {deleteReviewReferenceCount > deleteReviewNoteTitles.length ? (
+                      <li className="text-muted-foreground">
+                        {deleteReviewReferenceCount - deleteReviewNoteTitles.length} more
+                      </li>
+                    ) : null}
+                  </ul>
+                </div>
+              </div>
+            ) : null}
+            {deleteInspection && deleteInspection.cleanupCandidates.length > 0 ? (
+              <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">Also move unused images to Trash</p>
+                  <p className="text-xs text-muted-foreground">
+                    {deleteInspection.cleanupCandidates.length}{' '}
+                    {deleteInspection.cleanupCandidates.length === 1 ? 'image is' : 'images are'} no
+                    longer referenced by another note.
+                  </p>
+                </div>
+                <Switch
+                  aria-label="Also move unused images to Trash"
+                  checked={cleanupUnusedImages}
+                  onCheckedChange={setCleanupUnusedImages}
+                />
+              </div>
+            ) : null}
             <AlertDialogFooter>
               <AlertDialogCancel disabled={itemOperationBusy}>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 variant="destructive"
-                disabled={itemOperationBusy}
+                disabled={itemOperationBusy || deleteInspection === null}
                 onClick={() => void confirmPermanentDelete()}
               >
                 Delete permanently
@@ -1417,6 +1711,83 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        <AlertDialog
+          open={trashReview !== null}
+          onOpenChange={(open) => {
+            if (!open && !itemOperationBusy) setTrashReview(null)
+          }}
+        >
+          <AlertDialogContent size="sm">
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {trashReview?.inspection.referencedItems.length === 1
+                  ? 'This image is still in use'
+                  : 'These images are still in use'}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Moving {trashReview?.inspection.referencedItems.length === 1 ? 'it' : 'them'} to
+                Trash hides {trashReview?.inspection.referencedItems.length === 1 ? 'it' : 'them'}
+                from every note that uses{' '}
+                {trashReview?.inspection.referencedItems.length === 1 ? 'it' : 'them'}.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {trashReview ? (
+              <div className="space-y-4">
+                <Alert variant="destructive" className="border-destructive/25 bg-destructive/10">
+                  <IconAlertTriangle aria-hidden="true" />
+                  <AlertTitle className="text-foreground">
+                    {trashReviewReferenceCount}{' '}
+                    {trashReviewReferenceCount === 1 ? 'place' : 'places'} in your notes will show a
+                    missing image
+                  </AlertTitle>
+                  <AlertDescription>
+                    Restore{' '}
+                    {trashReview.inspection.referencedItems.length === 1
+                      ? 'the image'
+                      : 'the images'}{' '}
+                    from Trash to make{' '}
+                    {trashReview.inspection.referencedItems.length === 1 ? 'it' : 'them'} appear
+                    again.
+                  </AlertDescription>
+                </Alert>
+                <div className="space-y-2 text-left">
+                  <p className="text-xs font-medium text-muted-foreground">Affected notes</p>
+                  <ul className="flex max-h-40 flex-col gap-1 overflow-y-auto rounded-xl bg-muted/55 px-3 py-2.5 text-sm ring-1 ring-foreground/6">
+                    {trashReviewNoteTitles.map((title, index) => (
+                      <li key={`${title}:${index}`} className="truncate text-foreground">
+                        {title}
+                      </li>
+                    ))}
+                    {trashReviewReferenceCount > trashReviewNoteTitles.length ? (
+                      <li className="text-muted-foreground">
+                        {trashReviewReferenceCount - trashReviewNoteTitles.length} more
+                      </li>
+                    ) : null}
+                  </ul>
+                </div>
+              </div>
+            ) : null}
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={itemOperationBusy}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                disabled={itemOperationBusy}
+                onClick={() => void confirmReferencedTrash()}
+              >
+                Move to Trash
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        <CaptureRecoveryDialog
+          libraryId={library.id}
+          open={captureRecoveryOpen}
+          onOpenChange={setCaptureRecoveryOpen}
+          onRestored={() => {
+            setComposerOpen(true)
+            setComposerFocusRequest((request) => request + 1)
+          }}
+        />
       </SidebarInset>
     </SidebarProvider>
   )

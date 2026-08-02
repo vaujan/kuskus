@@ -1,10 +1,20 @@
-import { BrowserWindow, ipcMain, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
+import {
+  BrowserWindow,
+  ipcMain,
+  nativeTheme,
+  type IpcMainEvent,
+  type IpcMainInvokeEvent
+} from 'electron'
 
 import {
   APP_ZOOM_FACTORS,
   WINDOW_CHANNELS,
   type GlobalCaptureShortcutStatus
 } from '../../shared/window-contract'
+import {
+  applyTranslucentBackground,
+  parseTranslucentBackgroundRequest
+} from '../window/window-material'
 
 function windowFromEvent(event: IpcMainEvent | IpcMainInvokeEvent): BrowserWindow | null {
   return BrowserWindow.fromWebContents(event.sender)
@@ -37,6 +47,18 @@ export function registerWindowIpc(
     if (!window) throw new Error('The app window is unavailable.')
     window.webContents.setZoomFactor(zoomFactor)
     return zoomFactor
+  })
+  ipcMain.handle(WINDOW_CHANNELS.setTranslucentBackground, (event, enabled: unknown) => {
+    const requested = parseTranslucentBackgroundRequest(enabled)
+    const window = windowFromEvent(event)
+    if (!window) throw new Error('The app window is unavailable.')
+    return applyTranslucentBackground(
+      window,
+      process.platform,
+      process.getSystemVersion(),
+      requested,
+      nativeTheme.prefersReducedTransparency
+    )
   })
   ipcMain.handle(WINDOW_CHANNELS.getGlobalCaptureShortcutStatus, () =>
     getGlobalCaptureShortcutStatus()

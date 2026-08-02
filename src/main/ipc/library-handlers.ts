@@ -8,6 +8,7 @@ import {
   type ImageImportInput,
   type FileImportInput,
   type ItemMutationInput,
+  type InspectItemDeletionInput,
   type MoveItemsInput,
   type MoveCollectionInput,
   type RenameItemInput,
@@ -201,6 +202,45 @@ export function registerLibraryIpc(libraryService: LibraryService): void {
     }
   })
 
+  ipcMain.handle(KUSKUS_CHANNELS.getCaptureDraftFile, async () => {
+    try {
+      return { ok: true, data: await libraryService.getCaptureDraftFile() }
+    } catch (error) {
+      return errorResult(error)
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.stageCaptureDraftFile, async (_event, input: unknown) => {
+    try {
+      return {
+        ok: true,
+        data: await libraryService.stageCaptureDraftFile(input as FileImportInput)
+      }
+    } catch (error) {
+      return errorResult(error, 'invalid-input')
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.removeCaptureDraftFile, async () => {
+    try {
+      await libraryService.removeCaptureDraftFile()
+      return { ok: true, data: null }
+    } catch (error) {
+      return errorResult(error)
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.commitCaptureDraftFile, async (_event, id: unknown) => {
+    if (typeof id !== 'string') {
+      return errorResult(new Error('The staged file identifier is invalid.'), 'invalid-input')
+    }
+    try {
+      return { ok: true, data: await libraryService.commitCaptureDraftFile(id) }
+    } catch (error) {
+      return errorResult(error, 'invalid-input')
+    }
+  })
+
   ipcMain.handle(
     KUSKUS_CHANNELS.getNoteAttachmentPreview,
     async (_event, itemId: unknown, attachmentId: unknown) => {
@@ -370,6 +410,16 @@ export function registerLibraryIpc(libraryService: LibraryService): void {
   registerItemMutation(KUSKUS_CHANNELS.permanentlyDeleteItems, (input) =>
     libraryService.permanentlyDeleteItems(input)
   )
+  ipcMain.handle(KUSKUS_CHANNELS.inspectItemDeletion, async (_event, input: unknown) => {
+    try {
+      return {
+        ok: true,
+        data: await libraryService.inspectItemDeletion(input as InspectItemDeletionInput)
+      }
+    } catch (error) {
+      return errorResult(error, 'invalid-input')
+    }
+  })
 
   ipcMain.handle(KUSKUS_CHANNELS.getImagePreview, async (_event, itemId: unknown) => {
     if (typeof itemId !== 'string') {

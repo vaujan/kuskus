@@ -1,4 +1,9 @@
 import type { NoteAttachmentDto } from '../../../../shared/library-contract'
+import {
+  encodeMarkdownImageTarget,
+  markdownImageTargetKey,
+  rewriteMarkdownImageDestinations
+} from '../../../../shared/markdown-image-references'
 
 function stripFrontmatter(value: string): string {
   if (!/^---[\t ]*\r?\n/.test(value)) return value
@@ -10,13 +15,10 @@ function attachmentFor(
   target: string,
   attachments: NoteAttachmentDto[]
 ): NoteAttachmentDto | undefined {
-  const normalized = decodeURIComponent(target).replace(/\\/g, '/').replace(/^\.\//, '')
+  const normalized = markdownImageTargetKey(target)
   return attachments.find((attachment) => {
-    const path = attachment.relativePath.replace(/\\/g, '/').replace(/^\.\//, '')
-    return (
-      path.toLocaleLowerCase() === normalized.toLocaleLowerCase() ||
-      attachment.filename.toLocaleLowerCase() === normalized.toLocaleLowerCase()
-    )
+    const path = markdownImageTargetKey(attachment.relativePath)
+    return path === normalized || markdownImageTargetKey(attachment.filename) === normalized
   })
 }
 
@@ -28,13 +30,13 @@ export function prepareObsidianMarkdown(value: string, attachments: NoteAttachme
       const target = rawTarget.trim()
       const attachment = attachmentFor(target, attachments)
       if (attachment) {
-        return `![${rawLabel?.trim() || attachment.filename}](${attachment.relativePath})`
+        return `![${rawLabel?.trim() || attachment.filename}](<${encodeMarkdownImageTarget(attachment.relativePath)}>)`
       }
       const label = rawLabel?.trim() || target
       return `[Embedded note: ${label}](kuskus-note:${encodeURIComponent(target)})`
     }
   )
-  return withEmbeds.replace(
+  const withLinks = withEmbeds.replace(
     /(?<!!)\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]/g,
     (_match, rawTarget: string, rawLabel?: string) => {
       const target = rawTarget.trim()
@@ -42,4 +44,9 @@ export function prepareObsidianMarkdown(value: string, attachments: NoteAttachme
       return `[${label}](kuskus-note:${encodeURIComponent(target)})`
     }
   )
+  return rewriteMarkdownImageDestinations(withLinks, (reference) => {
+    if (/^(?:https?:|data:)/i.test(reference.destination)) return null
+    const attachment = attachmentFor(reference.destination, attachments)
+    return attachment ? `<${encodeMarkdownImageTarget(attachment.relativePath)}>` : null
+  })
 }

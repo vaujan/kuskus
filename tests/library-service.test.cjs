@@ -40,10 +40,22 @@ const { validateUrlPreview } = require('../src/main/library/url-preview.ts')
 const { isPersistedItem } = require('../src/main/library/schemas.ts')
 const { LibraryStore } = require('../src/main/library/storage/library-store.ts')
 const {
+  markdownPathForAttachment,
+  resolveAttachmentPlacement
+} = require('../src/main/library/attachment-placement.ts')
+const {
   createInternetShortcut,
   parseInternetShortcut
 } = require('../src/main/library/internet-shortcut.ts')
 const { removeKuskusFrontmatter } = require('../src/main/library/vault-frontmatter.ts')
+const {
+  normalizeStagedAttachmentMarkdown,
+  parseMarkdownImageReferences,
+  removeStagedAttachmentMarkdown
+} = require('../src/shared/markdown-image-references.ts')
+const {
+  prepareObsidianMarkdown
+} = require('../src/renderer/src/features/items/obsidian-markdown.ts')
 const { LIBRARY_NAME, seedDemoEnvironment } = require('../scripts/create-demo-library.cjs')
 const { COLLECTION_ICON_KEYS } = require('../src/shared/library-contract.ts')
 const { NoteAutosaveCoordinator } = require('../src/renderer/src/features/items/note-autosave.ts')
@@ -342,6 +354,31 @@ test('rejects invalid or missing capture draft images without discarding recover
   assert.equal(recovered[0].missingContent, true)
 })
 
+test('stages a general file across restart and commits it without touching the source', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-capture-draft-file-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const settingsPath = join(root, 'settings.json')
+  const service = new LibraryService(settingsPath)
+  await service.createIn(root, 'Explicit File Capture')
+  const source = Buffer.from('portable file content')
+  const staged = await service.stageCaptureDraftFile({
+    bytes: arrayBuffer(source),
+    mediaType: 'text/plain',
+    sourceFilename: 'Reference.txt'
+  })
+  assert.equal(staged.filename, 'Reference.txt')
+  assert.equal((await service.getState()).library.items.length, 0)
+
+  const reopened = new LibraryService(settingsPath)
+  await reopened.initialize()
+  assert.equal((await reopened.getCaptureDraftFile()).id, staged.id)
+  const item = await reopened.commitCaptureDraftFile(staged.id)
+  assert.equal(item.type, 'file')
+  assert.deepEqual(await readFile(await reopened.getItemContentPath(item.id)), source)
+  assert.equal(await reopened.getCaptureDraftFile(), null)
+  assert.deepEqual(source, Buffer.from('portable file content'))
+})
+
 test('detects explicit capture kinds without treating mixed content as a link or image', () => {
   assert.equal(isSingleWebUrl('https://example.com/path'), true)
   assert.equal(isSingleWebUrl('Read https://example.com'), false)
@@ -361,7 +398,53 @@ test('detects explicit capture kinds without treating mixed content as a link or
   )
 })
 
-test('recovers staged images and atomically commits a portable Markdown bundle', async (context) => {
+test('parses and repairs balanced Markdown image destinations without losing draft text', () => {
+  const source = [
+    'Before',
+    '![Legacy](./Hello world (2).assets/image 100% \\(final\\).png)',
+    '![Encoded](<./Shared/image%20%282%29.png>)',
+    'After'
+  ].join('\n')
+  assert.deepEqual(
+    parseMarkdownImageReferences(source).map((reference) => reference.destination),
+    ['./Hello world (2).assets/image 100% \\(final\\).png', './Shared/image%20%282%29.png']
+  )
+
+  const attachment = { filename: 'image (2).png', relativePath: './image%20%282%29.png' }
+  const stale = 'Before\n\n![image](./assets/image%20%282%29.png)\n\nAfter'
+  assert.equal(
+    normalizeStagedAttachmentMarkdown(stale, [attachment]),
+    'Before\n\n![image](./image%20%282%29.png)\n\nAfter'
+  )
+  assert.equal(removeStagedAttachmentMarkdown(stale, attachment), 'Before\n\nAfter')
+})
+
+test('resolves same-folder attachment placement without coupling callers to its layout', () => {
+  const libraryPath = join('C:', 'Vault')
+  const notePath = join(libraryPath, 'Projects', 'Research note.md')
+  const placement = resolveAttachmentPlacement({
+    libraryPath,
+    notePath,
+    filename: 'Sketch (final).png'
+  })
+  assert.equal(placement.directory, join(libraryPath, 'Projects'))
+  assert.equal(placement.candidatePath, join(libraryPath, 'Projects', 'Sketch (final).png'))
+  assert.equal(
+    markdownPathForAttachment(notePath, placement.candidatePath),
+    './Sketch%20%28final%29.png'
+  )
+  assert.throws(
+    () =>
+      resolveAttachmentPlacement({
+        libraryPath,
+        notePath: join(libraryPath, '..', 'Outside.md'),
+        filename: 'unsafe.png'
+      }),
+    /outside the library/i
+  )
+})
+
+test('recovers staged images and atomically commits independent sibling attachments', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-note-assets-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const settingsPath = join(root, 'settings.json')
@@ -381,7 +464,7 @@ test('recovers staged images and atomically commits a portable Markdown bundle',
   })
   assert.equal(first.filename, 'Sketch.png')
   assert.equal(second.filename, 'Sketch-2.png')
-  assert.equal(first.relativePath, './assets/Sketch.png')
+  assert.equal(first.relativePath, './Sketch.png')
   await assert.rejects(
     () => service.commitCaptureDraftImage(first.id),
     /standalone image draft is no longer valid/i
@@ -418,19 +501,22 @@ test('recovers staged images and atomically commits a portable Markdown bundle',
   const notePath = await reopened.getItemContentPath(note.id)
   const savedMarkdown = await readFile(notePath, 'utf8')
   assert.match(savedMarkdown, /# Visual note/)
-  assert.match(savedMarkdown, /\.\/Visual note\.assets\/Sketch\.png/)
-  assert.match(savedMarkdown, /\.\/Visual note\.assets\/Sketch-2\.png/)
-  assert.deepEqual(
-    await readFile(join(dirname(notePath), `${note.title}.assets`, first.filename)),
-    onePixelPng
-  )
+  assert.match(savedMarkdown, /\.\/Sketch\.png/)
+  assert.match(savedMarkdown, /\.\/Sketch-2\.png/)
+  assert.deepEqual(await readFile(join(dirname(notePath), first.filename)), onePixelPng)
   const secondAttachment = note.attachments.find(
     (attachment) => attachment.filename === second.filename
   )
   const savedPreview = await reopened.getNoteAttachmentPreview(note.id, secondAttachment.id)
   assert.deepEqual(Buffer.from(savedPreview.bytes), onePixelPng)
 
-  await unlink(join(dirname(notePath), `${note.title}.assets`, first.filename))
+  const attachmentItem = (await reopened.getState()).library.items.find(
+    (item) => item.id === first.id
+  )
+  assert.equal(attachmentItem.type, 'image')
+  assert.equal(attachmentItem.referencedAttachment, true)
+
+  await unlink(join(dirname(notePath), first.filename))
   const state = await reopened.getState()
   assert.equal(state.status, 'ready')
   const savedNote = state.library.items.find((item) => item.id === note.id)
@@ -440,6 +526,368 @@ test('recovers staged images and atomically commits a portable Markdown bundle',
       .missingContent,
     true
   )
+})
+
+test('normalizes a schema-v1 quick-composer image manifest without losing staged bytes', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-stale-image-draft-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const settingsPath = join(root, 'settings.json')
+  const service = new LibraryService(settingsPath)
+  const created = await service.createIn(root, 'Stale image draft')
+  const draftDirectory = join(created.library.path, '.kuskus', 'temp', 'note-draft')
+  const attachment = {
+    id: '6ad60eb7-f723-4b37-bb91-1554af179df1',
+    filename: 'image (2).png',
+    relativePath: './assets/image%20%282%29.png',
+    sourceFilename: 'image (2).png',
+    mediaType: 'image/png',
+    width: 1,
+    height: 1
+  }
+  await mkdir(draftDirectory, { recursive: true })
+  await writeFile(join(draftDirectory, attachment.filename), onePixelPng)
+  await writeFile(
+    join(draftDirectory, 'draft.json'),
+    `${JSON.stringify({ schemaVersion: 1, attachments: [attachment] }, null, 2)}\n`
+  )
+
+  const reopened = new LibraryService(settingsPath)
+  await reopened.initialize()
+  const [recovered] = await reopened.listCaptureDraftImages()
+  assert.equal(recovered.relativePath, './image%20%282%29.png')
+  assert.equal(recovered.missingContent, false)
+  assert.deepEqual(
+    Buffer.from((await reopened.getCaptureDraftImagePreview(recovered.id)).bytes),
+    onePixelPng
+  )
+  assert.equal(
+    normalizeStagedAttachmentMarkdown('Keep this text\n\n![image](./assets/image%20%282%29.png)', [
+      recovered
+    ]),
+    'Keep this text\n\n![image](./image%20%282%29.png)'
+  )
+})
+
+test('retains a queued note destination and attachment IDs across restart', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-capture-destination-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const settingsPath = join(root, 'settings.json')
+  const service = new LibraryService(settingsPath)
+  const state = await service.createIn(root, 'Queued destination vault')
+  const collection = await service.createCollection({ name: 'Design' })
+  const staged = await service.stageCaptureDraftImage({
+    bytes: arrayBuffer(onePixelPng),
+    mediaType: 'image/png',
+    sourceFilename: 'Queued sketch.png'
+  })
+  const record = {
+    schemaVersion: 2,
+    id: '9345fbac-23c9-45fc-bf1d-2c969178454b',
+    libraryId: state.library.id,
+    kind: 'note',
+    markdown: `# Queued design\n\n![Sketch](./assets/${staged.filename})`,
+    attachmentIds: [staged.id],
+    fileId: null,
+    destination: { type: 'collection', collectionId: collection.id },
+    submittedAt: '2026-08-02T00:00:00.000Z',
+    sourceRevision: 1,
+    status: 'accepted',
+    attempts: 0,
+    error: null
+  }
+  await service.prepareCaptureSubmission(record)
+  const queuedDraftManifest = join(
+    state.library.path,
+    '.kuskus',
+    'temp',
+    'capture-queue',
+    record.id,
+    'note-draft',
+    'draft.json'
+  )
+  await writeFile(
+    queuedDraftManifest,
+    `${JSON.stringify(
+      {
+        schemaVersion: 1,
+        attachments: [{ ...staged, relativePath: `./assets/${staged.filename}` }]
+      },
+      null,
+      2
+    )}\n`
+  )
+
+  const reopened = new LibraryService(settingsPath)
+  await reopened.initialize()
+  const [recovered] = await reopened.listCaptureSubmissions()
+  assert.deepEqual(recovered.destination, record.destination)
+  const note = await reopened.commitCaptureSubmission(recovered)
+  assert.deepEqual(note.location, record.destination)
+  assert.equal(note.attachments[0].id, staged.id)
+  assert.equal(note.relativePath, 'Design/Queued design.md')
+  const image = (await reopened.getState()).library.items.find((item) => item.id === staged.id)
+  assert.equal(image.relativePath, 'Design/Queued-sketch.png')
+  assert.deepEqual(image.location, record.destination)
+  assert.match(note.body, /\.\/Queued-sketch\.png/)
+  assert.doesNotMatch(note.body, /\.\/assets\//)
+  assert.equal(existsSync(join(state.library.path, 'Design', 'Queued design.assets')), false)
+})
+
+test('rewrites independent attachment references through note and image lifecycle changes', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-independent-lifecycle-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  await service.createIn(root, 'Independent lifecycle vault')
+  const collection = await service.createCollection({ name: 'Design' })
+  const staged = await service.stageCaptureDraftImage({
+    bytes: arrayBuffer(onePixelPng),
+    mediaType: 'image/png',
+    sourceFilename: 'Sketch.png'
+  })
+  const note = await service.createNote({
+    markdown: `# Attachment lifecycle\n\n![Sketch](${staged.relativePath})`,
+    attachmentIds: [staged.id]
+  })
+  await assert.rejects(
+    () => service.trashItems({ itemIds: [staged.id], referenceRevision: '../unsafe' }),
+    /deletion review is invalid/i
+  )
+
+  let library = await service.moveItems({
+    itemIds: [note.id],
+    destination: { type: 'collection', collectionId: collection.id }
+  })
+  let currentNote = library.items.find((item) => item.id === note.id)
+  let currentImage = library.items.find((item) => item.id === staged.id)
+  assert.equal(currentImage.relativePath, 'Sketch.png')
+  assert.match(currentNote.body, /\.\.\/Sketch\.png/)
+
+  library = await service.renameItem({ itemId: staged.id, title: 'Renamed image' })
+  currentNote = library.items.find((item) => item.id === note.id)
+  currentImage = library.items.find((item) => item.id === staged.id)
+  assert.equal(currentImage.relativePath, 'Renamed image.png')
+  assert.match(currentNote.body, /\.\.\/Renamed%20image\.png/)
+
+  library = await service.archiveItems({ itemIds: [staged.id] })
+  currentNote = library.items.find((item) => item.id === note.id)
+  assert.match(currentNote.body, /\.\.\/Archive\/Renamed%20image\.png/)
+  const inspection = await service.inspectItemDeletion({ itemIds: [staged.id], mode: 'trash' })
+  assert.equal(inspection.referencedItems[0].noteTitles[0], 'Attachment lifecycle')
+  await assert.rejects(() => service.trashItems({ itemIds: [staged.id] }), /review the notes/i)
+
+  const edited = await service.updateNote({
+    itemId: note.id,
+    markdown: `${currentNote.body}\n\nExternal change`,
+    expectedMarkdown: currentNote.body
+  })
+  await assert.rejects(
+    () =>
+      service.trashItems({
+        itemIds: [staged.id],
+        confirmedReferencedItemIds: [staged.id],
+        referenceRevision: inspection.revision
+      }),
+    /references changed/i
+  )
+  const reviewed = await service.inspectItemDeletion({ itemIds: [staged.id], mode: 'trash' })
+  library = await service.trashItems({
+    itemIds: [staged.id],
+    confirmedReferencedItemIds: [staged.id],
+    referenceRevision: reviewed.revision
+  })
+  currentNote = library.items.find((item) => item.id === note.id)
+  assert.equal(currentNote.body, edited.body)
+  assert.equal(currentNote.attachments[0].missingContent, true)
+
+  library = await service.restoreItems({ itemIds: [staged.id] })
+  currentNote = library.items.find((item) => item.id === note.id)
+  assert.equal(currentNote.attachments[0].missingContent, false)
+  assert.match(currentNote.body, /\.\.\/Archive\/Renamed%20image\.png/)
+})
+
+test('prefers an active attachment over older Trash records sharing its Markdown path', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-active-attachment-identity-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  const created = await service.createIn(root, 'Attachment identity vault')
+  const vault = created.library.path
+  const firstImage = await service.stageCaptureDraftImage({
+    bytes: arrayBuffer(onePixelPng),
+    mediaType: 'image/png',
+    sourceFilename: 'image.png'
+  })
+  const note = await service.createNote({
+    markdown: `# Stable attachment owner\n\n![image](${firstImage.relativePath})`,
+    attachmentIds: [firstImage.id]
+  })
+
+  let inspection = await service.inspectItemDeletion({
+    itemIds: [firstImage.id],
+    mode: 'trash'
+  })
+  await service.trashItems({
+    itemIds: [firstImage.id],
+    confirmedReferencedItemIds: [firstImage.id],
+    referenceRevision: inspection.revision
+  })
+
+  const noteRecordPath = join(vault, '.kuskus', 'records', `${note.id}.json`)
+  let noteRecord = JSON.parse(await readFile(noteRecordPath, 'utf8'))
+  noteRecord.metadata.attachments = []
+  await writeFile(noteRecordPath, `${JSON.stringify(noteRecord, null, 2)}\n`, 'utf8')
+  let state = await service.getState()
+  let currentNote = state.library.items.find((item) => item.id === note.id)
+  assert.equal(currentNote.attachments[0].id, firstImage.id)
+
+  await writeFile(join(vault, 'image.png'), Buffer.concat([onePixelPng, Buffer.from([0])]))
+  state = await service.getState()
+  currentNote = state.library.items.find((item) => item.id === note.id)
+  const activeImage = state.library.items.find(
+    (item) => item.relativePath === 'image.png' && item.location.type !== 'trash'
+  )
+  assert.ok(activeImage)
+  assert.notEqual(activeImage.id, firstImage.id)
+  assert.equal(
+    currentNote.attachments[0].id,
+    activeImage.id,
+    `expected active ${activeImage.id} to replace historical ${firstImage.id}`
+  )
+  assert.equal(activeImage.referencedAttachment, true)
+
+  inspection = await service.inspectItemDeletion({ itemIds: [activeImage.id], mode: 'trash' })
+  assert.equal(inspection.referencedItems[0].itemId, activeImage.id)
+  assert.deepEqual(inspection.referencedItems[0].noteTitles, ['Stable attachment owner'])
+  state = await service.trashItems({
+    itemIds: [activeImage.id],
+    confirmedReferencedItemIds: [activeImage.id],
+    referenceRevision: inspection.revision
+  })
+  currentNote = state.items.find((item) => item.id === note.id)
+  assert.equal(currentNote.attachments[0].id, activeImage.id)
+  assert.equal(currentNote.attachments[0].missingContent, true)
+
+  const permanentInspection = await service.inspectItemDeletion({
+    itemIds: [activeImage.id],
+    mode: 'permanent'
+  })
+  assert.equal(permanentInspection.referencedItems[0].itemId, activeImage.id)
+
+  noteRecord = JSON.parse(await readFile(noteRecordPath, 'utf8'))
+  noteRecord.metadata.attachments = []
+  await writeFile(noteRecordPath, `${JSON.stringify(noteRecord, null, 2)}\n`, 'utf8')
+  state = await service.getState()
+  currentNote = state.library.items.find((item) => item.id === note.id)
+  assert.notEqual(currentNote.attachments[0].id, firstImage.id)
+  assert.notEqual(currentNote.attachments[0].id, activeImage.id)
+  const ambiguousInspection = await service.inspectItemDeletion({
+    itemIds: [firstImage.id, activeImage.id],
+    mode: 'permanent'
+  })
+  assert.deepEqual(ambiguousInspection.referencedItems, [])
+})
+
+test('requires review before trashing or permanently deleting an image referenced by a trashed note', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-trashed-note-reference-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  await service.createIn(root, 'Trashed note reference vault')
+  const staged = await service.stageCaptureDraftImage({
+    bytes: arrayBuffer(onePixelPng),
+    mediaType: 'image/png',
+    sourceFilename: 'Still referenced.png'
+  })
+  const note = await service.createNote({
+    markdown: `# Trashed reference\n\n![Still referenced](${staged.relativePath})`,
+    attachmentIds: [staged.id]
+  })
+
+  await service.trashItems({ itemIds: [note.id] })
+  const inspection = await service.inspectItemDeletion({ itemIds: [staged.id], mode: 'trash' })
+  assert.equal(inspection.referencedItems.length, 1)
+  assert.equal(inspection.referencedItems[0].itemId, staged.id)
+  assert.deepEqual(inspection.referencedItems[0].noteTitles, ['Trashed reference'])
+  await assert.rejects(
+    () => service.trashItems({ itemIds: [staged.id], referenceRevision: inspection.revision }),
+    /review the notes/i
+  )
+  await service.trashItems({
+    itemIds: [staged.id],
+    referenceRevision: inspection.revision,
+    confirmedReferencedItemIds: [staged.id]
+  })
+  const permanentInspection = await service.inspectItemDeletion({
+    itemIds: [staged.id],
+    mode: 'permanent'
+  })
+  assert.equal(permanentInspection.referencedItems.length, 1)
+  await assert.rejects(
+    () =>
+      service.permanentlyDeleteItems({
+        itemIds: [staged.id],
+        referenceRevision: permanentInspection.revision
+      }),
+    /review the notes/i
+  )
+  const library = await service.permanentlyDeleteItems({
+    itemIds: [staged.id],
+    referenceRevision: permanentInspection.revision,
+    confirmedReferencedItemIds: [staged.id]
+  })
+  assert.equal(
+    library.items.some((item) => item.id === staged.id),
+    false
+  )
+})
+
+test('offers only unshared images for cleanup when deleting a note forever', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-note-cleanup-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  await service.createIn(root, 'Cleanup eligibility vault')
+  const unique = await service.stageCaptureDraftImage({
+    bytes: arrayBuffer(onePixelPng),
+    mediaType: 'image/png',
+    sourceFilename: 'Unique.png'
+  })
+  const uniqueNote = await service.createNote({
+    markdown: `# Unique reference\n\n![Unique](${unique.relativePath})`,
+    attachmentIds: [unique.id]
+  })
+  await service.trashItems({ itemIds: [uniqueNote.id] })
+  const uniqueInspection = await service.inspectItemDeletion({
+    itemIds: [uniqueNote.id],
+    mode: 'permanent'
+  })
+  assert.deepEqual(
+    uniqueInspection.cleanupCandidates.map((item) => item.itemId),
+    [unique.id]
+  )
+  let library = await service.permanentlyDeleteItems({
+    itemIds: [uniqueNote.id],
+    cleanupImageIds: [unique.id],
+    referenceRevision: uniqueInspection.revision
+  })
+  assert.equal(library.items.find((item) => item.id === unique.id).location.type, 'trash')
+
+  const shared = await service.stageCaptureDraftImage({
+    bytes: arrayBuffer(onePixelPng),
+    mediaType: 'image/png',
+    sourceFilename: 'Shared.png'
+  })
+  const first = await service.createNote({
+    markdown: `# First reference\n\n![Shared](${shared.relativePath})`,
+    attachmentIds: [shared.id]
+  })
+  await service.createNote({
+    markdown: '# Second reference\n\n![Shared](./Shared.png)',
+    attachmentIds: []
+  })
+  await service.trashItems({ itemIds: [first.id] })
+  const sharedInspection = await service.inspectItemDeletion({
+    itemIds: [first.id],
+    mode: 'permanent'
+  })
+  assert.deepEqual(sharedInspection.cleanupCandidates, [])
 })
 
 test('updates Markdown notes without changing their identity or attachments', async (context) => {
@@ -459,8 +907,8 @@ test('updates Markdown notes without changing their identity or attachments', as
   })
 
   const updatedSource = note.body.replace(
-    '# Original title\n\n![Reference](./Original title.assets/Reference.png)',
-    '# Updated title\n\nA table:\n\n| A | B |\n| - | - |\n| 1 | 2 |\n\n![Reference](./Original title.assets/Reference.png)'
+    '# Original title\n\n![Reference](./Reference.png)',
+    '# Updated title\n\nA table:\n\n| A | B |\n| - | - |\n| 1 | 2 |\n\n![Reference](./Reference.png)'
   )
   const updated = await service.updateNote({
     itemId: note.id,
@@ -475,13 +923,7 @@ test('updates Markdown notes without changing their identity or attachments', as
   assert.deepEqual(updated.attachments, note.attachments)
   assert.equal(await readFile(await service.getItemContentPath(note.id), 'utf8'), updated.body)
   assert.deepEqual(
-    await readFile(
-      join(
-        dirname(await service.getItemContentPath(note.id)),
-        'Original title.assets',
-        staged.filename
-      )
-    ),
+    await readFile(join(dirname(await service.getItemContentPath(note.id)), staged.filename)),
     onePixelPng
   )
 
@@ -1186,6 +1628,104 @@ test('initializes an existing Obsidian vault without changing its organization o
   )
 })
 
+test('renders a legacy assets embed with spaces and parentheses without rewriting its Markdown', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-legacy-assets-reference-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const vault = join(root, 'Legacy assets vault')
+  const source = '# Hello world\n\nTesting\n![image](./Hello world (2).assets/image.png)\n'
+  await mkdir(join(vault, 'Hello world (2).assets'), { recursive: true })
+  await writeFile(join(vault, 'Hello world (2).md'), source, 'utf8')
+  await writeFile(join(vault, 'Hello world (2).assets', 'image.png'), onePixelPng)
+
+  const settingsPath = join(root, 'settings.json')
+  const service = new LibraryService(settingsPath)
+  await service.openAt(vault)
+  const state = await service.initializePendingVault()
+  const note = state.library.items.find((item) => item.type === 'note')
+  const image = state.library.items.find((item) => item.type === 'image')
+  assert.equal(note.attachments[0].id, image.id)
+  assert.equal(image.referencedAttachment, true)
+  assert.deepEqual(
+    Buffer.from((await service.getNoteAttachmentPreview(note.id, image.id)).bytes),
+    onePixelPng
+  )
+  assert.match(
+    prepareObsidianMarkdown(note.body, note.attachments),
+    /<\.\/Hello%20world%20%282%29\.assets\/image\.png>/
+  )
+  assert.equal(await readFile(join(vault, 'Hello world (2).md'), 'utf8'), source)
+
+  const reopened = new LibraryService(settingsPath)
+  await reopened.initialize()
+  const reopenedState = await reopened.getState()
+  assert.equal(reopenedState.library.items.find((item) => item.type === 'image').id, image.id)
+  assert.equal(await readFile(join(vault, 'Hello world (2).md'), 'utf8'), source)
+})
+
+test('resolves Obsidian sibling, vault-root, and shared-folder image embeds', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-obsidian-attachments-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const vault = join(root, 'Attachment vault')
+  await mkdir(join(vault, '.obsidian'), { recursive: true })
+  await mkdir(join(vault, 'Notes'), { recursive: true })
+  await mkdir(join(vault, 'Shared'), { recursive: true })
+  await writeFile(join(vault, 'root.png'), onePixelPng)
+  await writeFile(join(vault, 'Notes', 'local.png'), onePixelPng)
+  await writeFile(join(vault, 'Shared', 'shared.png'), onePixelPng)
+  const source = [
+    '# Compatible embeds',
+    '',
+    '![[local.png]]',
+    '![[root.png]]',
+    '![[Shared/shared.png]]',
+    '![Root again](/root.png)'
+  ].join('\n')
+  await writeFile(join(vault, 'Notes', 'Compatible.md'), source, 'utf8')
+  await writeFile(join(vault, '.obsidian', 'app.json'), '{"attachmentFolderPath":"Shared"}')
+
+  const service = new LibraryService(join(root, 'settings.json'))
+  await service.openAt(vault)
+  const state = await service.initializePendingVault()
+  assert.equal(state.status, 'ready')
+  const note = state.library.items.find((item) => item.type === 'note')
+  assert.deepEqual(
+    new Set(note.attachments.map((attachment) => attachment.filename)),
+    new Set(['local.png', 'root.png', 'shared.png'])
+  )
+  assert.equal(
+    state.library.items
+      .filter((item) => item.type === 'image')
+      .every((item) => item.referencedAttachment),
+    true
+  )
+  assert.equal(await readFile(join(vault, 'Notes', 'Compatible.md'), 'utf8'), source)
+  assert.equal(
+    await readFile(join(vault, '.obsidian', 'app.json'), 'utf8'),
+    '{"attachmentFolderPath":"Shared"}'
+  )
+
+  const rootImage = state.library.items.find((item) => item.relativePath === 'root.png')
+  let library = await service.renameItem({ itemId: rootImage.id, title: 'Renamed root' })
+  let currentNote = library.items.find((item) => item.id === note.id)
+  assert.match(currentNote.body, /!\[\[Renamed root\.png\]\]/)
+  assert.match(currentNote.body, /\.\.\/Renamed%20root\.png/)
+
+  const sharedCollection = library.collections.find(
+    (collection) => collection.relativePath === 'Shared'
+  )
+  library = await service.moveItems({
+    itemIds: [note.id],
+    destination: { type: 'collection', collectionId: sharedCollection.id }
+  })
+  currentNote = library.items.find((item) => item.id === note.id)
+  assert.match(currentNote.body, /!\[\[Notes\/local\.png\]\]/)
+  assert.match(currentNote.body, /!\[\[Shared\/shared\.png\]\]/)
+  assert.equal(
+    await readFile(join(vault, '.obsidian', 'app.json'), 'utf8'),
+    '{"attachmentFolderPath":"Shared"}'
+  )
+})
+
 test('indexes malformed user YAML as untouched Markdown instead of rewriting it', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-malformed-yaml-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
@@ -1799,12 +2339,7 @@ test('seeds and resets a cultivated isolated demo profile', async (context) => {
   assert.equal(attachedNote.title, 'This week \u2014 close the capture loop')
   assert.equal(attachedNote.attachments.length, 1)
   assert.equal(attachedNote.attachments[0].missingContent, false)
-  assert.equal(
-    existsSync(
-      join(libraryPath, `${attachedNote.title}.assets`, attachedNote.attachments[0].filename)
-    ),
-    true
-  )
+  assert.equal(existsSync(join(libraryPath, attachedNote.attachments[0].filename)), true)
   assert.equal(
     existsSync(join(libraryPath, 'Kuskus', 'Product direction that still feels true.md')),
     true

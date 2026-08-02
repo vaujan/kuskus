@@ -96,11 +96,7 @@ export function UrlItemCard({
         </p>
         <span className="flex min-w-0 max-w-full items-center gap-1.5">
           {favicon.preview ? (
-            <img
-              src={favicon.preview}
-              alt=""
-              className="size-3.5 shrink-0 rounded-sm outline -outline-offset-1 outline-black/10 dark:outline-white/10"
-            />
+            <img src={favicon.preview} alt="" className="size-3.5 shrink-0" />
           ) : (
             <Globe2 className="size-3.5 shrink-0" aria-hidden="true" />
           )}
