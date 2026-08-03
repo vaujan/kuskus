@@ -3,6 +3,7 @@ import {
   IconArchiveOff,
   IconArrowUpRight,
   IconFolderMinus,
+  IconFolderSymlink,
   IconKeyboard,
   IconKeyboardOff,
   IconLinkOff,
@@ -73,13 +74,15 @@ interface UndoableToastOptions {
   title: string
   icon: ReactNode
   onUndo: () => void
+  description?: ReactNode
 }
 
-function showUndoableToast({ title, icon, onUndo }: UndoableToastOptions): void {
+function showUndoableToast({ title, icon, onUndo, description }: UndoableToastOptions): void {
   ensureUndoShortcut()
   const entry: UndoEntry = { id: 0, run: onUndo, settled: false }
   const id = toast(title, {
     icon,
+    description,
     duration: UNDO_TOAST_DURATION,
     className: 'notify-undo',
     style: { '--notify-undo-duration': `${UNDO_TOAST_DURATION}ms` } as CSSProperties,
@@ -133,11 +136,12 @@ function showVerbToast({
   })
 }
 
-export function notifyArchived(count: number, onUndo: () => void): void {
+export function notifyArchived(count: number, onUndo: () => void, description?: string): void {
   showUndoableToast({
     title: count === 1 ? 'Item archived' : `${count} items archived`,
     icon: <IconArchive />,
-    onUndo
+    onUndo,
+    description
   })
 }
 
@@ -167,6 +171,34 @@ export function notifyRestored(count: number, description?: string): void {
 
 export function notifyRenamed(): void {
   showVerbToast({ title: 'Item renamed', icon: <IconPencil /> })
+}
+
+export function notifyReferenceAwareMove(input: {
+  movedImages: number
+  retainedImages: number
+  updatedNotes: number
+}): void {
+  const descriptions: string[] = []
+  if (input.movedImages > 0) {
+    descriptions.push(
+      `${input.movedImages} ${input.movedImages === 1 ? 'image moved' : 'images moved'} with the note.`
+    )
+  }
+  if (input.retainedImages > 0) {
+    descriptions.push(
+      `${input.retainedImages} shared or separately organized ${input.retainedImages === 1 ? 'image stayed' : 'images stayed'} in place.`
+    )
+  }
+  if (input.updatedNotes > 0) {
+    descriptions.push(
+      `${input.updatedNotes} ${input.updatedNotes === 1 ? 'note reference was' : 'note references were'} updated.`
+    )
+  }
+  showVerbToast({
+    title: input.movedImages > 0 ? 'Moved note and its images' : 'References kept up to date',
+    icon: <IconFolderSymlink />,
+    description: descriptions.join(' ')
+  })
 }
 
 export function notifyPermanentlyDeleted(count: number): void {

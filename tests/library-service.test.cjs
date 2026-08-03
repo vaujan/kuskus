@@ -528,6 +528,35 @@ test('recovers staged images and atomically commits independent sibling attachme
   )
 })
 
+test('gives clipboard images timestamp names and safely renames staged files', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-clipboard-image-name-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  const created = await service.createIn(root, 'Clipboard image names')
+  const staged = await service.stageCaptureDraftImage({
+    bytes: arrayBuffer(onePixelPng),
+    mediaType: 'image/png',
+    sourceFilename: 'image.png',
+    origin: 'clipboard'
+  })
+  assert.match(staged.filename, /^image-\d{4}-\d{2}-\d{2}-\d{6}\.png$/)
+  assert.equal(staged.sourceFilename, staged.filename)
+  const renamed = await service.renameCaptureDraftImage({
+    attachmentId: staged.id,
+    name: 'checkout empty state'
+  })
+  assert.equal(renamed.filename, 'checkout-empty-state.png')
+  assert.equal(renamed.relativePath, './checkout-empty-state.png')
+  const draftDirectory = join(created.library.path, '.kuskus', 'temp', 'note-draft')
+  assert.equal(existsSync(join(draftDirectory, staged.filename)), false)
+  assert.equal(existsSync(join(draftDirectory, renamed.filename)), true)
+  const recovered = await service.listCaptureDraftImages()
+  assert.deepEqual(
+    recovered.map((attachment) => attachment.filename),
+    [renamed.filename]
+  )
+})
+
 test('normalizes a schema-v1 quick-composer image manifest without losing staged bytes', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-stale-image-draft-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
@@ -659,14 +688,14 @@ test('rewrites independent attachment references through note and image lifecycl
   })
   let currentNote = library.items.find((item) => item.id === note.id)
   let currentImage = library.items.find((item) => item.id === staged.id)
-  assert.equal(currentImage.relativePath, 'Sketch.png')
-  assert.match(currentNote.body, /\.\.\/Sketch\.png/)
+  assert.equal(currentImage.relativePath, 'Design/Sketch.png')
+  assert.match(currentNote.body, /\.\/Sketch\.png/)
 
   library = await service.renameItem({ itemId: staged.id, title: 'Renamed image' })
   currentNote = library.items.find((item) => item.id === note.id)
   currentImage = library.items.find((item) => item.id === staged.id)
-  assert.equal(currentImage.relativePath, 'Renamed image.png')
-  assert.match(currentNote.body, /\.\.\/Renamed%20image\.png/)
+  assert.equal(currentImage.relativePath, 'Design/Renamed image.png')
+  assert.match(currentNote.body, /\.\/Renamed%20image\.png/)
 
   library = await service.archiveItems({ itemIds: [staged.id] })
   currentNote = library.items.find((item) => item.id === note.id)
@@ -703,6 +732,38 @@ test('rewrites independent attachment references through note and image lifecycl
   currentNote = library.items.find((item) => item.id === note.id)
   assert.equal(currentNote.attachments[0].missingContent, false)
   assert.match(currentNote.body, /\.\.\/Archive\/Renamed%20image\.png/)
+})
+
+test('leaves shared sibling images in place when only one referencing note moves', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-shared-sibling-move-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  await service.createIn(root, 'Shared sibling vault')
+  const collection = await service.createCollection({ name: 'Moved' })
+  const staged = await service.stageCaptureDraftImage({
+    bytes: arrayBuffer(onePixelPng),
+    mediaType: 'image/png',
+    sourceFilename: 'Shared.png'
+  })
+  const first = await service.createNote({
+    markdown: `# First\n\n![](${staged.relativePath})`,
+    attachmentIds: [staged.id]
+  })
+  const second = await service.createNote({
+    markdown: '# Second\n\n![](./Shared.png)',
+    attachmentIds: []
+  })
+
+  const library = await service.moveItems({
+    itemIds: [first.id],
+    destination: { type: 'collection', collectionId: collection.id }
+  })
+  const image = library.items.find((item) => item.id === staged.id)
+  const moved = library.items.find((item) => item.id === first.id)
+  const retained = library.items.find((item) => item.id === second.id)
+  assert.equal(image.relativePath, 'Shared.png')
+  assert.match(moved.body, /\.\.\/Shared\.png/)
+  assert.match(retained.body, /\.\/Shared\.png/)
 })
 
 test('prefers an active attachment over older Trash records sharing its Markdown path', async (context) => {
@@ -1580,6 +1641,49 @@ test('derives stable note and image display metadata', () => {
     width: 320,
     height: 240
   })
+})
+
+test('derives note titles from readable Markdown instead of image syntax', () => {
+  assert.equal(
+    deriveNoteTitle(
+      '**![](./dialog-problem.png)**\n\nDialog content is too cramped and looks very vibecoded.'
+    ),
+    'Dialog content is too cramped and looks very vibecoded.'
+  )
+  assert.equal(deriveNoteTitle('Before ![Screenshot](./dialog-problem.png) after'), 'Before after')
+  assert.equal(deriveNoteTitle('![](./dialog%20problem.png)'), 'dialog problem')
+  assert.equal(deriveNoteTitle('![[Screens/dialog-problem.png|Screenshot]]'), 'dialog-problem')
+  assert.equal(
+    deriveNoteTitle(
+      '---\ntags: [design]\n---\n<!-- captured reference -->\n> - [x] **Readable** [reference](https://example.com)'
+    ),
+    'Readable reference'
+  )
+  assert.equal(deriveNoteTitle('```ts\nconst answer = 42\n```'), 'const answer = 42')
+  assert.equal(deriveNoteTitle('| --- | --- |\n\nActual title'), 'Actual title')
+  assert.equal(deriveNoteTitle('![Screenshot](data:image/png;base64,abc)'), 'Untitled note')
+  assert.equal(deriveNoteTitle('![]('), 'Untitled note')
+  assert.equal(deriveNoteTitle(`# ${'x'.repeat(140)}`), 'x'.repeat(120))
+})
+
+test('uses readable text after a captured image for the new note filename', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-image-first-note-title-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  await service.createIn(root, 'Image first title')
+  const staged = await service.stageCaptureDraftImage({
+    bytes: arrayBuffer(onePixelPng),
+    mediaType: 'image/png',
+    sourceFilename: 'dialog-problem.png'
+  })
+  const note = await service.createNote({
+    markdown: `**![](${staged.relativePath})**\n\nDialog content is too cramped`,
+    attachmentIds: [staged.id]
+  })
+
+  assert.equal(note.title, 'Dialog content is too cramped')
+  assert.equal(note.relativePath, 'Dialog content is too cramped.md')
+  assert.equal(existsSync(join(root, 'Image first title', note.relativePath)), true)
 })
 
 test('initializes an existing Obsidian vault without changing its organization or settings', async (context) => {

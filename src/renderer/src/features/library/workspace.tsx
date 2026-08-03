@@ -50,13 +50,14 @@ import { Switch } from '@/components/ui/switch'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AddItemComposer, type ImportRequest } from '@/features/capture/add-item-composer'
+import { shouldYieldMainComposer } from '@/features/capture/capture-draft-tracker'
 import { ExternalDropShadow } from '@/features/capture/external-drop-shadow'
 import { CaptureRecoveryDialog } from '@/features/capture/capture-recovery-dialog'
 import { getFolderSubtreeIds } from '@/features/collections/folder-tree'
 import { SavedItemCard } from '@/features/items/saved-item-card'
 import { SavedItemsTable } from '@/features/items/saved-items-table'
 import { KUSKUS_ITEM_DRAG_TYPE, setKuskusItemDragPreview } from '@/features/items/item-drag'
-import { ItemDetailDialog } from '@/features/items/item-detail-dialog'
+import { ItemDetailDialog, type DetailTitleRenameResult } from '@/features/items/item-detail-dialog'
 import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
 import {
   hasBulkItemSelection,
@@ -92,11 +93,13 @@ import type {
   UrlItemDto
 } from '../../../../shared/library-contract'
 import type { GlobalCaptureShortcutStatus } from '../../../../shared/window-contract'
+import type { CaptureSurface } from '../../../../shared/capture-contract'
 import {
   notifyArchived,
   notifyGlobalCapturePrepared,
   notifyGlobalCaptureUnavailable,
   notifyPermanentlyDeleted,
+  notifyReferenceAwareMove,
   notifyRenamed,
   notifyRestored,
   notifyTrashed,
@@ -245,6 +248,8 @@ export function Workspace({
   const enrichingUrlIds = useRef(new Set<string>())
   const pendingRevealItemId = useRef<string | null>(null)
   const shortcutFailureNotified = useRef(false)
+  const captureOwner = useRef<CaptureSurface | null>(null)
+  const mainComposerOwnershipRequested = useRef(false)
   const draftStorageKey = `kuskus-note-draft:${library.path}`
 
   const announceStatus = useCallback((message: string): void => {
@@ -521,14 +526,59 @@ export function Workspace({
 
   const moveItemIds = useCallback(
     async (itemIds: string[], nextDestination: ActiveItemLocation): Promise<void> => {
+      const requested = new Set(itemIds)
+      const selectedNotes = library.items.filter(
+        (item): item is Extract<LibraryItemDto, { type: 'note' }> =>
+          requested.has(item.id) && item.type === 'note'
+      )
+      const referencedImageIds = new Set(
+        selectedNotes.flatMap((note) => note.attachments.map((attachment) => attachment.id))
+      )
+      const explicitlyMovedReferencedImages = library.items.filter(
+        (item) =>
+          requested.has(item.id) &&
+          item.type === 'image' &&
+          library.items.some(
+            (candidate) =>
+              candidate.type === 'note' &&
+              candidate.attachments.some((attachment) => attachment.id === item.id)
+          )
+      )
       setItemOperationBusy(true)
       try {
-        applyLibraryResult(await window.kuskus.moveItems({ itemIds, destination: nextDestination }))
+        const result = await window.kuskus.moveItems({ itemIds, destination: nextDestination })
+        const nextLibrary = applyLibraryResult(result)
+        if (!nextLibrary) return
+        const movedImages = [...referencedImageIds].filter((imageId) => {
+          if (requested.has(imageId)) return false
+          const before = library.items.find((item) => item.id === imageId)
+          const after = nextLibrary.items.find((item) => item.id === imageId)
+          return before?.relativePath !== after?.relativePath
+        }).length
+        const retainedImages = [...referencedImageIds].filter((imageId) => {
+          if (requested.has(imageId)) return false
+          const before = library.items.find((item) => item.id === imageId)
+          const after = nextLibrary.items.find((item) => item.id === imageId)
+          return before && after && before.relativePath === after.relativePath
+        }).length
+        const updatedNotes = new Set(
+          explicitlyMovedReferencedImages.flatMap((image) =>
+            library.items.flatMap((candidate) =>
+              candidate.type === 'note' &&
+              candidate.attachments.some((attachment) => attachment.id === image.id)
+                ? [candidate.id]
+                : []
+            )
+          )
+        ).size
+        if (movedImages + retainedImages + updatedNotes > 0) {
+          notifyReferenceAwareMove({ movedImages, retainedImages, updatedNotes })
+        }
       } finally {
         setItemOperationBusy(false)
       }
     },
-    [applyLibraryResult]
+    [applyLibraryResult, library.items]
   )
 
   const beginItemDrag = useCallback(
@@ -571,22 +621,60 @@ export function Workspace({
 
   const archiveItemIds = useCallback(
     async (itemIds: string[], showUndo = true): Promise<void> => {
+      const requested = new Set(itemIds)
+      const referencedImageIds = new Set(
+        library.items.flatMap((item) =>
+          requested.has(item.id) && item.type === 'note'
+            ? item.attachments.map((attachment) => attachment.id)
+            : []
+        )
+      )
+      const explicitlyMovedImageIds = new Set(
+        library.items.flatMap((item) =>
+          requested.has(item.id) && item.type === 'image' ? [item.id] : []
+        )
+      )
       setItemOperationBusy(true)
       try {
         const result = await window.kuskus.archiveItems({ itemIds })
-        if (!applyLibraryResult(result)) return
+        const nextLibrary = applyLibraryResult(result)
+        if (!nextLibrary) return
+        const movedImages = [...referencedImageIds].filter((imageId) => {
+          if (requested.has(imageId)) return false
+          const before = library.items.find((item) => item.id === imageId)
+          const after = nextLibrary.items.find((item) => item.id === imageId)
+          return before?.relativePath !== after?.relativePath
+        }).length
+        const updatedNotes = library.items.filter(
+          (item) =>
+            item.type === 'note' &&
+            item.attachments.some((attachment) => explicitlyMovedImageIds.has(attachment.id))
+        ).length
         if (showUndo) {
-          notifyArchived(itemIds.length, () => {
-            void window.kuskus
-              .unarchiveItems({ itemIds })
-              .then((undoResult) => applyLibraryResult(undoResult))
-          })
+          notifyArchived(
+            itemIds.length,
+            () => {
+              void window.kuskus
+                .unarchiveItems({ itemIds })
+                .then((undoResult) => applyLibraryResult(undoResult))
+            },
+            [
+              movedImages > 0
+                ? `${movedImages} ${movedImages === 1 ? 'image was' : 'images were'} archived with the note.`
+                : '',
+              updatedNotes > 0
+                ? `${updatedNotes} ${updatedNotes === 1 ? 'note reference was' : 'note references were'} updated.`
+                : ''
+            ]
+              .filter(Boolean)
+              .join(' ') || undefined
+          )
         }
       } finally {
         setItemOperationBusy(false)
       }
     },
-    [applyLibraryResult]
+    [applyLibraryResult, library.items]
   )
 
   const unarchiveItemIds = useCallback(
@@ -603,13 +691,35 @@ export function Workspace({
       setItemOperationBusy(true)
       try {
         const result = await window.kuskus.unarchiveItems({ itemIds })
-        if (!applyLibraryResult(result)) return
+        const nextLibrary = applyLibraryResult(result)
+        if (!nextLibrary) return
+        const requested = new Set(itemIds)
+        const referencedImageIds = new Set(
+          library.items.flatMap((item) =>
+            requested.has(item.id) && item.type === 'note'
+              ? item.attachments.map((attachment) => attachment.id)
+              : []
+          )
+        )
+        const movedImages = [...referencedImageIds].filter((imageId) => {
+          if (requested.has(imageId)) return false
+          const before = library.items.find((item) => item.id === imageId)
+          const after = nextLibrary.items.find((item) => item.id === imageId)
+          return before?.relativePath !== after?.relativePath
+        }).length
         if (notify) {
           notifyUnarchived(
             itemIds.length,
-            missingPreviousFolder
-              ? 'A previous folder was unavailable, so the item was returned to Inbox.'
-              : undefined
+            [
+              missingPreviousFolder
+                ? 'A previous folder was unavailable, so the item was returned to Inbox.'
+                : '',
+              movedImages > 0
+                ? `${movedImages} ${movedImages === 1 ? 'image was' : 'images were'} restored with the note.`
+                : ''
+            ]
+              .filter(Boolean)
+              .join(' ') || undefined
           )
         }
       } finally {
@@ -923,13 +1033,14 @@ export function Workspace({
   ])
 
   const openComposer = useCallback((): void => {
-    void window.capture.claimSurface(library.id, 'main')
+    mainComposerOwnershipRequested.current = captureOwner.current !== 'main'
     setComposerOpen(true)
     setComposerFocusRequest((request) => request + 1)
-  }, [library.id])
+  }, [])
 
   const prepareGlobalCapture = useCallback((): void => {
     const modalOpen = document.querySelector('[role="dialog"]') !== null
+    mainComposerOwnershipRequested.current = captureOwner.current !== 'main'
     setDestination({ type: 'inbox' })
     setSearch('')
     setTypeFilters([])
@@ -961,7 +1072,10 @@ export function Workspace({
   useEffect(
     () =>
       window.capture.onSessionChanged((session) => {
-        if (session.libraryId === library.id && session.owner === 'quick') {
+        if (session.libraryId !== library.id) return
+        captureOwner.current = session.owner
+        if (session.owner === 'main') mainComposerOwnershipRequested.current = false
+        if (shouldYieldMainComposer(session.owner, mainComposerOwnershipRequested.current)) {
           setComposerOpen(false)
         }
       }),
@@ -977,6 +1091,7 @@ export function Workspace({
   )
 
   const changeComposerOpen = useCallback((open: boolean): void => {
+    if (!open) mainComposerOwnershipRequested.current = false
     setComposerOpen(open)
     if (!open) setNewItemFocusRequest((request) => request + 1)
   }, [])
@@ -1001,13 +1116,13 @@ export function Workspace({
   }, [library.items])
 
   const requestImageImport = useCallback(
-    (file: File): void => {
+    (file: File, origin: 'clipboard' | 'file' = 'file'): void => {
       if (!file.type.startsWith('image/')) {
         setMessage('Only image files can be imported here right now.')
         return
       }
       importRequestId.current += 1
-      setImportRequest({ id: importRequestId.current, file })
+      setImportRequest({ id: importRequestId.current, file, origin })
       openComposer()
     },
     [openComposer]
@@ -1042,7 +1157,7 @@ export function Workspace({
       const file = item?.getAsFile()
       if (file) {
         event.preventDefault()
-        requestImageImport(file)
+        requestImageImport(file, 'clipboard')
         return
       }
       const text = event.clipboardData?.getData('text/plain').trim() ?? ''
@@ -1074,22 +1189,47 @@ export function Workspace({
     else if (files.length > 0) setMessage('Only image files can be imported here right now.')
   }
 
+  const renameItemTitle = useCallback(
+    async (item: LibraryItemDto, title: string): Promise<DetailTitleRenameResult> => {
+      if (itemOperationBusy) {
+        return { ok: false, error: 'Another item action is still finishing.' }
+      }
+      const updatedNotes =
+        item.type === 'image'
+          ? library.items.filter(
+              (candidate) =>
+                candidate.type === 'note' &&
+                candidate.attachments.some((attachment) => attachment.id === item.id)
+            ).length
+          : 0
+      setItemOperationBusy(true)
+      try {
+        const result = await window.kuskus.renameItem({ itemId: item.id, title })
+        if (!result.ok) {
+          applyLibraryResult(result)
+          return { ok: false, error: result.error }
+        }
+        applyLibraryResult(result)
+        if (updatedNotes > 0) {
+          notifyReferenceAwareMove({ movedImages: 0, retainedImages: 0, updatedNotes })
+        } else {
+          notifyRenamed()
+        }
+        return { ok: true }
+      } finally {
+        setItemOperationBusy(false)
+      }
+    },
+    [applyLibraryResult, itemOperationBusy, library.items]
+  )
+
   const submitRename = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault()
     if (!renameTarget || !renameTitle.trim() || itemOperationBusy) return
-    setItemOperationBusy(true)
-    try {
-      const result = await window.kuskus.renameItem({
-        itemId: renameTarget.id,
-        title: renameTitle
-      })
-      if (!applyLibraryResult(result)) return
-      setRenameTarget(null)
-      setRenameTitle('')
-      notifyRenamed()
-    } finally {
-      setItemOperationBusy(false)
-    }
+    const result = await renameItemTitle(renameTarget, renameTitle)
+    if (!result.ok) return
+    setRenameTarget(null)
+    setRenameTitle('')
   }
 
   const confirmPermanentDelete = async (): Promise<void> => {
@@ -1561,6 +1701,14 @@ export function Workspace({
             if (!open) setSelectedItemId(null)
           }}
           onItemUpdated={updateItem}
+          onRenameItem={renameItemTitle}
+          libraryItems={library.items}
+          onRenameAttachment={(itemId) => {
+            const image = library.items.find((item) => item.id === itemId)
+            if (!image || image.type !== 'image') return
+            setRenameTarget(image)
+            setRenameTitle(image.title)
+          }}
           onOpenVaultLink={openVaultLink}
           renderActions={(guard) => {
             if (!selectedItem) return null

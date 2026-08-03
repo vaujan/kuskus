@@ -110,6 +110,7 @@ export interface PersistedImageItem {
   trashedFromRelativePath?: string
   relativePath?: string
   referencedAttachment?: boolean
+  attachmentOrigin?: 'note-capture'
 }
 
 export interface PersistedUrlItem {
@@ -276,6 +277,7 @@ export function isPersistedItem(value: unknown, itemId: string): value is Persis
     item.width > 0 &&
     typeof item.height === 'number' &&
     Number.isSafeInteger(item.height) &&
-    item.height > 0
+    item.height > 0 &&
+    (item.attachmentOrigin === undefined || item.attachmentOrigin === 'note-capture')
   )
 }

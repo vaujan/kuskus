@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { watch, type FSWatcher } from 'node:fs'
-import { basename, extname, join } from 'node:path'
+import { basename, dirname, extname, join } from 'node:path'
 
 import type {
   ActiveItemLocation,
@@ -8,6 +8,7 @@ import type {
   CreateNoteInput,
   CreateCollectionInput,
   ImageImportInput,
+  RenameCaptureDraftImageInput,
   FileImportInput,
   FileItemDto,
   ImageItemDto,
@@ -447,22 +448,57 @@ export class LibraryService {
     const detected = detectImage(bytes)
     if (!detected) throw new Error('Kuskus supports PNG, JPEG, GIF, WebP, and BMP images.')
     const existing = await this.store.readCaptureDraftAttachments(libraryPath)
+    if (input.origin !== undefined && input.origin !== 'clipboard' && input.origin !== 'file') {
+      throw new Error('The image source is invalid.')
+    }
+    const clipboardName = input.origin === 'clipboard' ? this.clipboardImageStem(new Date()) : null
     const filename = noteAttachmentFilename(
-      input.sourceFilename,
+      input.origin === 'clipboard' ? null : input.sourceFilename,
       detected,
-      new Set(existing.map((attachment) => attachment.filename.toLocaleLowerCase()))
+      new Set(existing.map((attachment) => attachment.filename.toLocaleLowerCase())),
+      clipboardName ?? 'pasted-image'
     )
     const attachment = {
       id: randomUUID(),
       filename,
       relativePath: `./${encodeMarkdownImageTarget(filename)}`,
-      sourceFilename: safeSourceFilename(input.sourceFilename),
+      sourceFilename:
+        input.origin === 'clipboard' ? filename : safeSourceFilename(input.sourceFilename),
       mediaType: detected.mediaType,
       width: detected.width,
       height: detected.height
     }
     await this.store.stageCaptureDraftAttachment(libraryPath, attachment, bytes)
     return { ...attachment, missingContent: false }
+  }
+
+  async renameCaptureDraftImage(
+    input: RenameCaptureDraftImageInput
+  ): Promise<CaptureDraftImageDto> {
+    if (!input || typeof input !== 'object') throw new Error('The image rename request is invalid.')
+    this.validateItemId(input.attachmentId, 'attachment')
+    const requested = this.validateItemTitle(input.name)
+    const libraryPath = this.requireCurrentLibrary()
+    const attachments = await this.store.readCaptureDraftAttachments(libraryPath)
+    const current = attachments.find((entry) => entry.id === input.attachmentId)
+    if (!current) throw new Error('The staged image no longer exists.')
+    const extension = extname(current.filename)
+    const filename = noteAttachmentFilename(
+      `${requested}${extension}`,
+      { mediaType: current.mediaType, width: current.width, height: current.height },
+      new Set(
+        attachments
+          .filter((entry) => entry.id !== current.id)
+          .map((entry) => entry.filename.toLocaleLowerCase())
+      )
+    )
+    const renamed = await this.store.renameCaptureDraftAttachment(libraryPath, current.id, filename)
+    return { ...renamed, missingContent: false }
+  }
+
+  private clipboardImageStem(date: Date): string {
+    const part = (value: number): string => value.toString().padStart(2, '0')
+    return `image-${date.getFullYear()}-${part(date.getMonth() + 1)}-${part(date.getDate())}-${part(date.getHours())}${part(date.getMinutes())}${part(date.getSeconds())}`
   }
 
   async removeCaptureDraftImage(attachmentId: string): Promise<void> {
@@ -859,7 +895,7 @@ export class LibraryService {
   }
 
   async moveItems(input: MoveItemsInput): Promise<LibraryDto> {
-    const itemIds = this.validateItemMutationInput(input)
+    const requestedItemIds = this.validateItemMutationInput(input)
     const destination = this.validateDestination(input.destination)
     const libraryPath = this.requireCurrentLibrary()
     if (
@@ -868,6 +904,8 @@ export class LibraryService {
     ) {
       throw new Error('The destination folder no longer exists.')
     }
+    const library = await this.store.buildLibraryDto(libraryPath)
+    const itemIds = this.withExclusiveSiblingAttachments(library, requestedItemIds)
     const items = await Promise.all(
       itemIds.map((itemId) => this.store.resolveItem(libraryPath, itemId))
     )
@@ -886,8 +924,10 @@ export class LibraryService {
   }
 
   async archiveItems(input: ItemMutationInput): Promise<LibraryDto> {
-    const itemIds = this.validateItemMutationInput(input)
+    const requestedItemIds = this.validateItemMutationInput(input)
     const libraryPath = this.requireCurrentLibrary()
+    const library = await this.store.buildLibraryDto(libraryPath)
+    const itemIds = this.withExclusiveSiblingAttachments(library, requestedItemIds)
     const items = await Promise.all(
       itemIds.map((itemId) => this.store.resolveItem(libraryPath, itemId))
     )
@@ -914,8 +954,10 @@ export class LibraryService {
   }
 
   async unarchiveItems(input: ItemMutationInput): Promise<LibraryDto> {
-    const itemIds = this.validateItemMutationInput(input)
+    const requestedItemIds = this.validateItemMutationInput(input)
     const libraryPath = this.requireCurrentLibrary()
+    const library = await this.store.buildLibraryDto(libraryPath)
+    const itemIds = this.withExclusiveSiblingAttachments(library, requestedItemIds)
     const items = await Promise.all(
       itemIds.map((itemId) => this.store.resolveItem(libraryPath, itemId))
     )
@@ -934,6 +976,56 @@ export class LibraryService {
     )
     await this.store.moveItems(libraryPath, requests)
     return this.store.buildLibraryDto(libraryPath)
+  }
+
+  private withExclusiveSiblingAttachments(
+    library: LibraryDto,
+    requestedItemIds: readonly string[]
+  ): string[] {
+    const requested = new Set(requestedItemIds)
+    const movingNotes = library.items.filter(
+      (item): item is NoteItemDto => requested.has(item.id) && item.type === 'note'
+    )
+    if (movingNotes.length === 0) return [...requestedItemIds]
+    const movingNoteIds = new Set(movingNotes.map((note) => note.id))
+    const references = new Map<string, Set<string>>()
+    for (const item of library.items) {
+      if (item.type !== 'note') continue
+      for (const attachment of item.attachments) {
+        const noteIds = references.get(attachment.id) ?? new Set<string>()
+        noteIds.add(item.id)
+        references.set(attachment.id, noteIds)
+      }
+    }
+    const imageById = new Map(
+      library.items
+        .filter((item): item is ImageItemDto => item.type === 'image')
+        .map((image) => [image.id, image])
+    )
+    const added = new Set<string>()
+    for (const note of movingNotes) {
+      for (const attachment of note.attachments) {
+        if (requested.has(attachment.id) || added.has(attachment.id)) continue
+        const image = imageById.get(attachment.id)
+        if (
+          !image ||
+          image.location.type === 'trash' ||
+          image.attachmentOrigin !== 'note-capture'
+        ) {
+          continue
+        }
+        if (
+          dirname(image.relativePath).toLocaleLowerCase() !==
+          dirname(note.relativePath).toLocaleLowerCase()
+        ) {
+          continue
+        }
+        const inbound = references.get(image.id) ?? new Set<string>()
+        if ([...inbound].some((noteId) => !movingNoteIds.has(noteId))) continue
+        added.add(image.id)
+      }
+    }
+    return [...requestedItemIds, ...added]
   }
 
   async inspectItemDeletion(input: InspectItemDeletionInput): Promise<ItemDeletionInspectionDto> {

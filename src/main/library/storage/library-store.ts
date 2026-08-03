@@ -1759,6 +1759,40 @@ export class LibraryStore {
     })
   }
 
+  async renameCaptureDraftAttachment(
+    libraryPath: string,
+    attachmentId: string,
+    filename: string
+  ): Promise<PersistedNoteAttachment> {
+    const directory = this.captureDraftDirectory(libraryPath)
+    const attachments = await this.readCaptureDraftAttachments(libraryPath)
+    const current = attachments.find((entry) => entry.id === attachmentId)
+    if (!current) throw new Error('The staged image no longer exists.')
+    if (attachments.some((entry) => entry.id !== attachmentId && entry.filename === filename)) {
+      throw new Error('Another staged image already uses that name.')
+    }
+    if (current.filename === filename) return current
+    const source = join(directory, current.filename)
+    const destination = join(directory, filename)
+    const renamed = {
+      ...current,
+      filename,
+      relativePath: `./${encodeMarkdownImageTarget(filename)}`,
+      sourceFilename: filename
+    }
+    await rename(source, destination)
+    try {
+      await writeJsonAtomic(join(directory, NOTE_DRAFT_MANIFEST), {
+        schemaVersion: 2,
+        attachments: attachments.map((entry) => (entry.id === attachmentId ? renamed : entry))
+      })
+      return renamed
+    } catch (error) {
+      await rename(destination, source)
+      throw error
+    }
+  }
+
   async removeCaptureDraftAttachment(libraryPath: string, attachmentId: string): Promise<void> {
     const directory = this.captureDraftDirectory(libraryPath)
     const attachments = await this.readCaptureDraftAttachments(libraryPath)
@@ -1930,7 +1964,8 @@ export class LibraryStore {
             metadata.createdAt
           ),
           relativePath: reserved.relativePath,
-          referencedAttachment: true
+          referencedAttachment: true,
+          attachmentOrigin: 'note-capture'
         } satisfies PersistedImageItem
         await this.writeItemRecord(libraryPath, {
           schemaVersion: 2,

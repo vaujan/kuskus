@@ -156,6 +156,7 @@ export function toImageDto(
     missingContent: false,
     location,
     relativePath: metadata.relativePath ?? metadata.contentFilename,
-    referencedAttachment: metadata.referencedAttachment ?? false
+    referencedAttachment: metadata.referencedAttachment ?? false,
+    attachmentOrigin: metadata.attachmentOrigin ?? null
   }
 }

@@ -6,6 +6,7 @@ import {
   type CreateNoteInput,
   type CreateCollectionInput,
   type ImageImportInput,
+  type RenameCaptureDraftImageInput,
   type FileImportInput,
   type ItemMutationInput,
   type InspectItemDeletionInput,
@@ -153,6 +154,17 @@ export function registerLibraryIpc(libraryService: LibraryService): void {
       return {
         ok: true,
         data: await libraryService.stageCaptureDraftImage(input as ImageImportInput)
+      }
+    } catch (error) {
+      return errorResult(error, 'invalid-input')
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.renameCaptureDraftImage, async (_event, input: unknown) => {
+    try {
+      return {
+        ok: true,
+        data: await libraryService.renameCaptureDraftImage(input as RenameCaptureDraftImageInput)
       }
     } catch (error) {
       return errorResult(error, 'invalid-input')
