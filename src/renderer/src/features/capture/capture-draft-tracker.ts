@@ -14,6 +14,32 @@ export interface CaptureDraftSnapshot {
   busy: boolean
 }
 
+export type CaptureOwnershipAction = 'idle' | 'wait' | 'claim'
+
+export function resolveCaptureOwnershipAction({
+  active,
+  loaded,
+  busy,
+  owner,
+  surface
+}: {
+  active: boolean
+  loaded: boolean
+  busy: boolean
+  owner: CaptureSurface | null
+  surface: CaptureSurface
+}): CaptureOwnershipAction {
+  if (!active || !loaded || owner === surface) return 'idle'
+  return busy ? 'wait' : 'claim'
+}
+
+export function shouldYieldMainComposer(
+  owner: CaptureSurface | null,
+  mainOwnershipRequested: boolean
+): boolean {
+  return owner === 'quick' && !mainOwnershipRequested
+}
+
 export class CaptureDraftTracker {
   private snapshot: CaptureDraftSnapshot
   private localGeneration: number

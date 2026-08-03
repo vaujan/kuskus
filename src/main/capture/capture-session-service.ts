@@ -43,6 +43,12 @@ export class StaleCaptureSessionError extends Error {
   }
 }
 
+export class BusyCaptureSessionError extends Error {
+  constructor() {
+    super('Capture is still saving or staging in the other window.')
+  }
+}
+
 export class CaptureSessionService {
   private readonly sessions = new Map<string, PersistedCaptureSession>()
   private readonly owners = new Map<string, CaptureSurface>()
@@ -124,7 +130,7 @@ export class CaptureSessionService {
     this.validateLibraryId(libraryId)
     const currentOwner = this.owners.get(libraryId)
     if (this.busyLibraries.has(libraryId) && currentOwner && currentOwner !== surface) {
-      throw new Error('Capture is still saving or staging in the other window.')
+      throw new BusyCaptureSessionError()
     }
     this.owners.set(libraryId, surface)
     return this.get(libraryId)

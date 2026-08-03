@@ -26,12 +26,15 @@ const {
 } = require('../src/main/window/quick-capture-bounds.ts')
 const { resolveQuickCapturePresentation } = require('../src/main/window/quick-capture-material.ts')
 const {
+  BusyCaptureSessionError,
   CaptureSessionService,
   StaleCaptureSessionError
 } = require('../src/main/capture/capture-session-service.ts')
 const { CaptureSubmissionService } = require('../src/main/capture/capture-submission-service.ts')
 const {
-  CaptureDraftTracker
+  CaptureDraftTracker,
+  resolveCaptureOwnershipAction,
+  shouldYieldMainComposer
 } = require('../src/renderer/src/features/capture/capture-draft-tracker.ts')
 const { LibraryService } = require('../src/main/library/library-service.ts')
 
@@ -106,7 +109,11 @@ test('persists revisioned capture text and rejects stale or inactive writers', a
     StaleCaptureSessionError
   )
   service.setBusy('library-one', 'main', true)
-  assert.throws(() => service.claim('library-one', 'quick'), /still saving or staging/i)
+  assert.throws(
+    () => service.claim('library-one', 'quick'),
+    (error) =>
+      error instanceof BusyCaptureSessionError && /still saving or staging/i.test(error.message)
+  )
   service.setBusy('library-one', 'main', false)
   service.claim('library-one', 'quick')
   await assert.rejects(
@@ -118,6 +125,34 @@ test('persists revisioned capture text and rejects stale or inactive writers', a
   await reopened.initialize()
   assert.equal(reopened.get('library-one').markdown, 'Keep this')
   assert.equal(reopened.get('library-one').owner, null)
+})
+
+test('keeps first ownership claims silent and waits only for transient work', () => {
+  const mainWaiting = {
+    active: true,
+    loaded: true,
+    busy: true,
+    owner: 'quick',
+    surface: 'main'
+  }
+  assert.equal(resolveCaptureOwnershipAction(mainWaiting), 'wait')
+  assert.equal(resolveCaptureOwnershipAction({ ...mainWaiting, busy: false }), 'claim')
+  assert.equal(
+    resolveCaptureOwnershipAction({ ...mainWaiting, busy: false, owner: null }),
+    'claim'
+  )
+
+  const quickWaiting = { ...mainWaiting, owner: 'main', surface: 'quick' }
+  assert.equal(resolveCaptureOwnershipAction(quickWaiting), 'wait')
+  assert.equal(resolveCaptureOwnershipAction({ ...quickWaiting, busy: false }), 'claim')
+  assert.equal(resolveCaptureOwnershipAction({ ...quickWaiting, active: false }), 'idle')
+  assert.equal(
+    resolveCaptureOwnershipAction({ ...quickWaiting, busy: false, owner: 'quick' }),
+    'idle'
+  )
+  assert.equal(shouldYieldMainComposer('quick', true), false)
+  assert.equal(shouldYieldMainComposer('quick', false), true)
+  assert.equal(shouldYieldMainComposer('main', false), false)
 })
 
 test('tracks staged-asset changes independently and clears the complete draft revision', async (context) => {

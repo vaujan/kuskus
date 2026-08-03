@@ -6,17 +6,24 @@ import type { LibraryDto, LibraryState } from '../../../../shared/library-contra
 
 function QuickCaptureSurface({ library }: { library: LibraryDto }): React.JSX.Element {
   const [focusRequest, setFocusRequest] = useState(1)
+  const [visible, setVisible] = useState(() => document.visibilityState === 'visible')
   const [status, setStatus] = useState('Quick capture ready in Inbox.')
   const rootRef = useRef<HTMLDivElement>(null)
 
   useEffect(
     () =>
       window.capture.onQuickCaptureActivated(() => {
-        void window.capture.claimSurface(library.id, 'quick')
+        setVisible(true)
         setFocusRequest((request) => request + 1)
       }),
     [library.id]
   )
+
+  useEffect(() => {
+    const updateVisibility = (): void => setVisible(document.visibilityState === 'visible')
+    document.addEventListener('visibilitychange', updateVisibility)
+    return () => document.removeEventListener('visibilitychange', updateVisibility)
+  }, [])
 
   useEffect(() => {
     const root = rootRef.current
@@ -66,6 +73,7 @@ function QuickCaptureSurface({ library }: { library: LibraryDto }): React.JSX.El
             discardRequest={0}
             libraryId={library.id}
             surface="quick"
+            ownershipActive={visible}
             importRequest={null}
             view="grid"
             completionDelayMs={650}

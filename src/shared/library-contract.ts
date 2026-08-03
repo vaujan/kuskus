@@ -6,6 +6,7 @@ export const KUSKUS_CHANNELS = {
   updateNote: 'library:update-note',
   listCaptureDraftImages: 'library:list-capture-draft-images',
   stageCaptureDraftImage: 'library:stage-capture-draft-image',
+  renameCaptureDraftImage: 'library:rename-capture-draft-image',
   removeCaptureDraftImage: 'library:remove-capture-draft-image',
   discardCaptureDraft: 'library:discard-capture-draft',
   getCaptureDraftImagePreview: 'library:get-capture-draft-image-preview',
@@ -41,7 +42,8 @@ export const KUSKUS_CHANNELS = {
   vaultChanged: 'library:vault-changed'
 } as const
 
-export type ApiErrorCode = 'cancelled' | 'invalid-input' | 'not-found' | 'conflict' | 'io-error'
+export type ApiErrorCode =
+  'cancelled' | 'invalid-input' | 'not-found' | 'conflict' | 'busy' | 'io-error'
 
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: string; code: ApiErrorCode }
 
@@ -179,6 +181,7 @@ export interface ImageItemDto {
   location: ItemLocation
   relativePath: string
   referencedAttachment: boolean
+  attachmentOrigin: 'note-capture' | null
 }
 
 export interface UrlItemDto {
@@ -229,6 +232,12 @@ export interface ImageImportInput {
   bytes: ArrayBuffer
   mediaType: string
   sourceFilename: string | null
+  origin?: 'clipboard' | 'file'
+}
+
+export interface RenameCaptureDraftImageInput {
+  attachmentId: string
+  name: string
 }
 
 export interface FileImportInput {
@@ -358,6 +367,9 @@ export interface KuskusLibraryApi {
   updateNote: (input: UpdateNoteInput) => Promise<UpdateNoteResult>
   listCaptureDraftImages: () => Promise<ApiResult<CaptureDraftImageDto[]>>
   stageCaptureDraftImage: (input: ImageImportInput) => Promise<ApiResult<CaptureDraftImageDto>>
+  renameCaptureDraftImage: (
+    input: RenameCaptureDraftImageInput
+  ) => Promise<ApiResult<CaptureDraftImageDto>>
   removeCaptureDraftImage: (attachmentId: string) => Promise<ApiResult<null>>
   discardCaptureDraft: () => Promise<ApiResult<null>>
   getCaptureDraftImagePreview: (attachmentId: string) => Promise<ApiResult<ImagePreviewDto>>

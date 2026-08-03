@@ -43,12 +43,16 @@ import type {
 } from '../../../../shared/library-contract'
 import {
   encodeMarkdownImageTarget,
+  markdownImageTargetKey,
   normalizeStagedAttachmentMarkdown,
-  removeStagedAttachmentMarkdown
+  removeStagedAttachmentMarkdown,
+  rewriteMarkdownImageDestinations
 } from '../../../../shared/markdown-image-references'
 
 export type ImportRequest =
-  { id: number; file: File } | { id: number; url: string } | { id: number; text: string }
+  | { id: number; file: File; origin: 'clipboard' | 'file' }
+  | { id: number; url: string }
+  | { id: number; text: string }
 
 const MORPH_DURATION_MS = 180
 const LINK_SAVE_MINIMUM_MS = 500
@@ -110,11 +114,7 @@ function SavingLinkCard({
 }
 
 function markdownImage(attachment: CaptureDraftImageDto): string {
-  const alt = (attachment.sourceFilename ?? attachment.filename)
-    .replace(/\.[^.]+$/, '')
-    .replaceAll('[', '')
-    .replaceAll(']', '')
-  return `![${alt || 'Image'}](${encodeMarkdownImageTarget(attachment.relativePath)})`
+  return `![](${encodeMarkdownImageTarget(attachment.relativePath)})`
 }
 
 function DraftImage({ attachment }: { attachment: CaptureDraftImageDto }): React.JSX.Element {
@@ -157,6 +157,7 @@ export function AddItemComposer({
   libraryId,
   destination = { type: 'inbox' },
   surface = 'main',
+  ownershipActive = open,
   draftStorageKey,
   importRequest,
   view,
@@ -179,6 +180,7 @@ export function AddItemComposer({
   libraryId: string
   destination?: ActiveItemLocation
   surface?: CaptureSurface
+  ownershipActive?: boolean
   draftStorageKey?: string
   importRequest: ImportRequest | null
   view: LibraryView
@@ -199,16 +201,23 @@ export function AddItemComposer({
   const captureSession = useCaptureSession({
     libraryId,
     surface,
+    active: ownershipActive,
     legacyStorageKey: draftStorageKey
   })
   const { queue } = useCaptureQueue(libraryId)
   const draft = captureSession.markdown
   const setDraft = captureSession.setMarkdown
   const [attachments, setAttachments] = useState<CaptureDraftImageDto[]>([])
+  const [editingAttachmentId, setEditingAttachmentId] = useState<string | null>(null)
+  const [attachmentName, setAttachmentName] = useState('')
+  const [renamingAttachment, setRenamingAttachment] = useState(false)
   const [saving, setSaving] = useState(false)
   const [stagingCount, setStagingCount] = useState(0)
   const [error, setError] = useState('')
-  const [failedStage, setFailedStage] = useState<File | null>(null)
+  const [failedStage, setFailedStage] = useState<{
+    file: File
+    origin: 'clipboard' | 'file'
+  } | null>(null)
   const [fileCandidate, setFileCandidate] = useState<CaptureDraftFileDto | null>(null)
   const [morphedItem, setMorphedItem] = useState<LibraryItemDto | null>(null)
   const [exiting, setExiting] = useState(false)
@@ -220,6 +229,8 @@ export function AddItemComposer({
   const rootRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const attachmentNameInputRef = useRef<HTMLInputElement>(null)
+  const renamingAttachmentRef = useRef(false)
   const handledImportRequest = useRef<number | null>(null)
   const handledDiscardRequest = useRef(discardRequest)
   const previousRevision = useRef(captureSession.revision)
@@ -287,13 +298,12 @@ export function AddItemComposer({
   }, [captureSession.setBusy, hasTransientWork, surfaceActive])
 
   useEffect(() => {
-    if (!open) return
-    void captureSession.claim()
+    if (!open || !surfaceActive) return
     window.requestAnimationFrame(() => {
       rootRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
       editorRef.current?.focus()
     })
-  }, [captureSession.claim, focusRequest, open])
+  }, [focusRequest, open, surfaceActive])
 
   const insertAtSelection = useCallback(
     (value: string, start?: number, end?: number): void => {
@@ -313,7 +323,12 @@ export function AddItemComposer({
   )
 
   const stageCaptureImage = useCallback(
-    async (file: File, selectionStart?: number, selectionEnd?: number): Promise<void> => {
+    async (
+      file: File,
+      selectionStart?: number,
+      selectionEnd?: number,
+      origin: 'clipboard' | 'file' = 'file'
+    ): Promise<void> => {
       if (fileCandidate) {
         setError('Save or remove the staged file before adding an image.')
         return
@@ -329,16 +344,19 @@ export function AddItemComposer({
         const result = await window.kuskus.stageCaptureDraftImage({
           bytes: await file.arrayBuffer(),
           mediaType: file.type,
-          sourceFilename: file.name || null
+          sourceFilename: file.name || null,
+          origin
         })
         if (!result.ok) {
-          setFailedStage(file)
+          setFailedStage({ file, origin })
           setError(result.error)
           return
         }
         const noteIntent = draft.trim().length > 0
         const imageCandidate = !noteIntent && attachments.length === 1
         setAttachments((current) => [...current, result.data])
+        setEditingAttachmentId(result.data.id)
+        setAttachmentName(result.data.filename.replace(/\.[^.]+$/, ''))
         void captureSession.touchAssets()
         if (noteIntent) {
           insertAtSelection(markdownImage(result.data), selectionStart, selectionEnd)
@@ -350,13 +368,64 @@ export function AddItemComposer({
           onStatus('Image ready to save.')
         }
       } catch (caught) {
-        setFailedStage(file)
+        setFailedStage({ file, origin })
         setError(caught instanceof Error ? caught.message : 'The image could not be staged.')
       } finally {
         setStagingCount((count) => Math.max(0, count - 1))
       }
     },
     [attachments, captureSession, draft, fileCandidate, insertAtSelection, onStatus, setDraft]
+  )
+
+  useEffect(() => {
+    if (!editingAttachmentId) return
+    window.requestAnimationFrame(() => {
+      attachmentNameInputRef.current?.focus()
+      attachmentNameInputRef.current?.select()
+    })
+  }, [editingAttachmentId])
+
+  const finishAttachmentRename = useCallback(
+    async (attachment: CaptureDraftImageDto): Promise<void> => {
+      if (renamingAttachmentRef.current) return
+      const requested = attachmentName.trim()
+      if (!requested) {
+        setAttachmentName(attachment.filename.replace(/\.[^.]+$/, ''))
+        setEditingAttachmentId(null)
+        return
+      }
+      setRenamingAttachment(true)
+      renamingAttachmentRef.current = true
+      const result = await window.kuskus.renameCaptureDraftImage({
+        attachmentId: attachment.id,
+        name: requested
+      })
+      setRenamingAttachment(false)
+      renamingAttachmentRef.current = false
+      if (!result.ok) {
+        setError(result.error)
+        window.requestAnimationFrame(() => attachmentNameInputRef.current?.focus())
+        return
+      }
+      const renamed = result.data
+      setAttachments((current) =>
+        current.map((entry) => (entry.id === renamed.id ? renamed : entry))
+      )
+      setDraft((current) =>
+        rewriteMarkdownImageDestinations(current, (reference) => {
+          const key = markdownImageTargetKey(reference.destination)
+          return key === markdownImageTargetKey(attachment.relativePath) ||
+            key === markdownImageTargetKey(attachment.filename)
+            ? encodeMarkdownImageTarget(renamed.relativePath)
+            : null
+        })
+      )
+      setEditingAttachmentId(null)
+      setError('')
+      await captureSession.touchAssets()
+      window.requestAnimationFrame(() => editorRef.current?.focus())
+    },
+    [attachmentName, captureSession, renamingAttachment, setDraft]
   )
 
   const stageCaptureFile = useCallback(
@@ -555,7 +624,7 @@ export function AddItemComposer({
     const timeout = window.setTimeout(() => {
       if ('file' in importRequest) {
         if (importRequest.file.type.startsWith('image/')) {
-          void stageCaptureImage(importRequest.file)
+          void stageCaptureImage(importRequest.file, undefined, undefined, importRequest.origin)
         } else {
           void stageCaptureFile(importRequest.file)
         }
@@ -589,7 +658,8 @@ export function AddItemComposer({
       void stageCaptureImage(
         image,
         event.currentTarget.selectionStart,
-        event.currentTarget.selectionEnd
+        event.currentTarget.selectionEnd,
+        'clipboard'
       )
       return
     }
@@ -703,7 +773,8 @@ export function AddItemComposer({
             const files = Array.from(event.currentTarget.files ?? [])
             event.currentTarget.value = ''
             if (files.length === 0) return
-            if (files[0].type.startsWith('image/')) void stageCaptureImage(files[0])
+            if (files[0].type.startsWith('image/'))
+              void stageCaptureImage(files[0], undefined, undefined, 'file')
             else void stageCaptureFile(files[0])
           }}
         />
@@ -741,7 +812,44 @@ export function AddItemComposer({
               >
                 <DraftImage attachment={attachment} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{attachment.filename}</p>
+                  {editingAttachmentId === attachment.id ? (
+                    <div className="flex min-w-0 items-center gap-1 text-sm font-medium">
+                      <input
+                        ref={attachmentNameInputRef}
+                        className="h-8 min-w-0 flex-1 rounded-md bg-background/75 px-2 shadow-sm outline-none ring-1 ring-foreground/10 focus:ring-2 focus:ring-ring"
+                        aria-label="Image filename"
+                        value={attachmentName}
+                        disabled={renamingAttachment}
+                        onChange={(event) => setAttachmentName(event.target.value)}
+                        onBlur={() => void finishAttachmentRename(attachment)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault()
+                            void finishAttachmentRename(attachment)
+                          } else if (event.key === 'Escape') {
+                            event.preventDefault()
+                            setAttachmentName(attachment.filename.replace(/\.[^.]+$/, ''))
+                            setEditingAttachmentId(null)
+                            window.requestAnimationFrame(() => editorRef.current?.focus())
+                          }
+                        }}
+                      />
+                      <span className="shrink-0 text-muted-foreground">
+                        {attachment.filename.match(/\.[^.]+$/)?.[0] ?? ''}
+                      </span>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="block max-w-full truncate rounded-sm text-left text-sm font-medium outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                      onClick={() => {
+                        setEditingAttachmentId(attachment.id)
+                        setAttachmentName(attachment.filename.replace(/\.[^.]+$/, ''))
+                      }}
+                    >
+                      {attachment.filename}
+                    </button>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     {attachment.missingContent
                       ? 'Staged file is missing'
@@ -755,6 +863,9 @@ export function AddItemComposer({
                   variant="ghost"
                   aria-label={`Remove ${attachment.filename}`}
                   disabled={captureBlocked}
+                  onPointerDown={(event) => {
+                    if (editingAttachmentId === attachment.id) event.preventDefault()
+                  }}
                   onClick={() => void removeAttachment(attachment)}
                 >
                   <IconX aria-hidden="true" />
@@ -778,6 +889,17 @@ export function AddItemComposer({
             <Spinner /> Staging {stagingCount} {stagingCount === 1 ? 'image' : 'images'}…
           </p>
         ) : null}
+        {captureSession.waitingForOwnership ? (
+          <Alert>
+            <AlertTitle>
+              Finishing work in{' '}
+              {captureSession.owner === 'quick' ? 'Quick Capture' : 'the main window'}
+            </AlertTitle>
+            <AlertDescription>
+              This draft will become editable here as soon as staging or saving finishes.
+            </AlertDescription>
+          </Alert>
+        ) : null}
         {displayedError ? (
           <Alert variant="destructive">
             <AlertTitle>Unable to add content</AlertTitle>
@@ -787,7 +909,14 @@ export function AddItemComposer({
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => void stageCaptureImage(failedStage)}
+                  onClick={() =>
+                    void stageCaptureImage(
+                      failedStage.file,
+                      undefined,
+                      undefined,
+                      failedStage.origin
+                    )
+                  }
                 >
                   <IconRefresh data-icon="inline-start" aria-hidden="true" />
                   Retry image

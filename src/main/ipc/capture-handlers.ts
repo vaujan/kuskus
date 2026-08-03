@@ -9,7 +9,11 @@ import {
   type UpdateCaptureSessionInput
 } from '../../shared/capture-contract'
 import type { LibraryService } from '../library/library-service'
-import { CaptureSessionService, StaleCaptureSessionError } from '../capture/capture-session-service'
+import {
+  BusyCaptureSessionError,
+  CaptureSessionService,
+  StaleCaptureSessionError
+} from '../capture/capture-session-service'
 import { CaptureSubmissionService } from '../capture/capture-submission-service'
 import { errorResult } from './api-result'
 
@@ -74,7 +78,10 @@ export function registerCaptureIpc(
         broadcast(session)
         return { ok: true, data: session }
       } catch (error) {
-        return errorResult(error, 'invalid-input')
+        return errorResult(
+          error,
+          error instanceof BusyCaptureSessionError ? 'busy' : 'invalid-input'
+        )
       }
     }
   )

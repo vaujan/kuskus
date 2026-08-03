@@ -92,6 +92,8 @@ const libraryApi: KuskusLibraryApi = {
   listCaptureDraftImages: () => ipcRenderer.invoke(KUSKUS_CHANNELS.listCaptureDraftImages),
   stageCaptureDraftImage: (input) =>
     ipcRenderer.invoke(KUSKUS_CHANNELS.stageCaptureDraftImage, input),
+  renameCaptureDraftImage: (input) =>
+    ipcRenderer.invoke(KUSKUS_CHANNELS.renameCaptureDraftImage, input),
   removeCaptureDraftImage: (attachmentId) =>
     ipcRenderer.invoke(KUSKUS_CHANNELS.removeCaptureDraftImage, attachmentId),
   discardCaptureDraft: () => ipcRenderer.invoke(KUSKUS_CHANNELS.discardCaptureDraft),

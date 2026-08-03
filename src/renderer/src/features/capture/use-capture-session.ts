@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type SetStateAction } from 'r
 
 import {
   CaptureDraftTracker,
+  resolveCaptureOwnershipAction,
   type CaptureDraftWriteToken
 } from '@/features/capture/capture-draft-tracker'
 import type { CaptureSessionDto, CaptureSurface } from '../../../../shared/capture-contract'
@@ -9,10 +10,12 @@ import type { CaptureSessionDto, CaptureSurface } from '../../../../shared/captu
 export function useCaptureSession({
   libraryId,
   surface,
+  active,
   legacyStorageKey
 }: {
   libraryId: string
   surface: CaptureSurface
+  active: boolean
   legacyStorageKey?: string
 }): {
   markdown: string
@@ -20,13 +23,13 @@ export function useCaptureSession({
   assetsRevision: number
   owner: CaptureSurface | null
   busy: boolean
+  waitingForOwnership: boolean
   loaded: boolean
   error: string
   setMarkdown: (markdown: SetStateAction<string>) => void
   clear: () => Promise<void>
   touchAssets: () => Promise<void>
   setBusy: (busy: boolean) => Promise<void>
-  claim: () => Promise<void>
   flush: () => Promise<number>
 } {
   const legacyMarkdown = legacyStorageKey ? (localStorage.getItem(legacyStorageKey) ?? '') : ''
@@ -39,6 +42,8 @@ export function useCaptureSession({
   const [error, setError] = useState('')
   const tracker = useRef(new CaptureDraftTracker(legacyMarkdown))
   const persistQueue = useRef(Promise.resolve())
+  const legacyMigrationStarted = useRef(false)
+  const ownershipAction = resolveCaptureOwnershipAction({ active, loaded, busy, owner, surface })
 
   const accept = useCallback(
     (session: CaptureSessionDto): void => {
@@ -69,53 +74,93 @@ export function useCaptureSession({
   )
 
   const claim = useCallback(async (): Promise<void> => {
-    const result = await window.capture.claimSurface(libraryId, surface)
+    let result = await window.capture.claimSurface(libraryId, surface)
     if (!result.ok) {
-      setError(result.error)
-      return
+      if (result.code === 'busy') {
+        setError('')
+        const latest = await window.capture.getSession(libraryId)
+        if (!latest.ok) {
+          setError(latest.error)
+          return
+        }
+        accept(latest.data)
+        if (!active || latest.data.busy || latest.data.owner === surface) return
+        result = await window.capture.claimSurface(libraryId, surface)
+        if (!result.ok && result.code === 'busy') return
+      }
+      if (!result.ok) {
+        setError(result.error)
+        return
+      }
     }
     setError('')
     accept(result.data)
-  }, [accept, libraryId, surface])
+  }, [accept, active, libraryId, surface])
 
   useEffect(() => {
-    let active = true
+    let mounted = true
     const unsubscribe = window.capture.onSessionChanged((session) => {
-      if (active) accept(session)
+      if (mounted) accept(session)
     })
     void (async () => {
-      if (surface === 'main') await claim()
       const result = await window.capture.getSession(libraryId)
-      if (!active) return
+      if (!mounted) return
       if (!result.ok) {
         setError(result.error)
         setLoaded(true)
         return
       }
       accept(result.data)
-      if (legacyStorageKey && legacyMarkdown && !result.data.markdown) {
-        const claimed = await window.capture.claimSurface(libraryId, surface)
-        if (!claimed.ok || !active) return
-        accept(claimed.data)
-        const migrated = await window.capture.updateSession({
-          libraryId,
-          expectedRevision: tracker.current.getSnapshot().revision,
-          markdown: legacyMarkdown
-        })
-        if (!active) return
-        if (migrated.ok) {
-          localStorage.removeItem(legacyStorageKey)
-          accept(migrated.data)
-        }
-      } else if (legacyStorageKey && result.data.markdown) {
+      if (legacyStorageKey && result.data.markdown) {
         localStorage.removeItem(legacyStorageKey)
       }
     })()
     return () => {
-      active = false
+      mounted = false
       unsubscribe()
     }
-  }, [accept, claim, legacyMarkdown, legacyStorageKey, libraryId, surface])
+  }, [accept, legacyMarkdown, legacyStorageKey, libraryId, surface])
+
+  useEffect(() => {
+    if (ownershipAction !== 'claim') return
+    const request = window.setTimeout(() => void claim())
+    return () => window.clearTimeout(request)
+  }, [claim, ownershipAction])
+
+  useEffect(() => {
+    if (
+      !active ||
+      !loaded ||
+      owner !== surface ||
+      !legacyStorageKey ||
+      !legacyMarkdown ||
+      legacyMigrationStarted.current
+    ) {
+      return
+    }
+    legacyMigrationStarted.current = true
+    let mounted = true
+    void window.capture
+      .updateSession({
+        libraryId,
+        expectedRevision: tracker.current.getSnapshot().revision,
+        markdown: legacyMarkdown
+      })
+      .then((migrated) => {
+        if (!mounted) return
+        if (!migrated.ok) {
+          legacyMigrationStarted.current = false
+          setError(migrated.error)
+          return
+        }
+        localStorage.removeItem(legacyStorageKey)
+        setError('')
+        accept(migrated.data)
+      })
+    return () => {
+      mounted = false
+    }
+  }, [accept, active, legacyMarkdown, legacyStorageKey, libraryId, loaded, owner, surface])
 
   const setMarkdown = useCallback(
     (nextValue: SetStateAction<string>): void => {
@@ -202,13 +247,13 @@ export function useCaptureSession({
     assetsRevision,
     owner,
     busy,
+    waitingForOwnership: ownershipAction === 'wait',
     loaded,
     error,
     setMarkdown,
     clear,
     touchAssets,
     setBusy,
-    claim,
     flush
   }
 }
