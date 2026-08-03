@@ -66,7 +66,8 @@ modifies `.obsidian` to determine placement.
 ## Binary and collection identity
 
 Imported binaries retain a safe version of the source filename; clipboard captures receive readable
-timestamped names. `.kuskus/records/<id>.json` stores identity, timestamps, fingerprints, optional
+local-time `image-YYYY-MM-DD-HHmmss.<ext>` names when staged, with collision suffixes and an optional
+validated user replacement before commit. `.kuskus/records/<id>.json` stores identity, timestamps, fingerprints, optional
 filesystem identity, last known relative path, reference state, and recovery location for every item.
 A file is reconciled by exact path, then unique filesystem identity, then unique content fingerprint.
 Ambiguous duplicate fingerprints create new identities rather than stealing an existing record.
@@ -95,9 +96,10 @@ therefore produce independent sibling images and current relative embeds without
 
 Archive is a configurable visible folder. If `Archive` already exists during initialization, the
 preview must make adoption explicit or allow another name. Trash lives at `.kuskus/trash/` and
-retains the exact previous relative path plus source-location metadata for restore. Moving a note
-leaves independent attachments in place and rewrites its tracked relative embeds. Moving or renaming
-an attachment outside Trash rewrites inbound Markdown references with rollback; moving it to Trash
+retains the exact previous relative path plus source-location metadata for restore. Moving active or
+archived notes also moves an indexed sibling image when all of its inbound notes participate in the
+same move. Shared, missing, untracked, and separately organized images remain in place and the moved
+note embeds are rewritten. Moving or renaming an attachment outside Trash rewrites all inbound Markdown references with rollback; moving it to Trash
 leaves Markdown unchanged after a revision-checked warning. Permanent note deletion may separately
 move confirmed, currently unreferenced images to Trash. Permanent deletion affects only controlled
 vault copies and derived caches after confirmation. Permanently deleting a referenced attachment

@@ -56,6 +56,9 @@ The MVP is complete when all golden workflows work against a real local library 
 - Local images embedded in notes as independently indexed sibling files with portable relative
   Markdown links. Existing Obsidian attachment layouts and legacy Kuskus `.assets` notes remain
   supported without migration.
+- Clipboard images receive editable timestamp-based names before commit. Exclusive indexed sibling
+  images follow moved notes; shared or separately organized images remain stable and use rewritten
+  relative references.
 - A draft card that morphs into the newly saved, newest-first card.
 - Direct paste into the focused content view using the same detection and saving pipeline.
 - Visible progress and failure feedback.

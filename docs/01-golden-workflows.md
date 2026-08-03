@@ -110,6 +110,9 @@ The user wants one obvious place to add any supported kind of content without ch
 - Opening the card does not navigate away from the current collection.
 - One library-scoped capture session is shared by the inline card and quick-capture popup, with only
   one surface accepting edits at a time.
+- Opening the draft in the other surface during staging or submission waits for that transient work
+  and transfers editing ownership automatically when it finishes; the user does not need to summon
+  the composer again, and a hidden destination does not take ownership later.
 - `Ctrl+N` opens or refocuses that card only while Kuskus is focused and does not override an open
   item detail or dialog.
 - A successful save produces exactly one item per detected URL, image, note, or imported file.
@@ -243,7 +246,13 @@ The user wants to save a short observation beside other project references.
   indexed image files in the same folder. It uses URL-encoded relative Markdown embeds such as
   `![Sketch](./Sketch.png)`; existing vault attachment paths and legacy `.assets` folders remain
   unchanged.
-- A note can be saved with only a body; a title may be derived from its first meaningful line.
+- A clipboard image is staged with a local-time `image-YYYY-MM-DD-HHmmss.<ext>` name, immediately
+  focuses its selected filename stem for optional replacement, and uses an empty generated alt such
+  as `![](./image-2026-08-03-143052.png)`. Enter or blur accepts the current value, Escape retains
+  the default, and the validated extension is not editable.
+- A note can be saved with only a body. Its title comes from the first human-readable Markdown line,
+  ignoring image-only embeds and structural syntax; an image-only note uses the first image's
+  filename stem before falling back to **Untitled note**.
 - Saved-note editing uses a GFM-aware source editor without block handles, slash commands, selection
   toolbars, or a proprietary document model. Highlighting and heading scale are presentational only.
 - Raw HTML remains editable as source but is not executed by the rendered reading mode.
@@ -259,6 +268,9 @@ The user wants to save a short observation beside other project references.
   and Read. Unformatted headings use regular weight, while nested bold uses a 700 weight.
 - Opening any item detail leaves the Windows title-bar controls reachable without making the
   underlying application toolbar interactive.
+- Clicking an active item's visible detail title edits it in place for notes, images, links, and
+  files. Enter or blur saves, Escape cancels, failures preserve the draft, and Trash titles remain
+  read-only. A note's pending Markdown save must finish successfully before its file is renamed.
 - The detail scrim dims the complete application window without blur, and detail content uses the
   same accessible scrollbar treatment as the saved-item library.
 - Text selection uses the same native selection color and shape in the Markdown source and the
@@ -395,9 +407,11 @@ The user hides an inactive item or removes one accidentally or intentionally.
 - Restoring returns the item to its previous collection when possible.
 - Missing previous collections fall back to Inbox with visible feedback.
 - Permanent deletion requires clear confirmation.
-- Moving a note leaves independent images at their current paths and rewrites the note's relative
-  embeds. Renaming, moving, archiving, or collision-restoring an image rewrites inbound references
-  transactionally.
+- Moving or archiving notes also moves indexed sibling images when every inbound reference belongs
+  to the moving note set. Shared, missing, untracked, and separately organized images stay in place
+  while the moved notes' relative embeds are rewritten. Feedback reports both outcomes.
+- Explicitly renaming, moving, archiving, or collision-restoring an image rewrites every inbound
+  reference transactionally and reports the number of notes updated.
 - Moving a referenced image to Trash first warns with affected note names and requires a current
   reference review. Confirmed deletion leaves the Markdown unchanged so the note shows a
   missing-image warning; restoring to the original path repairs it without rewriting.

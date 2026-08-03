@@ -79,6 +79,8 @@ Deliverables:
   future vault-root, configured-folder, and note-subfolder placement without renderer or schema churn.
 - Reference-aware note and image move, rename, archive, Trash, restore, and permanent-delete behavior,
   including stale-review protection and optional unused-image cleanup.
+- Editable timestamp naming for clipboard images, automatic movement of exclusively referenced
+  sibling images, reference-update feedback, and a saved-note Attachments panel.
 
 Exit criteria:
 

@@ -1245,3 +1245,32 @@ resets with **Clear filters**.
 - Accepted captures cannot be redirected by a later folder or future placement-policy change.
 - Image Trash is recoverable but may intentionally leave a visible missing embed until restore.
 - Attachment-location settings remain feasible without promising them in the current milestone.
+
+## DEC-041: Give sibling note images lightweight ownership
+
+Date: 2026-08-03
+Status: Accepted
+
+### Context
+
+Always leaving independent images behind made ordinary note moves surprising when referenced cards
+were hidden. Generic clipboard filenames also made the ordinary vault harder to understand.
+
+### Decision
+
+Clipboard images receive a local-time timestamp name at staging and immediately expose the selected
+stem for optional inline replacement; the detected extension remains fixed and generated Markdown
+uses an empty alt. New names are snapshotted with durable capture submissions.
+
+A note move automatically includes an indexed sibling image only when every inbound note is in the
+same move. Shared, missing, untracked, and separately organized images remain in place with rewritten
+relative links. Explicit image moves and renames always rewrite all inbound notes transactionally.
+The interface reports moved, retained, and updated counts and exposes saved images from a note-level
+Attachments panel.
+
+### Consequences
+
+- Common note-and-screenshot folders stay together without reorganizing deliberate shared layouts.
+- Timestamp names remain predictable when capture is accepted without additional typing.
+- Image lifecycle actions must flush valid note drafts and refuse unresolved conflicts before native
+  rewrites.

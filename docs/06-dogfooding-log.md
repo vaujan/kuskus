@@ -144,6 +144,39 @@ Use this for a specific problem worth preserving.
 - Possible change, if obvious: Fetch and validate preview assets in the main process, cache them
   locally, and let a same-slot saving card own the transition into the final URL card.
 
+### F-004: A Quick Capture draft remains locked in the main composer
+
+- Date: 2026-08-03
+- What I was trying to do: Start a Markdown note with a pasted image in Quick Capture, hide the
+  popup without saving, and continue editing the same draft in the main window.
+- What I expected: The shared draft should become editable in the main composer with its Markdown
+  and staged image unchanged.
+- What happened: The main composer opened disabled and reported that capture was still saving or
+  staging in the other window, even after that transient work had finished.
+- Workaround: Summon the composer again after staging has finished.
+- Pain: 3
+- Frequency: First recorded occurrence.
+- Evidence: User report with screenshots of the editable Quick Capture draft and the locked main
+  composer.
+- Possible change, if obvious: Treat a busy ownership request as a temporary wait and retry it while
+  the destination surface remains visible.
+
+### F-005: An image embed becomes the captured note title
+
+- Date: 2026-08-03
+- What I was trying to do: Paste an image into Quick Capture, add a written observation below it,
+  and save the note.
+- What I expected: The written observation should provide a recognizable note title and filename.
+- What happened: The first non-empty source line was the generated Markdown image embed, so syntax
+  such as `![](./dialog-problem.png)` became the visible note title.
+- Workaround: Rename the saved note manually from its item menu.
+- Pain: 3
+- Frequency: First recorded occurrence.
+- Evidence: User report with a screenshot of the raw image embed displayed as the detail title.
+- Possible change, if obvious: Derive titles from the first human-readable Markdown line, with the
+  embedded image filename as the fallback for image-only notes, and allow direct renaming from the
+  detail title.
+
 ## Trial summary template
 
 ```markdown

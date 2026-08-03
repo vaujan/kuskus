@@ -231,11 +231,16 @@ A primary **New item** button appears in the toolbar's right action zone. The re
   collision-safe readable filename, and inserts a URL-encoded relative Markdown reference at the
   cursor. On save it becomes an independently browsable sibling file, hidden by the referenced-file
   filter by default.
+- A pasted clipboard image immediately focuses a selected timestamp filename stem while showing its
+  fixed detected extension. Typing replaces the default; Enter or blur accepts the value, Escape
+  keeps the default, and focus returns to the preserved note position. Generated Markdown uses an
+  empty alt (`![](…)`); later renames remain available from the note's Attachments panel.
 - A URL added after Markdown has begun remains part of the note.
 - Multiple files show the detected count and per-import or aggregate progress.
 - Text remains editable as Markdown.
 - Unsupported or ambiguous pasted text defaults to a note whenever preserving it is safe.
-- Staged note images appear as compact thumbnails with progress, Retry, and Remove actions.
+- Staged note images appear as compact thumbnails with inline filename editing, progress, Retry,
+  and Remove actions.
 - Errors appear inside the card and do not erase its contents.
 
 ### Completion
@@ -262,6 +267,9 @@ A primary **New item** button appears in the toolbar's right action zone. The re
   visibility, destination, retrieval, selection, detail, and dialog state.
 - The popup and inline card share one revisioned library-scoped session. Summoning global capture
   transfers editing ownership to the popup without replacing the draft or allowing duplicate saves.
+- If the current owner is staging or accepting a submission, the requested surface shows a neutral
+  waiting state and becomes editable automatically when that transient work ends. Hiding the waiting
+  surface cancels its retry so it cannot reclaim the draft later.
 - Direct paste summons the populated draft card so its destination, detected type, and confirmation
   action are visible; it does not bypass explicit commit.
 - Dragging a supported image over the window reserves the first New Item slot with a static neutral
@@ -443,6 +451,10 @@ dialog. The inspector is not manually collapsible and its visibility is not pers
 The detail dialog exposes:
 
 - Larger preview when supported.
+- A directly editable visible title for every active item type. Clicking the title edits the same
+  typography in place without field borders, backgrounds, controls, or other editing indicators.
+  Enter or blur submits a non-empty change, Escape restores the current title, and a failed rename
+  leaves the draft and error visible. Trash titles are not interactive.
 - The complete rendered note body without card-style clipping, plus a compact three-icon segmented
   control for Read, Markdown, and Split aligned beside the detail-navigation group. Every choice uses
   at least a 40-pixel hit area and exposes its name and shortcut to assistive technology.
@@ -535,6 +547,8 @@ Required states include:
   warning within permanent-delete confirmation. The warning names affected notes and explains that
   Trash restore will no longer be available. Eligible note deletion also offers an unchecked
   **Also move unused images to Trash** option.
+- Note detail exposes an attachment-count control and side panel with thumbnail, filename, relative
+  path, shared count, Rename, and Show in Explorer. Invalid or conflicted note drafts guard rename.
 
 ## Accessibility and keyboard behavior
 
