@@ -17,6 +17,7 @@ import {
   IconColumns2 as Columns2,
   IconDimensions as Dimensions,
   IconEye as Eye,
+  IconEyeEdit as EyeEdit,
   IconExternalLink as ExternalLink,
   IconFile as File,
   IconFileAlert as FileWarning,
@@ -64,6 +65,7 @@ import {
   resolveInlineTitleSubmission
 } from '@/features/items/item-title-edit'
 import { MarkdownEditor, type MarkdownEditorHandle } from '@/features/items/markdown-editor'
+import { type LivePreviewOptions } from '@/features/items/markdown-live-preview'
 import { MarkdownPreview } from '@/features/items/markdown-preview'
 import {
   getScrollRatio,
@@ -73,16 +75,19 @@ import {
 import { NoteAutosaveCoordinator, type NoteAutosaveSnapshot } from '@/features/items/note-autosave'
 import {
   getSplitToggleMode,
-  toggleReadMarkdown,
+  toggleReadLive,
+  toggleSourceMode,
   type NoteMode,
   type SinglePaneNoteMode
 } from '@/features/items/note-view-mode'
 import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
 import { useImagePreview } from '@/features/items/use-image-preview'
+import { useNoteAttachmentPreviews } from '@/features/items/use-note-attachment-previews'
 import { useUrlPreview } from '@/features/items/use-url-preview'
 import { WindowControls } from '@/features/shell/window-controls'
 import { cn } from '@/lib/utils'
 import type { LibraryItemDto } from '../../../../shared/library-contract'
+import { markdownImageTargetKey } from '../../../../shared/markdown-image-references'
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   year: 'numeric',
@@ -411,7 +416,18 @@ function NoteModeControls({
 }): React.JSX.Element {
   const options = [
     { value: 'read' as const, label: 'Read (Ctrl+E)', icon: Eye, shortcut: 'Control+E' },
-    { value: 'markdown' as const, label: 'Markdown (Ctrl+E)', icon: Code, shortcut: 'Control+E' },
+    {
+      value: 'live' as const,
+      label: 'Live preview (Ctrl+E)',
+      icon: EyeEdit,
+      shortcut: 'Control+E'
+    },
+    {
+      value: 'markdown' as const,
+      label: 'Markdown source (Ctrl+Alt+E)',
+      icon: Code,
+      shortcut: 'Control+Alt+E'
+    },
     {
       value: 'split' as const,
       label: 'Split view (Ctrl+Shift+E)',
@@ -589,6 +605,36 @@ function NoteCanvas({
   const programmaticScrollTargetRef = useRef<'source' | 'preview' | null>(null)
   const syncFrameRef = useRef<number | null>(null)
   const releaseSyncFrameRef = useRef<number | null>(null)
+  const attachmentPreviews = useNoteAttachmentPreviews(item.id, item.attachments)
+  const noteAttachments = item.attachments
+  const onOpenVaultLinkRef = useRef(onOpenVaultLink)
+  useEffect(() => {
+    onOpenVaultLinkRef.current = onOpenVaultLink
+  }, [onOpenVaultLink])
+  const liveOptions = useMemo<LivePreviewOptions>(() => {
+    const images = new Map<
+      string,
+      { attachment: (typeof noteAttachments)[number]; preview: string | null }
+    >()
+    for (const attachment of noteAttachments) {
+      const entry = { attachment, preview: attachmentPreviews[attachment.id] ?? null }
+      images.set(markdownImageTargetKey(attachment.relativePath), entry)
+      images.set(markdownImageTargetKey(attachment.filename), entry)
+    }
+    return {
+      resolveImage: (target) => {
+        const entry = images.get(markdownImageTargetKey(target))
+        if (!entry) return null
+        return {
+          src: entry.preview,
+          missing: entry.attachment.missingContent,
+          label: entry.attachment.filename
+        }
+      },
+      onOpenLink: (url) => void openExternalUrlWithFeedback(url),
+      onOpenVaultLink: (target) => onOpenVaultLinkRef.current(target)
+    }
+  }, [attachmentPreviews, noteAttachments])
   const problemStatusLabel =
     snapshot.status === 'invalid'
       ? 'Not saved'
@@ -785,7 +831,9 @@ function NoteCanvas({
                 ref={editorRef}
                 value={snapshot.draft}
                 invalid={snapshot.status === 'invalid'}
-                active={mode === 'markdown' || mode === 'split'}
+                active={mode !== 'read'}
+                live={mode === 'live'}
+                liveOptions={liveOptions}
                 onChange={(value) => {
                   activeScrollDriverRef.current = 'source'
                   onDraftChange(value)
@@ -797,17 +845,19 @@ function NoteCanvas({
               className={cn(
                 'min-h-0 min-w-0',
                 mode === 'read' && 'flex',
+                mode === 'live' && 'hidden',
                 mode === 'markdown' && 'hidden',
                 mode === 'split' && 'hidden min-[860px]:flex'
               )}
               viewportClassName="focus-visible:ring-0 focus-visible:outline-none"
               viewportRef={previewViewportRef}
             >
-              <article className="mx-auto min-h-full w-full max-w-3xl px-7 py-10 sm:px-12 min-[860px]:px-16">
+              <article className="kuskus-markdown-detail-canvas mx-auto min-h-full w-full max-w-3xl py-10">
                 <MarkdownPreview
                   value={snapshot.draft}
                   itemId={item.id}
                   attachments={item.attachments}
+                  attachmentPreviews={attachmentPreviews}
                   presentation="detail"
                   onOpenLink={(url) => void openExternalUrlWithFeedback(url)}
                   onOpenVaultLink={onOpenVaultLink}
@@ -1218,6 +1268,19 @@ export function ItemDetailDialog({
     if (
       event.key.toLocaleLowerCase() === 'e' &&
       event.ctrlKey &&
+      event.altKey &&
+      !event.metaKey &&
+      !event.shiftKey &&
+      !event.repeat &&
+      item?.type === 'note'
+    ) {
+      event.preventDefault()
+      changeMode(toggleSourceMode(mode))
+      return
+    }
+    if (
+      event.key.toLocaleLowerCase() === 'e' &&
+      event.ctrlKey &&
       !event.altKey &&
       !event.metaKey &&
       !event.shiftKey &&
@@ -1225,7 +1288,7 @@ export function ItemDetailDialog({
       item?.type === 'note'
     ) {
       event.preventDefault()
-      changeMode(toggleReadMarkdown(mode))
+      changeMode(toggleReadLive(mode))
       return
     }
     if (

@@ -4,7 +4,8 @@ import type { NoteAttachmentDto } from '../../../../shared/library-contract'
 
 export function useNoteAttachmentPreviews(
   itemId: string,
-  attachments: NoteAttachmentDto[]
+  attachments: NoteAttachmentDto[],
+  enabled = true
 ): Record<string, string> {
   const [state, setState] = useState<{ itemId: string; previews: Record<string, string> }>({
     itemId: '',
@@ -12,6 +13,7 @@ export function useNoteAttachmentPreviews(
   })
 
   useEffect(() => {
+    if (!enabled) return
     const available = attachments.filter((attachment) => !attachment.missingContent)
     if (available.length === 0) return
 
@@ -43,9 +45,11 @@ export function useNoteAttachmentPreviews(
       active = false
       objectUrls.forEach((url) => URL.revokeObjectURL(url))
     }
-  }, [attachments, itemId])
+  }, [attachments, enabled, itemId])
 
-  return attachments.some((attachment) => !attachment.missingContent) && state.itemId === itemId
+  return enabled &&
+    attachments.some((attachment) => !attachment.missingContent) &&
+    state.itemId === itemId
     ? state.previews
     : {}
 }

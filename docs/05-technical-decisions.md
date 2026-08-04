@@ -1274,3 +1274,48 @@ Attachments panel.
 - Timestamp names remain predictable when capture is accepted without additional typing.
 - Image lifecycle actions must flush valid note drafts and refuse unresolved conflicts before native
   rewrites.
+
+## DEC-042: Render live Markdown with CodeMirror decorations
+
+Date: 2026-08-03
+Status: Accepted
+
+### Context
+
+DEC-029 and DEC-030 restored exact plain-Markdown editing after the Milkdown experiment introduced a
+second document model and source normalization. Read, Markdown, and Split preserve source authority,
+but writing still requires looking through source markers or at a separate preview. Capture also used
+a native textarea, so its editing behavior differed from saved notes.
+
+### Decision
+
+Add an Obsidian-style Live mode backed by the existing CodeMirror 6 and Lezer GFM document. A view
+plugin derives replace, mark, line, and widget decorations from the syntax tree and renderer-local
+scanners; it never creates a second document model. Markdown markers remain visible on active lines
+and are hidden elsewhere. Tasks, local images, math, links, wikilinks, quotes, lists, rules, and fenced
+code receive in-place presentation or interaction where safe. Raw HTML and unsupported constructs
+remain source.
+
+Saved notes expose Read, Live, Markdown, and Split. `Ctrl+E` owns the primary Read/Live transition,
+`Ctrl+Alt+E` toggles exact Markdown source, and `Ctrl+Shift+E` retains the Split transition. Replace
+the capture textarea with a CodeMirror surface using the same live-preview extension while preserving
+draft ownership, image-paste selection, explicit commit, keyboard commands, and quick-capture parity.
+The rendered card, capture Live Preview, saved Read mode, and saved Live mode share one semantic
+typesetting token set. Capture selects the compact 15-pixel card preset; saved Live selects the
+16-pixel reading preset. Exact Markdown source and Split source retain their monospace presentation.
+
+### Consequences
+
+- Decorations never change Markdown bytes; autosave, stale-write checks, conflict review, guarded
+  navigation, attachment storage, IPC, and main-process contracts remain unchanged.
+- Every widget edit is a normal CodeMirror transaction, so undo history and the existing complete-text
+  publication pipeline remain authoritative.
+- The active line reveals source to keep caret movement, IME composition, and precise edits available.
+- Shared card and reading presets keep heading hierarchy, body leading, emphasis, code, quotes, rules,
+  lists, and images consistent without coupling the Markdown renderer to CodeMirror's document model.
+  Wrapped composer placeholder text is presentation-only and does not contribute to the editable
+  line's caret geometry.
+- Markdown remains a first-class exact-source escape hatch, while Split retains source beside the
+  sanitized renderer.
+- Large notes build live decorations only for visible ranges and rebuild when the document, active
+  lines, viewport, or attachment previews change.

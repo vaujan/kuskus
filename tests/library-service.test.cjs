@@ -73,7 +73,8 @@ const {
 } = require('../src/renderer/src/features/items/markdown-scroll.ts')
 const {
   getSplitToggleMode,
-  toggleReadMarkdown
+  toggleReadLive,
+  toggleSourceMode
 } = require('../src/renderer/src/features/items/note-view-mode.ts')
 const {
   composeMarkdownCapture,
@@ -1238,10 +1239,16 @@ test('toggles Markdown emphasis markers while preserving the intended selection'
 })
 
 test('uses predictable note-mode keyboard transitions', () => {
-  assert.equal(toggleReadMarkdown('read'), 'markdown')
-  assert.equal(toggleReadMarkdown('markdown'), 'read')
-  assert.equal(toggleReadMarkdown('split'), 'read')
+  assert.equal(toggleReadLive('read'), 'live')
+  assert.equal(toggleReadLive('live'), 'read')
+  assert.equal(toggleReadLive('markdown'), 'live')
+  assert.equal(toggleReadLive('split'), 'live')
+  assert.equal(toggleSourceMode('read'), 'markdown')
+  assert.equal(toggleSourceMode('live'), 'markdown')
+  assert.equal(toggleSourceMode('markdown'), 'live')
   assert.equal(getSplitToggleMode('read', 'read'), 'split')
+  assert.equal(getSplitToggleMode('live', 'live'), 'split')
+  assert.equal(getSplitToggleMode('split', 'live'), 'live')
   assert.equal(getSplitToggleMode('markdown', 'markdown'), 'split')
   assert.equal(getSplitToggleMode('split', 'markdown'), 'markdown')
 })

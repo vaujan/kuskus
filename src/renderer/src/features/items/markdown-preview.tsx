@@ -26,6 +26,7 @@ export function MarkdownPreview({
   value,
   itemId,
   attachments = [],
+  attachmentPreviews,
   onOpenLink,
   onOpenVaultLink,
   presentation = 'card'
@@ -33,13 +34,19 @@ export function MarkdownPreview({
   value: string
   itemId?: string
   attachments?: NoteAttachmentDto[]
+  attachmentPreviews?: Record<string, string>
   onOpenLink?: (url: string) => void
   onOpenVaultLink?: (target: string) => void
   presentation?: 'card' | 'detail'
 }): React.JSX.Element {
   const previewRef = useRef<HTMLDivElement>(null)
   const [isClipped, setIsClipped] = useState(false)
-  const previews = useNoteAttachmentPreviews(itemId ?? '', itemId ? attachments : [])
+  const loadedPreviews = useNoteAttachmentPreviews(
+    itemId ?? '',
+    itemId ? attachments : [],
+    attachmentPreviews === undefined
+  )
+  const previews = attachmentPreviews ?? loadedPreviews
   const localImages = new Map<string, { attachment: NoteAttachmentDto; preview: string | null }>()
   for (const attachment of attachments) {
     const value = { attachment, preview: previews[attachment.id] ?? null }

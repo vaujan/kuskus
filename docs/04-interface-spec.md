@@ -221,6 +221,8 @@ A primary **New item** button appears in the toolbar's right action zone. The re
 - Keeps the active destination visible; inline capture snapshots the exact active collection, while
   quick capture and non-collection contexts target Inbox.
 - Uses a short interruptible opacity/scale entrance and an instant reduced-motion alternative.
+- Its empty prompt is overlaid independently from CodeMirror's measured document, so wrapping prompt
+  text cannot create a scrollbar, scrollbar buttons, clipped text fragments, or an oversized caret.
 
 ### Detection and feedback
 
@@ -444,6 +446,9 @@ the note reads as one continuous surface.
 Note cards and the Read canvas use the same semantic Markdown typesetting rules so headings,
 prose, lists, quotes, links, code, tables, math, and images retain one visual hierarchy across both
 surfaces. Cards use a compact 15-pixel preset; the centered reading pane uses a 16-pixel preset.
+The capture Live Preview consumes the compact preset, and saved Live mode consumes the reading
+preset. Markdown source and the source side of Split remain monospace rather than inheriting the
+rendered-document typeface.
 
 Below the two-pane breakpoint, the preview and inspector stack vertically inside one scrollable
 dialog. The inspector is not manually collapsible and its visibility is not persisted.
@@ -455,11 +460,20 @@ The detail dialog exposes:
   typography in place without field borders, backgrounds, controls, or other editing indicators.
   Enter or blur submits a non-empty change, Escape restores the current title, and a failed rename
   leaves the draft and error visible. Trash titles are not interactive.
-- The complete rendered note body without card-style clipping, plus a compact three-icon segmented
-  control for Read, Markdown, and Split aligned beside the detail-navigation group. Every choice uses
-  at least a 40-pixel hit area and exposes its name and shortcut to assistive technology.
-- `Ctrl+E` changes Read to Markdown and changes Markdown or Split to Read. `Ctrl+Shift+E` toggles
-  Split and returns to the previous single-pane mode.
+- The complete rendered note body without card-style clipping, plus a compact four-icon segmented
+  control for Read, Live, Markdown, and Split aligned beside the detail-navigation group. Every choice
+  uses at least a 40-pixel hit area and exposes its name and shortcut to assistive technology.
+- `Ctrl+E` toggles Read and Live and returns Markdown or Split to Live. `Ctrl+Alt+E` toggles Markdown
+  source and Live. `Ctrl+Shift+E` toggles Split and returns to the previous single-pane mode.
+- Live edits the authoritative source in one Obsidian-style CodeMirror canvas. Heading, emphasis,
+  strikethrough, code, link, list, task, quote, fenced-code, rule, local-image, math, and wikilink
+  decorations render in place. Markdown markers reappear on every line touched by the selection;
+  decorations never modify, normalize, or independently persist document text. Its body and semantic
+  decorations derive from the same 16-pixel typesetting preset as Read, so revealing markers does not
+  resize the surrounding content. Read and Live also share responsive document gutters and list
+  indentation, marker columns, foreground hierarchy, and vertical rhythm.
+- Task widgets toggle `[ ]` and `[x]` through normal undoable editor transactions. Ctrl-click follows
+  supported HTTP links and vault links without taking ordinary click-to-edit behavior away.
 - Markdown exposes the authoritative source in a borderless, GFM-aware CodeMirror editor and
   autosaves a valid changed note approximately 800 ms after typing stops. Syntax color and heading
   scale are presentational; opening or switching modes never rewrites or normalizes the source.
@@ -476,13 +490,13 @@ The detail dialog exposes:
   at least 3:1 contrast in light and dark themes. Selecting text never opens contextual UI. `Ctrl+B`
   and `Ctrl+I` wrap or unwrap the selection with GFM emphasis markers; an empty selection inserts
   paired markers around the caret.
-- Selecting text already visible in the note or switching among Read, Markdown, and Split preserves
+- Selecting text already visible in the note or switching among Read, Live, Markdown, and Split preserves
   source selection and pane positions. The source selection highlight uses the shared neutral
   selection color only while the editor is focused; the logical selection remains after focus moves.
   Extending a selection beyond the viewport edge may still scroll intentionally.
 - Typing `/` inserts an ordinary slash; the editor has no slash menu, block handles, drag controls,
   floating formatting toolbar, or fixed formatting toolbar.
-- `Ctrl+Enter` flushes autosave immediately from Markdown or Split without adding routine save chrome. The header does not
+- `Ctrl+Enter` flushes autosave immediately from Live, Markdown, or Split without adding routine save chrome. The header does not
   show Saved, Saving, or pending-save states; invalid drafts, write failures, and conflicts remain
   persistently visible and exposed to assistive technology. A failed or blank draft can restore the
   last saved body.

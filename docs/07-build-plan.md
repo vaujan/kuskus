@@ -52,10 +52,11 @@ Deliverables:
 Exit criteria:
 
 - A real note can be created, found on disk, reopened after restart, and viewed in its detail view.
-- A saved note can switch among rendered Read, highlighted Markdown, and linked Split presentations,
-  update its preview on every committed edit, autosave, persist across restart, retain source
-  selection and pane positions, and remain protected from stale overwrites through reviewable
-  conflict resolution.
+- Capture and saved notes support decoration-only Obsidian-style Live Preview without changing
+  authoritative Markdown bytes. A saved note can switch among Read, Live, highlighted Markdown, and
+  linked Split presentations, update its preview on every committed edit, autosave, persist across
+  restart, retain source selection and pane positions, and remain protected from stale overwrites
+  through reviewable conflict resolution.
 - The external filesystem is never accessible through an arbitrary renderer-supplied path.
 - Typecheck, lint, and production build pass.
 

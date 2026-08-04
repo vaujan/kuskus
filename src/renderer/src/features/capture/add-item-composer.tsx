@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import {
   IconAlertCircle,
   IconDots,
@@ -23,12 +23,15 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Kbd } from '@/components/ui/kbd'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Spinner } from '@/components/ui/spinner'
-import { Textarea } from '@/components/ui/textarea'
 import { ItemCard, ItemCardCaption, ItemCardSurface } from '@/features/items/item-card'
 import { SavedItemCard } from '@/features/items/saved-item-card'
 import type { LibraryView } from '@/features/items/item-view'
+import type { LivePreviewOptions } from '@/features/items/markdown-live-preview'
+import {
+  ComposerMarkdownEditor,
+  type ComposerMarkdownEditorHandle
+} from '@/features/capture/composer-markdown-editor'
 import { composeMarkdownCapture, detectCaptureKind } from '@/features/capture/capture-detection'
 import { useCaptureSession } from '@/features/capture/use-capture-session'
 import { useCaptureQueue } from '@/features/capture/use-capture-queue'
@@ -150,6 +153,41 @@ function DraftImage({ attachment }: { attachment: CaptureDraftImageDto }): React
   )
 }
 
+function useCaptureDraftPreviews(attachments: CaptureDraftImageDto[]): Record<string, string> {
+  const [previews, setPreviews] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    const available = attachments.filter((attachment) => !attachment.missingContent)
+    let active = true
+    const objectUrls: string[] = []
+    void Promise.all(
+      available.map(async (attachment) => {
+        const result = await window.kuskus.getCaptureDraftImagePreview(attachment.id)
+        if (!result.ok) return null
+        const url = URL.createObjectURL(
+          new Blob([result.data.bytes], { type: result.data.mediaType })
+        )
+        if (!active) {
+          URL.revokeObjectURL(url)
+          return null
+        }
+        objectUrls.push(url)
+        return [attachment.id, url] as const
+      })
+    ).then((entries) => {
+      if (!active) return
+      setPreviews(Object.fromEntries(entries.filter((entry) => entry !== null)))
+    })
+
+    return () => {
+      active = false
+      objectUrls.forEach((url) => URL.revokeObjectURL(url))
+    }
+  }, [attachments])
+
+  return previews
+}
+
 export function AddItemComposer({
   open,
   focusRequest,
@@ -227,7 +265,7 @@ export function AddItemComposer({
     phase: 'saving' | 'preview'
   } | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
-  const editorRef = useRef<HTMLTextAreaElement>(null)
+  const editorRef = useRef<ComposerMarkdownEditorHandle>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const attachmentNameInputRef = useRef<HTMLInputElement>(null)
   const renamingAttachmentRef = useRef(false)
@@ -280,6 +318,26 @@ export function AddItemComposer({
   const captureKind = detectCaptureKind(draft, attachments.length)
   const effectiveKind = fileCandidate ? 'file' : captureKind
   const displayedError = error || captureSession.error
+  const draftPreviews = useCaptureDraftPreviews(attachments)
+  const liveOptions = useMemo<LivePreviewOptions>(() => {
+    const images = new Map<string, { attachment: CaptureDraftImageDto; preview: string | null }>()
+    for (const attachment of attachments) {
+      const entry = { attachment, preview: draftPreviews[attachment.id] ?? null }
+      images.set(markdownImageTargetKey(attachment.relativePath), entry)
+      images.set(markdownImageTargetKey(attachment.filename), entry)
+    }
+    return {
+      resolveImage: (target) => {
+        const entry = images.get(markdownImageTargetKey(target))
+        if (!entry) return null
+        return {
+          src: entry.preview,
+          missing: entry.attachment.missingContent,
+          label: entry.attachment.filename
+        }
+      }
+    }
+  }, [attachments, draftPreviews])
 
   useEffect(() => {
     if (!captureSession.loaded || !surfaceActive || attachments.length === 0) return
@@ -307,9 +365,9 @@ export function AddItemComposer({
 
   const insertAtSelection = useCallback(
     (value: string, start?: number, end?: number): void => {
-      const editor = editorRef.current
-      const selectionStart = start ?? editor?.selectionStart ?? draft.length
-      const selectionEnd = end ?? editor?.selectionEnd ?? selectionStart
+      const selection = editorRef.current?.getSelection()
+      const selectionStart = start ?? selection?.from ?? draft.length
+      const selectionEnd = end ?? selection?.to ?? selectionStart
       setDraft((current) => {
         const prefix = current.slice(0, selectionStart)
         const suffix = current.slice(selectionEnd)
@@ -317,7 +375,7 @@ export function AddItemComposer({
         const after = suffix && !suffix.startsWith('\n') ? '\n\n' : ''
         return `${prefix}${before}${value}${after}${suffix}`
       })
-      window.requestAnimationFrame(() => editor?.focus())
+      window.requestAnimationFrame(() => editorRef.current?.focus())
     },
     [draft.length]
   )
@@ -649,20 +707,8 @@ export function AddItemComposer({
     stageCaptureImage
   ])
 
-  const handlePaste = (event: React.ClipboardEvent<HTMLTextAreaElement>): void => {
-    const image = Array.from(event.clipboardData.items)
-      .find((entry) => entry.type.startsWith('image/'))
-      ?.getAsFile()
-    if (image) {
-      event.preventDefault()
-      void stageCaptureImage(
-        image,
-        event.currentTarget.selectionStart,
-        event.currentTarget.selectionEnd,
-        'clipboard'
-      )
-      return
-    }
+  const handlePasteImage = (file: File, from: number, to: number): void => {
+    void stageCaptureImage(file, from, to, 'clipboard')
   }
 
   if (!open && !morphedItem) return null
@@ -693,42 +739,30 @@ export function AddItemComposer({
   }
 
   const editor = (
-    <Textarea
+    <ComposerMarkdownEditor
       ref={editorRef}
-      className={cn(
-        'min-h-32 resize-none border-0 bg-transparent px-1 py-2 text-sm leading-6 shadow-none [field-sizing:content] placeholder:text-muted-foreground/70 focus-visible:ring-0',
-        surface === 'quick' ? 'min-h-full max-h-none overflow-hidden' : 'max-h-96 overflow-y-auto'
-      )}
-      aria-label="Markdown note or link"
+      className={surface === 'quick' ? 'h-full' : undefined}
+      value={exiting ? exitingDraft : draft}
       placeholder={
         captureKind === 'image'
           ? 'Add text to turn this into a note…'
           : 'Write, paste a link, or drop an image…'
       }
-      value={exiting ? exitingDraft : draft}
       disabled={captureBlocked || fileCandidate !== null}
-      onChange={(event) => {
-        const value = event.target.value
-        if (captureKind !== 'image' || !value) {
-          setDraft(value)
-          return
-        }
-        const converted = composeMarkdownCapture([markdownImage(attachments[0])], value)
-        setDraft(converted)
-        window.requestAnimationFrame(() => {
-          editorRef.current?.setSelectionRange(converted.length, converted.length)
-        })
+      surface={surface}
+      liveOptions={liveOptions}
+      onChange={setDraft}
+      transformInput={(before, after) => {
+        if (detectCaptureKind(before, attachments.length) !== 'image') return null
+        if (!after.trim() || attachments.length === 0) return null
+        return composeMarkdownCapture([markdownImage(attachments[0])], after)
       }}
-      onPaste={handlePaste}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
-          event.preventDefault()
-          void save()
-        } else if (event.key === 'Escape' && !hasTransientWork) {
-          event.preventDefault()
-          onOpenChange(false)
-          onStatus(hasDraft ? 'Draft retained. Use Continue draft to return.' : 'New item closed.')
-        }
+      onPasteImage={handlePasteImage}
+      onSave={() => void save()}
+      onEscape={() => {
+        if (hasTransientWork) return
+        onOpenChange(false)
+        onStatus(hasDraft ? 'Draft retained. Use Continue draft to return.' : 'New item closed.')
       }}
     />
   )
@@ -874,16 +908,7 @@ export function AddItemComposer({
             ))}
           </div>
         ) : null}
-        {surface === 'quick' ? (
-          <ScrollArea
-            className="min-h-0 flex-1"
-            viewportClassName="focus-visible:ring-0 focus-visible:outline-none"
-          >
-            {editor}
-          </ScrollArea>
-        ) : (
-          editor
-        )}
+        {surface === 'quick' ? <div className="min-h-0 flex-1">{editor}</div> : editor}
         {stagingCount > 0 ? (
           <p className="flex items-center gap-2 text-xs text-muted-foreground" role="status">
             <Spinner /> Staging {stagingCount} {stagingCount === 1 ? 'image' : 'images'}…

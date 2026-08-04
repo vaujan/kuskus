@@ -51,8 +51,9 @@ The MVP is complete when all golden workflows work against a real local library 
 - Recoverable staged drag-and-drop or paste import for images, PDFs, and general files across
   inline/quick-capture handoff and restart.
 - Plain-text or Markdown quick notes with text-and-image draft recovery and explicit commit.
-- Highlighted plain Markdown editing for saved notes with visible Read/Markdown/Split switching,
-  guarded autosave, keyboard emphasis shortcuts, and reviewable conflict detection.
+- Obsidian-style live Markdown editing in capture and saved notes, with visible
+  Read/Live/Markdown/Split switching, exact-source access, guarded autosave, keyboard emphasis
+  shortcuts, and reviewable conflict detection.
 - Local images embedded in notes as independently indexed sibling files with portable relative
   Markdown links. Existing Obsidian attachment layouts and legacy Kuskus `.assets` notes remain
   supported without migration.

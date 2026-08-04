@@ -107,6 +107,8 @@ The user wants one obvious place to add any supported kind of content without ch
 
 - The user never has to choose **URL**, **Image**, **File**, or **Note** before pasting.
 - The draft card visibly communicates Markdown support and provides a keyboard-reachable picker for supported image files.
+- An empty wrapping prompt is presentation only and never creates overflow chrome, clipped fragments,
+  or a multi-line caret.
 - Opening the card does not navigate away from the current collection.
 - One library-scoped capture session is shared by the inline card and quick-capture popup, with only
   one surface accepting edits at a time.
@@ -226,15 +228,17 @@ The user wants to save a short observation beside other project references.
 ### Flow
 
 1. The user summons the New Item card.
-2. The user types or pastes plain text or Markdown directly into it.
+2. The user types or pastes plain text or Markdown into a live-preview editor that keeps the exact
+   Markdown source authoritative.
 3. Kuskus maintains a recoverable draft while the user types.
 4. The user commits with **Save** or `Ctrl+Enter`.
 5. The draft card morphs into a readable note card in the current view.
-6. Opening the saved note shows rendered Markdown and a visible icon control for Read, Markdown,
-   and Split. `Ctrl+E` switches Read and Markdown; `Ctrl+Shift+E` toggles Split and returns to the
-   previous single-pane mode.
-7. Markdown exposes the authoritative source in a syntax-highlighted monospace editor and autosaves
-   approximately 800 ms after typing stops. Split edits the same source beside its live Read preview.
+6. Opening the saved note shows a visible icon control for Read, Live, Markdown, and Split.
+   `Ctrl+E` switches Read and Live, `Ctrl+Alt+E` toggles Markdown source, and `Ctrl+Shift+E` toggles
+   Split and returns to the previous single-pane mode.
+7. Live edits the authoritative Markdown with syntax markers revealed on the active line. Markdown
+   exposes exact source in a syntax-highlighted monospace editor. Both autosave approximately 800 ms
+   after typing stops, while Split edits the same source beside its live Read preview.
 
 ### Acceptance criteria
 
@@ -253,15 +257,25 @@ The user wants to save a short observation beside other project references.
 - A note can be saved with only a body. Its title comes from the first human-readable Markdown line,
   ignoring image-only embeds and structural syntax; an image-only note uses the first image's
   filename stem before falling back to **Untitled note**.
-- Saved-note editing uses a GFM-aware source editor without block handles, slash commands, selection
-  toolbars, or a proprietary document model. Highlighting and heading scale are presentational only.
+- Saved-note and capture editing use GFM-aware CodeMirror editors without block handles, slash
+  commands, selection toolbars, or a proprietary document model. Live Preview uses decorations only;
+  highlighting, widgets, hidden markers, and heading scale never change the saved Markdown bytes.
 - Raw HTML remains editable as source but is not executed by the rendered reading mode.
 - Opening the card shows the full note in Kuskus with headings, lists, tables, code, blockquotes,
   links, local images, and math rendered from Markdown.
 - Saved-note editing preserves existing attachments and writes through a validated item-ID operation.
-- Read renders the current Markdown draft; Markdown exposes the same draft as source; Split shows
-  both with proportional linked scrolling. `Ctrl+Enter` flushes autosave immediately from Markdown
-  or Split, and the mode control visibly presents all three choices.
+- Read renders the current draft; Live edits it with inactive syntax markers hidden; Markdown exposes
+  the same draft as exact source; Split shows source and Read with proportional linked scrolling.
+  `Ctrl+Enter` flushes autosave immediately from Live, Markdown, or Split, and the mode control visibly
+  presents all four choices.
+- Live Preview renders headings, emphasis, links, lists, tasks, quotes, fenced code, rules, local
+  images, math, and core wikilinks in place. Moving the caret onto a construct reveals its Markdown;
+  task widgets update the authoritative text and Ctrl-click follows supported links.
+- Capture Live Preview uses the same compact Markdown typesetting preset as saved note cards. Saved
+  Live mode uses the same reading preset as Read, including body size, heading hierarchy, weight,
+  leading, links, inline code, quotes, rules, and image treatment. Editor-only markers and widgets do
+  not create a separate document style. Lists retain the rendered indentation, marker hierarchy, and
+  item rhythm, and a wrapping empty-state prompt never enlarges the body-text caret.
 - Routine autosave has no Saved, Saving, or pending-save indicator. Invalid drafts, write failures,
   and external-edit conflicts remain persistently visible with recovery actions.
 - Headings support bold, italic, inline-code, and strikethrough styling consistently across cards

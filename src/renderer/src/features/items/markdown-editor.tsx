@@ -1,14 +1,28 @@
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
-import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
-import { EditorSelection, EditorState, Transaction } from '@codemirror/state'
+import { syntaxHighlighting } from '@codemirror/language'
+import {
+  Compartment,
+  EditorSelection,
+  EditorState,
+  Transaction,
+  type Extension
+} from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
-import { tags } from '@lezer/highlight'
 import { GFM } from '@lezer/markdown'
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef } from 'react'
 
 import { getPublishedMarkdownChange } from '@/features/items/markdown-editor-change'
 import { toggleMarkdownMarker } from '@/features/items/markdown-formatting'
+import {
+  markdownHighlightStyle,
+  markdownLiveHighlightStyle
+} from '@/features/items/markdown-highlight-style'
+import {
+  liveMarkdownPreview,
+  livePreviewInvalidation,
+  type LivePreviewOptions
+} from '@/features/items/markdown-live-preview'
 import { cn } from '@/lib/utils'
 
 export interface MarkdownEditorHandle {
@@ -21,59 +35,12 @@ interface MarkdownEditorProps {
   value: string
   invalid: boolean
   active: boolean
+  live?: boolean
+  liveOptions?: LivePreviewOptions
   className?: string
   onChange: (value: string) => void
   onScroll?: (scroller: HTMLElement) => void
 }
-
-const markdownHighlightStyle = HighlightStyle.define([
-  {
-    tag: tags.heading1,
-    color: 'var(--foreground)',
-    fontSize: '1.375rem',
-    lineHeight: '2rem',
-    fontWeight: '600'
-  },
-  {
-    tag: tags.heading2,
-    color: 'var(--foreground)',
-    fontSize: '1.1875rem',
-    lineHeight: '1.75rem',
-    fontWeight: '600'
-  },
-  {
-    tag: tags.heading3,
-    color: 'var(--foreground)',
-    fontSize: '1.0625rem',
-    lineHeight: '1.625rem',
-    fontWeight: '600'
-  },
-  {
-    tag: [tags.heading4, tags.heading5, tags.heading6],
-    color: 'var(--foreground)',
-    fontWeight: '600'
-  },
-  { tag: tags.strong, color: 'var(--foreground)', fontWeight: '600' },
-  { tag: tags.emphasis, color: 'var(--foreground)', fontStyle: 'italic' },
-  {
-    tag: [tags.link, tags.url],
-    color: 'var(--foreground)',
-    textDecoration: 'underline',
-    textDecorationColor: 'color-mix(in oklab, currentColor 35%, transparent)'
-  },
-  {
-    tag: tags.monospace,
-    color: 'var(--foreground)',
-    backgroundColor: 'var(--muted)',
-    borderRadius: '0.25rem'
-  },
-  { tag: tags.quote, color: 'var(--muted-foreground)', fontStyle: 'italic' },
-  { tag: tags.list, color: 'var(--muted-foreground)' },
-  {
-    tag: [tags.meta, tags.punctuation, tags.contentSeparator],
-    color: 'color-mix(in oklab, var(--muted-foreground) 78%, transparent)'
-  }
-])
 
 const editorTheme = EditorView.theme({
   '&': {
@@ -106,11 +73,18 @@ const editorTheme = EditorView.theme({
     // at the pane edge, matching the Read mode article (max-w-3xl).
     maxWidth: '48rem',
     margin: '0 auto',
-    padding: '2.5rem clamp(1.75rem, 5vw, 4rem)',
+    padding: '2.5rem var(--typeset-detail-gutter)',
     caretColor: 'currentColor'
   },
   '.cm-line': { padding: '0' }
 })
+
+function markdownPresentation(live: boolean, getLiveOptions: () => LivePreviewOptions): Extension {
+  return [
+    syntaxHighlighting(live ? markdownLiveHighlightStyle : markdownHighlightStyle),
+    live ? liveMarkdownPreview(getLiveOptions, 'detail') : []
+  ]
+}
 
 function markerCommand(marker: '*' | '**'): (view: EditorView) => boolean {
   return (view) => {
@@ -132,17 +106,22 @@ function markerCommand(marker: '*' | '**'): (view: EditorView) => boolean {
 
 export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
   function MarkdownEditor(
-    { value, invalid, active, className, onChange, onScroll },
+    { value, invalid, active, live = false, liveOptions, className, onChange, onScroll },
     forwardedRef
   ): React.JSX.Element {
     const hostRef = useRef<HTMLDivElement>(null)
     const viewRef = useRef<EditorView | null>(null)
     const initialValueRef = useRef(value)
+    const initialLiveRef = useRef(live)
     const onChangeRef = useRef(onChange)
     const onScrollRef = useRef(onScroll)
+    const liveOptionsRef = useRef<LivePreviewOptions>(liveOptions ?? {})
+    const liveCompartmentRef = useRef(new Compartment())
+    const liveMountedRef = useRef(false)
 
     onChangeRef.current = onChange
     onScrollRef.current = onScroll
+    liveOptionsRef.current = liveOptions ?? {}
 
     useImperativeHandle(
       forwardedRef,
@@ -166,8 +145,11 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
             history(),
             EditorView.lineWrapping,
             markdown({ extensions: GFM }),
-            syntaxHighlighting(markdownHighlightStyle),
+            EditorView.editorAttributes.of({ class: 'cm-kuskus-detail-editor' }),
             editorTheme,
+            liveCompartmentRef.current.of(
+              markdownPresentation(initialLiveRef.current, () => liveOptionsRef.current)
+            ),
             keymap.of([
               { key: 'Mod-b', preventDefault: true, run: markerCommand('**') },
               { key: 'Mod-i', preventDefault: true, run: markerCommand('*') },
@@ -223,6 +205,26 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       view.requestMeasure()
       view.focus()
     }, [active])
+
+    useEffect(() => {
+      if (!liveMountedRef.current) {
+        liveMountedRef.current = true
+        return
+      }
+      const view = viewRef.current
+      if (!view) return
+      view.dispatch({
+        effects: liveCompartmentRef.current.reconfigure(
+          markdownPresentation(live, () => liveOptionsRef.current)
+        )
+      })
+    }, [live])
+
+    useEffect(() => {
+      const view = viewRef.current
+      if (!view || !live) return
+      view.dispatch({ effects: livePreviewInvalidation.of(null) })
+    }, [live, liveOptions])
 
     return <div ref={hostRef} className={cn('size-full min-h-0', className)} />
   }
