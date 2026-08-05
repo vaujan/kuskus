@@ -3,10 +3,10 @@ import {
   IconKeyboard,
   IconLayoutDashboard,
   IconLayoutGrid,
+  IconLayoutSidebarRight,
   IconMoon,
   IconPalette,
   IconSun,
-  IconTable,
   type TablerIcon
 } from '@tabler/icons-react'
 import { useState, type RefObject } from 'react'
@@ -35,7 +35,7 @@ type SettingsCategory = 'general' | 'appearance'
 const VIEW_OPTIONS: Array<{ value: LibraryView; label: string; icon: TablerIcon }> = [
   { value: 'visual', label: 'Masonry', icon: IconLayoutDashboard },
   { value: 'grid', label: 'Grid', icon: IconLayoutGrid },
-  { value: 'table', label: 'Table', icon: IconTable }
+  { value: 'focus', label: 'Focus', icon: IconLayoutSidebarRight }
 ]
 
 const CATEGORY_OPTIONS: Array<{

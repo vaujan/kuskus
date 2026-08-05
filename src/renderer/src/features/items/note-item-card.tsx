@@ -16,19 +16,21 @@ export function NoteItemCard({
   onActivate,
   onOpen,
   selected,
+  opensDialog,
   view
 }: {
   item: NoteItemDto
   onActivate: (event: React.MouseEvent<HTMLButtonElement>) => void
   onOpen: () => void
   selected: boolean
-  view: Exclude<LibraryView, 'table'>
+  opensDialog: boolean
+  view: Exclude<LibraryView, 'table' | 'focus'>
 }): React.JSX.Element {
   return (
     <ItemCard data-selected={selected}>
       <ItemCardPrimaryAction
         aria-label={`Open note ${item.title}`}
-        aria-haspopup="dialog"
+        aria-haspopup={opensDialog ? 'dialog' : undefined}
         aria-pressed={selected}
         focusSurface
         onClick={onActivate}

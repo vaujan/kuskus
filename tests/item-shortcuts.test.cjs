@@ -44,6 +44,13 @@ test('uses the focused item when there is no selection', () => {
   assert.deepEqual(targets, ['focused'])
 })
 
+test('uses the active Focus item as the fallback when the rail does not own DOM focus', () => {
+  const activeFocusItemId = 'focused'
+  const targets = resolveItemShortcutTargets(new Set(), activeFocusItemId, new Set(['focused']))
+
+  assert.deepEqual(targets, ['focused'])
+})
+
 test('ignores targets that are not visible', () => {
   assert.deepEqual(
     resolveItemShortcutTargets(new Set(['hidden']), 'focused', new Set(['focused'])),

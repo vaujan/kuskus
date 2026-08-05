@@ -1,28 +1,17 @@
 import { useEffect, useRef } from 'react'
 import {
   IconAdjustmentsHorizontal,
-  IconFileText,
-  IconFile,
-  IconLink,
-  IconPhoto,
   IconPlus,
   IconSearch,
   IconTrash,
-  IconX,
-  type TablerIcon
+  IconX
 } from '@tabler/icons-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
@@ -33,34 +22,13 @@ import {
   InputGroupInput
 } from '@/components/ui/input-group'
 import { Kbd } from '@/components/ui/kbd'
-import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { ITEM_SORT_OPTIONS, DEFAULT_ITEM_SORT, type ItemSort } from '@/features/items/item-sort'
-import { ITEM_TYPE_FILTERS, type ItemTypeFilter } from '@/features/items/item-view'
+import { ItemFilterMenuGroups, ItemSortMenuGroup } from '@/features/items/item-retrieval-menu'
+import { DEFAULT_ITEM_SORT, type ItemSort } from '@/features/items/item-sort'
+import type { ItemTypeFilter } from '@/features/items/item-view'
+import { ShellSidebarTrigger } from '@/features/shell/shell-sidebar-trigger'
 import { WindowControls } from '@/features/shell/window-controls'
 import { cn } from '@/lib/utils'
-
-const TYPE_OPTIONS: Record<ItemTypeFilter, { label: string; icon: TablerIcon }> = {
-  note: { label: 'Notes', icon: IconFileText },
-  image: { label: 'Images', icon: IconPhoto },
-  url: { label: 'Links', icon: IconLink },
-  file: { label: 'Files', icon: IconFile }
-}
-
-function ShellSidebarTrigger(): React.JSX.Element {
-  const { isMobile, openMobile, state } = useSidebar()
-  const isOpen = isMobile ? openMobile : state === 'expanded'
-  const label = isOpen ? 'Hide sidebar' : 'Show sidebar'
-
-  return (
-    <div className="[-webkit-app-region:no-drag]">
-      <Tooltip>
-        <TooltipTrigger render={<SidebarTrigger className="size-8" aria-label={label} />} />
-        <TooltipContent>{label}</TooltipContent>
-      </Tooltip>
-    </div>
-  )
-}
 
 export function AppToolbar({
   keyboardShortcutsEnabled = true,
@@ -81,7 +49,8 @@ export function AppToolbar({
   onShowReferencedAttachmentsChange,
   onClearFilters,
   sort,
-  onSortChange
+  onSortChange,
+  onWindowClose
 }: {
   keyboardShortcutsEnabled?: boolean
   newItemOpen: boolean
@@ -102,6 +71,7 @@ export function AppToolbar({
   onClearFilters: () => void
   sort: ItemSort
   onSortChange: (sort: ItemSort) => void
+  onWindowClose?: () => void
 }): React.JSX.Element {
   const searchRef = useRef<HTMLInputElement>(null)
   const newItemRef = useRef<HTMLButtonElement>(null)
@@ -115,6 +85,7 @@ export function AppToolbar({
   useEffect(() => {
     const focusSearch = (event: KeyboardEvent): void => {
       if (!keyboardShortcutsEnabled || event.defaultPrevented) return
+      if (event.target instanceof Element && event.target.closest('[data-detail-surface]')) return
       const key = event.key.toLocaleLowerCase()
       if ((event.ctrlKey || event.metaKey) && (key === 'k' || key === 'f')) {
         event.preventDefault()
@@ -140,6 +111,7 @@ export function AppToolbar({
       ) {
         return
       }
+      if (event.target instanceof Element && event.target.closest('[data-detail-surface]')) return
       event.preventDefault()
       onNewItem()
     }
@@ -253,55 +225,15 @@ export function AppToolbar({
                 ) : null}
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={sort}
-                    onValueChange={(value) => onSortChange(value as ItemSort)}
-                  >
-                    {ITEM_SORT_OPTIONS.map((option) => (
-                      <DropdownMenuRadioItem key={option.value} value={option.value}>
-                        {option.label}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuGroup>
+                <ItemSortMenuGroup sort={sort} onSortChange={onSortChange} />
                 <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>Item type</DropdownMenuLabel>
-                  {ITEM_TYPE_FILTERS.map((type) => {
-                    const option = TYPE_OPTIONS[type]
-                    const Icon = option.icon
-                    return (
-                      <DropdownMenuCheckboxItem
-                        key={type}
-                        checked={typeFilters.includes(type)}
-                        onCheckedChange={(checked) => onTypeFilterChange(type, checked)}
-                      >
-                        <Icon aria-hidden="true" />
-                        {option.label}
-                      </DropdownMenuCheckboxItem>
-                    )
-                  })}
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>Visibility</DropdownMenuLabel>
-                  <DropdownMenuCheckboxItem
-                    checked={showReferencedAttachments}
-                    onCheckedChange={onShowReferencedAttachmentsChange}
-                  >
-                    Show referenced attachments
-                  </DropdownMenuCheckboxItem>
-                </DropdownMenuGroup>
-                {typeFilters.length > 0 || showReferencedAttachments ? (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem onClick={onClearFilters}>Clear filters</DropdownMenuItem>
-                    </DropdownMenuGroup>
-                  </>
-                ) : null}
+                <ItemFilterMenuGroups
+                  typeFilters={typeFilters}
+                  onTypeFilterChange={onTypeFilterChange}
+                  showReferencedAttachments={showReferencedAttachments}
+                  onShowReferencedAttachmentsChange={onShowReferencedAttachmentsChange}
+                  onClearFilters={onClearFilters}
+                />
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -347,7 +279,7 @@ export function AppToolbar({
           </div>
         </div>
       </div>
-      <WindowControls />
+      <WindowControls onClose={onWindowClose} />
     </header>
   )
 }

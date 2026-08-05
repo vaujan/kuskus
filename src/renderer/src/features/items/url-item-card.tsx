@@ -22,13 +22,15 @@ export function UrlItemCard({
   onActivate,
   onOpen,
   selected,
+  opensDialog,
   view
 }: {
   item: UrlItemDto
   onActivate: (event: React.MouseEvent<HTMLButtonElement>) => void
   onOpen: () => void
   selected: boolean
-  view: Exclude<LibraryView, 'table'>
+  opensDialog: boolean
+  view: Exclude<LibraryView, 'table' | 'focus'>
 }): React.JSX.Element {
   const preview = useUrlPreview(item.id, 'preview', item.hasPreviewImage)
   const favicon = useUrlPreview(item.id, 'favicon', item.hasFavicon)
@@ -38,7 +40,7 @@ export function UrlItemCard({
     <ItemCard data-selected={selected}>
       <ItemCardPrimaryAction
         aria-label={`Open link ${item.title}`}
-        aria-haspopup="dialog"
+        aria-haspopup={opensDialog ? 'dialog' : undefined}
         aria-pressed={selected}
         focusSurface
         onClick={onActivate}

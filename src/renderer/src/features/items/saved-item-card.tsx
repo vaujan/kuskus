@@ -10,19 +10,22 @@ export function SavedItemCard({
   onActivate,
   onOpen,
   selected,
+  opensDialog = true,
   view = 'visual'
 }: {
   item: LibraryItemDto
   onActivate: (event: React.MouseEvent<HTMLButtonElement>) => void
   onOpen: () => void
   selected: boolean
-  view?: Exclude<LibraryView, 'table'>
+  opensDialog?: boolean
+  view?: Exclude<LibraryView, 'table' | 'focus'>
 }): React.JSX.Element {
   return item.type === 'note' ? (
     <NoteItemCard
       item={item}
       view={view}
       selected={selected}
+      opensDialog={opensDialog}
       onActivate={onActivate}
       onOpen={onOpen}
     />
@@ -31,6 +34,7 @@ export function SavedItemCard({
       item={item}
       view={view}
       selected={selected}
+      opensDialog={opensDialog}
       onActivate={onActivate}
       onOpen={onOpen}
     />
@@ -39,6 +43,7 @@ export function SavedItemCard({
       item={item}
       view={view}
       selected={selected}
+      opensDialog={opensDialog}
       onActivate={onActivate}
       onOpen={onOpen}
     />

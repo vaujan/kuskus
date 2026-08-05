@@ -2,6 +2,8 @@
   --window-canvas: var(--background);
   --window-sidebar: var(--sidebar);
   --window-toolbar: var(--background);
+  --window-focus-rail: var(--background);
+  --window-focus-detail: var(--popover);
 }
 
 :root[data-window-material='acrylic'] {
@@ -12,6 +14,8 @@
   --window-canvas: oklch(0.995 0 0 / 68%);
   --window-sidebar: oklch(0.985 0.003 210 / 74%);
   --window-toolbar: var(--window-canvas);
+  --window-focus-rail: var(--window-sidebar);
+  --window-focus-detail: var(--window-canvas);
 }
 
 :root.dark[data-window-material='acrylic'] {
@@ -22,6 +26,8 @@
   --window-canvas: oklch(0.16 0.008 223.9 / 52%);
   --window-sidebar: oklch(0.19 0.009 223.9 / 64%);
   --window-toolbar: var(--window-canvas);
+  --window-focus-rail: var(--window-sidebar);
+  --window-focus-detail: var(--window-canvas);
 }
 
 .window-root,
@@ -35,6 +41,20 @@
 
 .window-toolbar {
   background-color: var(--window-toolbar);
+}
+
+.focus-rail-surface {
+  background-color: var(--window-focus-rail);
+}
+
+.focus-detail-surface {
+  background-color: var(--window-focus-detail);
+}
+
+[data-detail-presentation='focus'],
+[data-detail-presentation='focus'] [data-detail-structural-surface],
+.focus-detail-composer-surface {
+  background-color: transparent;
 }
 
 html[data-window-material='acrylic'] [data-slot='sidebar-inner'] {
@@ -55,6 +75,8 @@ html[data-window-material='acrylic'] [data-slot='sidebar-inset'] {
     --window-canvas: var(--background);
     --window-sidebar: var(--sidebar);
     --window-toolbar: var(--background);
+    --window-focus-rail: var(--background);
+    --window-focus-detail: var(--popover);
   }
 }
 
@@ -68,5 +90,7 @@ html[data-window-material='acrylic'] [data-slot='sidebar-inset'] {
     --window-canvas: Canvas;
     --window-sidebar: Canvas;
     --window-toolbar: Canvas;
+    --window-focus-rail: Canvas;
+    --window-focus-detail: Canvas;
   }
 }

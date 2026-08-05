@@ -26,6 +26,7 @@ export function ItemCardPrimaryAction({
 }): React.JSX.Element {
   return (
     <button
+      data-slot="item-card-primary-action"
       className={cn(
         'peer absolute inset-0 z-20 cursor-pointer rounded-[inherit] outline-none disabled:cursor-default',
         focusSurface

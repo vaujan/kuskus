@@ -56,8 +56,20 @@ import { CaptureRecoveryDialog } from '@/features/capture/capture-recovery-dialo
 import { getFolderSubtreeIds } from '@/features/collections/folder-tree'
 import { SavedItemCard } from '@/features/items/saved-item-card'
 import { SavedItemsTable } from '@/features/items/saved-items-table'
+import { FocusItemList } from '@/features/items/focus-item-list'
+import { FocusListHeader } from '@/features/items/focus-list-header'
+import {
+  parseFocusListWidth,
+  resolveFocusAfterRemoval,
+  resolveInitialFocusItemId
+} from '@/features/items/focus-view-state'
 import { KUSKUS_ITEM_DRAG_TYPE, setKuskusItemDragPreview } from '@/features/items/item-drag'
-import { ItemDetailDialog, type DetailTitleRenameResult } from '@/features/items/item-detail-dialog'
+import {
+  ItemDetailDialog,
+  type DetailTitleRenameResult,
+  type ItemDetailHandle
+} from '@/features/items/item-detail-dialog'
+import { ItemLocationMenu } from '@/features/items/item-location-menu'
 import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
 import {
   hasBulkItemSelection,
@@ -66,6 +78,7 @@ import {
   resolveRenameShortcutTarget
 } from '@/features/items/item-shortcuts'
 import { BulkActionToolbar } from '@/features/library/bulk-action-toolbar'
+import { FocusWorkspace } from '@/features/library/focus-workspace'
 import { OrderedMasonry } from '@/features/library/ordered-masonry'
 import {
   ItemActionMenu,
@@ -78,7 +91,7 @@ import {
   sortItems,
   type ItemSort
 } from '@/features/items/item-sort'
-import { type ItemTypeFilter, type LibraryView } from '@/features/items/item-view'
+import { parseLibraryView, type ItemTypeFilter, type LibraryView } from '@/features/items/item-view'
 import { AppToolbar } from '@/features/shell/app-toolbar'
 import { LibrarySidebar, type LibraryDestination } from '@/features/shell/library-sidebar'
 import { useTheme } from '@/hooks/use-theme'
@@ -206,10 +219,13 @@ export function Workspace({
     parseItemSort(localStorage.getItem(ITEM_SORT_STORAGE_KEY))
   )
   const [view, setView] = useState<LibraryView>(() => {
-    const stored = localStorage.getItem('kuskus-library-view')
-    if (stored === 'list') return 'table'
-    return stored === 'grid' || stored === 'table' ? stored : 'visual'
+    return parseLibraryView(localStorage.getItem('kuskus-library-view'))
   })
+  const [focusListWidth, setFocusListWidth] = useState(() =>
+    parseFocusListWidth(localStorage.getItem('kuskus-focus-list-width'))
+  )
+  const [focusItemId, setFocusItemId] = useState<string | null>(null)
+  const [focusDetailOpen, setFocusDetailOpen] = useState(false)
   const [showReferencedAttachments, setShowReferencedAttachments] = useState(
     () => localStorage.getItem('kuskus-show-referenced-attachments') === 'true'
   )
@@ -250,6 +266,9 @@ export function Workspace({
   const shortcutFailureNotified = useRef(false)
   const captureOwner = useRef<CaptureSurface | null>(null)
   const mainComposerOwnershipRequested = useRef(false)
+  const focusDetailRef = useRef<ItemDetailHandle>(null)
+  const previousVisibleItemIdsRef = useRef<string[]>([])
+  const focusAfterCaptureRef = useRef<string | null>(null)
   const draftStorageKey = `kuskus-note-draft:${library.path}`
 
   const announceStatus = useCallback((message: string): void => {
@@ -263,6 +282,21 @@ export function Workspace({
     announceStatus('Selection cleared')
   }, [announceStatus])
 
+  const requestFocusTransition = useCallback((action: () => void): void => {
+    const detail = focusDetailRef.current
+    if (detail) detail.requestTransition(action)
+    else action()
+  }, [])
+
+  const guardFocusTargets = useCallback(
+    (itemIds: readonly string[], action: () => void): void => {
+      if (view === 'focus' && focusItemId && itemIds.includes(focusItemId)) {
+        requestFocusTransition(action)
+      } else action()
+    },
+    [focusItemId, requestFocusTransition, view]
+  )
+
   useEffect(() => {
     localStorage.setItem('kuskus-sidebar-hidden', String(sidebarHidden))
   }, [sidebarHidden])
@@ -274,6 +308,10 @@ export function Workspace({
   useEffect(() => {
     localStorage.setItem('kuskus-library-view', view)
   }, [view])
+
+  useEffect(() => {
+    localStorage.setItem('kuskus-focus-list-width', String(Math.round(focusListWidth)))
+  }, [focusListWidth])
 
   useEffect(() => {
     localStorage.setItem(ITEM_SORT_STORAGE_KEY, sort)
@@ -328,6 +366,7 @@ export function Workspace({
     typeFilters
   ])
   const visibleItemIds = useMemo(() => new Set(visibleItems.map((item) => item.id)), [visibleItems])
+  const visibleItemIdList = useMemo(() => visibleItems.map((item) => item.id), [visibleItems])
   const destinationItems = useMemo(
     () =>
       library.items.filter((item) =>
@@ -351,9 +390,16 @@ export function Workspace({
         )
         return
       }
-      setSelectedItemId(matches[0].id)
+      if (view === 'focus') {
+        requestFocusTransition(() => {
+          setFocusItemId(matches[0].id)
+          setFocusDetailOpen(true)
+        })
+      } else {
+        setSelectedItemId(matches[0].id)
+      }
     },
-    [library.items]
+    [library.items, requestFocusTransition, view]
   )
   const selectAllVisibleItems = useCallback((): void => {
     setSelectedIds(new Set(visibleItems.map((item) => item.id)))
@@ -388,6 +434,27 @@ export function Workspace({
     () => library.items.find((item) => item.id === selectedItemId) ?? null,
     [library.items, selectedItemId]
   )
+  const focusItem = useMemo(
+    () => library.items.find((item) => item.id === focusItemId) ?? null,
+    [focusItemId, library.items]
+  )
+  const focusVisibleIndex = useMemo(
+    () => visibleItems.findIndex((item) => item.id === focusItemId),
+    [focusItemId, visibleItems]
+  )
+
+  useEffect(() => {
+    if (view !== 'focus') return
+    setFocusItemId((current) => {
+      if (current && library.items.some((item) => item.id === current)) return current
+      return resolveFocusAfterRemoval(
+        previousVisibleItemIdsRef.current,
+        visibleItemIdList,
+        resolveInitialFocusItemId(visibleItemIdList, current)
+      )
+    })
+    previousVisibleItemIdsRef.current = [...visibleItemIdList]
+  }, [library.items, view, visibleItemIdList])
   const selectedVisibleIndex = useMemo(
     () => visibleItems.findIndex((item) => item.id === selectedItemId),
     [selectedItemId, visibleItems]
@@ -405,14 +472,55 @@ export function Workspace({
     setSelectedItemId(visibleItems[selectedVisibleIndex + 1].id)
   }, [selectedVisibleIndex, visibleItems])
 
+  const selectPreviousFocusItem = useCallback((): void => {
+    if (focusVisibleIndex <= 0) return
+    requestFocusTransition(() => setFocusItemId(visibleItems[focusVisibleIndex - 1].id))
+  }, [focusVisibleIndex, requestFocusTransition, visibleItems])
+
+  const selectNextFocusItem = useCallback((): void => {
+    if (focusVisibleIndex < 0 || focusVisibleIndex >= visibleItems.length - 1) return
+    requestFocusTransition(() => setFocusItemId(visibleItems[focusVisibleIndex + 1].id))
+  }, [focusVisibleIndex, requestFocusTransition, visibleItems])
+
   const hasActiveRetrieval = search.trim().length > 0 || typeFilters.length > 0
 
-  const changeDestination = useCallback((next: LibraryDestination): void => {
-    setDestination(next)
-    setSelectedIds(new Set())
-    setSelectionAnchorId(null)
-    setSelectedItemId(null)
-    setComposerOpen(false)
+  const changeDestination = useCallback(
+    (next: LibraryDestination): void => {
+      const apply = (): void => {
+        setDestination(next)
+        setSelectedIds(new Set())
+        setSelectionAnchorId(null)
+        setSelectedItemId(null)
+        setFocusItemId(null)
+        setFocusDetailOpen(false)
+        setComposerOpen(false)
+      }
+      if (view === 'focus') requestFocusTransition(apply)
+      else apply()
+    },
+    [requestFocusTransition, view]
+  )
+
+  const changeView = useCallback(
+    (next: LibraryView): void => {
+      const availableView = next === 'table' ? 'visual' : next
+      if (availableView === view) return
+      const apply = (): void => {
+        setView(availableView)
+        setSelectedItemId(null)
+        setFocusDetailOpen(false)
+        if (availableView === 'focus') {
+          setFocusItemId((current) => current ?? visibleItems[0]?.id ?? null)
+        }
+      }
+      if (view === 'focus') requestFocusTransition(apply)
+      else apply()
+    },
+    [requestFocusTransition, view, visibleItems]
+  )
+
+  const handleFocusSplitChange = useCallback((split: boolean): void => {
+    if (split) setFocusDetailOpen(true)
   }, [])
 
   const pruneSelectionForRetrieval = useCallback(
@@ -469,9 +577,13 @@ export function Workspace({
         itemMatchesDestination(nextItem, destination, collectionSubtreeIds) &&
         itemMatchesRetrieval(nextItem, search.trim().toLocaleLowerCase(), typeFilters)
       if (remainsVisible) pendingRevealItemId.current = nextItem.id
+      if (view === 'focus' && remainsVisible) {
+        focusAfterCaptureRef.current = nextItem.id
+        setFocusItemId(nextItem.id)
+      }
       return remainsVisible
     },
-    [collectionSubtreeIds, destination, search, typeFilters]
+    [collectionSubtreeIds, destination, search, typeFilters, view]
   )
 
   const commitLinkItem = useCallback(
@@ -516,12 +628,33 @@ export function Workspace({
           ? current
           : null
       })
+      setFocusItemId((current) => {
+        if (!current) return current
+        const nextVisibleIds = sortItems(
+          result.data.items.filter(
+            (item) =>
+              (showReferencedAttachments || !item.referencedAttachment) &&
+              itemMatchesDestination(item, destination, collectionSubtreeIds) &&
+              itemMatchesRetrieval(item, search.trim().toLocaleLowerCase(), typeFilters)
+          ),
+          sort
+        ).map((item) => item.id)
+        return resolveFocusAfterRemoval(visibleItemIdList, nextVisibleIds, current)
+      })
       setMessage('')
       setSelectedIds(new Set())
       setSelectionAnchorId(null)
       return result.data
     },
-    [collectionSubtreeIds, destination]
+    [
+      collectionSubtreeIds,
+      destination,
+      search,
+      showReferencedAttachments,
+      sort,
+      typeFilters,
+      visibleItemIdList
+    ]
   )
 
   const moveItemIds = useCallback(
@@ -872,36 +1005,63 @@ export function Workspace({
 
       setSelectedIds(new Set())
       setSelectionAnchorId(null)
-      setSelectedItemId(itemId)
+      if (view === 'focus') {
+        if (composerHasTransientWork) {
+          announceStatus('Finish the current capture before opening another item.')
+          return
+        }
+        requestFocusTransition(() => {
+          setComposerOpen(false)
+          setFocusItemId(itemId)
+          setFocusDetailOpen(true)
+        })
+      } else {
+        setSelectedItemId(itemId)
+      }
     },
-    [selectItem]
+    [announceStatus, composerHasTransientWork, requestFocusTransition, selectItem, view]
   )
 
   const itemActions = useCallback(
     (item: LibraryItemDto, targetIds: string[]): ItemActionHandlers => ({
-      onOpen: () => setSelectedItemId(item.id),
-      onRename: () => {
-        setRenameTarget(item)
-        setRenameTitle(item.title)
+      onOpen: () => {
+        if (view === 'focus') {
+          requestFocusTransition(() => {
+            setComposerOpen(false)
+            setFocusItemId(item.id)
+            setFocusDetailOpen(true)
+          })
+        } else setSelectedItemId(item.id)
       },
-      onMove: (nextDestination) => void moveItemIds(targetIds, nextDestination),
+      onRename: () => {
+        guardFocusTargets([item.id], () => {
+          setRenameTarget(item)
+          setRenameTitle(item.title)
+        })
+      },
+      onMove: (nextDestination) =>
+        guardFocusTargets(targetIds, () => void moveItemIds(targetIds, nextDestination)),
       onReveal: () => void revealItem(item.id),
-      onArchive: () => void archiveItemIds(targetIds),
-      onUnarchive: () => void unarchiveItemIds(targetIds),
-      onTrash: () => void trashItemIds(targetIds),
-      onRestore: () => void restoreItemIds(targetIds),
-      onDeletePermanently: () => requestPermanentDelete(targetIds),
+      onArchive: () => guardFocusTargets(targetIds, () => void archiveItemIds(targetIds)),
+      onUnarchive: () => guardFocusTargets(targetIds, () => void unarchiveItemIds(targetIds)),
+      onTrash: () => guardFocusTargets(targetIds, () => void trashItemIds(targetIds)),
+      onRestore: () => guardFocusTargets(targetIds, () => void restoreItemIds(targetIds)),
+      onDeletePermanently: () =>
+        guardFocusTargets(targetIds, () => requestPermanentDelete(targetIds)),
       onOpenSource: () => void openSource(item)
     }),
     [
       archiveItemIds,
+      guardFocusTargets,
       moveItemIds,
       openSource,
       requestPermanentDelete,
       restoreItemIds,
       revealItem,
       trashItemIds,
-      unarchiveItemIds
+      unarchiveItemIds,
+      requestFocusTransition,
+      view
     ]
   )
 
@@ -926,7 +1086,7 @@ export function Workspace({
       if (
         target instanceof Element &&
         target.closest(
-          'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="menu"], [role="dialog"], [role="listbox"]'
+          'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="menu"], [role="dialog"], [role="listbox"], [data-detail-surface]'
         )
       ) {
         return
@@ -938,7 +1098,7 @@ export function Workspace({
           : null
       const targetIds = resolveItemShortcutTargets(
         selectedIds,
-        focusedItemId ?? null,
+        focusedItemId ?? (view === 'focus' ? focusItemId : null),
         visibleItemIds
       )
       if (targetIds.length === 0) return
@@ -951,14 +1111,17 @@ export function Workspace({
         if (!item) return
 
         event.preventDefault()
-        setRenameTarget(item)
-        setRenameTitle(item.title)
+        guardFocusTargets([item.id], () => {
+          setRenameTarget(item)
+          setRenameTitle(item.title)
+        })
         return
       }
 
       event.preventDefault()
-      if (destination.type === 'trash') requestPermanentDelete(targetIds)
-      else void trashItemIds(targetIds)
+      if (destination.type === 'trash') {
+        guardFocusTargets(targetIds, () => requestPermanentDelete(targetIds))
+      } else guardFocusTargets(targetIds, () => void trashItemIds(targetIds))
     }
     window.addEventListener('keydown', handleItemShortcut)
     return () => window.removeEventListener('keydown', handleItemShortcut)
@@ -972,7 +1135,10 @@ export function Workspace({
     selectedItemId,
     trashItemIds,
     visibleItemIds,
-    visibleItems
+    visibleItems,
+    view,
+    focusItemId,
+    guardFocusTargets
   ])
 
   useEffect(() => {
@@ -988,7 +1154,8 @@ export function Workspace({
         return
       }
       const target = event.target as HTMLElement | null
-      if (target?.closest('input, textarea, [contenteditable="true"]')) return
+      if (target?.closest('input, textarea, [contenteditable="true"], [data-detail-surface]'))
+        return
       event.preventDefault()
       clearSelection()
     }
@@ -1014,7 +1181,7 @@ export function Workspace({
       if (
         target instanceof Element &&
         target.closest(
-          'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="menu"], [role="dialog"], [role="listbox"]'
+          'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="menu"], [role="dialog"], [role="listbox"], [data-detail-surface]'
         )
       ) {
         return
@@ -1033,10 +1200,15 @@ export function Workspace({
   ])
 
   const openComposer = useCallback((): void => {
-    mainComposerOwnershipRequested.current = captureOwner.current !== 'main'
-    setComposerOpen(true)
-    setComposerFocusRequest((request) => request + 1)
-  }, [])
+    const open = (): void => {
+      mainComposerOwnershipRequested.current = captureOwner.current !== 'main'
+      setComposerOpen(true)
+      if (view === 'focus') setFocusDetailOpen(true)
+      setComposerFocusRequest((request) => request + 1)
+    }
+    if (view === 'focus') requestFocusTransition(open)
+    else open()
+  }, [requestFocusTransition, view])
 
   const prepareGlobalCapture = useCallback((): void => {
     const modalOpen = document.querySelector('[role="dialog"]') !== null
@@ -1090,11 +1262,19 @@ export function Workspace({
     []
   )
 
-  const changeComposerOpen = useCallback((open: boolean): void => {
-    if (!open) mainComposerOwnershipRequested.current = false
-    setComposerOpen(open)
-    if (!open) setNewItemFocusRequest((request) => request + 1)
-  }, [])
+  const changeComposerOpen = useCallback(
+    (open: boolean): void => {
+      if (!open) mainComposerOwnershipRequested.current = false
+      setComposerOpen(open)
+      if (!open && view === 'focus') {
+        const capturedItemId = focusAfterCaptureRef.current
+        focusAfterCaptureRef.current = null
+        setFocusDetailOpen(capturedItemId !== null)
+      }
+      if (!open) setNewItemFocusRequest((request) => request + 1)
+    },
+    [view]
+  )
 
   useEffect(() => {
     const pending = library.items.filter(
@@ -1321,6 +1501,7 @@ export function Workspace({
       draftStorageKey={draftStorageKey}
       importRequest={importRequest}
       view={view}
+      presentation={view === 'focus' ? 'pane' : 'card'}
       onOpenChange={changeComposerOpen}
       onImportRequestHandled={(id) =>
         setImportRequest((current) => (current?.id === id ? null : current))
@@ -1337,6 +1518,10 @@ export function Workspace({
           itemMatchesRetrieval(released, search.trim().toLocaleLowerCase(), typeFilters)
         ) {
           pendingRevealItemId.current = itemId
+        }
+        if (view === 'focus') {
+          focusAfterCaptureRef.current = itemId
+          setFocusItemId(itemId)
         }
       }}
       onStatus={announceStatus}
@@ -1417,6 +1602,151 @@ export function Workspace({
     </>
   )
 
+  const focusList = (
+    <div className="flex size-full min-h-0 flex-col">
+      <FocusListHeader
+        keyboardShortcutsEnabled={selectedItem === null}
+        destinationLabel={destinationLabel(destination, library)}
+        composerOpen={composerOpen}
+        hasDraft={composerHasDraft}
+        newItemFocusRequest={newItemFocusRequest}
+        onNewItem={openComposer}
+        search={search}
+        onSearchChange={changeSearch}
+        searchPending={search !== deferredSearch}
+        resultCount={visibleItems.length}
+        totalCount={destinationItems.length}
+        typeFilters={typeFilters}
+        onTypeFilterChange={changeTypeFilter}
+        showReferencedAttachments={showReferencedAttachments}
+        onShowReferencedAttachmentsChange={setShowReferencedAttachments}
+        onClearFilters={() => {
+          setTypeFilters([])
+          setShowReferencedAttachments(false)
+        }}
+        sort={sort}
+        onSortChange={setSort}
+      />
+      <FocusItemList
+        items={visibleItems}
+        activeItemId={composerOpen ? null : focusItemId}
+        selectedIds={selectedIds}
+        draggedIds={draggedItemIds}
+        composerOpen={composerOpen || showExternalDropShadow}
+        composerBusy={composerHasTransientWork || showExternalDropShadow}
+        composerHasDraft={composerHasDraft}
+        onActivate={activateItem}
+        onActivateComposer={openComposer}
+        onDiscardComposer={() => setComposerDiscardRequest((request) => request + 1)}
+        onDragStart={beginItemDrag}
+        onDragEnd={endItemDrag}
+        renderActions={(item) => (
+          <ItemActionMenu
+            item={item}
+            collections={library.collections}
+            showQuickSourceAction
+            {...getItemMenuProps(item)}
+          />
+        )}
+        wrapRow={(item, row) => (
+          <ItemContextMenu
+            key={item.id}
+            item={item}
+            collections={library.collections}
+            {...getItemMenuProps(item)}
+          >
+            {row}
+          </ItemContextMenu>
+        )}
+      />
+    </div>
+  )
+
+  const focusDetail = showExternalDropShadow ? (
+    <Empty className="size-full">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <Inbox aria-hidden="true" />
+        </EmptyMedia>
+        <EmptyTitle>{isDragging ? 'Drop to add this image' : 'Preparing New item'}</EmptyTitle>
+        <EmptyDescription>
+          The image will remain a recoverable draft until you confirm it.
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  ) : composerOpen ? (
+    addItemComposer
+  ) : focusItem ? (
+    <ItemDetailDialog
+      ref={focusDetailRef}
+      key={`focus-${focusItem.id}`}
+      presentation="focus"
+      item={focusItem}
+      hasPrevious={focusVisibleIndex > 0}
+      hasNext={focusVisibleIndex >= 0 && focusVisibleIndex < visibleItems.length - 1}
+      onPrevious={selectPreviousFocusItem}
+      onNext={selectNextFocusItem}
+      onOpenChange={() => undefined}
+      onItemUpdated={updateItem}
+      onRenameItem={renameItemTitle}
+      libraryItems={library.items}
+      onRenameAttachment={(itemId) => {
+        const image = library.items.find((item) => item.id === itemId)
+        if (!image || image.type !== 'image') return
+        setRenameTarget(image)
+        setRenameTitle(image.title)
+      }}
+      onOpenVaultLink={openVaultLink}
+      renderActions={(guard) => {
+        const actions = itemActions(focusItem, [focusItem.id])
+        return (
+          <ItemActionMenu
+            item={focusItem}
+            collections={library.collections}
+            targetCount={1}
+            targetLocations={[focusItem.location]}
+            alwaysVisible
+            {...actions}
+            onRename={() => guard(actions.onRename)}
+            onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}
+            onArchive={() => guard(actions.onArchive)}
+            onUnarchive={() => guard(actions.onUnarchive)}
+            onTrash={() => guard(actions.onTrash)}
+            onRestore={() => guard(actions.onRestore)}
+            onDeletePermanently={() => guard(actions.onDeletePermanently)}
+          />
+        )
+      }}
+      renderLocation={(guard) => {
+        const actions = itemActions(focusItem, [focusItem.id])
+        return (
+          <ItemLocationMenu
+            item={focusItem}
+            collections={library.collections}
+            onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}
+          />
+        )
+      }}
+      onError={setMessage}
+    />
+  ) : (
+    <Empty className="size-full">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <Search aria-hidden="true" />
+        </EmptyMedia>
+        <EmptyTitle>
+          {visibleItems.length === 0 ? 'No items to focus' : 'Choose an item'}
+        </EmptyTitle>
+        <EmptyDescription>
+          {visibleItems.length === 0
+            ? 'Capture something new or adjust the current search and filters.'
+            : 'Select an item from the list to inspect it here.'}
+        </EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  )
+
   return (
     <SidebarProvider
       keyboardShortcutEnabled={selectedItem === null}
@@ -1434,13 +1764,19 @@ export function Workspace({
         theme={theme}
         onThemeChange={setTheme}
         view={view}
-        onViewChange={setView}
+        onViewChange={changeView}
         destination={destination}
         onDestinationChange={changeDestination}
-        onLibraryChange={setLibrary}
+        onLibraryChange={(nextLibrary) => {
+          const apply = (): void => setLibrary(nextLibrary)
+          if (view === 'focus') requestFocusTransition(apply)
+          else apply()
+        }}
         onError={setMessage}
         onStatus={announceStatus}
-        onMoveItems={(itemIds, nextDestination) => void moveItemIds(itemIds, nextDestination)}
+        onMoveItems={(itemIds, nextDestination) =>
+          guardFocusTargets(itemIds, () => void moveItemIds(itemIds, nextDestination))
+        }
         librarySwitchBlocked={importRequest !== null || composerHasTransientWork}
         globalCaptureShortcutStatus={globalCaptureShortcutStatus}
         translucentBackgroundEnabled={translucentBackground.enabled}
@@ -1449,36 +1785,36 @@ export function Workspace({
         onTranslucentBackgroundChange={translucentBackground.setEnabled}
       />
       <SidebarInset>
-        <AppToolbar
-          keyboardShortcutsEnabled={selectedItem === null}
-          newItemOpen={composerOpen}
-          hasDraft={composerHasDraft}
-          newItemFocusRequest={newItemFocusRequest}
-          onNewItem={openComposer}
-          onDiscardDraft={() => setComposerDiscardRequest((request) => request + 1)}
-          search={search}
-          searchScope={destinationLabel(destination, library)}
-          onSearchChange={changeSearch}
-          searchPending={search !== deferredSearch}
-          resultCount={visibleItems.length}
-          totalCount={destinationItems.length}
-          typeFilters={typeFilters}
-          onTypeFilterChange={changeTypeFilter}
-          showReferencedAttachments={showReferencedAttachments}
-          onShowReferencedAttachmentsChange={setShowReferencedAttachments}
-          onClearFilters={() => {
-            setTypeFilters([])
-            setShowReferencedAttachments(false)
-          }}
-          sort={sort}
-          onSortChange={setSort}
-        />
-        <ScrollArea
-          className="window-canvas min-h-0 min-w-0 flex-1"
-          viewportClassName="dark:library-scroll-viewport focus-visible:ring-0 focus-visible:outline-none"
-        >
+        {view === 'visual' || view === 'grid' ? (
+          <AppToolbar
+            keyboardShortcutsEnabled={selectedItem === null}
+            newItemOpen={composerOpen}
+            hasDraft={composerHasDraft}
+            newItemFocusRequest={newItemFocusRequest}
+            onNewItem={openComposer}
+            onDiscardDraft={() => setComposerDiscardRequest((request) => request + 1)}
+            search={search}
+            searchScope={destinationLabel(destination, library)}
+            onSearchChange={changeSearch}
+            searchPending={search !== deferredSearch}
+            resultCount={visibleItems.length}
+            totalCount={destinationItems.length}
+            typeFilters={typeFilters}
+            onTypeFilterChange={changeTypeFilter}
+            showReferencedAttachments={showReferencedAttachments}
+            onShowReferencedAttachmentsChange={setShowReferencedAttachments}
+            onClearFilters={() => {
+              setTypeFilters([])
+              setShowReferencedAttachments(false)
+            }}
+            sort={sort}
+            onSortChange={setSort}
+            onWindowClose={window.electron.window.close}
+          />
+        ) : null}
+        {view === 'focus' ? (
           <main
-            className="relative min-h-full"
+            className="window-canvas flex min-h-0 min-w-0 flex-1 flex-col"
             onDragEnter={(event) => {
               if (!hasFileDrag(event.dataTransfer)) return
               event.preventDefault()
@@ -1498,193 +1834,269 @@ export function Workspace({
             }}
             onDrop={captureDroppedImage}
           >
-            <div
-              className={cn(
-                'min-h-full px-5 pt-3 pb-5 lg:px-7 lg:pt-4 lg:pb-7',
-                hasBulkItemSelection(selectedItemIds.length) && 'pb-24 lg:pb-24'
-              )}
-            >
-              {library.repairConflicts.length > 0 && (
-                <Alert className="mb-4">
-                  <AlertTitle>Some legacy metadata needs review</AlertTitle>
-                  <AlertDescription>
-                    {library.repairConflicts.length} Markdown{' '}
-                    {library.repairConflicts.length === 1 ? 'file was' : 'files were'} left
-                    unchanged because removing the old bookmark metadata could hide user-authored
-                    content. The original files remain authoritative.
-                  </AlertDescription>
-                </Alert>
-              )}
-              {message && (
-                <Alert className="mb-4" variant="destructive">
-                  <AlertTitle>Unable to Complete Action</AlertTitle>
-                  <AlertDescription>{message}</AlertDescription>
-                  <AlertAction>
-                    <Tooltip>
-                      <TooltipTrigger
-                        render={
-                          <Button
-                            size="icon-xs"
-                            variant="ghost"
-                            aria-label="Dismiss error"
-                            onClick={() => setMessage('')}
-                          >
-                            <X aria-hidden="true" />
-                          </Button>
-                        }
-                      />
-                      <TooltipContent>Dismiss error</TooltipContent>
-                    </Tooltip>
-                  </AlertAction>
-                </Alert>
-              )}
-              {view === 'table' ? (
-                <div className="flex flex-col gap-4">
-                  {captureSlot}
-                  {visibleItems.length > 0 ? (
-                    <SavedItemsTable
-                      items={visibleItems}
-                      selectedIds={selectedIds}
-                      draggedIds={draggedItemIds}
-                      onActivate={activateItem}
-                      onOpen={(itemId) => setSelectedItemId(itemId)}
-                      onDragStart={beginItemDrag}
-                      onDragEnd={endItemDrag}
-                      renderActions={(item) => (
-                        <ItemActionMenu
-                          item={item}
-                          collections={library.collections}
-                          {...getItemMenuProps(item)}
-                        />
-                      )}
-                      wrapRow={(item, row) => (
-                        <ItemContextMenu
-                          key={item.id}
-                          item={item}
-                          collections={library.collections}
-                          {...getItemMenuProps(item)}
-                        >
-                          {row}
-                        </ItemContextMenu>
-                      )}
-                    />
-                  ) : null}
-                </div>
-              ) : view === 'visual' ? (
-                <OrderedMasonry>{cardLayoutContent}</OrderedMasonry>
-              ) : (
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-4">
-                  {cardLayoutContent}
-                </div>
-              )}
-              {!isDragging && visibleItems.length === 0 && hasActiveRetrieval && (
-                <Empty className="mt-8 border">
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon">
-                      <Search aria-hidden="true" />
-                    </EmptyMedia>
-                    <EmptyTitle>No matching items</EmptyTitle>
-                    <EmptyDescription>
-                      Try another search or clear the active item filters.
-                    </EmptyDescription>
-                  </EmptyHeader>
-                  <EmptyContent>
-                    {search.trim().length > 0 ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          changeSearch('')
-                          setSelectedIds(new Set())
-                          setSelectionAnchorId(null)
-                        }}
-                      >
-                        Clear search
-                      </Button>
-                    ) : null}
-                    {typeFilters.length > 0 ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setTypeFilters([])
-                          setSelectedIds(new Set())
-                          setSelectionAnchorId(null)
-                        }}
-                      >
-                        Remove type filters
-                      </Button>
-                    ) : null}
-                  </EmptyContent>
-                </Empty>
-              )}
-              {!isDragging && destinationItems.length === 0 && !hasActiveRetrieval && (
-                <Empty className="mt-6">
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon">
-                      <Inbox aria-hidden="true" />
-                    </EmptyMedia>
-                    <EmptyTitle>
-                      {destination.type === 'archive'
-                        ? 'Archive is empty'
-                        : destination.type === 'trash'
-                          ? 'Trash is empty'
-                          : destination.type === 'all'
-                            ? 'Your library is ready'
-                            : destination.type === 'collection'
-                              ? 'This folder is empty'
-                              : 'Your Inbox is ready'}
-                    </EmptyTitle>
-                    <EmptyDescription>
-                      {destination.type === 'archive'
-                        ? 'Archived items stay here until you unarchive or trash them.'
-                        : destination.type === 'trash'
-                          ? 'Items moved to Trash remain recoverable until permanently deleted.'
-                          : destination.type === 'all'
-                            ? 'A private, local library for links, images, notes, and files.'
-                            : destination.type === 'collection'
-                              ? 'Capture a link, image, note, or file right into this folder.'
-                              : 'Everything you capture lands here until you organize it.'}
-                    </EmptyDescription>
-                  </EmptyHeader>
-                  {destination.type !== 'archive' && destination.type !== 'trash' ? (
-                    <EmptyContent>
-                      <Button size="sm" aria-keyshortcuts="Control+N" onClick={openComposer}>
-                        New item
-                        <Kbd className="ml-1 bg-primary-foreground/15 text-primary-foreground">
-                          Ctrl+N
-                        </Kbd>
-                      </Button>
-                      <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                        <span>Paste or drop anywhere in this window</span>
-                        {globalCaptureShortcutStatus?.registered ? (
-                          <>
-                            <span aria-hidden="true">·</span>
-                            <span>
-                              Capture from any app with{' '}
-                              <Kbd>{globalCaptureShortcutStatus.accelerator}</Kbd>
-                            </span>
-                          </>
-                        ) : null}
-                      </div>
-                    </EmptyContent>
-                  ) : null}
-                </Empty>
-              )}
-            </div>
+            {library.repairConflicts.length > 0 ? (
+              <Alert className="m-3 mb-0 shrink-0">
+                <AlertTitle>Some legacy metadata needs review</AlertTitle>
+                <AlertDescription>
+                  {library.repairConflicts.length} Markdown{' '}
+                  {library.repairConflicts.length === 1 ? 'file was' : 'files were'} left unchanged.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+            {message ? (
+              <Alert className="m-3 mb-0 shrink-0" variant="destructive">
+                <AlertTitle>Unable to Complete Action</AlertTitle>
+                <AlertDescription>{message}</AlertDescription>
+                <AlertAction>
+                  <Button
+                    size="icon-xs"
+                    variant="ghost"
+                    aria-label="Dismiss error"
+                    onClick={() => setMessage('')}
+                  >
+                    <X aria-hidden="true" />
+                  </Button>
+                </AlertAction>
+              </Alert>
+            ) : null}
+            <FocusWorkspace
+              listWidth={focusListWidth}
+              onListWidthChange={setFocusListWidth}
+              detailOpen={focusDetailOpen || composerOpen || showExternalDropShadow}
+              onSplitChange={handleFocusSplitChange}
+              onWindowClose={() => requestFocusTransition(window.electron.window.close)}
+              onBack={() => {
+                if (composerHasTransientWork) {
+                  announceStatus('Finish the current capture before returning to the list.')
+                  return
+                }
+                if (composerOpen) changeComposerOpen(false)
+                else requestFocusTransition(() => setFocusDetailOpen(false))
+              }}
+              list={focusList}
+              detail={focusDetail}
+            />
           </main>
-        </ScrollArea>
+        ) : (
+          <ScrollArea
+            className="window-canvas min-h-0 min-w-0 flex-1"
+            viewportClassName="dark:library-scroll-viewport focus-visible:ring-0 focus-visible:outline-none"
+          >
+            <main
+              className="relative min-h-full"
+              onDragEnter={(event) => {
+                if (!hasFileDrag(event.dataTransfer)) return
+                event.preventDefault()
+                dragDepth.current += 1
+                setIsDragging(hasSupportedImageDrag(event.dataTransfer))
+              }}
+              onDragOver={(event) => {
+                if (!hasFileDrag(event.dataTransfer)) return
+                event.preventDefault()
+                const supported = hasSupportedImageDrag(event.dataTransfer)
+                event.dataTransfer.dropEffect = supported ? 'copy' : 'none'
+                setIsDragging(supported)
+              }}
+              onDragLeave={() => {
+                dragDepth.current = Math.max(0, dragDepth.current - 1)
+                if (dragDepth.current === 0) setIsDragging(false)
+              }}
+              onDrop={captureDroppedImage}
+            >
+              <div
+                className={cn(
+                  'min-h-full px-5 pt-3 pb-5 lg:px-7 lg:pt-4 lg:pb-7',
+                  hasBulkItemSelection(selectedItemIds.length) && 'pb-24 lg:pb-24'
+                )}
+              >
+                {library.repairConflicts.length > 0 && (
+                  <Alert className="mb-4">
+                    <AlertTitle>Some legacy metadata needs review</AlertTitle>
+                    <AlertDescription>
+                      {library.repairConflicts.length} Markdown{' '}
+                      {library.repairConflicts.length === 1 ? 'file was' : 'files were'} left
+                      unchanged because removing the old bookmark metadata could hide user-authored
+                      content. The original files remain authoritative.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {message && (
+                  <Alert className="mb-4" variant="destructive">
+                    <AlertTitle>Unable to Complete Action</AlertTitle>
+                    <AlertDescription>{message}</AlertDescription>
+                    <AlertAction>
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <Button
+                              size="icon-xs"
+                              variant="ghost"
+                              aria-label="Dismiss error"
+                              onClick={() => setMessage('')}
+                            >
+                              <X aria-hidden="true" />
+                            </Button>
+                          }
+                        />
+                        <TooltipContent>Dismiss error</TooltipContent>
+                      </Tooltip>
+                    </AlertAction>
+                  </Alert>
+                )}
+                {view === 'table' ? (
+                  <div className="flex flex-col gap-4">
+                    {captureSlot}
+                    {visibleItems.length > 0 ? (
+                      <SavedItemsTable
+                        items={visibleItems}
+                        selectedIds={selectedIds}
+                        draggedIds={draggedItemIds}
+                        onActivate={activateItem}
+                        onOpen={(itemId) => setSelectedItemId(itemId)}
+                        onDragStart={beginItemDrag}
+                        onDragEnd={endItemDrag}
+                        renderActions={(item) => (
+                          <ItemActionMenu
+                            item={item}
+                            collections={library.collections}
+                            {...getItemMenuProps(item)}
+                          />
+                        )}
+                        wrapRow={(item, row) => (
+                          <ItemContextMenu
+                            key={item.id}
+                            item={item}
+                            collections={library.collections}
+                            {...getItemMenuProps(item)}
+                          >
+                            {row}
+                          </ItemContextMenu>
+                        )}
+                      />
+                    ) : null}
+                  </div>
+                ) : view === 'visual' ? (
+                  <OrderedMasonry>{cardLayoutContent}</OrderedMasonry>
+                ) : (
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-4">
+                    {cardLayoutContent}
+                  </div>
+                )}
+                {!isDragging && visibleItems.length === 0 && hasActiveRetrieval && (
+                  <Empty className="mt-8 border">
+                    <EmptyHeader>
+                      <EmptyMedia variant="icon">
+                        <Search aria-hidden="true" />
+                      </EmptyMedia>
+                      <EmptyTitle>No matching items</EmptyTitle>
+                      <EmptyDescription>
+                        Try another search or clear the active item filters.
+                      </EmptyDescription>
+                    </EmptyHeader>
+                    <EmptyContent>
+                      {search.trim().length > 0 ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            changeSearch('')
+                            setSelectedIds(new Set())
+                            setSelectionAnchorId(null)
+                          }}
+                        >
+                          Clear search
+                        </Button>
+                      ) : null}
+                      {typeFilters.length > 0 ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setTypeFilters([])
+                            setSelectedIds(new Set())
+                            setSelectionAnchorId(null)
+                          }}
+                        >
+                          Remove type filters
+                        </Button>
+                      ) : null}
+                    </EmptyContent>
+                  </Empty>
+                )}
+                {!isDragging && destinationItems.length === 0 && !hasActiveRetrieval && (
+                  <Empty className="mt-6">
+                    <EmptyHeader>
+                      <EmptyMedia variant="icon">
+                        <Inbox aria-hidden="true" />
+                      </EmptyMedia>
+                      <EmptyTitle>
+                        {destination.type === 'archive'
+                          ? 'Archive is empty'
+                          : destination.type === 'trash'
+                            ? 'Trash is empty'
+                            : destination.type === 'all'
+                              ? 'Your library is ready'
+                              : destination.type === 'collection'
+                                ? 'This folder is empty'
+                                : 'Your Inbox is ready'}
+                      </EmptyTitle>
+                      <EmptyDescription>
+                        {destination.type === 'archive'
+                          ? 'Archived items stay here until you unarchive or trash them.'
+                          : destination.type === 'trash'
+                            ? 'Items moved to Trash remain recoverable until permanently deleted.'
+                            : destination.type === 'all'
+                              ? 'A private, local library for links, images, notes, and files.'
+                              : destination.type === 'collection'
+                                ? 'Capture a link, image, note, or file right into this folder.'
+                                : 'Everything you capture lands here until you organize it.'}
+                      </EmptyDescription>
+                    </EmptyHeader>
+                    {destination.type !== 'archive' && destination.type !== 'trash' ? (
+                      <EmptyContent>
+                        <Button size="sm" aria-keyshortcuts="Control+N" onClick={openComposer}>
+                          New item
+                          <Kbd className="ml-1 bg-primary-foreground/15 text-primary-foreground">
+                            Ctrl+N
+                          </Kbd>
+                        </Button>
+                        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                          <span>Paste or drop anywhere in this window</span>
+                          {globalCaptureShortcutStatus?.registered ? (
+                            <>
+                              <span aria-hidden="true">·</span>
+                              <span>
+                                Capture from any app with{' '}
+                                <Kbd>{globalCaptureShortcutStatus.accelerator}</Kbd>
+                              </span>
+                            </>
+                          ) : null}
+                        </div>
+                      </EmptyContent>
+                    ) : null}
+                  </Empty>
+                )}
+              </div>
+            </main>
+          </ScrollArea>
+        )}
         <BulkActionToolbar
           selectedItemIds={selectedItemIds}
           selectedItemLocations={selectedItemLocations}
           destination={destination}
           collections={library.collections}
-          onMove={(itemIds, nextDestination) => void moveItemIds(itemIds, nextDestination)}
-          onArchive={(itemIds) => void archiveItemIds(itemIds)}
-          onUnarchive={(itemIds) => void unarchiveItemIds(itemIds)}
-          onTrash={(itemIds) => void trashItemIds(itemIds)}
-          onRestore={(itemIds) => void restoreItemIds(itemIds)}
-          onDeletePermanently={requestPermanentDelete}
+          onMove={(itemIds, nextDestination) =>
+            guardFocusTargets(itemIds, () => void moveItemIds(itemIds, nextDestination))
+          }
+          onArchive={(itemIds) => guardFocusTargets(itemIds, () => void archiveItemIds(itemIds))}
+          onUnarchive={(itemIds) =>
+            guardFocusTargets(itemIds, () => void unarchiveItemIds(itemIds))
+          }
+          onTrash={(itemIds) => guardFocusTargets(itemIds, () => void trashItemIds(itemIds))}
+          onRestore={(itemIds) => guardFocusTargets(itemIds, () => void restoreItemIds(itemIds))}
+          onDeletePermanently={(itemIds) =>
+            guardFocusTargets(itemIds, () => requestPermanentDelete(itemIds))
+          }
           onClearSelection={clearSelection}
         />
         <p className="sr-only" aria-live="polite" aria-atomic="true">
@@ -1728,6 +2140,17 @@ export function Workspace({
                 onTrash={() => guard(actions.onTrash)}
                 onRestore={() => guard(actions.onRestore)}
                 onDeletePermanently={() => guard(actions.onDeletePermanently)}
+              />
+            )
+          }}
+          renderLocation={(guard) => {
+            if (!selectedItem) return null
+            const actions = itemActions(selectedItem, [selectedItem.id])
+            return (
+              <ItemLocationMenu
+                item={selectedItem}
+                collections={library.collections}
+                onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}
               />
             )
           }}

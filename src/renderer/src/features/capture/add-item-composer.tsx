@@ -199,6 +199,7 @@ export function AddItemComposer({
   draftStorageKey,
   importRequest,
   view,
+  presentation = 'card',
   onOpenChange,
   onImportRequestHandled,
   onCreated,
@@ -222,6 +223,7 @@ export function AddItemComposer({
   draftStorageKey?: string
   importRequest: ImportRequest | null
   view: LibraryView
+  presentation?: 'card' | 'pane'
   onOpenChange: (open: boolean) => void
   onImportRequestHandled: (id: number) => void
   onCreated: (item: LibraryItemDto) => boolean | Promise<boolean>
@@ -741,7 +743,7 @@ export function AddItemComposer({
   const editor = (
     <ComposerMarkdownEditor
       ref={editorRef}
-      className={surface === 'quick' ? 'h-full' : undefined}
+      className={surface === 'quick' || presentation === 'pane' ? 'h-full' : undefined}
       value={exiting ? exitingDraft : draft}
       placeholder={
         captureKind === 'image'
@@ -774,6 +776,8 @@ export function AddItemComposer({
       className={cn(
         'gap-0 overflow-hidden rounded-lg py-0 transition-[opacity,transform,filter] [transition-duration:80ms] ease-in',
         surface === 'quick' && 'h-full',
+        presentation === 'pane' &&
+          'focus-detail-composer-surface size-full rounded-none border-0 shadow-none',
         'animate-in fade-in zoom-in-[0.98] [animation-duration:var(--capture-morph-duration)] [animation-timing-function:var(--motion-ease-out)]',
         exiting && '-translate-y-3 opacity-0 blur-[4px]',
         'motion-reduce:translate-y-0 motion-reduce:animate-none motion-reduce:blur-none motion-reduce:transition-none'
@@ -781,7 +785,11 @@ export function AddItemComposer({
       style={MORPH_STYLE}
     >
       <CardContent
-        className={cn('flex flex-col gap-3 p-3', surface === 'quick' && 'min-h-full flex-1')}
+        className={cn(
+          'flex flex-col gap-3 p-3',
+          surface === 'quick' && 'min-h-full flex-1',
+          presentation === 'pane' && 'mx-auto min-h-full w-full max-w-3xl flex-1 p-5 sm:p-7'
+        )}
       >
         {queue.failures.length > 0 ? (
           <Button
