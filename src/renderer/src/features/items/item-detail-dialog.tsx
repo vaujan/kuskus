@@ -1,7 +1,9 @@
 import { Dialog } from '@base-ui/react/dialog'
 import {
+  forwardRef,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useReducer,
   useRef,
@@ -11,9 +13,11 @@ import {
 import {
   IconAlignLeft as AlignLeft,
   IconCalendar as Calendar,
+  IconCalendarPlus as CalendarPlus,
   IconChevronLeft as ChevronLeft,
   IconChevronRight as ChevronRight,
   IconCode as Code,
+  IconClockEdit as ClockEdit,
   IconColumns2 as Columns2,
   IconDimensions as Dimensions,
   IconEye as Eye,
@@ -348,7 +352,9 @@ function FloatingControls({
   hasNext,
   onPrevious,
   onNext,
-  onError
+  onError,
+  avoidCaptionControls = false,
+  showClose = true
 }: {
   itemId: string
   leadingControls?: React.ReactNode
@@ -358,9 +364,18 @@ function FloatingControls({
   onPrevious: () => void
   onNext: () => void
   onError: (message: string) => void
+  avoidCaptionControls?: boolean
+  showClose?: boolean
 }): React.JSX.Element {
   return (
-    <div className="absolute top-3 right-3 z-20 flex max-w-[calc(100%-1.5rem)] flex-wrap justify-end gap-2">
+    <div
+      className={cn(
+        'absolute z-20 flex max-w-[calc(100%-1.5rem)] flex-wrap justify-end gap-2',
+        avoidCaptionControls
+          ? 'top-12 right-3 @min-[52rem]/detail:top-3 @min-[52rem]/detail:right-[9.5rem]'
+          : 'top-3 right-3'
+      )}
+    >
       {leadingControls}
       <div className="flex rounded-full bg-popover/85 p-0.5 shadow-sm ring-1 ring-foreground/8 backdrop-blur-md">
         <DetailControl
@@ -383,25 +398,27 @@ function FloatingControls({
         >
           <FolderOpen aria-hidden="true" />
         </DetailControl>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Dialog.Close
-                render={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="size-10"
-                    aria-label="Close item details"
-                  />
-                }
-              />
-            }
-          >
-            <X aria-hidden="true" />
-          </TooltipTrigger>
-          <TooltipContent>Close item details</TooltipContent>
-        </Tooltip>
+        {showClose ? (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Dialog.Close
+                  render={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="size-10"
+                      aria-label="Close item details"
+                    />
+                  }
+                />
+              }
+            >
+              <X aria-hidden="true" />
+            </TooltipTrigger>
+            <TooltipContent>Close item details</TooltipContent>
+          </Tooltip>
+        ) : null}
       </div>
     </div>
   )
@@ -494,7 +511,7 @@ function ImageCanvas({
   const { preview, previewError } = useImagePreview(item.id, item.missingContent)
 
   return (
-    <section className="flex min-h-64 min-w-0 items-center justify-center overflow-hidden bg-white dark:bg-black p-5 min-[860px]:min-h-0 min-[860px]:p-8">
+    <section className="flex min-h-64 min-w-0 items-center justify-center overflow-hidden bg-white p-5 dark:bg-black @min-[860px]/detail:min-h-0 @min-[860px]/detail:p-8">
       {item.missingContent ? (
         <MissingContent type="image" />
       ) : preview ? (
@@ -538,7 +555,7 @@ function UrlCanvas({
   const preview = useUrlPreview(item.id, 'preview', item.hasPreviewImage)
   const loading = item.metadataStatus === 'pending' || preview.loading
   return (
-    <section className="relative flex min-h-64 min-w-0 items-center justify-center overflow-hidden bg-muted/35 p-5 min-[860px]:min-h-0 min-[860px]:p-8">
+    <section className="relative flex min-h-64 min-w-0 items-center justify-center overflow-hidden bg-muted/35 p-5 @min-[860px]/detail:min-h-0 @min-[860px]/detail:p-8">
       {preview.preview ? (
         <img
           src={preview.preview}
@@ -580,6 +597,7 @@ function NoteCanvas({
   item,
   mode,
   snapshot,
+  locationControl,
   onRenameTitle,
   onDraftChange,
   onRetry,
@@ -590,6 +608,7 @@ function NoteCanvas({
   item: Extract<LibraryItemDto, { type: 'note' }>
   mode: NoteMode
   snapshot: NoteAutosaveSnapshot
+  locationControl?: React.ReactNode
   onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
   onDraftChange: (value: string) => void
   onRetry: () => void
@@ -751,35 +770,64 @@ function NoteCanvas({
   )
 
   return (
-    <section className="flex h-full min-w-0 flex-1 flex-col bg-popover">
+    <section
+      data-detail-structural-surface
+      className="flex h-full min-w-0 flex-1 flex-col bg-popover"
+    >
       {!item.missingContent ? (
-        <header className="flex min-h-16 shrink-0 flex-wrap items-center gap-x-5 gap-y-3 px-4 pt-28 pb-3 sm:flex-nowrap sm:px-7 sm:pt-3 sm:pr-[23rem]">
-          <div className="min-w-0 flex-1 basis-full sm:basis-auto">
-            <InlineItemTitle
-              item={item}
-              onRename={onRenameTitle}
-              className="text-sm leading-5 font-medium text-foreground"
-              textClassName="truncate"
-            />
-            <p className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 text-[0.6875rem] leading-4 text-muted-foreground tabular-nums">
-              <span className="whitespace-nowrap">
-                Added <time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time>
-              </span>
-              <span aria-hidden="true">·</span>
-              <span className="whitespace-nowrap">
-                Edited <time dateTime={item.updatedAt}>{formatDate(item.updatedAt)}</time>
-              </span>
-            </p>
+        <header className="flex shrink-0 flex-col gap-4 px-5 pt-28 pb-5 @min-[64rem]/detail:px-8 @min-[64rem]/detail:pt-5 @min-[64rem]/detail:pr-[23rem]">
+          <div className="flex min-w-0 flex-wrap items-start gap-x-5 gap-y-3">
+            <div className="min-w-0 flex-1 basis-full sm:basis-auto">
+              <InlineItemTitle
+                item={item}
+                onRename={onRenameTitle}
+                className="font-heading text-2xl leading-tight font-medium text-foreground text-balance"
+                textClassName="break-words"
+              />
+            </div>
+            {problemStatusLabel ? (
+              <p
+                className="shrink-0 text-xs text-destructive"
+                aria-live="assertive"
+                aria-atomic="true"
+              >
+                {problemStatusLabel}
+              </p>
+            ) : null}
           </div>
-          {problemStatusLabel ? (
-            <p
-              className="shrink-0 text-xs text-destructive"
-              aria-live="assertive"
-              aria-atomic="true"
-            >
-              {problemStatusLabel}
-            </p>
-          ) : null}
+
+          {locationControl ? <div className="flex min-w-0">{locationControl}</div> : null}
+
+          <div className="flex w-fit max-w-full flex-wrap gap-x-7 gap-y-3 rounded-xl bg-muted/45 px-4 py-3 shadow-[inset_0_0_0_1px_color-mix(in_oklab,currentColor_5%,transparent)]">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <CalendarPlus className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <div className="min-w-0">
+                <p className="text-[0.625rem] leading-3 font-medium tracking-wide text-muted-foreground uppercase">
+                  Created at
+                </p>
+                <time
+                  className="block truncate text-xs leading-5 tabular-nums text-foreground"
+                  dateTime={item.createdAt}
+                >
+                  {formatDate(item.createdAt)}
+                </time>
+              </div>
+            </div>
+            <div className="flex min-w-0 items-center gap-2.5">
+              <ClockEdit className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <div className="min-w-0">
+                <p className="text-[0.625rem] leading-3 font-medium tracking-wide text-muted-foreground uppercase">
+                  Updated at
+                </p>
+                <time
+                  className="block truncate text-xs leading-5 tabular-nums text-foreground"
+                  dateTime={item.updatedAt}
+                >
+                  {formatDate(item.updatedAt)}
+                </time>
+              </div>
+            </div>
+          </div>
         </header>
       ) : null}
       {item.missingContent ? (
@@ -817,14 +865,14 @@ function NoteCanvas({
           <div
             className={cn(
               'grid min-h-0 flex-1 grid-cols-1',
-              mode === 'split' && 'min-[860px]:grid-cols-2'
+              mode === 'split' && '@min-[860px]/detail:grid-cols-2'
             )}
           >
             <div
               className={cn(
                 'min-h-0 min-w-0',
                 mode === 'read' ? 'hidden' : 'flex',
-                mode === 'split' && 'min-[860px]:border-r'
+                mode === 'split' && '@min-[860px]/detail:border-r'
               )}
             >
               <MarkdownEditor
@@ -847,7 +895,7 @@ function NoteCanvas({
                 mode === 'read' && 'flex',
                 mode === 'live' && 'hidden',
                 mode === 'markdown' && 'hidden',
-                mode === 'split' && 'hidden min-[860px]:flex'
+                mode === 'split' && 'hidden @min-[860px]/detail:flex'
               )}
               viewportClassName="focus-visible:ring-0 focus-visible:outline-none"
               viewportRef={previewViewportRef}
@@ -978,7 +1026,10 @@ function NoteAttachmentsPanel({
     }
   }
   return (
-    <aside className="absolute inset-y-0 right-0 z-10 flex w-80 shrink-0 flex-col border-l bg-popover shadow-xl min-[860px]:static min-[860px]:shadow-none">
+    <aside
+      data-detail-structural-surface
+      className="absolute inset-y-0 right-0 z-10 flex w-80 shrink-0 flex-col border-l bg-popover shadow-xl @min-[860px]/detail:static @min-[860px]/detail:shadow-none"
+    >
       <header className="flex min-h-16 items-center gap-3 px-4">
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-medium">Attachments</h2>
@@ -1026,7 +1077,10 @@ function ImageInspector({
   onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
 }): React.JSX.Element {
   return (
-    <aside className="min-w-0 border-t bg-popover min-[860px]:border-t-0 min-[860px]:border-l">
+    <aside
+      data-detail-structural-surface
+      className="min-w-0 border-t bg-popover @min-[860px]/detail:border-t-0 @min-[860px]/detail:border-l"
+    >
       <div className="space-y-5 p-5 pt-18 sm:p-6 sm:pt-20">
         <InlineItemTitle
           item={item}
@@ -1061,7 +1115,7 @@ function FileDetails({
   onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
 }): React.JSX.Element {
   return (
-    <div className="flex min-h-full items-center justify-center px-7 py-20 min-[860px]:col-span-2">
+    <div className="flex min-h-full items-center justify-center px-7 py-20 @min-[860px]/detail:col-span-2">
       <div className="flex w-full max-w-md flex-col items-center gap-6 text-center">
         <span className="flex size-20 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
           <File className="size-9" aria-hidden="true" />
@@ -1099,7 +1153,10 @@ function UrlInspector({
   onOpenLink: () => void
 }): React.JSX.Element {
   return (
-    <aside className="min-w-0 border-t bg-popover min-[860px]:border-t-0 min-[860px]:border-l">
+    <aside
+      data-detail-structural-surface
+      className="min-w-0 border-t bg-popover @min-[860px]/detail:border-t-0 @min-[860px]/detail:border-l"
+    >
       <div className="space-y-5 p-5 pt-18 sm:p-6 sm:pt-20">
         <InlineItemTitle
           item={item}
@@ -1135,21 +1192,12 @@ function UrlInspector({
   )
 }
 
-export function ItemDetailDialog({
-  item,
-  hasPrevious,
-  hasNext,
-  onPrevious,
-  onNext,
-  onOpenChange,
-  onItemUpdated,
-  onRenameItem,
-  libraryItems,
-  onRenameAttachment,
-  renderActions,
-  onOpenVaultLink,
-  onError
-}: {
+export interface ItemDetailHandle {
+  requestTransition: (action: () => void) => void
+  flush: () => Promise<boolean>
+}
+
+interface ItemDetailProps {
   item: LibraryItemDto | null
   hasPrevious: boolean
   hasNext: boolean
@@ -1161,390 +1209,448 @@ export function ItemDetailDialog({
   libraryItems: readonly LibraryItemDto[]
   onRenameAttachment: (itemId: string) => void
   renderActions?: (guard: (action: () => void) => void) => React.ReactNode
+  renderLocation?: (guard: (action: () => void) => void) => React.ReactNode
   onOpenVaultLink: (target: string) => void
   onError: (message: string) => void
-}): React.JSX.Element {
-  const [openedNote] = useState(() => (item?.type === 'note' ? item : null))
-  const coordinator = useMemo(
-    () =>
-      openedNote
-        ? new NoteAutosaveCoordinator({
-            itemId: openedNote.id,
-            initialMarkdown: openedNote.body,
-            save: (input) => window.kuskus.updateNote(input),
-            onSaved: onItemUpdated,
-            onDraftReplaced: () => undefined
-          })
-        : null,
-    [onItemUpdated, openedNote]
-  )
-  const fallbackSnapshot = useRef<NoteAutosaveSnapshot>({
-    status: 'saved',
-    draft: '',
-    savedMarkdown: '',
-    error: null,
-    conflict: null
-  })
-  const snapshot = useSyncExternalStore(
-    coordinator?.subscribe ?? (() => () => undefined),
-    coordinator?.getSnapshot ?? (() => fallbackSnapshot.current)
-  )
-  const [mode, setMode] = useState<NoteMode>('read')
-  const previousSingleModeRef = useRef<SinglePaneNoteMode>('read')
-  const [leaving, setLeaving] = useState(false)
-  const [conflictDialogOpen, setConflictDialogOpen] = useState(false)
-  const [conflictResolution, setConflictResolution] = useState<'mine' | 'disk' | null>(null)
-  const [attachmentsOpen, setAttachmentsOpen] = useState(false)
-  const diffRows = useMemo(
-    () => (snapshot.conflict ? createMarkdownDiffRows(snapshot.draft, snapshot.conflict.body) : []),
-    [snapshot.conflict, snapshot.draft]
-  )
-
-  useEffect(() => () => coordinator?.dispose(), [coordinator])
-  useEffect(() => {
-    if (
-      item?.type === 'note' &&
-      coordinator &&
-      item.body !== coordinator.getSnapshot().savedMarkdown &&
-      !coordinator.hasPendingChanges()
-    ) {
-      coordinator.useDiskVersion(item)
-    }
-  }, [coordinator, item])
-  const changeMode = (nextMode: NoteMode): void => {
-    if (nextMode === mode) return
-    if (nextMode !== 'split') previousSingleModeRef.current = nextMode
-    setMode(nextMode)
-  }
-
-  const flushPendingNote = async (): Promise<boolean> => {
-    if (leaving) return false
-    if (!coordinator?.hasPendingChanges()) return true
-    setLeaving(true)
-    try {
-      return await coordinator.flush()
-    } finally {
-      setLeaving(false)
-    }
-  }
-
-  const requestGuardedAction = (action: () => void): void => {
-    void flushPendingNote().then((saved) => {
-      if (saved) action()
-    })
-  }
-
-  const renameCurrentItem = async (title: string): Promise<DetailTitleRenameResult> => {
-    if (!item) return { ok: false, error: 'The item is no longer available.' }
-    const saved = await flushPendingNote()
-    if (!saved) {
-      return { ok: false, error: snapshot.error ?? 'Save the note before renaming it.' }
-    }
-    return onRenameItem(item, title)
-  }
-
-  const openLink = async (): Promise<void> => {
-    if (item?.type !== 'url') return
-    await openExternalUrlWithFeedback(item.sourceUrl)
-  }
-
-  const handleKeyDown = (event: React.KeyboardEvent): void => {
-    if (event.defaultPrevented) return
-    const target = event.target as HTMLElement | null
-    const isEditingTarget = Boolean(target?.closest('input, textarea, [contenteditable="true"]'))
-    if (
-      event.key.toLocaleLowerCase() === 'e' &&
-      event.ctrlKey &&
-      !event.altKey &&
-      !event.metaKey &&
-      event.shiftKey &&
-      !event.repeat &&
-      item?.type === 'note'
-    ) {
-      event.preventDefault()
-      changeMode(getSplitToggleMode(mode, previousSingleModeRef.current))
-      return
-    }
-    if (
-      event.key.toLocaleLowerCase() === 'e' &&
-      event.ctrlKey &&
-      event.altKey &&
-      !event.metaKey &&
-      !event.shiftKey &&
-      !event.repeat &&
-      item?.type === 'note'
-    ) {
-      event.preventDefault()
-      changeMode(toggleSourceMode(mode))
-      return
-    }
-    if (
-      event.key.toLocaleLowerCase() === 'e' &&
-      event.ctrlKey &&
-      !event.altKey &&
-      !event.metaKey &&
-      !event.shiftKey &&
-      !event.repeat &&
-      item?.type === 'note'
-    ) {
-      event.preventDefault()
-      changeMode(toggleReadLive(mode))
-      return
-    }
-    if (
-      event.key === 'Enter' &&
-      event.ctrlKey &&
-      !event.altKey &&
-      !event.metaKey &&
-      !event.shiftKey &&
-      !event.repeat &&
-      item?.type === 'url' &&
-      !isEditingTarget
-    ) {
-      event.preventDefault()
-      void openLink()
-      return
-    }
-    if (
-      event.key === 'Enter' &&
-      event.ctrlKey &&
-      !event.altKey &&
-      !event.metaKey &&
-      !event.shiftKey &&
-      !event.repeat &&
-      item?.type === 'note' &&
-      mode !== 'read'
-    ) {
-      event.preventDefault()
-      void coordinator?.flush()
-      return
-    }
-    if (isEditingTarget) return
-    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
-    if (event.key === 'ArrowLeft' && hasPrevious) {
-      event.preventDefault()
-      requestGuardedAction(onPrevious)
-    } else if (event.key === 'ArrowRight' && hasNext) {
-      event.preventDefault()
-      requestGuardedAction(onNext)
-    }
-  }
-
-  return (
-    <>
-      <Dialog.Root
-        open={item !== null}
-        onOpenChange={(open) => {
-          if (open) onOpenChange(true)
-          else requestGuardedAction(() => onOpenChange(false))
-        }}
-      >
-        <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 z-50 bg-[var(--backdrop)]" />
-          <Dialog.Popup
-            onKeyDown={handleKeyDown}
-            className="pointer-events-none fixed inset-0 z-50 outline-none"
-          >
-            <div className="pointer-events-auto fixed top-0 right-0 h-12">
-              <WindowControls onClose={() => requestGuardedAction(window.electron.window.close)} />
-            </div>
-            <div className="pointer-events-auto fixed top-16 left-1/2 flex h-[calc(100vh-5rem)] max-h-[60rem] w-[calc(100vw-2rem)] max-w-[90rem] -translate-x-1/2 overflow-hidden rounded-xl bg-popover text-popover-foreground shadow-2xl ring-1 ring-white/10">
-              {item ? (
-                <>
-                  <Dialog.Title className="sr-only">{item.title}</Dialog.Title>
-                  <Dialog.Description className="sr-only">
-                    {item.type === 'note' ? 'Editable note details' : 'Item details'} for{' '}
-                    {item.title}. Use the arrow keys to move between visible items.
-                  </Dialog.Description>
-                  <FloatingControls
-                    itemId={item.id}
-                    leadingControls={
-                      item.type === 'note' ? (
-                        <div className="flex gap-2">
-                          <NoteModeControls mode={mode} onModeChange={changeMode} />
-                          {item.attachments.length > 0 ? (
-                            <div className="flex rounded-full bg-popover/85 p-0.5 shadow-sm ring-1 ring-foreground/8 backdrop-blur-md">
-                              <DetailControl
-                                label={`Attachments (${item.attachments.length})`}
-                                onClick={() => setAttachmentsOpen((open) => !open)}
-                              >
-                                <Paperclip aria-hidden="true" />
-                              </DetailControl>
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : undefined
-                    }
-                    actions={renderActions?.(requestGuardedAction)}
-                    hasPrevious={hasPrevious}
-                    hasNext={hasNext}
-                    onPrevious={() => requestGuardedAction(onPrevious)}
-                    onNext={() => requestGuardedAction(onNext)}
-                    onError={onError}
-                  />
-                  {item.type === 'note' ? (
-                    <div className="relative flex min-w-0 flex-1">
-                      <NoteCanvas
-                        item={item}
-                        mode={mode}
-                        snapshot={snapshot}
-                        onRenameTitle={renameCurrentItem}
-                        onDraftChange={(value) => coordinator?.updateDraft(value)}
-                        onRetry={() => void coordinator?.retry()}
-                        onRestore={() => coordinator?.restoreSaved()}
-                        onReviewConflict={() => setConflictDialogOpen(true)}
-                        onOpenVaultLink={(target) =>
-                          requestGuardedAction(() => onOpenVaultLink(target))
-                        }
-                      />
-                      {attachmentsOpen ? (
-                        <NoteAttachmentsPanel
-                          note={item}
-                          libraryItems={libraryItems}
-                          onClose={() => setAttachmentsOpen(false)}
-                          onRename={(itemId) =>
-                            requestGuardedAction(() => onRenameAttachment(itemId))
-                          }
-                          onError={onError}
-                        />
-                      ) : null}
-                    </div>
-                  ) : (
-                    <ScrollArea
-                      className="min-h-0 min-w-0 flex-1"
-                      viewportClassName="focus-visible:ring-0 focus-visible:outline-none"
-                    >
-                      <div className="min-h-full min-w-0 min-[860px]:grid min-[860px]:grid-cols-[minmax(0,1fr)_20rem]">
-                        {item.type === 'image' ? (
-                          <>
-                            <ImageCanvas item={item} />
-                            <ImageInspector item={item} onRenameTitle={renameCurrentItem} />
-                          </>
-                        ) : item.type === 'url' ? (
-                          <>
-                            <UrlCanvas item={item} />
-                            <UrlInspector
-                              item={item}
-                              onRenameTitle={renameCurrentItem}
-                              onOpenLink={() => void openLink()}
-                            />
-                          </>
-                        ) : (
-                          <FileDetails item={item} onRenameTitle={renameCurrentItem} />
-                        )}
-                      </div>
-                    </ScrollArea>
-                  )}
-                </>
-              ) : null}
-            </div>
-          </Dialog.Popup>
-        </Dialog.Portal>
-      </Dialog.Root>
-      <ConflictDialog open={conflictDialogOpen} onOpenChange={setConflictDialogOpen}>
-        <ConflictDialogContent className="max-w-5xl" showCloseButton>
-          <ConflictDialogHeader>
-            <ConflictDialogTitle>Review note conflict</ConflictDialogTitle>
-            <ConflictDialogDescription>
-              Your draft is on the left. The version currently stored on disk is on the right.
-            </ConflictDialogDescription>
-          </ConflictDialogHeader>
-          <div className="grid min-h-0 grid-cols-2 overflow-hidden rounded-lg border">
-            <div className="border-r px-3 py-2 text-xs font-medium">My draft</div>
-            <div className="px-3 py-2 text-xs font-medium">Disk version</div>
-            <ScrollArea className="col-span-2 max-h-[60vh] border-t">
-              <div className="grid min-w-[48rem] grid-cols-2 font-mono text-xs leading-5">
-                {diffRows.map((row, index) => (
-                  <div className="contents" key={`${index}-${row.localLine}-${row.diskLine}`}>
-                    <pre
-                      className={cn(
-                        'min-h-5 border-r px-3 whitespace-pre-wrap',
-                        row.kind !== 'same' && row.kind !== 'disk' && 'bg-destructive/10'
-                      )}
-                    >
-                      <span className="mr-3 select-none text-muted-foreground">
-                        {row.localLine ?? ''}
-                      </span>
-                      {row.localText}
-                    </pre>
-                    <pre
-                      className={cn(
-                        'min-h-5 px-3 whitespace-pre-wrap',
-                        row.kind !== 'same' && row.kind !== 'local' && 'bg-destructive/10'
-                      )}
-                    >
-                      <span className="mr-3 select-none text-muted-foreground">
-                        {row.diskLine ?? ''}
-                      </span>
-                      {row.diskText}
-                    </pre>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          </div>
-          <ConflictDialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setConflictDialogOpen(false)
-                setConflictResolution('disk')
-              }}
-            >
-              Use disk version
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => {
-                setConflictDialogOpen(false)
-                setConflictResolution('mine')
-              }}
-            >
-              Use my version
-            </Button>
-          </ConflictDialogFooter>
-        </ConflictDialogContent>
-      </ConflictDialog>
-      <AlertDialog
-        open={conflictResolution !== null}
-        onOpenChange={(open) => {
-          if (!open) setConflictResolution(null)
-        }}
-      >
-        <AlertDialogContent size="sm">
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {conflictResolution === 'mine' ? 'Replace the disk version?' : 'Replace your draft?'}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {conflictResolution === 'mine'
-                ? 'Kuskus will save your reviewed draft over the external version. A newer external change will trigger another conflict.'
-                : 'Your unsaved draft will be replaced by the reviewed version from disk.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Go back</AlertDialogCancel>
-            <AlertDialogAction
-              variant={conflictResolution === 'mine' ? 'destructive' : 'default'}
-              onClick={() => {
-                const current = snapshot.conflict
-                const resolution = conflictResolution
-                setConflictResolution(null)
-                if (!current || !coordinator) return
-                if (resolution === 'mine') void coordinator.useLocalVersion(current)
-                else {
-                  coordinator.useDiskVersion(current)
-                  setMode('read')
-                }
-              }}
-            >
-              {conflictResolution === 'mine' ? 'Use my version' : 'Use disk version'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
-  )
+  presentation?: 'dialog' | 'focus'
 }
+
+export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
+  function ItemDetailDialog(
+    {
+      item,
+      hasPrevious,
+      hasNext,
+      onPrevious,
+      onNext,
+      onOpenChange,
+      onItemUpdated,
+      onRenameItem,
+      libraryItems,
+      onRenameAttachment,
+      renderActions,
+      renderLocation,
+      onOpenVaultLink,
+      onError,
+      presentation = 'dialog'
+    },
+    ref
+  ): React.JSX.Element {
+    const [openedNote] = useState(() => (item?.type === 'note' ? item : null))
+    const coordinator = useMemo(
+      () =>
+        openedNote
+          ? new NoteAutosaveCoordinator({
+              itemId: openedNote.id,
+              initialMarkdown: openedNote.body,
+              save: (input) => window.kuskus.updateNote(input),
+              onSaved: onItemUpdated,
+              onDraftReplaced: () => undefined
+            })
+          : null,
+      [onItemUpdated, openedNote]
+    )
+    const fallbackSnapshot = useRef<NoteAutosaveSnapshot>({
+      status: 'saved',
+      draft: '',
+      savedMarkdown: '',
+      error: null,
+      conflict: null
+    })
+    const snapshot = useSyncExternalStore(
+      coordinator?.subscribe ?? (() => () => undefined),
+      coordinator?.getSnapshot ?? (() => fallbackSnapshot.current)
+    )
+    const [mode, setMode] = useState<NoteMode>('read')
+    const previousSingleModeRef = useRef<SinglePaneNoteMode>('read')
+    const [leaving, setLeaving] = useState(false)
+    const [conflictDialogOpen, setConflictDialogOpen] = useState(false)
+    const [conflictResolution, setConflictResolution] = useState<'mine' | 'disk' | null>(null)
+    const [attachmentsOpen, setAttachmentsOpen] = useState(false)
+    const diffRows = useMemo(
+      () =>
+        snapshot.conflict ? createMarkdownDiffRows(snapshot.draft, snapshot.conflict.body) : [],
+      [snapshot.conflict, snapshot.draft]
+    )
+
+    useEffect(() => () => coordinator?.dispose(), [coordinator])
+    useEffect(() => {
+      if (
+        item?.type === 'note' &&
+        coordinator &&
+        item.body !== coordinator.getSnapshot().savedMarkdown &&
+        !coordinator.hasPendingChanges()
+      ) {
+        coordinator.useDiskVersion(item)
+      }
+    }, [coordinator, item])
+    const changeMode = (nextMode: NoteMode): void => {
+      if (nextMode === mode) return
+      if (nextMode !== 'split') previousSingleModeRef.current = nextMode
+      setMode(nextMode)
+    }
+
+    const flushPendingNote = useCallback(async (): Promise<boolean> => {
+      if (leaving) return false
+      if (!coordinator?.hasPendingChanges()) return true
+      setLeaving(true)
+      try {
+        return await coordinator.flush()
+      } finally {
+        setLeaving(false)
+      }
+    }, [coordinator, leaving])
+
+    const requestGuardedAction = useCallback(
+      (action: () => void): void => {
+        void flushPendingNote().then((saved) => {
+          if (saved) action()
+        })
+      },
+      [flushPendingNote]
+    )
+
+    useImperativeHandle(
+      ref,
+      () => ({ requestTransition: requestGuardedAction, flush: flushPendingNote }),
+      [flushPendingNote, requestGuardedAction]
+    )
+
+    const renameCurrentItem = async (title: string): Promise<DetailTitleRenameResult> => {
+      if (!item) return { ok: false, error: 'The item is no longer available.' }
+      const saved = await flushPendingNote()
+      if (!saved) {
+        return { ok: false, error: snapshot.error ?? 'Save the note before renaming it.' }
+      }
+      return onRenameItem(item, title)
+    }
+
+    const openLink = async (): Promise<void> => {
+      if (item?.type !== 'url') return
+      await openExternalUrlWithFeedback(item.sourceUrl)
+    }
+
+    const handleKeyDown = (event: React.KeyboardEvent): void => {
+      if (event.defaultPrevented) return
+      const target = event.target as HTMLElement | null
+      const isEditingTarget = Boolean(target?.closest('input, textarea, [contenteditable="true"]'))
+      if (
+        event.key.toLocaleLowerCase() === 'e' &&
+        event.ctrlKey &&
+        !event.altKey &&
+        !event.metaKey &&
+        event.shiftKey &&
+        !event.repeat &&
+        item?.type === 'note'
+      ) {
+        event.preventDefault()
+        changeMode(getSplitToggleMode(mode, previousSingleModeRef.current))
+        return
+      }
+      if (
+        event.key.toLocaleLowerCase() === 'e' &&
+        event.ctrlKey &&
+        event.altKey &&
+        !event.metaKey &&
+        !event.shiftKey &&
+        !event.repeat &&
+        item?.type === 'note'
+      ) {
+        event.preventDefault()
+        changeMode(toggleSourceMode(mode))
+        return
+      }
+      if (
+        event.key.toLocaleLowerCase() === 'e' &&
+        event.ctrlKey &&
+        !event.altKey &&
+        !event.metaKey &&
+        !event.shiftKey &&
+        !event.repeat &&
+        item?.type === 'note'
+      ) {
+        event.preventDefault()
+        changeMode(toggleReadLive(mode))
+        return
+      }
+      if (
+        event.key === 'Enter' &&
+        event.ctrlKey &&
+        !event.altKey &&
+        !event.metaKey &&
+        !event.shiftKey &&
+        !event.repeat &&
+        item?.type === 'url' &&
+        !isEditingTarget
+      ) {
+        event.preventDefault()
+        void openLink()
+        return
+      }
+      if (
+        event.key === 'Enter' &&
+        event.ctrlKey &&
+        !event.altKey &&
+        !event.metaKey &&
+        !event.shiftKey &&
+        !event.repeat &&
+        item?.type === 'note' &&
+        mode !== 'read'
+      ) {
+        event.preventDefault()
+        void coordinator?.flush()
+        return
+      }
+      if (isEditingTarget) return
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+      if (event.key === 'ArrowLeft' && hasPrevious) {
+        event.preventDefault()
+        requestGuardedAction(onPrevious)
+      } else if (event.key === 'ArrowRight' && hasNext) {
+        event.preventDefault()
+        requestGuardedAction(onNext)
+      }
+    }
+
+    const detailContent = item ? (
+      <>
+        <FloatingControls
+          itemId={item.id}
+          leadingControls={
+            item.type === 'note' ? (
+              <div className="flex gap-2">
+                <NoteModeControls mode={mode} onModeChange={changeMode} />
+                {item.attachments.length > 0 ? (
+                  <div className="flex rounded-full bg-popover/85 p-0.5 shadow-sm ring-1 ring-foreground/8 backdrop-blur-md">
+                    <DetailControl
+                      label={`Attachments (${item.attachments.length})`}
+                      onClick={() => setAttachmentsOpen((open) => !open)}
+                    >
+                      <Paperclip aria-hidden="true" />
+                    </DetailControl>
+                  </div>
+                ) : null}
+              </div>
+            ) : undefined
+          }
+          actions={renderActions?.(requestGuardedAction)}
+          hasPrevious={hasPrevious}
+          hasNext={hasNext}
+          onPrevious={() => requestGuardedAction(onPrevious)}
+          onNext={() => requestGuardedAction(onNext)}
+          onError={onError}
+          avoidCaptionControls={
+            presentation === 'focus' && window.electron.window.platform !== 'darwin'
+          }
+          showClose={presentation === 'dialog'}
+        />
+        {item.type === 'note' ? (
+          <div className="relative flex min-w-0 flex-1">
+            <NoteCanvas
+              item={item}
+              mode={mode}
+              snapshot={snapshot}
+              locationControl={renderLocation?.(requestGuardedAction)}
+              onRenameTitle={renameCurrentItem}
+              onDraftChange={(value) => coordinator?.updateDraft(value)}
+              onRetry={() => void coordinator?.retry()}
+              onRestore={() => coordinator?.restoreSaved()}
+              onReviewConflict={() => setConflictDialogOpen(true)}
+              onOpenVaultLink={(target) => requestGuardedAction(() => onOpenVaultLink(target))}
+            />
+            {attachmentsOpen ? (
+              <NoteAttachmentsPanel
+                note={item}
+                libraryItems={libraryItems}
+                onClose={() => setAttachmentsOpen(false)}
+                onRename={(itemId) => requestGuardedAction(() => onRenameAttachment(itemId))}
+                onError={onError}
+              />
+            ) : null}
+          </div>
+        ) : (
+          <ScrollArea
+            className="min-h-0 min-w-0 flex-1"
+            viewportClassName="focus-visible:ring-0 focus-visible:outline-none"
+          >
+            <div className="min-h-full min-w-0 @min-[860px]/detail:grid @min-[860px]/detail:grid-cols-[minmax(0,1fr)_20rem]">
+              {item.type === 'image' ? (
+                <>
+                  <ImageCanvas item={item} />
+                  <ImageInspector item={item} onRenameTitle={renameCurrentItem} />
+                </>
+              ) : item.type === 'url' ? (
+                <>
+                  <UrlCanvas item={item} />
+                  <UrlInspector
+                    item={item}
+                    onRenameTitle={renameCurrentItem}
+                    onOpenLink={() => void openLink()}
+                  />
+                </>
+              ) : (
+                <FileDetails item={item} onRenameTitle={renameCurrentItem} />
+              )}
+            </div>
+          </ScrollArea>
+        )}
+      </>
+    ) : null
+
+    return (
+      <>
+        {presentation === 'dialog' ? (
+          <Dialog.Root
+            open={item !== null}
+            onOpenChange={(open) => {
+              if (open) onOpenChange(true)
+              else requestGuardedAction(() => onOpenChange(false))
+            }}
+          >
+            <Dialog.Portal>
+              <Dialog.Backdrop className="fixed inset-0 z-50 bg-[var(--backdrop)]" />
+              <Dialog.Popup
+                onKeyDown={handleKeyDown}
+                className="pointer-events-none fixed inset-0 z-50 outline-none"
+              >
+                <div className="pointer-events-auto fixed top-0 right-0 h-12">
+                  <WindowControls
+                    onClose={() => requestGuardedAction(window.electron.window.close)}
+                  />
+                </div>
+                <div className="@container/detail pointer-events-auto fixed top-16 left-1/2 flex h-[calc(100vh-5rem)] max-h-[60rem] w-[calc(100vw-2rem)] max-w-[90rem] -translate-x-1/2 overflow-hidden rounded-xl bg-popover text-popover-foreground shadow-2xl ring-1 ring-white/10">
+                  {item ? (
+                    <>
+                      <Dialog.Title className="sr-only">{item.title}</Dialog.Title>
+                      <Dialog.Description className="sr-only">
+                        {item.type === 'note' ? 'Editable note details' : 'Item details'} for{' '}
+                        {item.title}. Use the arrow keys to move between visible items.
+                      </Dialog.Description>
+                      {detailContent}
+                    </>
+                  ) : null}
+                </div>
+              </Dialog.Popup>
+            </Dialog.Portal>
+          </Dialog.Root>
+        ) : (
+          <section
+            data-detail-surface
+            data-detail-presentation="focus"
+            className="@container/detail relative flex size-full min-h-0 min-w-0 overflow-hidden bg-transparent text-popover-foreground outline-none"
+            aria-label={item ? `Item details for ${item.title}` : 'Item details'}
+            onKeyDown={handleKeyDown}
+          >
+            {detailContent}
+          </section>
+        )}
+        <ConflictDialog open={conflictDialogOpen} onOpenChange={setConflictDialogOpen}>
+          <ConflictDialogContent className="max-w-5xl" showCloseButton>
+            <ConflictDialogHeader>
+              <ConflictDialogTitle>Review note conflict</ConflictDialogTitle>
+              <ConflictDialogDescription>
+                Your draft is on the left. The version currently stored on disk is on the right.
+              </ConflictDialogDescription>
+            </ConflictDialogHeader>
+            <div className="grid min-h-0 grid-cols-2 overflow-hidden rounded-lg border">
+              <div className="border-r px-3 py-2 text-xs font-medium">My draft</div>
+              <div className="px-3 py-2 text-xs font-medium">Disk version</div>
+              <ScrollArea className="col-span-2 max-h-[60vh] border-t">
+                <div className="grid min-w-[48rem] grid-cols-2 font-mono text-xs leading-5">
+                  {diffRows.map((row, index) => (
+                    <div className="contents" key={`${index}-${row.localLine}-${row.diskLine}`}>
+                      <pre
+                        className={cn(
+                          'min-h-5 border-r px-3 whitespace-pre-wrap',
+                          row.kind !== 'same' && row.kind !== 'disk' && 'bg-destructive/10'
+                        )}
+                      >
+                        <span className="mr-3 select-none text-muted-foreground">
+                          {row.localLine ?? ''}
+                        </span>
+                        {row.localText}
+                      </pre>
+                      <pre
+                        className={cn(
+                          'min-h-5 px-3 whitespace-pre-wrap',
+                          row.kind !== 'same' && row.kind !== 'local' && 'bg-destructive/10'
+                        )}
+                      >
+                        <span className="mr-3 select-none text-muted-foreground">
+                          {row.diskLine ?? ''}
+                        </span>
+                        {row.diskText}
+                      </pre>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+            <ConflictDialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setConflictDialogOpen(false)
+                  setConflictResolution('disk')
+                }}
+              >
+                Use disk version
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => {
+                  setConflictDialogOpen(false)
+                  setConflictResolution('mine')
+                }}
+              >
+                Use my version
+              </Button>
+            </ConflictDialogFooter>
+          </ConflictDialogContent>
+        </ConflictDialog>
+        <AlertDialog
+          open={conflictResolution !== null}
+          onOpenChange={(open) => {
+            if (!open) setConflictResolution(null)
+          }}
+        >
+          <AlertDialogContent size="sm">
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {conflictResolution === 'mine'
+                  ? 'Replace the disk version?'
+                  : 'Replace your draft?'}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {conflictResolution === 'mine'
+                  ? 'Kuskus will save your reviewed draft over the external version. A newer external change will trigger another conflict.'
+                  : 'Your unsaved draft will be replaced by the reviewed version from disk.'}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Go back</AlertDialogCancel>
+              <AlertDialogAction
+                variant={conflictResolution === 'mine' ? 'destructive' : 'default'}
+                onClick={() => {
+                  const current = snapshot.conflict
+                  const resolution = conflictResolution
+                  setConflictResolution(null)
+                  if (!current || !coordinator) return
+                  if (resolution === 'mine') void coordinator.useLocalVersion(current)
+                  else {
+                    coordinator.useDiskVersion(current)
+                    setMode('read')
+                  }
+                }}
+              >
+                {conflictResolution === 'mine' ? 'Use my version' : 'Use disk version'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
+    )
+  }
+)
