@@ -1319,3 +1319,109 @@ typesetting token set. Capture selects the compact 15-pixel card preset; saved L
   sanitized renderer.
 - Large notes build live decorations only for visible ranges and rebuild when the document, active
   lines, viewport, or attachment previews change.
+
+## DEC-043: Add a guarded Focus master-detail view
+
+Date: 2026-08-04
+Status: Accepted
+
+### Context
+
+Masonry supports visual discovery and Table supports compact retrieval, but repeatedly opening and
+closing a modal slows sequential review and long-form reading. A second independent detail
+implementation would risk diverging autosave, conflict, attachment, and native-operation behavior.
+
+### Decision
+
+Add **Focus** beside Masonry, Grid, and Table. Focus presents a compact, resizable two-line item rail
+beside the complete existing detail body. Extract the detail controller and content from its dialog
+shell so modal and Focus presentations share note modes, guarded autosave, conflicts, attachments,
+title editing, previews, and actions. This supersedes DEC-020 and DEC-021 only for the claim that all
+item details must be modal; Masonry, Grid, and Table retain the modal presentation and its keyboard
+ownership.
+
+Focus keeps active-item state separate from bulk selection, persists only its renderer-local view
+and rail-width preferences, and becomes list-first drill-in navigation below a 760-pixel content
+width. New item uses a temporary first row and renders the shared recoverable composer in the detail
+pane. Search and filters may hide the active row without discarding its detail, while explicit item,
+destination, view, library, and window-close transitions pass through the note-save guard.
+
+### Consequences
+
+- Focus adds no IPC, preload, schema, native-operation, or authoritative vault state.
+- Detail behavior has one controller and two shells rather than duplicated save logic.
+- The item rail and detail pane scroll independently; a persisted keyboard-operable separator owns
+  the wide-layout split.
+- Workspace shortcuts remain available from the list and toolbar but ignore events owned by the
+  inline detail surface.
+
+## DEC-044: Scope retrieval chrome to each active view
+
+Date: 2026-08-04
+Status: Accepted
+
+### Context
+
+DEC-043 initially placed Focus below the same application toolbar as the visual canvas. Search,
+sorting, filtering, and New item therefore appeared visually detached from the compact list they
+controlled, while the detailed reading pane lost vertical space to canvas-oriented chrome. The
+implemented Table view also lacked a settled retrieval and toolbar direction.
+
+### Decision
+
+Masonry and Grid retain the complete application toolbar with scoped Search, combined Sort and
+Filter, and New item. Focus uses a minimal draggable title bar for the sidebar trigger and Windows
+controls, while its item rail owns a destination header, Sort menu, scoped Filter field, type and
+visibility filters, and New item. The same renderer retrieval state and capture session back both
+presentations; keyboard shortcuts keep their existing guards.
+
+Focus and modal note details share a more prominent title header, guarded active-location picker,
+and structured Created and Updated metadata. Archive and Trash locations remain labels rather than
+ordinary move controls.
+
+Table is unavailable pending a new product decision. Settings omit it, and persisted `table` or
+legacy `list` preferences resolve to Masonry. Its renderer implementation remains in the repository
+so reconsideration does not require reconstructing proven row behavior.
+
+### Consequences
+
+- The complete toolbar belongs only to Masonry and Grid; Focus retrieval controls remain attached
+  to the list they affect.
+- Focus retains a generous native drag region and guarded Windows close without duplicating window
+  IPC or note-save logic.
+- Sort, filters, search, capture drafts, and item moves continue to use shared state and validated
+  item-ID operations.
+- Table cannot be activated through Settings, persisted presentation state, or normal view changes.
+
+## DEC-045: Make Focus a top-aligned visual master-detail view
+
+Date: 2026-08-04
+Status: Accepted
+
+### Context
+
+DEC-043's compact two-line rail reduced visual recognition, and DEC-044's separate minimal title bar
+spent a full window row on one sidebar action. The opaque detail and composer surfaces also prevented
+the Windows Acrylic material from remaining continuous through Focus.
+
+### Decision
+
+Supersede the compact-rail and separate-title-bar portions of DEC-043 and DEC-044. Focus starts its
+rail and detail at the top of the window. The rail owns one integrated row containing the sidebar
+trigger, scoped Search, combined Sort and Filter, and New item; Windows controls occupy the visible
+detail pane or the full-width list row during narrow drill-in navigation.
+
+Reuse the natural-height Masonry cards in an ordered, independently scrolling rail. Persist a
+320-to-720-pixel width with a 420-pixel default and a 45-percent workspace cap. Ordered Masonry adds
+columns only when each can retain at least 256 pixels. The active-detail accent remains distinct from
+bulk selection, and the pane composer uses the first visual-card slot.
+
+Focus uses a denser translucent rail material and a lighter detail material. Structural detail and
+composer surfaces inherit that material, while dialogs, inputs, menus, editors, and media previews
+remain solid. Reduced-transparency, increased-contrast, and forced-color modes keep opaque fallbacks.
+
+### Consequences
+
+- Focus and Masonry share one format-aware card implementation and one row-major visual order.
+- Caption controls, detail actions, and draggable regions coexist without restoring a global header.
+- The change adds no IPC, preload, schema, native-operation, or authoritative vault state.

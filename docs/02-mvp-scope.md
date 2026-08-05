@@ -36,7 +36,8 @@ The MVP is complete when all golden workflows work against a real local library 
 
 ### Capture
 
-- A primary New Item toolbar action that summons one inline draft card at the beginning of the active content view.
+- A primary New Item action in the Masonry and Grid toolbar and Focus item-rail header that summons
+  one inline draft at the beginning of the active view.
 - An in-app `Ctrl+N` equivalent that opens or refocuses the same card while workspace shortcuts are
   active.
 - A fixed `Ctrl+Shift+Space` system-wide shortcut that, while Kuskus is running, opens the same
@@ -72,9 +73,11 @@ The MVP is complete when all golden workflows work against a real local library 
 
 - Responsive Masonry view with format-aware cards and natural card heights.
 - Uniform Grid view.
-- Compact Table view with Name, Type, and Added columns.
+- Focus view with a resizable, responsive visual-card rail and the complete item detail beside it,
+  adapting to list-first drill-in navigation when the content pane is narrow.
 - Consistent selection-first, focused-item fallback for `F2` and `Delete` across Masonry, Grid, and
-  Table, suspended while editors, menus, details, or dialogs own the keyboard.
+  Focus, including active-item fallback in Focus, suspended while editors, menus, details, or
+  dialogs own the keyboard.
 - Expandable and hideable folder sidebar.
 - Persistent active-destination scope inside Search.
 - Responsive column count based on available width rather than a fixed number.
@@ -120,6 +123,7 @@ The MVP is complete when all golden workflows work against a real local library 
 - Offline full-page web snapshots.
 - OCR.
 - Rich-text or block editor.
+- Table view while its retrieval model and toolbar behavior are reconsidered.
 - Plugin-specific Obsidian syntax beyond core properties, wikilinks, aliases, headings, and embeds.
 - Smart collections and advanced rules.
 

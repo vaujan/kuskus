@@ -51,9 +51,11 @@ The user wants one obvious place to add any supported kind of content without ch
 
 ### Resting state
 
-- A primary **New item** action remains available in the toolbar.
+- A primary **New item** action remains available in the Masonry and Grid toolbar and in the Focus
+  item-rail header.
 - The content canvas contains saved items only; no permanent capture tile consumes its first slot.
-- A retained draft is indicated by the toolbar action and can be continued or explicitly discarded.
+- A retained draft is indicated by the active view's New item action and can be continued or
+  explicitly discarded.
 
 ### Flow
 
@@ -126,7 +128,10 @@ The user wants one obvious place to add any supported kind of content without ch
 - Background failures remain recoverable without replacing or disabling the fresh composer.
 - Repeated paste events cannot accidentally create duplicates because one event was handled twice.
 - Failed input remains recoverable in the card.
-- The draft and saved item work in Masonry, Grid, and Table views, even if their presentation differs.
+- The draft and saved item work in Masonry, Grid, and Focus views, even if their presentation differs.
+- In Focus, New item appears as a temporary first visual-card slot and the recoverable composer uses the detail
+  pane. Hiding it retains the shared draft; successful capture activates the saved item at its
+  sorted position.
 - The global shortcut opens or focuses one taskbar-hidden composer popup on the pointer's monitor
   without restoring, navigating, searching, filtering, or changing selection in the main window.
 - After the popup hides, opening New item in the main window continues the exact same draft inline.
@@ -344,7 +349,8 @@ The user returns to a project and wants to rediscover a saved reference.
 
 1. The user selects a collection in the sidebar.
 2. Kuskus displays mixed-format items together.
-3. The user browses in Masonry, Grid, or Table view.
+3. The user browses in Masonry, Grid, or Focus view. Table remains unavailable while its product
+   direction is reconsidered.
 4. The user optionally searches or filters the current context.
 5. The user opens, previews, or reveals the desired item.
 
@@ -375,13 +381,17 @@ The user returns to a project and wants to rediscover a saved reference.
   but do not silently select newly revealed or newly created items. `Escape` clears the item selection.
 - Changing view does not change item order or selection.
 - The current context can be sorted by newest or oldest first, by title, or grouped by item type;
-  the chosen order applies equally to Masonry, Grid, Table, keyboard focus order, range selection,
+  the chosen order applies equally to Masonry, Grid, Focus, keyboard focus order, range selection,
   and detail navigation.
 - Changing the sort preserves the item selection, and the most recently selected sort is restored
   on the next launch.
-- Selected items remain unmistakable over every preview type in Masonry, Grid, and Table through a
+- Selected items remain unmistakable over every preview type in Masonry, Grid, and Focus through a
   checked marker plus a high-contrast accent treatment that does not rely on color alone.
-- The most recently selected Masonry, Grid, or Table view is restored on the next launch.
+- Focus reuses the natural-height Masonry cards in an independently scrolling visual rail. The rail
+  remains one column until its actual resized width can preserve the minimum card width in multiple
+  columns; its active-detail accent remains distinct from bulk selection.
+- The most recently selected Masonry, Grid, or Focus view is restored on the next launch. Persisted
+  Table or legacy List preferences fall back to Masonry while Table is unavailable.
 - Hiding the sidebar gives the content area more space without hiding Search or Filter. View and
   appearance preferences remain reachable by reopening the sidebar from the persistent toolbar
   trigger.
@@ -433,7 +443,7 @@ The user hides an inactive item or removes one accidentally or intentionally.
   for images with no remaining references from active, archived, or trashed notes.
 - Legacy companion `.assets` directories retain their existing note-coupled move and delete behavior.
 - Rename and deletion commands expose their `F2` and `Delete` equivalents in item overflow and
-  context menus across Masonry, Grid, and Table.
+  context menus across Masonry, Grid, and Focus.
 - Item overflow and context menus apply lifecycle actions to the complete selection and preserve the
   same Undo, reference-warning, and permanent-delete confirmation safeguards as the bulk toolbar.
 - Kuskus never deletes the original external file from which an item was imported.

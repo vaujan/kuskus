@@ -37,8 +37,10 @@ The shell supports two explicit states.
 ### Hidden sidebar
 
 - The content area expands across the available width.
-- Menu and Show Sidebar controls move into or remain accessible from the toolbar.
-- Search, Filter, the New item action, active context, and window controls remain visible.
+- Menu and Show Sidebar controls remain accessible from the active view's title bar.
+- Masonry and Grid retain Search, Filter, New item, active context, and window controls. Focus keeps
+  sidebar, active context, retrieval, and New item controls in its visual rail while window controls
+  occupy the detail pane's upper-right corner.
 - View and appearance preferences remain reachable by reopening the sidebar from its persistent
   toolbar trigger; they are not duplicated in the toolbar.
 - Hiding the sidebar never changes the active collection.
@@ -52,7 +54,7 @@ Sidebar visibility and the most recently selected width should persist between l
   Path** actions without presenting the identity row as a destination selector.
 - A **Settings** row appears immediately above the library identity. It opens a centered modal
   Settings dialog with General, Appearance, and Library categories. Appearance contains the
-  persisted Masonry, Grid, and Table selection plus explicit Light and Dark choices. Settings apply
+  persisted Masonry, Grid, and Focus selection plus explicit Light and Dark choices. Settings apply
   immediately; unavailable future controls are omitted until implemented.
 - On Windows, Appearance includes **Translucent background**. It is enabled by default on Windows
   11 22H2 or newer, applies native Acrylic behind a visibly translucent, continuous toolbar/content
@@ -127,9 +129,9 @@ produces one non-blocking notice per app run. The shortcut cannot be changed or 
 first version.
 
 The Settings dialog has no empty Library category. **Show referenced attachments** lives in a
-**Visibility** group in the toolbar Filter menu. It is off by default so images already embedded by
+**Visibility** group in the Masonry/Grid toolbar Filter menu and Focus rail Filter menu. It is off by default so images already embedded by
 notes do not duplicate the visual canvas. The preference persists per device, contributes to the
-active-filter badge, applies in Masonry, Grid, and Table, and resets with **Clear filters**.
+active-filter badge, applies in Masonry, Grid, and Focus, and resets with **Clear filters**.
 An uninitialized vault uses a preview screen listing detected notes, images, files, folders, and the
 exact Kuskus metadata changes. Schema-v1 libraries use a migration screen that explains the retained
 sibling backup and reports completion or a recoverable failure.
@@ -140,13 +142,18 @@ without exposing arbitrary native paths to renderer operations.
 
 ## Toolbar
 
-The toolbar contains, in responsive order:
+Masonry and Grid use the complete retrieval toolbar. It contains, in responsive order:
 
 - A left zone containing only Show or Hide Sidebar.
 - A centered retrieval zone containing scoped Search and the combined Sort and Filter menu.
 - A right action zone containing New item, its `Ctrl+N` shortcut, and its retained-draft discard
   action when applicable.
 - Windows minimize, maximize/restore, and close controls.
+
+Focus removes the global toolbar and starts both panes at the top of the window. One integrated rail
+row contains Show or Hide Sidebar, scoped Search, a combined Sort and Filter menu, and New item.
+Windows controls occupy the detail pane's upper-right corner, or the full-width rail row during
+narrow list-first navigation. Unoccupied pane chrome remains draggable.
 
 Rules:
 
@@ -189,20 +196,46 @@ Rules:
 
 ### Table view
 
+- Table is unavailable while its retrieval model and toolbar behavior are reconsidered. Its retained
+  renderer implementation is not reachable from Settings, and persisted Table or legacy List
+  preferences resolve to Masonry.
 - Compact semantic table rows optimized for scanning saved items.
 - Columns are Name, Type, and Added; sorting and row action menus are not required.
 - Rows open the existing item detail and remain keyboard accessible.
 - Horizontal overflow should be avoided at ordinary desktop widths.
 
+### Focus view
+
+- A responsive visual-card rail sits beside the complete item detail surface for sequential triage,
+  reading, and editing. The rail starts at 420 pixels, resizes from 320 to 720 pixels without
+  exceeding 45 percent of the content pane, and persists its width per device.
+- Normal activation updates the detail and clears bulk selection. Ctrl-click, Cmd-click, and
+  Shift-click retain the existing multi-selection without changing the active detail; active and
+  selected rows use distinct accessible states.
+- The rail reuses the natural-height Masonry note, image, URL, and file cards. Ordered Masonry keeps
+  one column until the actual rail width can fit additional 256-pixel columns with 16-pixel gaps.
+  Up, Down, Home, and End move through the shared logical item order.
+- One rail row contains the sidebar trigger, destination-scoped Search, the combined Sort and Filter
+  menu, and New item. `Ctrl+K` and `Ctrl+F` focus Search; `Ctrl+N` opens or continues the pane composer.
+- Search, filters, and sorting do not forcibly close an active detail. Destination, view, library,
+  item, and window-close transitions flush guarded note work before leaving.
+- At content widths below 760 pixels, Focus becomes list-first drill-in navigation. Activating an
+  item or New item replaces the list with detail or composer, and a visible Back action returns to
+  the preserved list state.
+- The list and detail own independent scroll areas. A keyboard-operable vertical separator adjusts
+  the rail at wide widths.
+
 Changing views must preserve scroll context where practical, item selection, filter state, and item ordering.
 
 As the saved-content viewport scrolls beneath the fixed toolbar, its top edge uses a subtle
 gradient mask that grows with the scroll offset up to 24 pixels. The mask is absent at the scroll
-origin, applies consistently across Masonry, Grid, and Table, and does not fade the scrollbar.
+origin, applies consistently across Masonry, Grid, and each Focus scroll owner, and does not fade the scrollbar.
 
 ## New Item
 
-A primary **New item** button appears in the toolbar's right action zone. The resting content canvas contains saved items only; activating the button summons one temporary draft card at the beginning of the active view.
+A primary **New item** button appears in the Masonry/Grid toolbar's right action zone and as an icon
+action in the Focus rail header. The resting content canvas contains saved items only; activating the
+button summons one temporary draft at the beginning of the active view.
 
 ### Toolbar state
 
@@ -216,6 +249,7 @@ A primary **New item** button appears in the toolbar's right action zone. The re
 
 - Uses a normal Masonry or Grid card width and grows vertically to a capped editing height.
 - Appears as a standalone full-width card above Table.
+- Appears as a temporary first row with a full detail-pane composer in Focus.
 - Receives keyboard focus without dimming, blurring, or disabling the saved-content canvas.
 - Accepts URLs, clipboard images, dropped or selected images, plain text, and Markdown without a type picker.
 - Keeps the active destination visible; inline capture snapshots the exact active collection, while
@@ -275,8 +309,8 @@ A primary **New item** button appears in the toolbar's right action zone. The re
 - Direct paste summons the populated draft card so its destination, detected type, and confirmation
   action are visible; it does not bypass explicit commit.
 - Dragging a supported image over the window reserves the first New Item slot with a static neutral
-  silhouette instead of covering the canvas. Visual and Grid use a shadow card and Table uses a
-  shadow row. On drop, the silhouette cross-fades into the existing confirmation composer; an open
+  silhouette instead of covering the canvas. Visual and Grid use a shadow card, Table uses a
+  shadow row, and Focus reserves a draft row plus the composer pane. On drop, the silhouette cross-fades into the existing confirmation composer; an open
   draft remains mounted and unchanged beneath the temporary silhouette.
 - Unsupported-only file drags do not reserve a slot. Dropping them preserves the existing visible
   error behavior, and dropping a valid image still requires explicit **Save image** confirmation.
@@ -424,12 +458,14 @@ and selects all matching items, not only items currently inside the scroll viewp
 
 ## Item detail
 
-The MVP uses one focused, read-only dialog rather than a permanent application side panel. The
-dialog uses most of the available window so content remains the dominant surface without squeezing
-the library canvas between two sidebars.
+Masonry and Grid use one focused detail dialog. Focus reuses the same complete detail body
+as a persistent application pane, including note editing, guarded autosave, conflicts, attachments,
+and item actions. The dialog uses most of the available window so content remains dominant; the
+Focus pane instead shares the workspace with its compact item rail.
 
 The dialog has no dedicated header. Previous, next, and close actions use a compact floating
-control group in its upper-right corner while retaining 40-pixel desktop hit areas.
+control group in its upper-right corner while retaining 40-pixel desktop hit areas. In Focus, the
+group moves left of the caption controls when space permits and below them when the detail is narrow.
 
 At ordinary desktop widths, images and URLs use two panes:
 
@@ -439,8 +475,10 @@ At ordinary desktop widths, images and URLs use two panes:
   image format and dimensions remain separate, independently scannable fields.
 
 Notes use a single, centered reading pane without a right inspector or nested card surface. A
-compact fixed header identifies the library item with its title plus Added and Edited timestamps;
-this metadata remains visually subordinate to headings authored inside the Markdown document. The
+compact fixed header identifies the library item with a prominent editable title, its current
+location, and structured Created and Updated timestamps. Active Inbox and folder locations open the
+existing guarded destination picker; Archive and Trash locations remain read-only. This metadata
+remains visually subordinate to headings authored inside the Markdown document. The
 header rests directly on the reading canvas without a separating border or a surface of its own, so
 the note reads as one continuous surface.
 Note cards and the Read canvas use the same semantic Markdown typesetting rules so headings,

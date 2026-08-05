@@ -153,7 +153,10 @@ Deliverables:
 
 - Responsive Masonry view.
 - Uniform Grid view.
-- Compact Table view with Name, Type, and Added columns.
+- Retain the existing compact Table implementation while keeping it unavailable pending a revised
+  retrieval and toolbar decision.
+- Focus master-detail view with a responsive natural-height visual-card rail, shared full detail,
+  pane-based capture, integrated retrieval chrome, and narrow drill-in behavior.
 - Search by title, note, URL/domain, and filename.
 - Type filters, referenced-attachment visibility, and basic sorting.
 - Persist sidebar and view preferences.
@@ -170,9 +173,9 @@ Deliverables:
 - Missing-content and read-only-library recovery states.
 - Index rebuild path if an index has been introduced.
 - Keyboard and accessibility pass.
-- Selection-first `F2` and `Delete` commands across Masonry, Grid, and Table, with focused-item
+- Selection-first `F2` and `Delete` commands across Masonry, Grid, and Focus, with focused-item
   fallback, menu labels, editable/menu/detail/dialog guards, and no modified Delete variants.
-- Selection-aware item context and overflow menus across Masonry, Grid, and Table, with explicit
+- Selection-aware item context and overflow menus across Masonry, Grid, and Focus, with explicit
   clicked-item and selected-item scopes for every organization and lifecycle action.
 - Seven-day dogfooding build.
 
