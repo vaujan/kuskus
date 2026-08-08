@@ -1375,9 +1375,9 @@ controls, while its item rail owns a destination header, Sort menu, scoped Filte
 visibility filters, and New item. The same renderer retrieval state and capture session back both
 presentations; keyboard shortcuts keep their existing guards.
 
-Focus and modal note details share a more prominent title header, guarded active-location picker,
-and structured Created and Updated metadata. Archive and Trash locations remain labels rather than
-ordinary move controls.
+Focus and modal note details share a prominent editable title header without a location picker or
+Created/Updated metadata. Moving items stays in the item action menus and the bulk move control,
+where Archive and Trash remain non-interactive read-only labels.
 
 Table is unavailable pending a new product decision. Settings omit it, and persisted `table` or
 legacy `list` preferences resolve to Masonry. Its renderer implementation remains in the repository
@@ -1494,3 +1494,96 @@ passed the array index to `path.basename` as its `suffix` argument and threw.
   stays above the 1.5 MB budget until it is also deferred.
 - Font assets drop from ~1.1 MB to ~0.3 MB of woff2.
 - Card note previews and the composer may paint a brief `Suspense` fallback on first load per session.
+
+## DEC-048: Compact Focus rail cards and stretch the note reading canvas
+
+Date: 2026-08-08
+Status: Accepted
+
+### Context
+
+The Focus rail and Masonry already share the same card components, but the rail's wrapper added a
+separate primary ring for the active item and rendered one very wide column at the default 420px
+rail. The narrower pane made the masonry-sized content feel oversized, and the note reading canvas
+was capped to a centered 768px column that did not use the available detail width.
+
+### Decision
+
+- Focus rail cards reuse the exact Masonry card surface and interactions (hover, press, accent
+  halo). The focused item is passed the same masonry accent halo/checked indicator as a selected
+  card; `data-active` and `aria-current` remain for accessible Active/Selected states.
+- Add a renderer-local `compact` density to the shared item cards (notes, images, URLs, files) and
+  a matching 13px compact Markdown typeset preset. The Focus rail opts in so its content reads
+  smaller than Masonry, matching the narrower pane. Masonry and Grid keep their existing sizes.
+- Remove the note reading width cap: drop the `max-w-3xl`/`mx-auto` note article in the detail
+  surface and the `.kuskus-typeset` `max-width` so the note reads edge-to-edge with the existing
+  responsive gutters. Masonry note cards are narrower than the old cap, so they are unchanged.
+
+### Consequences
+
+- The Focus rail and Masonry look and behave the same for hover, press, and activation.
+- Compact card content is presentation-only and does not change card anatomy, ordering, or storage.
+- Notes in Read/Live/Split use the full detail width in both the dialog and the Focus pane.
+
+## DEC-049: Share a semantic control-height token across sidebar and toolbars
+
+Date: 2026-08-08
+Status: Accepted
+
+### Context
+
+In the Focus view the search field and square toolbar buttons used a 40px height while the sidebar
+navigation rows (Inbox, All Items, folders) used 32px, so co-located interactive controls did not
+read as one sizing system. The main toolbar additionally rendered the sidebar trigger at 40px next
+to 32px controls. Component sizes were hardcoded spacing utilities at each call site, so any single
+alignment fix would have required isolated pixel edits.
+
+### Decision
+
+Add a semantic control-height token family to the shared theme (`--control-height-xs/sm/md/lg/xl`,
+driven by the existing `--spacing` scale, with `md` the standard 32px control height). The shared
+primitives consume it in place of hardcoded heights: button and input sizes, sidebar menu buttons,
+the sidebar group label, the sidebar input, and input-group buttons. Toolbar controls apply it too:
+the shell sidebar trigger, the app-toolbar search field, and the Focus list header search and
+icon buttons. No component compensates with per-control offsets or top-left margins; existing flex
+alignment (`items-center`, `justify-center`) centers text and icons unchanged.
+
+### Consequences
+
+- Sidebar rows, square toolbar buttons, and search fields share one 32px `md` control height and
+  the same vertical rhythm in the Focus, Visual, and Grid views.
+- Adjusting the standard control size later is a one-line theme change instead of a component sweep.
+- Button `size` variants keep their existing dense `xs/sm` and generous `lg` tiers with exact
+  pre-change pixel values.
+- Left in place: window caption controls stay 40px for a classic Windows title-bar hit target, and
+  the floating bulk-action bar remains its own larger size.
+
+## DEC-050: Align Focus detail navigation with the Windows caption bar
+
+Date: 2026-08-08
+Status: Accepted
+
+### Context
+
+In the Focus detail pane the previous, next, show-in-explorer, and more-actions utilities floated as
+a rounded pill capsule with 40px circular ghost buttons, which did not share the geometry or
+interaction language of the renderer-owned Windows caption buttons beside them (transparent flat
+46px tiles with hover/active fills and an inset focus ring).
+
+### Decision
+
+- Extract the caption tile primitive as a shared `CaptionTileButton` reused by both the window
+  controls and the Focus detail navigation.
+- In Focus on Windows, previous, more actions, and next render as transparent 46x40 caption tiles
+  flush against the left edge of the minimize/maximize/close strip, keeping the same hover fill,
+  active fill, focus ring, and disabled dimming. Next/previous still flush guarded autosave first.
+- Drop the dedicated Show in Explorer tile; it remains one click away under More actions.
+- The note-mode segmented control and attachments toggle stay a separate floating pill above the
+  note body rather than adopting caption styling. The modal detail dialog and macOS Focus keep the
+  previous floating pill group unchanged.
+
+### Consequences
+
+- The Focus detail pane reads as one continuous title-bar surface with native-style navigation.
+- Only one interaction language governs the top-right corner: caption tiles for window + navigation.
+- Dialog and macOS presentations are untouched; platform-specific non-mac focus stays pill-based.

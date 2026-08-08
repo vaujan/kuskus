@@ -214,9 +214,14 @@ Rules:
 - Normal activation updates the detail and clears bulk selection. Ctrl-click, Cmd-click, and
   Shift-click retain the existing multi-selection without changing the active detail; active and
   selected rows use distinct accessible states.
-- The rail reuses the natural-height Masonry note, image, URL, and file cards. Ordered Masonry keeps
-  one column until the actual rail width can fit additional 256-pixel columns with 16-pixel gaps.
-  Up, Down, Home, and End move through the shared logical item order.
+- The rail reuses the natural-height Masonry note, image, URL, and file cards at a compact density:
+  the focused card and cards in bulk selection share the same accent halo, hover, press, and
+  checked-indicator feedback as their Masonry counterparts, while `data-active` and `aria-current`
+  keep the active and selected states accessible. Rail card content (typeset, preview caps, and
+  caption size) is smaller than in Masonry to match the narrower pane; Masonry and Grid are
+  unchanged. Ordered Masonry keeps one column until the actual rail width can fit additional
+  256-pixel columns with 16-pixel gaps. Up, Down, Home, and End move through the shared logical item
+  order.
 - One rail row contains the sidebar trigger, destination-scoped Search, the combined Sort and Filter
   menu, and New item. `Ctrl+K` and `Ctrl+F` focus Search; `Ctrl+N` opens or continues the pane composer.
 - Search, filters, and sorting do not forcibly close an active detail. Destination, view, library,
@@ -467,7 +472,10 @@ Focus pane instead shares the workspace with its compact item rail.
 
 The dialog has no dedicated header. Previous, next, and close actions use a compact floating
 control group in its upper-right corner while retaining 40-pixel desktop hit areas. In Focus, the
-group moves left of the caption controls when space permits and below them when the detail is narrow.
+previous, More, and next navigation tiles line up flush against the left edge of the Windows
+caption controls, reusing their transparent 46-pixel tile dimensions, hover fill, focus ring,
+and disabled dimming. The note-mode segmented control and the attachments toggle remain a separate
+floating pill above the note body instead of adopting caption styling.
 
 At ordinary desktop widths, images and URLs use two panes:
 
@@ -476,16 +484,15 @@ At ordinary desktop widths, images and URLs use two panes:
   primary action. Property rows use field-specific icons with aligned label and value columns;
   image format and dimensions remain separate, independently scannable fields.
 
-Notes use a single, centered reading pane without a right inspector or nested card surface. A
-compact fixed header identifies the library item with a prominent editable title, its current
-location, and structured Created and Updated timestamps. Active Inbox and folder locations open the
-existing guarded destination picker; Archive and Trash locations remain read-only. This metadata
-remains visually subordinate to headings authored inside the Markdown document. The
-header rests directly on the reading canvas without a separating border or a surface of its own, so
-the note reads as one continuous surface.
+Notes use a single reading pane without a right inspector or nested card surface. The note canvas
+has no content width cap: it spans the full available pane edge-to-edge with responsive gutters,
+and its header rests directly on that canvas without a separating border or a surface of its own, so
+the note reads as one continuous surface. A compact fixed header identifies the library item with a
+prominent editable title that remains visually subordinate to headings authored inside the Markdown
+document.
 Note cards and the Read canvas use the same semantic Markdown typesetting rules so headings,
 prose, lists, quotes, links, code, tables, math, and images retain one visual hierarchy across both
-surfaces. Cards use a compact 15-pixel preset; the centered reading pane uses a 16-pixel preset.
+surfaces. Cards use a compact 15-pixel preset; the reading pane uses a 16-pixel preset.
 The capture Live Preview consumes the compact preset, and saved Live mode consumes the reading
 preset. Markdown source and the source side of Split remain monospace rather than inheriting the
 rendered-document typeface.
@@ -501,7 +508,8 @@ The detail dialog exposes:
   Enter or blur submits a non-empty change, Escape restores the current title, and a failed rename
   leaves the draft and error visible. Trash titles are not interactive.
 - The complete rendered note body without card-style clipping, plus a compact four-icon segmented
-  control for Read, Live, Markdown, and Split aligned beside the detail-navigation group. Every choice
+  control for Read, Live, Markdown, and Split, aligned beside the detail-navigation group in the
+  dialog and rendered as its own floating pill in Focus. Every choice
   uses at least a 40-pixel hit area and exposes its name and shortcut to assistive technology.
 - `Ctrl+E` toggles Read and Live and returns Markdown or Split to Live. `Ctrl+Alt+E` toggles Markdown
   source and Live. `Ctrl+Shift+E` toggles Split and returns to the previous single-pane mode.
@@ -547,7 +555,8 @@ The detail dialog exposes:
   close controls remain above it while all other underlying toolbar actions and workspace keyboard
   shortcuts stay modal.
 - Note bodies and responsive image and URL details use the shared shadcn ScrollArea treatment; the
-  note mode header and floating detail controls remain fixed outside their scroll owner.
+  note mode header and the dialog's floating detail controls remain fixed outside their scroll owner,
+  while Focus navigation tiles sit in the caption bar rather than over the scroll surface.
 - Source URL or stored filename.
 - Added date for image and URL items.
 - Dimensions and media format for images.
