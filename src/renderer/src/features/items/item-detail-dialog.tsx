@@ -34,6 +34,7 @@ import {
   IconPaperclip as Paperclip,
   IconPencil as Pencil,
   IconPlayerPlayFilled as Play,
+  IconTrash as Trash,
   IconWorld as Globe2,
   IconX as X,
   type TablerIcon
@@ -485,7 +486,13 @@ function NoteModeControls({
   )
 }
 
-function MissingContent({ type }: { type: 'image' | 'note' }): React.JSX.Element {
+function MissingContent({
+  type,
+  onMoveToTrash
+}: {
+  type: 'image' | 'note'
+  onMoveToTrash?: () => void
+}): React.JSX.Element {
   return (
     <div className="flex max-w-xs flex-col items-center gap-3 px-6 text-center">
       <span className="flex size-11 items-center justify-center rounded-full bg-destructive/10 text-destructive">
@@ -499,21 +506,29 @@ function MissingContent({ type }: { type: 'image' | 'note' }): React.JSX.Element
           Kuskus kept the item, but its stored content is no longer in the library.
         </p>
       </div>
+      {onMoveToTrash ? (
+        <Button variant="secondary" size="sm" onClick={onMoveToTrash}>
+          <Trash className="size-4" aria-hidden="true" />
+          Move to Trash
+        </Button>
+      ) : null}
     </div>
   )
 }
 
 function ImageCanvas({
-  item
+  item,
+  onMoveToTrash
 }: {
   item: Extract<LibraryItemDto, { type: 'image' }>
+  onMoveToTrash?: () => void
 }): React.JSX.Element {
   const { preview, previewError } = useImagePreview(item.id, item.missingContent)
 
   return (
     <section className="flex min-h-64 min-w-0 items-center justify-center overflow-hidden bg-white p-5 dark:bg-black @min-[860px]/detail:min-h-0 @min-[860px]/detail:p-8">
       {item.missingContent ? (
-        <MissingContent type="image" />
+        <MissingContent type="image" onMoveToTrash={onMoveToTrash} />
       ) : preview ? (
         <img
           src={preview}
@@ -603,7 +618,8 @@ function NoteCanvas({
   onRetry,
   onRestore,
   onReviewConflict,
-  onOpenVaultLink
+  onOpenVaultLink,
+  onMoveToTrash
 }: {
   item: Extract<LibraryItemDto, { type: 'note' }>
   mode: NoteMode
@@ -615,6 +631,7 @@ function NoteCanvas({
   onRestore: () => void
   onReviewConflict: () => void
   onOpenVaultLink: (target: string) => void
+  onMoveToTrash: (itemId: string) => void
 }): React.JSX.Element {
   const editorRef = useRef<MarkdownEditorHandle>(null)
   const previewViewportRef = useRef<HTMLDivElement>(null)
@@ -832,7 +849,7 @@ function NoteCanvas({
       ) : null}
       {item.missingContent ? (
         <div className="flex min-h-0 flex-1 items-center justify-center">
-          <MissingContent type="note" />
+          <MissingContent type="note" onMoveToTrash={() => onMoveToTrash(item.id)} />
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
@@ -937,12 +954,12 @@ function NoteAttachmentRow({
     <li className="flex min-w-0 gap-3 rounded-xl bg-muted/45 p-2 shadow-[inset_0_0_0_1px_color-mix(in_oklab,currentColor_6%,transparent)]">
       {preview.preview ? (
         <img
-          className="size-14 shrink-0 rounded-lg object-cover outline -outline-offset-1 outline-black/10 dark:outline-white/10"
+          className="size-14 shrink-0 rounded object-cover outline -outline-offset-1 outline-black/10 dark:outline-white/10"
           src={preview.preview}
           alt=""
         />
       ) : (
-        <span className="flex size-14 shrink-0 items-center justify-center rounded-lg bg-background/70 text-muted-foreground shadow-sm">
+        <span className="flex size-14 shrink-0 items-center justify-center rounded bg-background/70 text-muted-foreground shadow-sm">
           {attachment.missingContent ? (
             <ImageOff className="size-5" aria-hidden="true" />
           ) : (
@@ -1211,6 +1228,7 @@ interface ItemDetailProps {
   renderActions?: (guard: (action: () => void) => void) => React.ReactNode
   renderLocation?: (guard: (action: () => void) => void) => React.ReactNode
   onOpenVaultLink: (target: string) => void
+  onMoveToTrash: (itemId: string) => void
   onError: (message: string) => void
   presentation?: 'dialog' | 'focus'
 }
@@ -1231,6 +1249,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       renderActions,
       renderLocation,
       onOpenVaultLink,
+      onMoveToTrash,
       onError,
       presentation = 'dialog'
     },
@@ -1457,6 +1476,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
               onRestore={() => coordinator?.restoreSaved()}
               onReviewConflict={() => setConflictDialogOpen(true)}
               onOpenVaultLink={(target) => requestGuardedAction(() => onOpenVaultLink(target))}
+              onMoveToTrash={(itemId) => requestGuardedAction(() => onMoveToTrash(itemId))}
             />
             {attachmentsOpen ? (
               <NoteAttachmentsPanel
@@ -1476,7 +1496,10 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
             <div className="min-h-full min-w-0 @min-[860px]/detail:grid @min-[860px]/detail:grid-cols-[minmax(0,1fr)_20rem]">
               {item.type === 'image' ? (
                 <>
-                  <ImageCanvas item={item} />
+                  <ImageCanvas
+                    item={item}
+                    onMoveToTrash={() => requestGuardedAction(() => onMoveToTrash(item.id))}
+                  />
                   <ImageInspector item={item} onRenameTitle={renameCurrentItem} />
                 </>
               ) : item.type === 'url' ? (

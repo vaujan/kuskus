@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import type { NoteAttachmentDto } from '../../../../shared/library-contract'
+import { acquirePreview } from '@/features/items/preview-cache'
 
 export function useNoteAttachmentPreviews(
   itemId: string,
@@ -18,20 +19,20 @@ export function useNoteAttachmentPreviews(
     if (available.length === 0) return
 
     let active = true
-    const objectUrls: string[] = []
+    const releases: Array<() => void> = []
     void Promise.all(
       available.map(async (attachment) => {
-        const result = await window.kuskus.getNoteAttachmentPreview(itemId, attachment.id)
-        if (!result.ok) return null
-        const url = URL.createObjectURL(
-          new Blob([result.data.bytes], { type: result.data.mediaType })
-        )
+        const lease = await acquirePreview(`attachment:${itemId}:${attachment.id}`, async () => {
+          const result = await window.kuskus.getNoteAttachmentPreview(itemId, attachment.id)
+          if (!result.ok) throw new Error(result.error)
+          return result.data
+        })
         if (!active) {
-          URL.revokeObjectURL(url)
+          lease.release()
           return null
         }
-        objectUrls.push(url)
-        return [attachment.id, url] as const
+        releases.push(lease.release)
+        return [attachment.id, lease.url] as const
       })
     ).then((entries) => {
       if (!active) return
@@ -43,7 +44,7 @@ export function useNoteAttachmentPreviews(
 
     return () => {
       active = false
-      objectUrls.forEach((url) => URL.revokeObjectURL(url))
+      releases.forEach((release) => release())
     }
   }, [attachments, enabled, itemId])
 

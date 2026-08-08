@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import type { UrlPreviewKind } from '../../../../shared/library-contract'
+import { acquirePreview } from '@/features/items/preview-cache'
 
 interface UrlPreviewState {
   key: string
@@ -25,21 +26,30 @@ export function useUrlPreview(
   useEffect(() => {
     if (!available) return
     let active = true
-    let objectUrl: string | null = null
-    void window.kuskus.getUrlPreview(itemId, kind).then((result) => {
-      if (!active) return
-      if (!result.ok) {
-        setState({ key, preview: null, loading: false, error: result.error })
-        return
+    let release: (() => void) | null = null
+    void acquirePreview(`url:${key}`, async () => {
+      const result = await window.kuskus.getUrlPreview(itemId, kind)
+      if (!result.ok) throw new Error(result.error)
+      return result.data
+    }).then(
+      (lease) => {
+        if (!active) return lease.release()
+        release = lease.release
+        setState({ key, preview: lease.url, loading: false, error: '' })
+      },
+      (error: unknown) => {
+        if (active)
+          setState({
+            key,
+            preview: null,
+            loading: false,
+            error: error instanceof Error ? error.message : 'Preview unavailable'
+          })
       }
-      objectUrl = URL.createObjectURL(
-        new Blob([result.data.bytes], { type: result.data.mediaType })
-      )
-      setState({ key, preview: objectUrl, loading: false, error: '' })
-    })
+    )
     return () => {
       active = false
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
+      release?.()
     }
   }, [available, itemId, key, kind])
 

@@ -38,9 +38,10 @@ export function OrderedMasonry({
       const visibleItems = items.filter(
         (item) => !item.hidden && window.getComputedStyle(item).display !== 'none'
       )
+      const visibleItemSet = new Set(visibleItems)
 
       for (const item of items) {
-        if (!visibleItems.includes(item)) clearItemLayout(item)
+        if (!visibleItemSet.has(item)) clearItemLayout(item)
       }
 
       if (visibleItems.length === 0) {
@@ -48,10 +49,7 @@ export function OrderedMasonry({
         return
       }
 
-      const columnCount = Math.max(
-        1,
-        Math.floor((containerWidth + gap) / (minColumnWidth + gap))
-      )
+      const columnCount = Math.max(1, Math.floor((containerWidth + gap) / (minColumnWidth + gap)))
       const columnWidth = (containerWidth - gap * (columnCount - 1)) / columnCount
       const columnHeights = Array<number>(columnCount).fill(0)
 
@@ -79,13 +77,26 @@ export function OrderedMasonry({
     const resizeObserver = new ResizeObserver(scheduleLayout)
     resizeObserver.observe(container)
     for (const child of container.children) resizeObserver.observe(child)
+    const mutationObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node instanceof HTMLElement) resizeObserver.observe(node)
+        }
+        for (const node of mutation.removedNodes) {
+          if (node instanceof HTMLElement) resizeObserver.unobserve(node)
+        }
+      }
+      scheduleLayout()
+    })
+    mutationObserver.observe(container, { childList: true })
     layout()
 
     return () => {
+      mutationObserver.disconnect()
       resizeObserver.disconnect()
       if (layoutFrame !== null) window.cancelAnimationFrame(layoutFrame)
     }
-  }, [children, gap, minColumnWidth])
+  }, [gap, minColumnWidth])
 
   return (
     <div ref={containerRef} className="relative w-full">

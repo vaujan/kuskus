@@ -1,5 +1,7 @@
 import {
   startTransition,
+  lazy,
+  Suspense,
   useCallback,
   useDeferredValue,
   useEffect,
@@ -49,7 +51,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Switch } from '@/components/ui/switch'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { AddItemComposer, type ImportRequest } from '@/features/capture/add-item-composer'
+import type { ImportRequest } from '@/features/capture/add-item-composer'
 import { shouldYieldMainComposer } from '@/features/capture/capture-draft-tracker'
 import { ExternalDropShadow } from '@/features/capture/external-drop-shadow'
 import { CaptureRecoveryDialog } from '@/features/capture/capture-recovery-dialog'
@@ -64,11 +66,7 @@ import {
   resolveInitialFocusItemId
 } from '@/features/items/focus-view-state'
 import { KUSKUS_ITEM_DRAG_TYPE, setKuskusItemDragPreview } from '@/features/items/item-drag'
-import {
-  ItemDetailDialog,
-  type DetailTitleRenameResult,
-  type ItemDetailHandle
-} from '@/features/items/item-detail-dialog'
+import type { DetailTitleRenameResult, ItemDetailHandle } from '@/features/items/item-detail-dialog'
 import { ItemLocationMenu } from '@/features/items/item-location-menu'
 import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
 import {
@@ -80,6 +78,7 @@ import {
 import { BulkActionToolbar } from '@/features/library/bulk-action-toolbar'
 import { FocusWorkspace } from '@/features/library/focus-workspace'
 import { OrderedMasonry } from '@/features/library/ordered-masonry'
+import { expandLibraryOverview } from '@/features/library/library-overview'
 import {
   ItemActionMenu,
   ItemContextMenu,
@@ -119,9 +118,22 @@ import {
   notifyUnarchived
 } from '@/lib/notify'
 
+const ItemDetailDialog = lazy(() =>
+  import('@/features/items/item-detail-dialog').then((module) => ({
+    default: module.ItemDetailDialog
+  }))
+)
+
+const AddItemComposer = lazy(() =>
+  import('@/features/capture/add-item-composer').then((module) => ({
+    default: module.AddItemComposer
+  }))
+)
+
 const DEFAULT_SIDEBAR_WIDTH = 256
 const MIN_SIDEBAR_WIDTH = 208
 const MAX_SIDEBAR_WIDTH = 384
+const ITEM_PAGE_SIZE = 100
 
 function itemMatchesRetrieval(
   item: LibraryItemDto,
@@ -214,6 +226,9 @@ export function Workspace({
   const [isDragging, setIsDragging] = useState(false)
   const [draggedItemIds, setDraggedItemIds] = useState<ReadonlySet<string>>(() => new Set())
   const [search, setSearch] = useState('')
+  const [searchMatches, setSearchMatches] = useState<{ query: string; ids: Set<string> } | null>(
+    null
+  )
   const [typeFilters, setTypeFilters] = useState<ItemTypeFilter[]>([])
   const [sort, setSort] = useState<ItemSort>(() =>
     parseItemSort(localStorage.getItem(ITEM_SORT_STORAGE_KEY))
@@ -232,6 +247,7 @@ export function Workspace({
   const [message, setMessage] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
+  const [itemDetails, setItemDetails] = useState<Map<string, LibraryItemDto>>(() => new Map())
   const [destination, setDestination] = useState<LibraryDestination>({ type: 'inbox' })
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
   const [selectionAnchorId, setSelectionAnchorId] = useState<string | null>(null)
@@ -260,9 +276,12 @@ export function Workspace({
   const [theme, setTheme] = useTheme()
   const deferredSearch = useDeferredValue(search)
   const importRequestId = useRef(0)
+  const searchRequestId = useRef(0)
   const dragDepth = useRef(0)
   const enrichingUrlIds = useRef(new Set<string>())
   const pendingRevealItemId = useRef<string | null>(null)
+  const loadMoreItemsRef = useRef<HTMLDivElement>(null)
+  const firstCardPaintMeasured = useRef(false)
   const shortcutFailureNotified = useRef(false)
   const captureOwner = useRef<CaptureSurface | null>(null)
   const mainComposerOwnershipRequested = useRef(false)
@@ -321,16 +340,20 @@ export function Workspace({
     localStorage.setItem('kuskus-show-referenced-attachments', String(showReferencedAttachments))
   }, [showReferencedAttachments])
 
-  const refreshVault = useCallback(async (): Promise<void> => {
-    const result = await window.kuskus.getState()
-    if (!result.ok || result.data.status !== 'ready') return
-    const refreshedLibrary = result.data.library
+  const refreshVault = useCallback(async (reconcile = false): Promise<void> => {
+    const result = reconcile
+      ? await window.kuskus.reconcileOverview()
+      : await window.kuskus.getOverview()
+    if (!result.ok) return
+    const state = expandLibraryOverview(result.data)
+    if (state.status !== 'ready') return
+    const refreshedLibrary = state.library
     startTransition(() => setLibrary(refreshedLibrary))
   }, [])
 
   useEffect(() => {
     const unsubscribe = window.kuskus.onVaultChanged(() => void refreshVault())
-    const onFocus = (): void => void refreshVault()
+    const onFocus = (): void => void refreshVault(true)
     window.addEventListener('focus', onFocus)
     return () => {
       unsubscribe()
@@ -345,14 +368,30 @@ export function Workspace({
         : null,
     [destination, library.collections]
   )
+  useEffect(() => {
+    const query = deferredSearch.trim().toLocaleLowerCase()
+    if (!query) return
+    const requestId = searchRequestId.current + 1
+    searchRequestId.current = requestId
+    let active = true
+    void window.kuskus.queryItems({ query }).then((result) => {
+      if (!active || requestId !== searchRequestId.current || !result.ok) return
+      startTransition(() => setSearchMatches({ query, ids: new Set(result.data.itemIds) }))
+    })
+    return () => {
+      active = false
+    }
+  }, [deferredSearch, library])
   const visibleItems = useMemo(() => {
     const query = deferredSearch.trim().toLocaleLowerCase()
+    const indexedMatches = searchMatches?.query === query ? searchMatches.ids : null
     const filtered = library.items.filter(
       (item) =>
         item.id !== composerOwnedItemId &&
         (showReferencedAttachments || !item.referencedAttachment) &&
         itemMatchesDestination(item, destination, collectionSubtreeIds) &&
-        itemMatchesRetrieval(item, query, typeFilters)
+        itemMatchesRetrieval(item, indexedMatches ? '' : query, typeFilters) &&
+        (!indexedMatches || indexedMatches.has(item.id))
     )
     return sortItems(filtered, sort)
   }, [
@@ -362,11 +401,52 @@ export function Workspace({
     destination,
     library.items,
     showReferencedAttachments,
+    searchMatches,
     sort,
     typeFilters
   ])
   const visibleItemIds = useMemo(() => new Set(visibleItems.map((item) => item.id)), [visibleItems])
   const visibleItemIdList = useMemo(() => visibleItems.map((item) => item.id), [visibleItems])
+  const retrievalPageKey = `${destination.type}:${destination.type === 'collection' ? destination.collectionId : ''}:${deferredSearch}:${typeFilters.join(',')}:${sort}:${showReferencedAttachments}`
+  const [renderPage, setRenderPage] = useState({ key: retrievalPageKey, limit: ITEM_PAGE_SIZE })
+  const renderLimit = renderPage.key === retrievalPageKey ? renderPage.limit : ITEM_PAGE_SIZE
+  const renderedItems = useMemo(
+    () => visibleItems.slice(0, renderLimit),
+    [renderLimit, visibleItems]
+  )
+  useEffect(() => {
+    if (firstCardPaintMeasured.current || renderedItems.length === 0) return
+    const frame = window.requestAnimationFrame(() => {
+      firstCardPaintMeasured.current = true
+      performance.mark('kuskus:first-card-paint')
+      performance.measure(
+        'kuskus:renderer-entry-to-first-card',
+        'kuskus:renderer-entry',
+        'kuskus:first-card-paint'
+      )
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [renderedItems.length])
+  useEffect(() => {
+    if (view === 'focus' || view === 'table' || renderedItems.length >= visibleItems.length) return
+    const target = loadMoreItemsRef.current
+    if (!target) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return
+        startTransition(() =>
+          setRenderPage((current) => ({
+            key: retrievalPageKey,
+            limit:
+              (current.key === retrievalPageKey ? current.limit : ITEM_PAGE_SIZE) + ITEM_PAGE_SIZE
+          }))
+        )
+      },
+      { rootMargin: '600px 0px' }
+    )
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [renderedItems.length, retrievalPageKey, view, visibleItems.length])
   const destinationItems = useMemo(
     () =>
       library.items.filter((item) =>
@@ -430,14 +510,51 @@ export function Workspace({
     announceStatus(`Saved ${kindLabel}.`)
   }, [announceStatus, visibleItems])
 
-  const selectedItem = useMemo(
+  useEffect(() => {
+    const requestedIds = [...new Set([selectedItemId, focusItemId].filter(Boolean))] as string[]
+    const summaries = requestedIds
+      .map((id) => library.items.find((item) => item.id === id))
+      .filter(
+        (item): item is Extract<LibraryItemDto, { type: 'note' }> =>
+          item?.type === 'note' && item.bodyTruncated === true
+      )
+      .filter((item) => itemDetails.get(item.id)?.updatedAt !== item.updatedAt)
+    if (summaries.length === 0) return
+    let active = true
+    void Promise.all(
+      summaries.map(async (summary) => {
+        const result = await window.kuskus.getItemDetail(summary.id)
+        return result.ok ? result.data : null
+      })
+    ).then((details) => {
+      if (!active) return
+      setItemDetails((current) => {
+        const next = new Map(current)
+        for (const detail of details) if (detail) next.set(detail.id, detail)
+        return next
+      })
+    })
+    return () => {
+      active = false
+    }
+  }, [focusItemId, itemDetails, library.items, selectedItemId])
+
+  const selectedItemSummary = useMemo(
     () => library.items.find((item) => item.id === selectedItemId) ?? null,
     [library.items, selectedItemId]
   )
-  const focusItem = useMemo(
+  const selectedItem =
+    selectedItemSummary?.type === 'note' && selectedItemSummary.bodyTruncated
+      ? (itemDetails.get(selectedItemSummary.id) ?? null)
+      : selectedItemSummary
+  const focusItemSummary = useMemo(
     () => library.items.find((item) => item.id === focusItemId) ?? null,
     [focusItemId, library.items]
   )
+  const focusItem =
+    focusItemSummary?.type === 'note' && focusItemSummary.bodyTruncated
+      ? (itemDetails.get(focusItemSummary.id) ?? null)
+      : focusItemSummary
   const focusVisibleIndex = useMemo(
     () => visibleItems.findIndex((item) => item.id === focusItemId),
     [focusItemId, visibleItems]
@@ -1544,7 +1661,7 @@ export function Workspace({
           showExternalDropShadow && 'opacity-0'
         )}
       >
-        {addItemComposer}
+        <Suspense fallback={null}>{addItemComposer}</Suspense>
       </div>
       <ExternalDropShadow
         active={showExternalDropShadow}
@@ -1560,7 +1677,7 @@ export function Workspace({
   const cardLayoutContent = (
     <>
       {captureSlot}
-      {visibleItems.map((item) => (
+      {renderedItems.map((item) => (
         <ItemContextMenu
           item={item}
           collections={library.collections}
@@ -1677,58 +1794,64 @@ export function Workspace({
   ) : composerOpen ? (
     addItemComposer
   ) : focusItem ? (
-    <ItemDetailDialog
-      ref={focusDetailRef}
-      key={`focus-${focusItem.id}`}
-      presentation="focus"
-      item={focusItem}
-      hasPrevious={focusVisibleIndex > 0}
-      hasNext={focusVisibleIndex >= 0 && focusVisibleIndex < visibleItems.length - 1}
-      onPrevious={selectPreviousFocusItem}
-      onNext={selectNextFocusItem}
-      onOpenChange={() => undefined}
-      onItemUpdated={updateItem}
-      onRenameItem={renameItemTitle}
-      libraryItems={library.items}
-      onRenameAttachment={(itemId) => {
-        const image = library.items.find((item) => item.id === itemId)
-        if (!image || image.type !== 'image') return
-        setRenameTarget(image)
-        setRenameTitle(image.title)
-      }}
-      onOpenVaultLink={openVaultLink}
-      renderActions={(guard) => {
-        const actions = itemActions(focusItem, [focusItem.id])
-        return (
-          <ItemActionMenu
-            item={focusItem}
-            collections={library.collections}
-            targetCount={1}
-            targetLocations={[focusItem.location]}
-            alwaysVisible
-            {...actions}
-            onRename={() => guard(actions.onRename)}
-            onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}
-            onArchive={() => guard(actions.onArchive)}
-            onUnarchive={() => guard(actions.onUnarchive)}
-            onTrash={() => guard(actions.onTrash)}
-            onRestore={() => guard(actions.onRestore)}
-            onDeletePermanently={() => guard(actions.onDeletePermanently)}
-          />
-        )
-      }}
-      renderLocation={(guard) => {
-        const actions = itemActions(focusItem, [focusItem.id])
-        return (
-          <ItemLocationMenu
-            item={focusItem}
-            collections={library.collections}
-            onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}
-          />
-        )
-      }}
-      onError={setMessage}
-    />
+    <Suspense fallback={<div className="size-full animate-pulse bg-muted/20" />}>
+      <ItemDetailDialog
+        ref={focusDetailRef}
+        key={`focus-${focusItem.id}`}
+        presentation="focus"
+        item={focusItem}
+        hasPrevious={focusVisibleIndex > 0}
+        hasNext={focusVisibleIndex >= 0 && focusVisibleIndex < visibleItems.length - 1}
+        onPrevious={selectPreviousFocusItem}
+        onNext={selectNextFocusItem}
+        onOpenChange={() => undefined}
+        onItemUpdated={updateItem}
+        onRenameItem={renameItemTitle}
+        libraryItems={library.items}
+        onRenameAttachment={(itemId) => {
+          const image = library.items.find((item) => item.id === itemId)
+          if (!image || image.type !== 'image') return
+          setRenameTarget(image)
+          setRenameTitle(image.title)
+        }}
+        onOpenVaultLink={openVaultLink}
+        onMoveToTrash={(itemId) => {
+          const target = library.items.find((item) => item.id === itemId)
+          if (target) itemActions(target, [itemId]).onTrash()
+        }}
+        renderActions={(guard) => {
+          const actions = itemActions(focusItem, [focusItem.id])
+          return (
+            <ItemActionMenu
+              item={focusItem}
+              collections={library.collections}
+              targetCount={1}
+              targetLocations={[focusItem.location]}
+              alwaysVisible
+              {...actions}
+              onRename={() => guard(actions.onRename)}
+              onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}
+              onArchive={() => guard(actions.onArchive)}
+              onUnarchive={() => guard(actions.onUnarchive)}
+              onTrash={() => guard(actions.onTrash)}
+              onRestore={() => guard(actions.onRestore)}
+              onDeletePermanently={() => guard(actions.onDeletePermanently)}
+            />
+          )
+        }}
+        renderLocation={(guard) => {
+          const actions = itemActions(focusItem, [focusItem.id])
+          return (
+            <ItemLocationMenu
+              item={focusItem}
+              collections={library.collections}
+              onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}
+            />
+          )
+        }}
+        onError={setMessage}
+      />
+    </Suspense>
   ) : (
     <Empty className="size-full">
       <EmptyHeader>
@@ -1976,11 +2099,21 @@ export function Workspace({
                     ) : null}
                   </div>
                 ) : view === 'visual' ? (
-                  <OrderedMasonry>{cardLayoutContent}</OrderedMasonry>
+                  <>
+                    <OrderedMasonry>{cardLayoutContent}</OrderedMasonry>
+                    {renderedItems.length < visibleItems.length ? (
+                      <div ref={loadMoreItemsRef} className="h-px" aria-hidden="true" />
+                    ) : null}
+                  </>
                 ) : (
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-4">
-                    {cardLayoutContent}
-                  </div>
+                  <>
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-4">
+                      {cardLayoutContent}
+                    </div>
+                    {renderedItems.length < visibleItems.length ? (
+                      <div ref={loadMoreItemsRef} className="h-px" aria-hidden="true" />
+                    ) : null}
+                  </>
                 )}
                 {!isDragging && visibleItems.length === 0 && hasActiveRetrieval && (
                   <Empty className="mt-8 border">
@@ -2102,60 +2235,66 @@ export function Workspace({
         <p className="sr-only" aria-live="polite" aria-atomic="true">
           {statusMessage}
         </p>
-        <ItemDetailDialog
-          key={selectedItem?.id ?? 'closed-item-detail'}
-          item={selectedItem}
-          hasPrevious={hasPreviousItem}
-          hasNext={hasNextItem}
-          onPrevious={selectPreviousItem}
-          onNext={selectNextItem}
-          onOpenChange={(open) => {
-            if (!open) setSelectedItemId(null)
-          }}
-          onItemUpdated={updateItem}
-          onRenameItem={renameItemTitle}
-          libraryItems={library.items}
-          onRenameAttachment={(itemId) => {
-            const image = library.items.find((item) => item.id === itemId)
-            if (!image || image.type !== 'image') return
-            setRenameTarget(image)
-            setRenameTitle(image.title)
-          }}
-          onOpenVaultLink={openVaultLink}
-          renderActions={(guard) => {
-            if (!selectedItem) return null
-            const actions = itemActions(selectedItem, [selectedItem.id])
-            return (
-              <ItemActionMenu
-                item={selectedItem}
-                collections={library.collections}
-                targetCount={1}
-                targetLocations={[selectedItem.location]}
-                alwaysVisible
-                {...actions}
-                onRename={() => guard(actions.onRename)}
-                onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}
-                onArchive={() => guard(actions.onArchive)}
-                onUnarchive={() => guard(actions.onUnarchive)}
-                onTrash={() => guard(actions.onTrash)}
-                onRestore={() => guard(actions.onRestore)}
-                onDeletePermanently={() => guard(actions.onDeletePermanently)}
-              />
-            )
-          }}
-          renderLocation={(guard) => {
-            if (!selectedItem) return null
-            const actions = itemActions(selectedItem, [selectedItem.id])
-            return (
-              <ItemLocationMenu
-                item={selectedItem}
-                collections={library.collections}
-                onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}
-              />
-            )
-          }}
-          onError={setMessage}
-        />
+        <Suspense fallback={null}>
+          <ItemDetailDialog
+            key={selectedItem?.id ?? 'closed-item-detail'}
+            item={selectedItem}
+            hasPrevious={hasPreviousItem}
+            hasNext={hasNextItem}
+            onPrevious={selectPreviousItem}
+            onNext={selectNextItem}
+            onOpenChange={(open) => {
+              if (!open) setSelectedItemId(null)
+            }}
+            onItemUpdated={updateItem}
+            onRenameItem={renameItemTitle}
+            libraryItems={library.items}
+            onRenameAttachment={(itemId) => {
+              const image = library.items.find((item) => item.id === itemId)
+              if (!image || image.type !== 'image') return
+              setRenameTarget(image)
+              setRenameTitle(image.title)
+            }}
+            onOpenVaultLink={openVaultLink}
+            onMoveToTrash={(itemId) => {
+              const target = library.items.find((item) => item.id === itemId)
+              if (target) itemActions(target, [itemId]).onTrash()
+            }}
+            renderActions={(guard) => {
+              if (!selectedItem) return null
+              const actions = itemActions(selectedItem, [selectedItem.id])
+              return (
+                <ItemActionMenu
+                  item={selectedItem}
+                  collections={library.collections}
+                  targetCount={1}
+                  targetLocations={[selectedItem.location]}
+                  alwaysVisible
+                  {...actions}
+                  onRename={() => guard(actions.onRename)}
+                  onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}
+                  onArchive={() => guard(actions.onArchive)}
+                  onUnarchive={() => guard(actions.onUnarchive)}
+                  onTrash={() => guard(actions.onTrash)}
+                  onRestore={() => guard(actions.onRestore)}
+                  onDeletePermanently={() => guard(actions.onDeletePermanently)}
+                />
+              )
+            }}
+            renderLocation={(guard) => {
+              if (!selectedItem) return null
+              const actions = itemActions(selectedItem, [selectedItem.id])
+              return (
+                <ItemLocationMenu
+                  item={selectedItem}
+                  collections={library.collections}
+                  onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}
+                />
+              )
+            }}
+            onError={setMessage}
+          />
+        </Suspense>
         <Dialog
           open={renameTarget !== null}
           onOpenChange={(open) => {

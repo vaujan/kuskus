@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { ImageItemCard } from '@/features/items/image-item-card'
 import { FileItemCard } from '@/features/items/file-item-card'
 import type { LibraryView } from '@/features/items/item-view'
@@ -5,7 +6,7 @@ import { NoteItemCard } from '@/features/items/note-item-card'
 import { UrlItemCard } from '@/features/items/url-item-card'
 import type { LibraryItemDto } from '../../../../shared/library-contract'
 
-export function SavedItemCard({
+export const SavedItemCard = memo(function SavedItemCard({
   item,
   onActivate,
   onOpen,
@@ -56,4 +57,4 @@ export function SavedItemCard({
       onOpen={onOpen}
     />
   )
-}
+})
