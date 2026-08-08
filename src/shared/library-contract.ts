@@ -1,5 +1,10 @@
 export const KUSKUS_CHANNELS = {
   getLibraryState: 'library:get-state',
+  getLibraryOverview: 'library:get-overview',
+  getItemDetail: 'library:get-item-detail',
+  queryItems: 'library:query-items',
+  reconcileLibrary: 'library:reconcile',
+  reconcileLibraryOverview: 'library:reconcile-overview',
   createLibrary: 'library:create',
   openLibrary: 'library:open',
   createNote: 'library:create-note',
@@ -110,6 +115,7 @@ export interface NoteItemDto {
   type: 'note'
   title: string
   body: string
+  bodyTruncated?: boolean
   createdAt: string
   updatedAt: string
   missingContent: boolean
@@ -225,6 +231,12 @@ export interface FileItemDto {
 
 export type LibraryItemDto = NoteItemDto | ImageItemDto | UrlItemDto | FileItemDto
 
+export type LibraryItemSummaryDto =
+  | (Omit<NoteItemDto, 'body' | 'bodyTruncated'> & { previewMarkdown: string })
+  | ImageItemDto
+  | UrlItemDto
+  | FileItemDto
+
 export type SupportedImageMediaType =
   'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp' | 'image/bmp'
 
@@ -269,6 +281,12 @@ export interface LibraryDto {
   collections: CollectionDto[]
   cleanup: VaultCleanupDto
   repairConflicts: VaultRepairConflictDto[]
+}
+
+export interface LibraryOverviewDto extends Omit<LibraryDto, 'items'> {
+  items: LibraryItemSummaryDto[]
+  revision: number
+  rebuildState: 'ready' | 'reconciling'
 }
 
 export interface VaultCleanupDto {
@@ -357,8 +375,25 @@ export type LibraryState =
   | { status: 'needs-migration'; path: string; name: string }
   | { status: 'unavailable'; path: string; message: string }
 
+export type LibraryOverviewState =
+  Exclude<LibraryState, { status: 'ready' }> | { status: 'ready'; library: LibraryOverviewDto }
+
+export interface QueryItemsInput {
+  query: string
+}
+
+export interface QueryItemsResult {
+  revision: number
+  itemIds: string[]
+}
+
 export interface KuskusLibraryApi {
   getState: () => Promise<ApiResult<LibraryState>>
+  getOverview: () => Promise<ApiResult<LibraryOverviewState>>
+  getItemDetail: (itemId: string) => Promise<ApiResult<LibraryItemDto>>
+  queryItems: (input: QueryItemsInput) => Promise<ApiResult<QueryItemsResult>>
+  reconcile: () => Promise<ApiResult<LibraryState>>
+  reconcileOverview: () => Promise<ApiResult<LibraryOverviewState>>
   create: (name: string) => Promise<ApiResult<LibraryState>>
   open: () => Promise<ApiResult<LibraryState>>
   initializeVault: () => Promise<ApiResult<LibraryState>>

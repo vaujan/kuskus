@@ -27,7 +27,48 @@ export function registerLibraryIpc(libraryService: LibraryService): void {
   })
   ipcMain.handle(KUSKUS_CHANNELS.getLibraryState, async () => {
     try {
-      return { ok: true, data: await libraryService.getState() }
+      return { ok: true, data: await libraryService.getState(true) }
+    } catch (error) {
+      return errorResult(error)
+    }
+  })
+  ipcMain.handle(KUSKUS_CHANNELS.getLibraryOverview, async () => {
+    try {
+      return { ok: true, data: await libraryService.getOverviewState() }
+    } catch (error) {
+      return errorResult(error)
+    }
+  })
+  ipcMain.handle(KUSKUS_CHANNELS.getItemDetail, async (_event, itemId: unknown) => {
+    if (typeof itemId !== 'string') {
+      return errorResult(new Error('The item identifier is invalid.'), 'invalid-input')
+    }
+    try {
+      return { ok: true, data: await libraryService.getItemDetail(itemId) }
+    } catch (error) {
+      return errorResult(error, 'not-found')
+    }
+  })
+  ipcMain.handle(KUSKUS_CHANNELS.queryItems, async (_event, input: unknown) => {
+    try {
+      return {
+        ok: true,
+        data: await libraryService.queryItems(input as { query: string })
+      }
+    } catch (error) {
+      return errorResult(error, 'invalid-input')
+    }
+  })
+  ipcMain.handle(KUSKUS_CHANNELS.reconcileLibrary, async () => {
+    try {
+      return { ok: true, data: await libraryService.reconcileState() }
+    } catch (error) {
+      return errorResult(error)
+    }
+  })
+  ipcMain.handle(KUSKUS_CHANNELS.reconcileLibraryOverview, async () => {
+    try {
+      return { ok: true, data: await libraryService.reconcileOverviewState() }
     } catch (error) {
       return errorResult(error)
     }

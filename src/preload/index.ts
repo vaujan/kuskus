@@ -83,6 +83,11 @@ const windowApi: ElectronWindowApi = {
 
 const libraryApi: KuskusLibraryApi = {
   getState: () => ipcRenderer.invoke(KUSKUS_CHANNELS.getLibraryState),
+  getOverview: () => ipcRenderer.invoke(KUSKUS_CHANNELS.getLibraryOverview),
+  getItemDetail: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.getItemDetail, itemId),
+  queryItems: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.queryItems, input),
+  reconcile: () => ipcRenderer.invoke(KUSKUS_CHANNELS.reconcileLibrary),
+  reconcileOverview: () => ipcRenderer.invoke(KUSKUS_CHANNELS.reconcileLibraryOverview),
   create: (name) => ipcRenderer.invoke(KUSKUS_CHANNELS.createLibrary, name),
   open: () => ipcRenderer.invoke(KUSKUS_CHANNELS.openLibrary),
   initializeVault: () => ipcRenderer.invoke(KUSKUS_CHANNELS.initializeVault),

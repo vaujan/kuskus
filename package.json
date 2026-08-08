@@ -9,6 +9,8 @@
     "test": "node --test tests/library-service.test.cjs tests/note-autosave.test.cjs tests/global-capture-shortcut.test.cjs tests/quick-capture.test.cjs tests/item-shortcuts.test.cjs tests/focus-view.test.cjs tests/window-material.test.cjs tests/window-material-controller.test.cjs",
     "demo:seed": "node scripts/create-demo-library.cjs",
     "demo:reset": "node scripts/create-demo-library.cjs --reset",
+    "perf:benchmark": "node scripts/benchmark-performance.cjs",
+    "perf:budget": "node scripts/check-performance-budget.cjs",
     "dev:demo": "node scripts/run-demo.cjs",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",

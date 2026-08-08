@@ -1,5 +1,6 @@
 import { app, BrowserWindow, globalShortcut, nativeTheme } from 'electron'
 import { join, resolve } from 'node:path'
+import { performance } from 'node:perf_hooks'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 
 import { registerLibraryIpc } from './ipc/library-handlers'
@@ -18,6 +19,7 @@ import { CAPTURE_CHANNELS } from '../shared/capture-contract'
 import { QuickCaptureWindowController } from './window/quick-capture-window'
 
 const demoUserDataPath = process.env.KUSKUS_DEMO_USER_DATA
+performance.mark('kuskus:main-entry')
 if (demoUserDataPath && !app.isPackaged) {
   app.setPath('userData', resolve(demoUserDataPath))
 }
@@ -102,6 +104,12 @@ if (!hasSingleInstanceLock) {
 
     libraryService = new LibraryService(join(app.getPath('userData'), 'kuskus-settings.json'))
     await libraryService.initialize()
+    performance.mark('kuskus:library-service-initialized')
+    performance.measure(
+      'kuskus:main-entry-to-library-service',
+      'kuskus:main-entry',
+      'kuskus:library-service-initialized'
+    )
     const captureSessions = new CaptureSessionService(
       join(app.getPath('userData'), 'kuskus-capture-sessions.json')
     )

@@ -20,11 +20,16 @@ import type {
   PermanentlyDeleteItemsInput,
   TrashItemsInput,
   LibraryDto,
+  LibraryItemSummaryDto,
+  LibraryOverviewDto,
+  LibraryOverviewState,
   LibraryItemDto,
   LibraryState,
   MoveItemsInput,
   MoveCollectionInput,
   NoteItemDto,
+  QueryItemsInput,
+  QueryItemsResult,
   CaptureDraftImageDto,
   CaptureDraftFileDto,
   UpdateNoteInput,
@@ -83,6 +88,12 @@ export class LibraryService {
   private readonly urlNetwork: UrlNetworkDependencies
   private readonly enrichmentRequests = new Map<string, Promise<UrlItemDto>>()
   private readonly previewRequests = new Map<string, Promise<UrlPreviewDto>>()
+  private librarySnapshot: LibraryDto | null = null
+  private reconciliation: Promise<LibraryDto> | null = null
+  private startupReconciliationPending = false
+  private vaultDirty = true
+  private readonly vaultChangedPaths = new Set<string>()
+  private libraryRevision = 0
   private vaultWatcher: FSWatcher | null = null
   private vaultChangeTimer: NodeJS.Timeout | null = null
   private readonly vaultChangeListeners = new Set<() => void>()
@@ -146,7 +157,7 @@ export class LibraryService {
       // No authoritative item exists yet.
     }
     if (existing) {
-      const item = (await this.store.buildLibraryDto(libraryPath)).items.find(
+      const item = (await this.buildLibraryDto(libraryPath)).items.find(
         (candidate) => candidate.id === existing.id
       )
       if (item) return item
@@ -157,7 +168,7 @@ export class LibraryService {
       validateWebUrl(record.markdown)
       const metadata = createUrlMetadata(record.id, record.markdown, record.submittedAt)
       await this.store.finalizeInboxItem(libraryPath, metadata, [], record.destination)
-      const saved = (await this.store.buildLibraryDto(libraryPath)).items.find(
+      const saved = (await this.buildLibraryDto(libraryPath)).items.find(
         (candidate) => candidate.id === record.id
       )
       if (!saved || saved.type !== 'url') throw new Error('The saved link could not be reopened.')
@@ -205,7 +216,7 @@ export class LibraryService {
         [{ filename: metadata.contentFilename, data: staged[0].bytes }],
         record.destination
       )
-      const saved = (await this.store.buildLibraryDto(libraryPath)).items.find(
+      const saved = (await this.buildLibraryDto(libraryPath)).items.find(
         (candidate) => candidate.id === record.id
       )
       if (!saved || saved.type !== 'image')
@@ -252,6 +263,8 @@ export class LibraryService {
       }
       await this.store.readPersistedLibrary(settings.lastLibraryPath)
       this.currentLibraryPath = settings.lastLibraryPath
+      this.librarySnapshot = await this.store.readCachedLibraryDto(settings.lastLibraryPath)
+      this.startupReconciliationPending = this.librarySnapshot !== null
     } catch (error) {
       if (await this.store.pathExists(this.settingsPath)) {
         const lastPath = await this.readLastLibraryPathSafely()
@@ -265,12 +278,21 @@ export class LibraryService {
     }
   }
 
-  async getState(): Promise<LibraryState> {
+  async getState(preferCached = false): Promise<LibraryState> {
     if (this.currentLibraryPath) {
       try {
+        if (preferCached && this.librarySnapshot) {
+          if (this.startupReconciliationPending) {
+            this.startupReconciliationPending = false
+            void this.reconcileCurrentLibrary(true).catch(() => {
+              // Keep the last valid rebuildable snapshot usable; a later focus retry can reconcile.
+            })
+          }
+          return { status: 'ready', library: this.librarySnapshot }
+        }
         return {
           status: 'ready',
-          library: await this.store.buildLibraryDto(this.currentLibraryPath)
+          library: await this.buildLibraryDto(this.currentLibraryPath)
         }
       } catch (error) {
         const path = this.currentLibraryPath
@@ -286,6 +308,100 @@ export class LibraryService {
 
     if (this.unavailableLibrary) return { status: 'unavailable', ...this.unavailableLibrary }
     return { status: 'none' }
+  }
+
+  async reconcileState(): Promise<LibraryState> {
+    if (!this.currentLibraryPath) return this.getState()
+    if (this.librarySnapshot && !this.vaultDirty && this.vaultWatcher) {
+      return { status: 'ready', library: this.librarySnapshot }
+    }
+    try {
+      const changedPaths = [...this.vaultChangedPaths]
+      this.vaultChangedPaths.clear()
+      return {
+        status: 'ready',
+        library: await this.reconcileCurrentLibrary(false, changedPaths)
+      }
+    } catch (error) {
+      return {
+        status: 'unavailable',
+        path: this.currentLibraryPath,
+        message: this.toMessage(error, 'The current library could not be reconciled.')
+      }
+    }
+  }
+
+  async getOverviewState(): Promise<LibraryOverviewState> {
+    return this.toOverviewState(await this.getState(true))
+  }
+
+  async reconcileOverviewState(): Promise<LibraryOverviewState> {
+    return this.toOverviewState(await this.reconcileState())
+  }
+
+  async getItemDetail(itemId: string): Promise<LibraryItemDto> {
+    this.validateItemId(itemId, 'item')
+    const library = this.reconciliation
+      ? await this.reconciliation
+      : (this.librarySnapshot ?? (await this.buildLibraryDto(this.requireCurrentLibrary())))
+    const item = library.items.find((candidate) => candidate.id === itemId)
+    if (!item) throw new Error('The item no longer exists in this library.')
+    return item
+  }
+
+  async queryItems(input: QueryItemsInput): Promise<QueryItemsResult> {
+    if (!input || typeof input !== 'object' || typeof input.query !== 'string') {
+      throw new Error('The library query is invalid.')
+    }
+    const query = input.query.trim().toLocaleLowerCase()
+    const library =
+      this.librarySnapshot ?? (await this.buildLibraryDto(this.requireCurrentLibrary()))
+    if (!query)
+      return { revision: this.libraryRevision, itemIds: library.items.map((item) => item.id) }
+    const itemIds = library.items
+      .filter((item) => {
+        const searchable = [
+          item.title,
+          item.type === 'note' ? item.body : '',
+          item.type === 'image' ? (item.sourceFilename ?? item.contentFilename) : '',
+          item.type === 'file' ? `${item.sourceFilename} ${item.contentFilename}` : '',
+          item.type === 'url' ? `${item.domain} ${item.sourceUrl} ${item.description ?? ''}` : ''
+        ]
+          .join(' ')
+          .toLocaleLowerCase()
+        return searchable.includes(query)
+      })
+      .map((item) => item.id)
+    return { revision: this.libraryRevision, itemIds }
+  }
+
+  private toOverviewState(state: LibraryState): LibraryOverviewState {
+    if (state.status !== 'ready') return state
+    const items: LibraryItemSummaryDto[] = state.library.items.map((item) =>
+      item.type === 'note'
+        ? {
+            schemaVersion: item.schemaVersion,
+            id: item.id,
+            type: item.type,
+            title: item.title,
+            previewMarkdown: item.body.slice(0, 2_400),
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+            missingContent: item.missingContent,
+            attachments: item.attachments,
+            location: item.location,
+            relativePath: item.relativePath,
+            referencedAttachment: false
+          }
+        : item
+    )
+    const overview: LibraryOverviewDto = {
+      ...state.library,
+      items,
+      revision: this.libraryRevision,
+      rebuildState: this.reconciliation ? 'reconciling' : 'ready'
+    }
+    return { status: 'ready', library: overview }
   }
 
   async createIn(parentPath: string, requestedName: string): Promise<LibraryState> {
@@ -422,7 +538,7 @@ export class LibraryService {
     metadata: PersistedNoteItem,
     markdown: string
   ): Promise<NoteItemDto> {
-    const item = (await this.store.buildLibraryDto(libraryPath)).items.find(
+    const item = (await this.buildLibraryDto(libraryPath)).items.find(
       (entry) => entry.id === metadata.id && entry.type === 'note'
     )
     if (!item || item.type !== 'note') throw new Error('The saved note could not be reopened.')
@@ -810,7 +926,7 @@ export class LibraryService {
     const collections = await this.store.readPersistedCollections(libraryPath)
     const current = collections.find((entry) => entry.id === input.collectionId)
     if (!current) throw new Error('This folder no longer exists.')
-    if (current.parentId === input.parentId) return this.store.buildLibraryDto(libraryPath)
+    if (current.parentId === input.parentId) return this.buildLibraryDto(libraryPath)
     if (input.parentId !== null) {
       const parent = collections.find((entry) => entry.id === input.parentId)
       if (!parent) throw new Error('The destination folder no longer exists.')
@@ -828,7 +944,7 @@ export class LibraryService {
       }
     }
     await this.store.moveCollection(libraryPath, current.id, input.parentId)
-    return this.store.buildLibraryDto(libraryPath)
+    return this.buildLibraryDto(libraryPath)
   }
 
   async setCollectionIcon(
@@ -849,7 +965,7 @@ export class LibraryService {
   async deleteCollection(collectionId: string): Promise<LibraryDto> {
     this.validateCollectionId(collectionId)
     const libraryPath = this.requireCurrentLibrary()
-    const library = await this.store.buildLibraryDto(libraryPath)
+    const library = await this.buildLibraryDto(libraryPath)
     const items = library.items.filter(
       (item) => item.location.type === 'collection' && item.location.collectionId === collectionId
     )
@@ -875,7 +991,7 @@ export class LibraryService {
       )
     }
     await this.store.deleteCollection(libraryPath, collectionId)
-    return this.store.buildLibraryDto(libraryPath)
+    return this.buildLibraryDto(libraryPath)
   }
 
   async renameItem(input: RenameItemInput): Promise<LibraryDto> {
@@ -891,7 +1007,7 @@ export class LibraryService {
       titleSource: 'custom',
       updatedAt: new Date().toISOString()
     })
-    return this.store.buildLibraryDto(libraryPath)
+    return this.buildLibraryDto(libraryPath)
   }
 
   async moveItems(input: MoveItemsInput): Promise<LibraryDto> {
@@ -904,7 +1020,7 @@ export class LibraryService {
     ) {
       throw new Error('The destination folder no longer exists.')
     }
-    const library = await this.store.buildLibraryDto(libraryPath)
+    const library = await this.buildLibraryDto(libraryPath)
     const itemIds = this.withExclusiveSiblingAttachments(library, requestedItemIds)
     const items = await Promise.all(
       itemIds.map((itemId) => this.store.resolveItem(libraryPath, itemId))
@@ -920,13 +1036,13 @@ export class LibraryService {
         metadata: this.clearLifecycleMetadata(item.metadata)
       }))
     await this.store.moveItems(libraryPath, requests)
-    return this.store.buildLibraryDto(libraryPath)
+    return this.buildLibraryDto(libraryPath)
   }
 
   async archiveItems(input: ItemMutationInput): Promise<LibraryDto> {
     const requestedItemIds = this.validateItemMutationInput(input)
     const libraryPath = this.requireCurrentLibrary()
-    const library = await this.store.buildLibraryDto(libraryPath)
+    const library = await this.buildLibraryDto(libraryPath)
     const itemIds = this.withExclusiveSiblingAttachments(library, requestedItemIds)
     const items = await Promise.all(
       itemIds.map((itemId) => this.store.resolveItem(libraryPath, itemId))
@@ -950,13 +1066,13 @@ export class LibraryService {
         }
       }))
     )
-    return this.store.buildLibraryDto(libraryPath)
+    return this.buildLibraryDto(libraryPath)
   }
 
   async unarchiveItems(input: ItemMutationInput): Promise<LibraryDto> {
     const requestedItemIds = this.validateItemMutationInput(input)
     const libraryPath = this.requireCurrentLibrary()
-    const library = await this.store.buildLibraryDto(libraryPath)
+    const library = await this.buildLibraryDto(libraryPath)
     const itemIds = this.withExclusiveSiblingAttachments(library, requestedItemIds)
     const items = await Promise.all(
       itemIds.map((itemId) => this.store.resolveItem(libraryPath, itemId))
@@ -975,7 +1091,7 @@ export class LibraryService {
       })
     )
     await this.store.moveItems(libraryPath, requests)
-    return this.store.buildLibraryDto(libraryPath)
+    return this.buildLibraryDto(libraryPath)
   }
 
   private withExclusiveSiblingAttachments(
@@ -1087,7 +1203,7 @@ export class LibraryService {
         }
       })
     )
-    return this.store.buildLibraryDto(libraryPath)
+    return this.buildLibraryDto(libraryPath)
   }
 
   async restoreItems(input: ItemMutationInput): Promise<LibraryDto> {
@@ -1123,7 +1239,7 @@ export class LibraryService {
       })
     )
     await this.store.moveItems(libraryPath, requests)
-    return this.store.buildLibraryDto(libraryPath)
+    return this.buildLibraryDto(libraryPath)
   }
 
   async permanentlyDeleteItems(input: PermanentlyDeleteItemsInput): Promise<LibraryDto> {
@@ -1156,7 +1272,7 @@ export class LibraryService {
       )
     )
     if (cleanupImageIds.length > 0) await this.trashItems({ itemIds: cleanupImageIds })
-    return this.store.buildLibraryDto(libraryPath)
+    return this.buildLibraryDto(libraryPath)
   }
 
   async getItemContentPath(itemId: string): Promise<string> {
@@ -1207,6 +1323,9 @@ export class LibraryService {
     this.currentLibraryPath = libraryPath
     this.pendingLibraryPath = null
     this.unavailableLibrary = null
+    this.librarySnapshot = null
+    this.startupReconciliationPending = false
+    this.vaultDirty = true
     await writeJsonAtomic(this.settingsPath, {
       schemaVersion: 1,
       lastLibraryPath: libraryPath
@@ -1219,7 +1338,13 @@ export class LibraryService {
     if (this.currentLibraryPath && !this.vaultWatcher) {
       this.startVaultWatcher(this.currentLibraryPath)
     }
-    return () => this.vaultChangeListeners.delete(listener)
+    return () => {
+      this.vaultChangeListeners.delete(listener)
+      if (this.vaultChangeListeners.size === 0) {
+        this.vaultWatcher?.close()
+        this.vaultWatcher = null
+      }
+    }
   }
 
   private startVaultWatcher(libraryPath: string): void {
@@ -1235,15 +1360,62 @@ export class LibraryService {
         ) {
           return
         }
+        this.vaultDirty = true
+        this.vaultChangedPaths.add(relativePath)
         if (this.vaultChangeTimer) clearTimeout(this.vaultChangeTimer)
         this.vaultChangeTimer = setTimeout(() => {
           this.vaultChangeTimer = null
-          for (const listener of this.vaultChangeListeners) listener()
+          const changedPaths = [...this.vaultChangedPaths]
+          this.vaultChangedPaths.clear()
+          void this.reconcileCurrentLibrary(true, changedPaths).catch(() => {
+            // The renderer retains the last valid snapshot and focus reconciliation can retry.
+          })
         }, 300)
       })
       this.vaultWatcher.unref()
     } catch {
       // Startup/focus rescans remain available when recursive watching is unsupported.
+    }
+  }
+
+  private async buildLibraryDto(libraryPath: string): Promise<LibraryDto> {
+    const library = await this.store.buildLibraryDto(libraryPath)
+    if (this.currentLibraryPath === libraryPath) {
+      this.librarySnapshot = library
+      this.vaultDirty = false
+      this.libraryRevision += 1
+    }
+    return library
+  }
+
+  private async reconcileCurrentLibrary(
+    notify: boolean,
+    changedPaths: readonly string[] = []
+  ): Promise<LibraryDto> {
+    const libraryPath = this.requireCurrentLibrary()
+    const active = this.reconciliation
+    if (active) {
+      const library = await active
+      if (notify) for (const listener of this.vaultChangeListeners) listener()
+      return library
+    }
+    const reconciliation = (async () => {
+      const incremental = this.librarySnapshot
+        ? await this.store.reconcileKnownFiles(libraryPath, this.librarySnapshot, changedPaths)
+        : null
+      if (!incremental) return this.buildLibraryDto(libraryPath)
+      this.librarySnapshot = incremental
+      this.vaultDirty = false
+      this.libraryRevision += 1
+      return incremental
+    })()
+    this.reconciliation = reconciliation
+    try {
+      const library = await reconciliation
+      if (notify) for (const listener of this.vaultChangeListeners) listener()
+      return library
+    } finally {
+      if (this.reconciliation === reconciliation) this.reconciliation = null
     }
   }
 

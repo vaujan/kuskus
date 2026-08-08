@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
+import { createReadStream, type Stats } from 'node:fs'
 import { access, cp, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve, sep } from 'node:path'
 
@@ -72,6 +73,8 @@ const COLLECTION_RECORDS_DIRECTORY = 'collections'
 const TRASH_DIRECTORY = 'trash'
 const CAPTURE_QUEUE_DIRECTORY = 'capture-queue'
 const CAPTURE_SUBMISSION_MANIFEST = 'submission.json'
+const INDEX_DIRECTORY = 'index'
+const LIBRARY_INDEX_FILENAME = 'library-v1.json'
 const DEFAULT_ARCHIVE_DIRECTORY = 'Archive'
 const MARKDOWN_EXTENSION = '.md'
 const INTERNET_SHORTCUT_EXTENSION = '.url'
@@ -86,6 +89,8 @@ interface VaultItemRecord {
   relativePath: string
   fingerprint: string | null
   fileIdentity?: string | null
+  fileSize?: number
+  modifiedAtMs?: number
   recovery?: { lastSeenAt: string; missingSince: string | null }
   metadata: PersistedItem
 }
@@ -104,6 +109,13 @@ interface CleanupMarker extends VaultCleanupDto {
   schemaVersion: 1
   conflicts: VaultRepairConflictDto[]
   completedAt: string
+}
+
+interface LibraryIndexCache {
+  schemaVersion: 1
+  libraryId: string
+  writtenAt: string
+  library: LibraryDto
 }
 
 function isAttachmentItemRecord(record: VaultItemRecord): record is AttachmentItemRecord {
@@ -205,6 +217,40 @@ interface ScannedFile {
   archive: boolean
 }
 
+interface ScannedFileWithStat extends ScannedFile {
+  stats: Stats
+}
+
+interface DtoBuildContext {
+  itemRecords: VaultItemRecord[]
+  attachmentRecords: AttachmentItemRecord[]
+  attachmentRecordIds: Set<string>
+  availablePaths: string[]
+  imageDetection: Map<string, Promise<ReturnType<typeof detectImage>>>
+}
+
+async function mapWithConcurrency<T, R>(
+  values: readonly T[],
+  limit: number,
+  operation: (value: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(values.length)
+  let nextIndex = 0
+  const workers = Array.from({ length: Math.min(limit, values.length) }, async () => {
+    while (nextIndex < values.length) {
+      const index = nextIndex
+      nextIndex += 1
+      results[index] = await operation(values[index], index)
+    }
+  })
+  await Promise.all(workers)
+  return results
+}
+
+function recordsEqual(left: VaultItemRecord, right: VaultItemRecord): boolean {
+  return JSON.stringify(left) === JSON.stringify(right)
+}
+
 function slash(path: string): string {
   return path.split(sep).join('/')
 }
@@ -245,6 +291,10 @@ export class LibraryStore {
     string,
     Promise<{ records: VaultItemRecord[]; collections: VaultCollectionRecord[] }>
   >()
+  private readonly scanSnapshots = new Map<
+    string,
+    { records: VaultItemRecord[]; collections: VaultCollectionRecord[] }
+  >()
   async pathExists(path: string): Promise<boolean> {
     try {
       await access(path)
@@ -256,6 +306,41 @@ export class LibraryStore {
 
   private kuskusPath(libraryPath: string, ...parts: string[]): string {
     return join(libraryPath, KUSKUS_DIRECTORY, ...parts)
+  }
+
+  async readCachedLibraryDto(libraryPath: string): Promise<LibraryDto | null> {
+    try {
+      const library = await this.readPersistedLibrary(libraryPath)
+      const cached = await readJson<unknown>(
+        this.kuskusPath(libraryPath, INDEX_DIRECTORY, LIBRARY_INDEX_FILENAME)
+      )
+      if (!cached || typeof cached !== 'object') return null
+      const value = cached as Partial<LibraryIndexCache>
+      const dto = value.library
+      if (
+        value.schemaVersion !== 1 ||
+        value.libraryId !== library.id ||
+        !dto ||
+        dto.id !== library.id ||
+        dto.path !== libraryPath ||
+        !Array.isArray(dto.items) ||
+        !Array.isArray(dto.collections)
+      ) {
+        return null
+      }
+      return dto
+    } catch {
+      return null
+    }
+  }
+
+  private async writeCachedLibraryDto(libraryPath: string, library: LibraryDto): Promise<void> {
+    await writeJsonAtomic(this.kuskusPath(libraryPath, INDEX_DIRECTORY, LIBRARY_INDEX_FILENAME), {
+      schemaVersion: 1,
+      libraryId: library.id,
+      writtenAt: new Date().toISOString(),
+      library
+    } satisfies LibraryIndexCache)
   }
 
   private resolveInside(libraryPath: string, relativePath: string): string {
@@ -596,12 +681,13 @@ export class LibraryStore {
   private async readItemRecords(libraryPath: string): Promise<VaultItemRecord[]> {
     const directory = this.kuskusPath(libraryPath, RECORDS_DIRECTORY)
     await mkdir(directory, { recursive: true })
-    const records: VaultItemRecord[] = []
-    for (const entry of await readdir(directory, { withFileTypes: true })) {
-      if (!entry.isFile() || !entry.name.endsWith('.json')) continue
+    const entries = (await readdir(directory, { withFileTypes: true })).filter(
+      (entry) => entry.isFile() && entry.name.endsWith('.json')
+    )
+    const values = await mapWithConcurrency(entries, 32, async (entry) => {
       try {
         const value = await readJson<unknown>(join(directory, entry.name))
-        if (!value || typeof value !== 'object') continue
+        if (!value || typeof value !== 'object') return null
         const record = value as VaultItemRecord
         if (
           record.schemaVersion === 2 &&
@@ -609,24 +695,26 @@ export class LibraryStore {
           typeof record.relativePath === 'string' &&
           isPersistedItem(record.metadata, record.id)
         ) {
-          records.push(record)
+          return record
         }
       } catch {
         // Invalid records remain on disk for explicit repair and are excluded from ordinary reads.
       }
-    }
-    return records
+      return null
+    })
+    return values.filter((record): record is VaultItemRecord => record !== null)
   }
 
   private async readCollectionRecords(libraryPath: string): Promise<VaultCollectionRecord[]> {
     const directory = this.kuskusPath(libraryPath, COLLECTION_RECORDS_DIRECTORY)
     await mkdir(directory, { recursive: true })
-    const records: VaultCollectionRecord[] = []
-    for (const entry of await readdir(directory, { withFileTypes: true })) {
-      if (!entry.isFile() || !entry.name.endsWith('.json')) continue
+    const entries = (await readdir(directory, { withFileTypes: true })).filter(
+      (entry) => entry.isFile() && entry.name.endsWith('.json')
+    )
+    const values = await mapWithConcurrency(entries, 32, async (entry) => {
       try {
         const value = await readJson<unknown>(join(directory, entry.name))
-        if (!value || typeof value !== 'object') continue
+        if (!value || typeof value !== 'object') return null
         const record = value as VaultCollectionRecord
         if (
           record.schemaVersion === 2 &&
@@ -634,16 +722,17 @@ export class LibraryStore {
           typeof record.name === 'string' &&
           typeof record.relativePath === 'string'
         ) {
-          records.push({
+          return {
             ...record,
             icon: isCollectionIconKey(record.icon) ? record.icon : undefined
-          })
+          } as VaultCollectionRecord
         }
       } catch {
         // Invalid records remain available for manual recovery.
       }
-    }
-    return records
+      return null
+    })
+    return values.filter((record): record is VaultCollectionRecord => record !== null)
   }
 
   private async writeItemRecord(libraryPath: string, record: VaultItemRecord): Promise<void> {
@@ -682,22 +771,25 @@ export class LibraryStore {
 
   private async fingerprint(path: string): Promise<string> {
     const hash = createHash('sha256')
-    hash.update(await readFile(path))
+    for await (const chunk of createReadStream(path)) hash.update(chunk)
     return hash.digest('hex')
   }
 
-  private async fileIdentity(path: string): Promise<string | null> {
-    const value = await stat(path, { bigint: true })
-    if (value.ino === 0n) return null
+  private fileIdentityFromStats(value: Stats): string | null {
+    if (value.ino === 0) return null
     return `${value.dev.toString()}:${value.ino.toString()}`
   }
 
+  private async fileIdentity(path: string): Promise<string | null> {
+    return this.fileIdentityFromStats(await stat(path))
+  }
+
   private async metadataForFile(
-    file: ScannedFile,
+    file: ScannedFileWithStat,
     id: string,
     existing: VaultItemRecord | undefined
   ): Promise<PersistedItem> {
-    const fileStat = await stat(file.path)
+    const fileStat = file.stats
     const createdAt = metadataTimestamp(fileStat.birthtime)
     const updatedAt = metadataTimestamp(fileStat.mtime)
     const title = titleFromPath(file.relativePath)
@@ -822,7 +914,9 @@ export class LibraryStore {
         relativePath,
         parentId: parent?.id ?? null
       }
-      await this.writeCollectionRecord(libraryPath, record)
+      if (!current || JSON.stringify(current) !== JSON.stringify(record)) {
+        await this.writeCollectionRecord(libraryPath, record)
+      }
       result.push(record)
     }
     return result
@@ -877,18 +971,43 @@ export class LibraryStore {
 
     const seenIds = new Set<string>()
     const records: VaultItemRecord[] = []
-    const scanEntries = await Promise.all(
-      files.map(async (file) => ({
+    const filesWithStats = await mapWithConcurrency(files, 32, async (file) => ({
+      ...file,
+      stats: await stat(file.path)
+    }))
+    const scanEntries = await mapWithConcurrency(filesWithStats, 8, async (file) => {
+      const current = byPath.get(file.relativePath.toLowerCase())
+      const fileIdentity = this.fileIdentityFromStats(file.stats)
+      const unchanged =
+        current !== undefined &&
+        current.fileSize === file.stats.size &&
+        current.modifiedAtMs === file.stats.mtimeMs &&
+        current.fileIdentity === fileIdentity
+      return {
         file,
-        fileIdentity: await this.fileIdentity(file.path),
-        fingerprint: await this.fingerprint(file.path)
-      }))
-    )
+        fileIdentity,
+        fingerprint: unchanged ? current.fingerprint : await this.fingerprint(file.path),
+        unchanged
+      }
+    })
     const fingerprintCounts = new Map<string, number>()
     for (const entry of scanEntries) {
-      fingerprintCounts.set(entry.fingerprint, (fingerprintCounts.get(entry.fingerprint) ?? 0) + 1)
+      if (entry.fingerprint) {
+        fingerprintCounts.set(
+          entry.fingerprint,
+          (fingerprintCounts.get(entry.fingerprint) ?? 0) + 1
+        )
+      }
     }
-    for (const { file, fileIdentity, fingerprint } of scanEntries) {
+    const plannedRecords: Array<{
+      file: ScannedFileWithStat
+      fileIdentity: string | null
+      fingerprint: string | null
+      unchanged: boolean
+      current: VaultItemRecord | undefined
+      id: string
+    }> = []
+    for (const { file, fileIdentity, fingerprint, unchanged } of scanEntries) {
       let current = byPath.get(file.relativePath.toLowerCase())
       if (!current && fileIdentity) {
         const matches = (byFileIdentity.get(fileIdentity) ?? []).filter(
@@ -896,7 +1015,7 @@ export class LibraryStore {
         )
         if (matches.length === 1) current = matches[0]
       }
-      if (!current && fingerprintCounts.get(fingerprint) === 1) {
+      if (!current && fingerprint && fingerprintCounts.get(fingerprint) === 1) {
         const matches = (byFingerprint.get(fingerprint) ?? []).filter(
           (record) => !seenIds.has(record.id)
         )
@@ -904,43 +1023,65 @@ export class LibraryStore {
       }
       let id = current?.id ?? randomUUID()
       if (seenIds.has(id)) id = randomUUID()
-      const metadata = await this.metadataForFile(file, id, current)
+      plannedRecords.push({ file, fileIdentity, fingerprint, unchanged, current, id })
+      seenIds.add(id)
+    }
+    const builtRecords = await mapWithConcurrency(plannedRecords, 16, async (planned) => {
+      const { file, fileIdentity, fingerprint, unchanged, current, id } = planned
+      const metadata =
+        unchanged && current ? current.metadata : await this.metadataForFile(file, id, current)
       const record: VaultItemRecord = {
         schemaVersion: 2,
         id,
         relativePath: file.relativePath,
         fingerprint,
         fileIdentity,
-        recovery: { lastSeenAt: new Date().toISOString(), missingSince: null },
+        fileSize: file.stats.size,
+        modifiedAtMs: file.stats.mtimeMs,
+        recovery:
+          unchanged && current?.recovery
+            ? { ...current.recovery, missingSince: null }
+            : { lastSeenAt: new Date().toISOString(), missingSince: null },
         metadata
       }
-      await this.writeItemRecord(libraryPath, record)
-      records.push(record)
-      seenIds.add(id)
-    }
+      return { record, changed: !current || !recordsEqual(current, record) }
+    })
+    records.push(...builtRecords.map(({ record }) => record))
+    await mapWithConcurrency(
+      builtRecords.filter(({ changed }) => changed),
+      16,
+      async ({ record }) => this.writeItemRecord(libraryPath, record)
+    )
 
     const references = new Set<string>()
     const availablePaths = records.map((record) =>
       this.resolveInside(libraryPath, record.relativePath)
     )
-    for (const record of records) {
-      if (record.metadata.type !== 'note') continue
+    const noteRecords = records.filter((record) => record.metadata.type === 'note')
+    const noteReferences = await mapWithConcurrency(noteRecords, 32, async (record) => {
       const notePath = this.resolveInside(libraryPath, record.relativePath)
       const source = await readFile(notePath, 'utf8')
-      for (const reference of extractVaultReferenceTargets(source)) {
+      return extractVaultReferenceTargets(source).map((reference) => {
         const target = resolveVaultReferencePath(reference, notePath, libraryPath, availablePaths)
-        const candidate = slash(relative(libraryPath, target))
-        references.add(candidate.toLowerCase())
-      }
+        return slash(relative(libraryPath, target)).toLowerCase()
+      })
+    })
+    for (const targets of noteReferences) {
+      for (const target of targets) references.add(target)
     }
+    const referenceUpdates: VaultItemRecord[] = []
     for (const record of records) {
       if (record.metadata.type !== 'image' && record.metadata.type !== 'file') continue
       const referencedAttachment = references.has(record.relativePath.toLowerCase())
       if (record.metadata.referencedAttachment !== referencedAttachment) {
         record.metadata = { ...record.metadata, referencedAttachment }
-        await this.writeItemRecord(libraryPath, record)
+        referenceUpdates.push(record)
       }
     }
+    await mapWithConcurrency(referenceUpdates, 16, async (record) =>
+      this.writeItemRecord(libraryPath, record)
+    )
+    const missingRecords: VaultItemRecord[] = []
     for (const record of existing) {
       if (seenIds.has(record.id)) continue
       const missing = {
@@ -950,9 +1091,12 @@ export class LibraryStore {
           missingSince: record.recovery?.missingSince ?? new Date().toISOString()
         }
       }
-      await this.writeItemRecord(libraryPath, missing)
+      if (!recordsEqual(record, missing)) missingRecords.push(missing)
       records.push(missing)
     }
+    await mapWithConcurrency(missingRecords, 16, async (record) =>
+      this.writeItemRecord(libraryPath, record)
+    )
     return { records, collections }
   }
 
@@ -962,9 +1106,14 @@ export class LibraryStore {
     const key = resolve(libraryPath)
     const active = this.scanPromises.get(key)
     if (active) return active
-    const scan = this.performScanVault(libraryPath).finally(() => {
-      this.scanPromises.delete(key)
-    })
+    const scan = this.performScanVault(libraryPath)
+      .then((snapshot) => {
+        this.scanSnapshots.set(key, snapshot)
+        return snapshot
+      })
+      .finally(() => {
+        this.scanPromises.delete(key)
+      })
     this.scanPromises.set(key, scan)
     return scan
   }
@@ -1192,18 +1341,20 @@ export class LibraryStore {
     const library = await this.readPersistedLibrary(libraryPath)
     const cleanupResult = await this.cleanupVisibleMetadata(libraryPath)
     const { records, collections } = await this.scanVault(libraryPath)
-    const items = await Promise.all(
-      records.map((record) => this.recordToDto(libraryPath, record, collections))
+    const context = await this.createDtoBuildContext(libraryPath)
+    const allRecords = context.itemRecords
+    const items = await mapWithConcurrency(records, 32, (record) =>
+      this.recordToDto(libraryPath, record, collections, context)
     )
-    const trashRecords = (await this.readItemRecords(libraryPath)).filter((record) =>
+    const trashRecords = allRecords.filter((record) =>
       record.relativePath.startsWith(`${KUSKUS_DIRECTORY}/${TRASH_DIRECTORY}/`)
     )
     for (const record of trashRecords) {
       if (!items.some((item) => item.id === record.id)) {
-        items.push(await this.recordToDto(libraryPath, record, collections))
+        items.push(await this.recordToDto(libraryPath, record, collections, context))
       }
     }
-    return {
+    const dto: LibraryDto = {
       ...library,
       schemaVersion: 2,
       path: libraryPath,
@@ -1212,12 +1363,125 @@ export class LibraryStore {
       cleanup: cleanupResult.cleanup,
       repairConflicts: cleanupResult.conflicts
     }
+    await this.writeCachedLibraryDto(libraryPath, dto)
+    return dto
+  }
+
+  async reconcileKnownFiles(
+    libraryPath: string,
+    library: LibraryDto,
+    relativePaths: readonly string[]
+  ): Promise<LibraryDto | null> {
+    const key = resolve(libraryPath)
+    const snapshot = this.scanSnapshots.get(key)
+    if (!snapshot || relativePaths.length === 0) return null
+    const records = [...snapshot.records]
+    const recordByPath = new Map(
+      records.map((record) => [record.relativePath.toLocaleLowerCase(), record])
+    )
+    const itemById = new Map(library.items.map((item) => [item.id, item]))
+    const changedRecords: VaultItemRecord[] = []
+
+    for (const relativePath of new Set(relativePaths)) {
+      const normalizedPath = slash(relativePath)
+      const current = recordByPath.get(normalizedPath.toLocaleLowerCase())
+      const item = current ? itemById.get(current.id) : null
+      if (!current || !item || current.recovery?.missingSince) return null
+      const path = this.resolveInside(libraryPath, normalizedPath)
+      let fileStats: Stats
+      try {
+        fileStats = await stat(path)
+      } catch {
+        return null
+      }
+      if (!fileStats.isFile()) return null
+      if (
+        current.fileSize === fileStats.size &&
+        current.modifiedAtMs === fileStats.mtimeMs &&
+        current.fileIdentity === this.fileIdentityFromStats(fileStats)
+      ) {
+        continue
+      }
+      if (item.type === 'note') {
+        const nextBody = await readFile(path, 'utf8')
+        const previousReferences = extractVaultReferenceTargets(item.body).sort()
+        const nextReferences = extractVaultReferenceTargets(nextBody).sort()
+        if (JSON.stringify(previousReferences) !== JSON.stringify(nextReferences)) return null
+      }
+      const file: ScannedFileWithStat = {
+        path,
+        relativePath: normalizedPath,
+        archive:
+          normalizedPath === DEFAULT_ARCHIVE_DIRECTORY ||
+          normalizedPath.startsWith(`${DEFAULT_ARCHIVE_DIRECTORY}/`),
+        stats: fileStats
+      }
+      const nextRecord: VaultItemRecord = {
+        schemaVersion: 2,
+        id: current.id,
+        relativePath: normalizedPath,
+        fingerprint: await this.fingerprint(path),
+        fileIdentity: this.fileIdentityFromStats(fileStats),
+        fileSize: fileStats.size,
+        modifiedAtMs: fileStats.mtimeMs,
+        recovery: { lastSeenAt: new Date().toISOString(), missingSince: null },
+        metadata: await this.metadataForFile(file, current.id, current)
+      }
+      await this.writeItemRecord(libraryPath, nextRecord)
+      const index = records.findIndex((record) => record.id === current.id)
+      records[index] = nextRecord
+      recordByPath.set(normalizedPath.toLocaleLowerCase(), nextRecord)
+      changedRecords.push(nextRecord)
+    }
+
+    if (changedRecords.length === 0) return library
+    const context = this.dtoBuildContextFromRecords(libraryPath, records)
+    const changedItems = await Promise.all(
+      changedRecords.map((record) =>
+        this.recordToDto(libraryPath, record, snapshot.collections, context)
+      )
+    )
+    const changedById = new Map(changedItems.map((item) => [item.id, item]))
+    const nextLibrary: LibraryDto = {
+      ...library,
+      items: library.items
+        .map((item) => changedById.get(item.id) ?? item)
+        .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    }
+    this.scanSnapshots.set(key, { records, collections: snapshot.collections })
+    await this.writeCachedLibraryDto(libraryPath, nextLibrary)
+    return nextLibrary
+  }
+
+  private async createDtoBuildContext(libraryPath: string): Promise<DtoBuildContext> {
+    const itemRecords = await this.readItemRecords(libraryPath)
+    return this.dtoBuildContextFromRecords(libraryPath, itemRecords)
+  }
+
+  private dtoBuildContextFromRecords(
+    libraryPath: string,
+    itemRecords: VaultItemRecord[]
+  ): DtoBuildContext {
+    const attachmentRecords = itemRecords.filter(isAttachmentItemRecord)
+    return {
+      itemRecords,
+      attachmentRecords,
+      attachmentRecordIds: new Set(attachmentRecords.map((item) => item.id)),
+      availablePaths: itemRecords.flatMap((item) => [
+        this.resolveInside(libraryPath, item.relativePath),
+        ...(item.metadata.trashedFromRelativePath
+          ? [this.resolveInside(libraryPath, item.metadata.trashedFromRelativePath)]
+          : [])
+      ]),
+      imageDetection: new Map()
+    }
   }
 
   private async recordToDto(
     libraryPath: string,
     record: VaultItemRecord,
-    collections: VaultCollectionRecord[]
+    collections: VaultCollectionRecord[],
+    context?: DtoBuildContext
   ): Promise<LibraryItemDto> {
     const metadata = { ...record.metadata, relativePath: record.relativePath }
     const location = this.locationForPath(record.relativePath, collections, metadata)
@@ -1251,44 +1515,64 @@ export class LibraryStore {
     } catch {
       missingContent = true
     }
-    const attachments = await this.noteAttachments(libraryPath, record, body)
+    const attachments = await this.noteAttachments(
+      libraryPath,
+      record,
+      body,
+      context ?? (await this.createDtoBuildContext(libraryPath))
+    )
     return { ...toNoteDto(metadata, body, attachments, location), missingContent }
   }
 
   private async noteAttachments(
     libraryPath: string,
     record: VaultItemRecord,
-    source: string
+    source: string,
+    context?: DtoBuildContext
   ): Promise<NoteAttachmentDto[]> {
     if (record.metadata.type !== 'note') return []
+    const buildContext = context ?? (await this.createDtoBuildContext(libraryPath))
 
     const notePath = this.resolveInside(libraryPath, record.relativePath)
     const attachments: NoteAttachmentDto[] = []
     const seenTargets = new Set<string>()
-    const itemRecords = await this.readItemRecords(libraryPath)
-    const attachmentRecords = itemRecords.filter(isAttachmentItemRecord)
-    const attachmentRecordIds = new Set(attachmentRecords.map((item) => item.id))
-    const availablePaths = itemRecords.flatMap((item) => [
-      this.resolveInside(libraryPath, item.relativePath),
-      ...(item.metadata.trashedFromRelativePath
-        ? [this.resolveInside(libraryPath, item.metadata.trashedFromRelativePath)]
-        : [])
-    ])
     for (const reference of extractVaultReferenceTargets(source)) {
-      const target = resolveVaultReferencePath(reference, notePath, libraryPath, availablePaths)
+      const target = resolveVaultReferencePath(
+        reference,
+        notePath,
+        libraryPath,
+        buildContext.availablePaths
+      )
       const targetKey = pathKey(target)
       if (seenTargets.has(targetKey)) continue
       seenTargets.add(targetKey)
       const relativePath = slash(relative(dirname(notePath), target))
       if (!target.startsWith(`${resolve(libraryPath)}${sep}`) || !isImageExtension(extname(target)))
         continue
-      let width = 1
-      let height = 1
-      let mediaType = mimeForExtension(extname(target)) as NoteAttachmentDto['mediaType']
-      let missingContent = true
       const targetExists = await this.pathExists(target)
-      if (targetExists) {
-        const detected = detectImage(await readFile(target))
+      const binaryRecord = this.attachmentRecordForTarget(
+        libraryPath,
+        notePath,
+        record.metadata,
+        target,
+        buildContext.attachmentRecords,
+        targetExists
+      )
+      let width = binaryRecord?.metadata.type === 'image' ? binaryRecord.metadata.width : 1
+      let height = binaryRecord?.metadata.type === 'image' ? binaryRecord.metadata.height : 1
+      let mediaType =
+        binaryRecord?.metadata.type === 'image'
+          ? binaryRecord.metadata.mediaType
+          : (mimeForExtension(extname(target)) as NoteAttachmentDto['mediaType'])
+      let missingContent = !targetExists
+      if (targetExists && !binaryRecord) {
+        const key = pathKey(target)
+        let detection = buildContext.imageDetection.get(key)
+        if (!detection) {
+          detection = readFile(target).then((bytes) => detectImage(bytes))
+          buildContext.imageDetection.set(key, detection)
+        }
+        const detected = await detection
         if (detected) {
           width = detected.width
           height = detected.height
@@ -1296,14 +1580,6 @@ export class LibraryStore {
           missingContent = false
         }
       }
-      const binaryRecord = this.attachmentRecordForTarget(
-        libraryPath,
-        notePath,
-        record.metadata,
-        target,
-        attachmentRecords,
-        targetExists
-      )
       attachments.push({
         id: binaryRecord?.id ?? randomUUID(),
         filename: basename(target),
@@ -1320,7 +1596,7 @@ export class LibraryStore {
       notePath,
       record,
       record.metadata,
-      attachments.filter((attachment) => attachmentRecordIds.has(attachment.id))
+      attachments.filter((attachment) => buildContext.attachmentRecordIds.has(attachment.id))
     )
     return attachments
   }
@@ -2333,24 +2609,33 @@ export class LibraryStore {
       destination: string | null
       destinationAssets: string | null
       referenceReplacements: Map<string, string> | null
+      missingSource: boolean
     }> = []
     try {
       for (const request of requests) {
+        const missingSource = !(await this.pathExists(request.item.path))
+        if (missingSource && request.destination.type !== 'trash') {
+          throw new Error(
+            "The item's file is missing from the library, so it cannot be moved or archived. Move it to Trash to remove it."
+          )
+        }
         const stagedFile = join(
           transaction,
           `${request.item.metadata.id}${extname(request.item.path)}`
         )
-        await rename(request.item.path, stagedFile)
         let stagedAssets: string | null = null
         let originalAssets: string | null = null
-        if (request.item.metadata.type === 'note') {
-          originalAssets = join(
-            dirname(request.item.path),
-            `${basename(request.item.path, MARKDOWN_EXTENSION)}.assets`
-          )
-          if (await this.pathExists(originalAssets)) {
-            stagedAssets = join(transaction, `${request.item.metadata.id}.assets`)
-            await rename(originalAssets, stagedAssets)
+        if (!missingSource) {
+          await rename(request.item.path, stagedFile)
+          if (request.item.metadata.type === 'note') {
+            originalAssets = join(
+              dirname(request.item.path),
+              `${basename(request.item.path, MARKDOWN_EXTENSION)}.assets`
+            )
+            if (await this.pathExists(originalAssets)) {
+              stagedAssets = join(transaction, `${request.item.metadata.id}.assets`)
+              await rename(originalAssets, stagedAssets)
+            }
           }
         }
         staged.push({
@@ -2361,7 +2646,8 @@ export class LibraryStore {
           originalAssets,
           destination: null,
           destinationAssets: null,
-          referenceReplacements: null
+          referenceReplacements: null,
+          missingSource
         })
       }
       for (const entry of staged) {
@@ -2372,7 +2658,7 @@ export class LibraryStore {
         )
         await mkdir(directory, { recursive: true })
         const destination = await this.uniquePath(directory, basename(entry.original))
-        await rename(entry.file, destination)
+        if (!entry.missingSource) await rename(entry.file, destination)
         entry.destination = destination
         let legacyAssetDestination: string | null = null
         if (entry.assets) {
@@ -2385,7 +2671,7 @@ export class LibraryStore {
           entry.destinationAssets = assetDestination
         }
         let nextRequestMetadata = entry.request.metadata
-        if (entry.request.item.metadata.type === 'note') {
+        if (!entry.missingSource && entry.request.item.metadata.type === 'note') {
           const source = await readFile(destination, 'utf8')
           const replacements = new Map<string, string>()
           const availablePaths = (await this.readItemRecords(libraryPath)).flatMap((record) => [
@@ -2432,6 +2718,7 @@ export class LibraryStore {
             }
           }
         } else if (
+          !entry.missingSource &&
           entry.request.destination.type !== 'trash' &&
           (entry.request.item.metadata.type === 'image' ||
             entry.request.item.metadata.type === 'file')
@@ -2451,6 +2738,7 @@ export class LibraryStore {
           id: entry.request.item.metadata.id,
           relativePath,
           fingerprint: record?.fingerprint ?? null,
+          ...(entry.missingSource && record?.recovery ? { recovery: record.recovery } : {}),
           metadata: {
             ...nextRequestMetadata,
             schemaVersion: 2,

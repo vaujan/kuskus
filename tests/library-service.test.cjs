@@ -1,6 +1,16 @@
 const assert = require('node:assert/strict')
 const { existsSync, readFileSync } = require('node:fs')
-const { cp, mkdir, mkdtemp, readFile, rename, rm, unlink, writeFile } = require('node:fs/promises')
+const {
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rename,
+  rm,
+  stat,
+  unlink,
+  writeFile
+} = require('node:fs/promises')
 const { tmpdir } = require('node:os')
 const { dirname, join } = require('node:path')
 const test = require('node:test')
@@ -271,6 +281,43 @@ test('retains metadata when a note file is missing', async (context) => {
   assert.equal(state.status, 'ready')
   assert.equal(state.library.items.length, 1)
   assert.equal(state.library.items[0].missingContent, true)
+})
+
+test('lets a missing-content item move to Trash and be deleted forever', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-missing-trash-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  await service.createIn(root, 'Missing Trash Library')
+
+  const note = await service.createNote({ markdown: 'Gone but not forgotten', attachmentIds: [] })
+  const notePath = await service.getItemContentPath(note.id)
+  await unlink(notePath)
+
+  const missing = await service.getState()
+  const missingItem = missing.library.items.find((item) => item.id === note.id)
+  assert.equal(missingItem.missingContent, true)
+
+  const collection = await service.createCollection({ name: 'Target' })
+  await assert.rejects(
+    () =>
+      service.moveItems({
+        itemIds: [note.id],
+        destination: { type: 'collection', collectionId: collection.id }
+      }),
+    /file is missing/i
+  )
+  await assert.rejects(() => service.archiveItems({ itemIds: [note.id] }), /file is missing/i)
+
+  const trashed = await service.trashItems({ itemIds: [note.id] })
+  const trashedItem = trashed.items.find((item) => item.id === note.id)
+  assert.equal(trashedItem.location.type, 'trash')
+  assert.equal(trashedItem.missingContent, true)
+
+  const deleted = await service.permanentlyDeleteItems({ itemIds: [note.id] })
+  assert.equal(
+    deleted.items.find((item) => item.id === note.id),
+    undefined
+  )
 })
 
 test('imports, persists, previews, and detects a missing clipboard image', async (context) => {
@@ -2409,6 +2456,87 @@ test('refuses to remove a folder with subfolders or unmanaged files before movin
   assert.deepEqual(relocated.location, { type: 'inbox' })
   const relocatedAssets = relocated.relativePath.replace(/\.md$/, '.assets')
   assert.equal(existsSync(join(libraryPath, relocatedAssets, 'pixel.png')), true)
+})
+
+test('serves a rebuildable cached snapshot and reconciles an edit made while closed', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-index-cache-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const settingsPath = join(root, 'settings.json')
+  const service = new LibraryService(settingsPath)
+  const created = await service.createIn(root, 'Vault')
+  assert.equal(created.status, 'ready')
+  const note = await service.createNote({
+    markdown: '# Cached note\n\nOriginal body.',
+    attachmentIds: []
+  })
+  await service.getState()
+
+  const indexPath = join(created.library.path, '.kuskus', 'index', 'library-v1.json')
+  assert.equal((await stat(indexPath)).isFile(), true)
+
+  const reopened = new LibraryService(settingsPath)
+  await reopened.initialize()
+  await writeFile(
+    join(created.library.path, note.relativePath),
+    '# Cached note\n\nChanged outside Kuskus.'
+  )
+
+  const cached = await reopened.getState(true)
+  assert.equal(cached.status, 'ready')
+  assert.equal(
+    cached.library.items.find((item) => item.id === note.id).body.includes('Original'),
+    true
+  )
+
+  const reconciled = await reopened.reconcileState()
+  assert.equal(reconciled.status, 'ready')
+  assert.equal(
+    reconciled.library.items.find((item) => item.id === note.id).body.includes('Changed outside'),
+    true
+  )
+})
+
+test('ignores and repairs a corrupt rebuildable library snapshot', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-index-repair-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const settingsPath = join(root, 'settings.json')
+  const service = new LibraryService(settingsPath)
+  const created = await service.createIn(root, 'Vault')
+  assert.equal(created.status, 'ready')
+  const note = await service.createNote({ markdown: '# Rebuild me', attachmentIds: [] })
+  await service.getState()
+
+  const indexPath = join(created.library.path, '.kuskus', 'index', 'library-v1.json')
+  await writeFile(indexPath, '{not valid json')
+  const reopened = new LibraryService(settingsPath)
+  await reopened.initialize()
+  const state = await reopened.getState(true)
+  assert.equal(state.status, 'ready')
+  assert.equal(
+    state.library.items.some((item) => item.id === note.id),
+    true
+  )
+  assert.equal(JSON.parse(await readFile(indexPath, 'utf8')).schemaVersion, 1)
+})
+
+test('keeps overview payloads bounded while querying and loading exact note detail', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-overview-query-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  await service.createIn(root, 'Vault')
+  const markdown = `# Long note\n\n${'preview text '.repeat(300)}unique-tail-needle`
+  const note = await service.createNote({ markdown, attachmentIds: [] })
+
+  const overview = await service.getOverviewState()
+  assert.equal(overview.status, 'ready')
+  const summary = overview.library.items.find((item) => item.id === note.id)
+  assert.equal(summary.type, 'note')
+  assert.equal(summary.previewMarkdown.length, 2400)
+  assert.equal(summary.previewMarkdown.includes('unique-tail-needle'), false)
+
+  const query = await service.queryItems({ query: 'unique-tail-needle' })
+  assert.deepEqual(query.itemIds, [note.id])
+  assert.equal((await service.getItemDetail(note.id)).body, markdown)
 })
 
 test('seeds and resets a cultivated isolated demo profile', async (context) => {
