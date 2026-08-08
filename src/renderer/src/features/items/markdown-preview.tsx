@@ -1,5 +1,6 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
+import '@/assets/katex-woff2.css'
 import rehypeKatex from 'rehype-katex'
 import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
@@ -10,6 +11,9 @@ import { useNoteAttachmentPreviews } from '@/features/items/use-note-attachment-
 import type { NoteAttachmentDto } from '../../../../shared/library-contract'
 import { markdownImageTargetKey } from '../../../../shared/markdown-image-references'
 import { prepareObsidianMarkdown } from '@/features/items/obsidian-markdown'
+
+const REMARK_PLUGINS = [remarkGfm, remarkBreaks, remarkMath]
+const REHYPE_PLUGINS = [rehypeKatex]
 
 function EmbeddedImageState({ children }: { children: React.ReactNode }): React.JSX.Element {
   return (
@@ -22,7 +26,7 @@ function EmbeddedImageState({ children }: { children: React.ReactNode }): React.
   )
 }
 
-export function MarkdownPreview({
+export const MarkdownPreview = memo(function MarkdownPreview({
   value,
   itemId,
   attachments = [],
@@ -47,12 +51,15 @@ export function MarkdownPreview({
     attachmentPreviews === undefined
   )
   const previews = attachmentPreviews ?? loadedPreviews
-  const localImages = new Map<string, { attachment: NoteAttachmentDto; preview: string | null }>()
-  for (const attachment of attachments) {
-    const value = { attachment, preview: previews[attachment.id] ?? null }
-    localImages.set(markdownImageTargetKey(attachment.relativePath), value)
-    localImages.set(markdownImageTargetKey(attachment.filename), value)
-  }
+  const localImages = useMemo(() => {
+    const images = new Map<string, { attachment: NoteAttachmentDto; preview: string | null }>()
+    for (const attachment of attachments) {
+      const value = { attachment, preview: previews[attachment.id] ?? null }
+      images.set(markdownImageTargetKey(attachment.relativePath), value)
+      images.set(markdownImageTargetKey(attachment.filename), value)
+    }
+    return images
+  }, [attachments, previews])
 
   useLayoutEffect(() => {
     if (presentation === 'detail') return
@@ -162,8 +169,8 @@ export function MarkdownPreview({
     >
       <div className="typeset kuskus-typeset" data-typeset-presentation={presentation}>
         <ReactMarkdown
-          remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
-          rehypePlugins={[rehypeKatex]}
+          remarkPlugins={REMARK_PLUGINS}
+          rehypePlugins={REHYPE_PLUGINS}
           components={components}
         >
           {prepareObsidianMarkdown(value, attachments)}
@@ -171,4 +178,4 @@ export function MarkdownPreview({
       </div>
     </div>
   )
-}
+})

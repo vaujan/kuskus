@@ -1,8 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { AddItemComposer } from '@/features/capture/add-item-composer'
 import type { LibraryDto, LibraryState } from '../../../../shared/library-contract'
+
+const AddItemComposer = lazy(() =>
+  import('@/features/capture/add-item-composer').then((module) => ({
+    default: module.AddItemComposer
+  }))
+)
 
 function QuickCaptureSurface({ library }: { library: LibraryDto }): React.JSX.Element {
   const [focusRequest, setFocusRequest] = useState(1)
@@ -67,6 +72,7 @@ function QuickCaptureSurface({ library }: { library: LibraryDto }): React.JSX.El
     <TooltipProvider>
       <div ref={rootRef} className="quick-capture-shell">
         <div className="quick-capture-composer">
+          <Suspense fallback={null}>
           <AddItemComposer
             open
             focusRequest={focusRequest}
@@ -92,6 +98,7 @@ function QuickCaptureSurface({ library }: { library: LibraryDto }): React.JSX.El
             onTransientWorkChange={() => undefined}
             onFileDialogActiveChange={window.capture.setQuickCaptureBlurSuppressed}
           />
+          </Suspense>
         </div>
         <p className="sr-only" role="status" aria-live="polite">
           {status}

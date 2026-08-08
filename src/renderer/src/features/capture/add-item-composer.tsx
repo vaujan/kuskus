@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties
+} from 'react'
 import {
   IconAlertCircle,
   IconDots,
@@ -28,10 +37,7 @@ import { ItemCard, ItemCardCaption, ItemCardSurface } from '@/features/items/ite
 import { SavedItemCard } from '@/features/items/saved-item-card'
 import type { LibraryView } from '@/features/items/item-view'
 import type { LivePreviewOptions } from '@/features/items/markdown-live-preview'
-import {
-  ComposerMarkdownEditor,
-  type ComposerMarkdownEditorHandle
-} from '@/features/capture/composer-markdown-editor'
+import type { ComposerMarkdownEditorHandle } from '@/features/capture/composer-markdown-editor'
 import { composeMarkdownCapture, detectCaptureKind } from '@/features/capture/capture-detection'
 import { useCaptureSession } from '@/features/capture/use-capture-session'
 import { useCaptureQueue } from '@/features/capture/use-capture-queue'
@@ -51,6 +57,12 @@ import {
   removeStagedAttachmentMarkdown,
   rewriteMarkdownImageDestinations
 } from '../../../../shared/markdown-image-references'
+
+const ComposerMarkdownEditor = lazy(() =>
+  import('@/features/capture/composer-markdown-editor').then((module) => ({
+    default: module.ComposerMarkdownEditor
+  }))
+)
 
 export type ImportRequest =
   | { id: number; file: File; origin: 'clipboard' | 'file' }
@@ -585,6 +597,7 @@ export function AddItemComposer({
     }
     try {
       const revision = await captureSession.flush()
+      performance.mark('kuskus:capture-submit-start')
       const submitted = await window.capture.submit({
         libraryId,
         expectedRevision: revision,
@@ -598,6 +611,12 @@ export function AddItemComposer({
         setError(submitted.error)
         return
       }
+      performance.mark('kuskus:capture-accepted')
+      performance.measure(
+        'kuskus:capture-durable-acceptance',
+        'kuskus:capture-submit-start',
+        'kuskus:capture-accepted'
+      )
 
       setAttachments([])
       setFileCandidate(null)
@@ -741,32 +760,34 @@ export function AddItemComposer({
   }
 
   const editor = (
-    <ComposerMarkdownEditor
-      ref={editorRef}
-      className={surface === 'quick' || presentation === 'pane' ? 'h-full' : undefined}
-      value={exiting ? exitingDraft : draft}
-      placeholder={
-        captureKind === 'image'
-          ? 'Add text to turn this into a note…'
-          : 'Write, paste a link, or drop an image…'
-      }
-      disabled={captureBlocked || fileCandidate !== null}
-      surface={surface}
-      liveOptions={liveOptions}
-      onChange={setDraft}
-      transformInput={(before, after) => {
-        if (detectCaptureKind(before, attachments.length) !== 'image') return null
-        if (!after.trim() || attachments.length === 0) return null
-        return composeMarkdownCapture([markdownImage(attachments[0])], after)
-      }}
-      onPasteImage={handlePasteImage}
-      onSave={() => void save()}
-      onEscape={() => {
-        if (hasTransientWork) return
-        onOpenChange(false)
-        onStatus(hasDraft ? 'Draft retained. Use Continue draft to return.' : 'New item closed.')
-      }}
-    />
+    <Suspense fallback={<div className="min-h-32 animate-pulse rounded-md bg-muted/35" />}>
+      <ComposerMarkdownEditor
+        ref={editorRef}
+        className={surface === 'quick' || presentation === 'pane' ? 'h-full' : undefined}
+        value={exiting ? exitingDraft : draft}
+        placeholder={
+          captureKind === 'image'
+            ? 'Add text to turn this into a note…'
+            : 'Write, paste a link, or drop an image…'
+        }
+        disabled={captureBlocked || fileCandidate !== null}
+        surface={surface}
+        liveOptions={liveOptions}
+        onChange={setDraft}
+        transformInput={(before, after) => {
+          if (detectCaptureKind(before, attachments.length) !== 'image') return null
+          if (!after.trim() || attachments.length === 0) return null
+          return composeMarkdownCapture([markdownImage(attachments[0])], after)
+        }}
+        onPasteImage={handlePasteImage}
+        onSave={() => void save()}
+        onEscape={() => {
+          if (hasTransientWork) return
+          onOpenChange(false)
+          onStatus(hasDraft ? 'Draft retained. Use Continue draft to return.' : 'New item closed.')
+        }}
+      />
+    </Suspense>
   )
 
   return (

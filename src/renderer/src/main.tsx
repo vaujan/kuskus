@@ -2,9 +2,9 @@ import './assets/main.css'
 
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import App from './App'
-import { QuickCaptureApp } from './features/capture/quick-capture-app'
 import { initializeTranslucentBackground } from './hooks/use-translucent-background'
+
+performance.mark('kuskus:renderer-entry')
 
 const savedTheme = localStorage.getItem('kuskus-theme')
 const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -28,6 +28,23 @@ if (isQuickCapture) {
   window.electron.window.onReducedTransparencyChange(applyQuickCaptureMaterial)
 } else void initializeTranslucentBackground()
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>{isQuickCapture ? <QuickCaptureApp /> : <App />}</StrictMode>
-)
+const root = createRoot(document.getElementById('root')!)
+if (isQuickCapture) {
+  void import('./features/capture/quick-capture-app').then(({ QuickCaptureApp }) => {
+    performance.mark('kuskus:surface-module-loaded')
+    root.render(
+      <StrictMode>
+        <QuickCaptureApp />
+      </StrictMode>
+    )
+  })
+} else {
+  void import('./App').then(({ default: App }) => {
+    performance.mark('kuskus:surface-module-loaded')
+    root.render(
+      <StrictMode>
+        <App />
+      </StrictMode>
+    )
+  })
+}

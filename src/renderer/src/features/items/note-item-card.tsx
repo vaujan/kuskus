@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { IconFileAlert as FileWarning } from '@tabler/icons-react'
 
 import {
@@ -7,9 +8,14 @@ import {
   ItemCardSurface
 } from '@/features/items/item-card'
 import type { LibraryView } from '@/features/items/item-view'
-import { MarkdownPreview } from '@/features/items/markdown-preview'
 import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
 import type { NoteItemDto } from '../../../../shared/library-contract'
+
+const MarkdownPreview = lazy(() =>
+  import('@/features/items/markdown-preview').then((module) => ({
+    default: module.MarkdownPreview
+  }))
+)
 
 export function NoteItemCard({
   item,
@@ -48,12 +54,18 @@ export function NoteItemCard({
             <span className="text-xs font-medium">The note file is missing from the library.</span>
           </div>
         ) : (
-          <MarkdownPreview
-            value={item.body}
-            itemId={item.id}
-            attachments={item.attachments}
-            onOpenLink={(url) => void openExternalUrlWithFeedback(url)}
-          />
+          <Suspense
+            fallback={
+              <div className="size-full min-h-28 animate-pulse rounded-lg bg-muted/40" />
+            }
+          >
+            <MarkdownPreview
+              value={item.body}
+              itemId={item.id}
+              attachments={item.attachments}
+              onOpenLink={(url) => void openExternalUrlWithFeedback(url)}
+            />
+          </Suspense>
         )}
       </ItemCardSurface>
     </ItemCard>
