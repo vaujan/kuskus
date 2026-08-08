@@ -309,7 +309,9 @@ function FolderTreeItem({
   const hasChildren = children.length > 0
   const expanded = hasChildren && !collapsedIds.has(folder.id)
   const childListId = `folder-children-${folder.id}`
-  const guideOffset = 5 + Math.min(depth, 4) * 3
+  const contentLeft = depth * 18
+  const labelLeft = contentLeft + 20
+  const trunkX = contentLeft + 6
   const dropTarget = { type: 'folder', id: folder.id } as const
   const dropActive = activeDropTarget?.type === 'folder' && activeDropTarget.id === folder.id
   const expandTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -418,19 +420,20 @@ function FolderTreeItem({
                   'pointer-events-none absolute top-0 z-[1] w-px bg-sidebar-border/80',
                   isLast ? 'h-4' : 'h-full'
                 )}
-                style={{ left: `${guideOffset}px` }}
+                style={{ left: `${trunkX}px` }}
               />
               <span
                 aria-hidden="true"
                 className="pointer-events-none absolute top-1/2 z-[1] h-px bg-sidebar-border/80"
-                style={{ left: `${guideOffset}px`, width: `${20 - guideOffset}px` }}
+                style={{ left: `${trunkX}px`, width: `${labelLeft - trunkX}px` }}
               />
             </>
           )}
           {hasChildren ? (
             <button
               type="button"
-              className="absolute inset-y-0 left-0 z-10 flex w-5 shrink-0 items-center justify-center text-inherit outline-hidden hover:text-sidebar-accent-foreground [&_svg]:size-4"
+              className="absolute inset-y-0 z-10 flex w-5 shrink-0 items-center justify-center text-inherit outline-hidden hover:text-sidebar-accent-foreground [&_svg]:size-4"
+              style={{ left: `${contentLeft}px` }}
               aria-controls={childListId}
               aria-expanded={expanded}
               aria-label={`${expanded ? 'Collapse' : 'Expand'} ${folder.name}`}
@@ -448,7 +451,8 @@ function FolderTreeItem({
             </button>
           ) : null}
           <SidebarMenuButton
-            className="ml-5 mr-0 h-8 w-auto min-w-0 flex-1 bg-transparent px-0 pr-8 text-inherit before:hidden hover:bg-transparent hover:text-inherit focus-visible:ring-0 active:bg-transparent active:text-inherit data-active:bg-transparent data-active:text-inherit"
+            className="mr-0 h-8 w-auto min-w-0 flex-1 bg-transparent px-0 pr-8 text-inherit before:hidden hover:bg-transparent hover:text-inherit focus-visible:ring-0 active:bg-transparent active:text-inherit data-active:bg-transparent data-active:text-inherit"
+            style={{ marginLeft: `${labelLeft}px` }}
             isActive={selectedId === folder.id}
             onClick={() => onSelect(folder.id)}
           >
