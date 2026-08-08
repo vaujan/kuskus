@@ -47,6 +47,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { hasBulkItemSelection } from '@/features/items/item-shortcuts'
+import { CaptionTileButton } from '@/features/shell/window-controls'
 import type {
   ActiveItemLocation,
   CollectionDto,
@@ -75,6 +76,7 @@ interface ItemActionMenuProps extends ItemActionHandlers {
   onMenuOpen?: () => void
   alwaysVisible?: boolean
   showQuickSourceAction?: boolean
+  tile?: boolean
 }
 
 function selectedItemsLabel(count: number): string {
@@ -328,13 +330,17 @@ export function ItemActionMenu(props: ItemActionMenuProps): React.JSX.Element {
       >
         <DropdownMenuTrigger
           render={
-            <Button
-              type="button"
-              size="icon"
-              variant="secondary"
-              className={cn(actionButtonClassName, menuOpen && 'opacity-100')}
-              aria-label={`Actions for ${props.item.title}`}
-            />
+            props.tile ? (
+              <CaptionTileButton label={`Actions for ${props.item.title}`} />
+            ) : (
+              <Button
+                type="button"
+                size="icon"
+                variant="secondary"
+                className={cn(actionButtonClassName, menuOpen && 'opacity-100')}
+                aria-label={`Actions for ${props.item.title}`}
+              />
+            )
           }
         >
           <IconDots aria-hidden="true" />

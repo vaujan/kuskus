@@ -67,7 +67,6 @@ import {
 } from '@/features/items/focus-view-state'
 import { KUSKUS_ITEM_DRAG_TYPE, setKuskusItemDragPreview } from '@/features/items/item-drag'
 import type { DetailTitleRenameResult, ItemDetailHandle } from '@/features/items/item-detail-dialog'
-import { ItemLocationMenu } from '@/features/items/item-location-menu'
 import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
 import {
   hasBulkItemSelection,
@@ -1828,6 +1827,7 @@ export function Workspace({
               targetCount={1}
               targetLocations={[focusItem.location]}
               alwaysVisible
+              tile
               {...actions}
               onRename={() => guard(actions.onRename)}
               onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}
@@ -1836,16 +1836,6 @@ export function Workspace({
               onTrash={() => guard(actions.onTrash)}
               onRestore={() => guard(actions.onRestore)}
               onDeletePermanently={() => guard(actions.onDeletePermanently)}
-            />
-          )
-        }}
-        renderLocation={(guard) => {
-          const actions = itemActions(focusItem, [focusItem.id])
-          return (
-            <ItemLocationMenu
-              item={focusItem}
-              collections={library.collections}
-              onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}
             />
           )
         }}
@@ -2278,17 +2268,6 @@ export function Workspace({
                   onTrash={() => guard(actions.onTrash)}
                   onRestore={() => guard(actions.onRestore)}
                   onDeletePermanently={() => guard(actions.onDeletePermanently)}
-                />
-              )
-            }}
-            renderLocation={(guard) => {
-              if (!selectedItem) return null
-              const actions = itemActions(selectedItem, [selectedItem.id])
-              return (
-                <ItemLocationMenu
-                  item={selectedItem}
-                  collections={library.collections}
-                  onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}
                 />
               )
             }}

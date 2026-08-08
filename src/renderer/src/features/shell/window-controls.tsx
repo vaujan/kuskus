@@ -15,6 +15,45 @@ const WINDOWS_CAPTION_GLYPHS = {
   close: '\uE8BB'
 } as const
 
+export function CaptionTileButton({
+  label,
+  onClick,
+  close = false,
+  disabled = false,
+  className,
+  children
+}: {
+  label: string
+  onClick?: () => void
+  close?: boolean
+  disabled?: boolean
+  className?: string
+  children?: ReactNode
+}): React.JSX.Element {
+  return (
+    <button
+      className={cn(
+        'grid h-full w-[46px] shrink-0 place-items-center border-0 bg-transparent p-0 text-foreground outline-none',
+        'hover:bg-black/[0.06] active:bg-black/[0.12] dark:hover:bg-white/[0.08] dark:active:bg-white/[0.12]',
+        'focus-visible:shadow-[inset_0_0_0_2px_var(--ring)]',
+        close &&
+          'hover:bg-[#c42b1c] hover:text-white active:bg-[#a4262c] active:text-white dark:hover:bg-[#c42b1c] dark:active:bg-[#a4262c]',
+        disabled && 'pointer-events-none opacity-40',
+        className
+      )}
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      <span className="grid place-items-center" aria-hidden="true">
+        {children}
+      </span>
+    </button>
+  )
+}
+
 function CaptionButton({
   label,
   glyph,
@@ -29,26 +68,14 @@ function CaptionButton({
   onClick: () => void
 }): React.JSX.Element {
   return (
-    <button
-      className={cn(
-        'grid h-full w-[46px] shrink-0 place-items-center border-0 bg-transparent p-0 text-foreground outline-none',
-        'hover:bg-black/[0.06] active:bg-black/[0.12] dark:hover:bg-white/[0.08] dark:active:bg-white/[0.12]',
-        'focus-visible:shadow-[inset_0_0_0_2px_var(--ring)]',
-        close &&
-          'hover:bg-[#c42b1c] hover:text-white active:bg-[#a4262c] active:text-white dark:hover:bg-[#c42b1c] dark:active:bg-[#a4262c]'
-      )}
-      type="button"
-      aria-label={label}
-      title={label}
-      onClick={onClick}
-    >
+    <CaptionTileButton label={label} close={close} onClick={onClick}>
       <span
         className={cn('grid place-items-center', useWindowsGlyph && 'windows-caption-glyph')}
         aria-hidden="true"
       >
         {glyph}
       </span>
-    </button>
+    </CaptionTileButton>
   )
 }
 

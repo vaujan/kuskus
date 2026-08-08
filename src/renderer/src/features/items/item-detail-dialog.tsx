@@ -13,11 +13,9 @@ import {
 import {
   IconAlignLeft as AlignLeft,
   IconCalendar as Calendar,
-  IconCalendarPlus as CalendarPlus,
   IconChevronLeft as ChevronLeft,
   IconChevronRight as ChevronRight,
   IconCode as Code,
-  IconClockEdit as ClockEdit,
   IconColumns2 as Columns2,
   IconDimensions as Dimensions,
   IconEye as Eye,
@@ -89,7 +87,7 @@ import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
 import { useImagePreview } from '@/features/items/use-image-preview'
 import { useNoteAttachmentPreviews } from '@/features/items/use-note-attachment-previews'
 import { useUrlPreview } from '@/features/items/use-url-preview'
-import { WindowControls } from '@/features/shell/window-controls'
+import { CaptionTileButton, WindowControls } from '@/features/shell/window-controls'
 import { cn } from '@/lib/utils'
 import type { LibraryItemDto } from '../../../../shared/library-contract'
 import { markdownImageTargetKey } from '../../../../shared/markdown-image-references'
@@ -354,7 +352,7 @@ function FloatingControls({
   onPrevious,
   onNext,
   onError,
-  avoidCaptionControls = false,
+  captionAligned = false,
   showClose = true
 }: {
   itemId: string
@@ -365,18 +363,36 @@ function FloatingControls({
   onPrevious: () => void
   onNext: () => void
   onError: (message: string) => void
-  avoidCaptionControls?: boolean
+  captionAligned?: boolean
   showClose?: boolean
 }): React.JSX.Element {
+  if (captionAligned) {
+    return (
+      <>
+        <div className="absolute top-0 right-[8.625rem] z-50 flex h-10 [-webkit-app-region:no-drag]">
+          <CaptionTileButton
+            label="Previous item (Left arrow)"
+            disabled={!hasPrevious}
+            onClick={onPrevious}
+          >
+            <ChevronLeft className="size-4" aria-hidden="true" />
+          </CaptionTileButton>
+          {actions}
+          <CaptionTileButton label="Next item (Right arrow)" disabled={!hasNext} onClick={onNext}>
+            <ChevronRight className="size-4" aria-hidden="true" />
+          </CaptionTileButton>
+        </div>
+        {leadingControls ? (
+          <div className="absolute top-12 right-3 z-20 flex max-w-[calc(100%-1.5rem)] justify-end">
+            {leadingControls}
+          </div>
+        ) : null}
+      </>
+    )
+  }
+
   return (
-    <div
-      className={cn(
-        'absolute z-20 flex max-w-[calc(100%-1.5rem)] flex-wrap justify-end gap-2',
-        avoidCaptionControls
-          ? 'top-12 right-3 @min-[52rem]/detail:top-3 @min-[52rem]/detail:right-[9.5rem]'
-          : 'top-3 right-3'
-      )}
-    >
+    <div className="absolute top-3 right-3 z-20 flex max-w-[calc(100%-1.5rem)] flex-wrap justify-end gap-2">
       {leadingControls}
       <div className="flex rounded-full bg-popover/85 p-0.5 shadow-sm ring-1 ring-foreground/8 backdrop-blur-md">
         <DetailControl
@@ -612,7 +628,6 @@ function NoteCanvas({
   item,
   mode,
   snapshot,
-  locationControl,
   onRenameTitle,
   onDraftChange,
   onRetry,
@@ -624,7 +639,6 @@ function NoteCanvas({
   item: Extract<LibraryItemDto, { type: 'note' }>
   mode: NoteMode
   snapshot: NoteAutosaveSnapshot
-  locationControl?: React.ReactNode
   onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
   onDraftChange: (value: string) => void
   onRetry: () => void
@@ -812,39 +826,6 @@ function NoteCanvas({
               </p>
             ) : null}
           </div>
-
-          {locationControl ? <div className="flex min-w-0">{locationControl}</div> : null}
-
-          <div className="flex w-fit max-w-full flex-wrap gap-x-7 gap-y-3 rounded-xl bg-muted/45 px-4 py-3 shadow-[inset_0_0_0_1px_color-mix(in_oklab,currentColor_5%,transparent)]">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <CalendarPlus className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-              <div className="min-w-0">
-                <p className="text-[0.625rem] leading-3 font-medium tracking-wide text-muted-foreground uppercase">
-                  Created at
-                </p>
-                <time
-                  className="block truncate text-xs leading-5 tabular-nums text-foreground"
-                  dateTime={item.createdAt}
-                >
-                  {formatDate(item.createdAt)}
-                </time>
-              </div>
-            </div>
-            <div className="flex min-w-0 items-center gap-2.5">
-              <ClockEdit className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-              <div className="min-w-0">
-                <p className="text-[0.625rem] leading-3 font-medium tracking-wide text-muted-foreground uppercase">
-                  Updated at
-                </p>
-                <time
-                  className="block truncate text-xs leading-5 tabular-nums text-foreground"
-                  dateTime={item.updatedAt}
-                >
-                  {formatDate(item.updatedAt)}
-                </time>
-              </div>
-            </div>
-          </div>
         </header>
       ) : null}
       {item.missingContent ? (
@@ -917,7 +898,7 @@ function NoteCanvas({
               viewportClassName="focus-visible:ring-0 focus-visible:outline-none"
               viewportRef={previewViewportRef}
             >
-              <article className="kuskus-markdown-detail-canvas mx-auto min-h-full w-full max-w-3xl py-10">
+              <article className="kuskus-markdown-detail-canvas min-h-full w-full py-10">
                 <MarkdownPreview
                   value={snapshot.draft}
                   itemId={item.id}
@@ -1226,7 +1207,6 @@ interface ItemDetailProps {
   libraryItems: readonly LibraryItemDto[]
   onRenameAttachment: (itemId: string) => void
   renderActions?: (guard: (action: () => void) => void) => React.ReactNode
-  renderLocation?: (guard: (action: () => void) => void) => React.ReactNode
   onOpenVaultLink: (target: string) => void
   onMoveToTrash: (itemId: string) => void
   onError: (message: string) => void
@@ -1247,7 +1227,6 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       libraryItems,
       onRenameAttachment,
       renderActions,
-      renderLocation,
       onOpenVaultLink,
       onMoveToTrash,
       onError,
@@ -1458,7 +1437,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
           onPrevious={() => requestGuardedAction(onPrevious)}
           onNext={() => requestGuardedAction(onNext)}
           onError={onError}
-          avoidCaptionControls={
+          captionAligned={
             presentation === 'focus' && window.electron.window.platform !== 'darwin'
           }
           showClose={presentation === 'dialog'}
@@ -1469,7 +1448,6 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
               item={item}
               mode={mode}
               snapshot={snapshot}
-              locationControl={renderLocation?.(requestGuardedAction)}
               onRenameTitle={renameCurrentItem}
               onDraftChange={(value) => coordinator?.updateDraft(value)}
               onRetry={() => void coordinator?.retry()}
