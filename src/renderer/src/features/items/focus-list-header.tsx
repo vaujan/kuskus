@@ -116,10 +116,10 @@ export function FocusListHeader({
     >
       <ShellSidebarTrigger />
 
-      <InputGroup className="h-10 min-w-0 flex-1 border-transparent bg-muted/55 transition-[background-color,box-shadow] [transition-duration:var(--motion-duration-ui)] [-webkit-app-region:no-drag] hover:bg-muted/75 has-[[data-slot=input-group-control]:focus-visible]:bg-background has-[[data-slot=input-group-control]:focus-visible]:shadow-[inset_0_0_0_1px_var(--ring)] has-[[data-slot=input-group-control]:focus-visible]:ring-0">
+      <InputGroup className="h-(--control-height-md) min-w-0 flex-1 border-transparent bg-muted/55 transition-[background-color,box-shadow] [transition-duration:var(--motion-duration-ui)] [-webkit-app-region:no-drag] hover:bg-muted/75 has-[[data-slot=input-group-control]:focus-visible]:bg-background has-[[data-slot=input-group-control]:focus-visible]:shadow-[inset_0_0_0_1px_var(--ring)] has-[[data-slot=input-group-control]:focus-visible]:ring-0">
         <InputGroupInput
           ref={searchRef}
-          className="h-10 min-w-0 text-sm [&::-webkit-search-cancel-button]:hidden md:text-sm"
+          className="h-(--control-height-md) min-w-0 text-sm [&::-webkit-search-cancel-button]:hidden md:text-sm"
           type="search"
           name="focus-search"
           aria-keyshortcuts="Control+K Meta+K Control+F Meta+F"
@@ -179,8 +179,8 @@ export function FocusListHeader({
                 <TooltipTrigger
                   render={
                     <Button
-                      className="relative size-10"
-                      size="icon"
+                      className="relative"
+                      size="icon-sm"
                       variant={retrievalActive ? 'secondary' : 'ghost'}
                       aria-label={`Sort and filter ${destinationLabel}`}
                     />
@@ -219,8 +219,8 @@ export function FocusListHeader({
           render={
             <Button
               ref={newItemRef}
-              className="relative size-10 [-webkit-app-region:no-drag]"
-              size="icon"
+              className="relative [-webkit-app-region:no-drag]"
+              size="icon-sm"
               variant="ghost"
               data-new-item-button
               aria-expanded={composerOpen}

@@ -428,7 +428,7 @@ function SidebarInput({ className, ...props }: React.ComponentProps<typeof Input
     <Input
       data-slot="sidebar-input"
       data-sidebar="input"
-      className={cn('h-8 w-full bg-input/50 shadow-none', className)}
+      className={cn('h-(--control-height-md) w-full bg-input/50 shadow-none', className)}
       {...props}
     />
   )
@@ -502,7 +502,7 @@ function SidebarGroupLabel({
     props: mergeProps<'div'>(
       {
         className: cn(
-          'flex h-8 shrink-0 items-center px-3 text-xs text-sidebar-foreground/50 font-mono uppercase ring-sidebar-ring outline-hidden group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0 focus-visible:ring-3 [&>svg]:size-4 [&>svg]:shrink-0',
+          'flex h-(--control-height-md) shrink-0 items-center px-3 text-xs text-sidebar-foreground/50 font-mono uppercase ring-sidebar-ring outline-hidden group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0 focus-visible:ring-3 [&>svg]:size-4 [&>svg]:shrink-0',
           className
         )
       },
@@ -574,7 +574,7 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<'li'>) {
 }
 
 const sidebarMenuButtonVariants = cva(
-  'peer/menu-button group/menu-button relative -mx-2 flex w-[calc(100%+1rem)] items-center gap-2 overflow-hidden rounded-none px-5 py-2 text-left text-sm whitespace-nowrap ring-inset ring-sidebar-ring outline-hidden before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-sidebar-selection before:opacity-0 group-has-data-[sidebar=menu-action]/menu-item:pr-10 group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground focus-visible:ring-3 active:bg-sidebar-accent/80 active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent/60 data-active:font-medium data-active:before:opacity-100 data-active:hover:bg-sidebar-accent data-active:active:bg-sidebar-accent pen:hover:text-sidebar-accent-foreground data-active:bg-sidebar-accent text-sidebar-foreground/70 data-active:text-sidebar-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate',
+  'peer/menu-button group/menu-button relative -mx-2 flex w-[calc(100%+1rem)] items-center gap-2 overflow-hidden rounded-none px-5 py-2 text-left text-sm whitespace-nowrap ring-inset ring-sidebar-ring outline-hidden before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-sidebar-selection before:opacity-0 group-has-data-[sidebar=menu-action]/menu-item:pr-10 group-data-[collapsible=icon]:size-(--control-height-md)! group-data-[collapsible=icon]:p-2! hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground focus-visible:ring-3 active:bg-sidebar-accent/80 active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent/60 data-active:font-medium data-active:before:opacity-100 data-active:hover:bg-sidebar-accent data-active:active:bg-sidebar-accent pen:hover:text-sidebar-accent-foreground data-active:bg-sidebar-accent text-sidebar-foreground/70 data-active:text-sidebar-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate',
   {
     variants: {
       variant: {
@@ -583,8 +583,8 @@ const sidebarMenuButtonVariants = cva(
           'bg-background shadow-[0_0_0_1px_hsl(var(--sidebar-border))] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[0_0_0_1px_hsl(var(--sidebar-accent))]'
       },
       size: {
-        default: 'h-8 text-sm',
-        sm: 'h-7 text-xs',
+        default: 'h-(--control-height-md) text-sm',
+        sm: 'h-(--control-height-sm) text-xs',
         lg: 'h-12 px-3 text-sm group-data-[collapsible=icon]:p-0!'
       }
     },

@@ -9,7 +9,11 @@ export function ShellSidebarTrigger(): React.JSX.Element {
   return (
     <div className="[-webkit-app-region:no-drag]">
       <Tooltip>
-        <TooltipTrigger render={<SidebarTrigger className="size-10" aria-label={label} />} />
+        <TooltipTrigger
+          render={
+            <SidebarTrigger size="icon-sm" aria-label={label} />
+          }
+        />
         <TooltipContent>{label}</TooltipContent>
       </Tooltip>
     </div>

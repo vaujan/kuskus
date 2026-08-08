@@ -73,6 +73,11 @@
   --motion-duration-press: 150ms;
   --motion-duration-ui: 180ms;
   --motion-duration-dialog: 200ms;
+  --control-height-xs: calc(var(--spacing) * 6);
+  --control-height-sm: calc(var(--spacing) * 7);
+  --control-height-md: calc(var(--spacing) * 8);
+  --control-height-lg: calc(var(--spacing) * 9);
+  --control-height-xl: calc(var(--spacing) * 10);
   --background: oklch(0.995 0 0);
   --foreground: oklch(0.148 0.004 228.8);
   --opaque-card: oklch(1 0 0);

@@ -132,10 +132,10 @@ export function AppToolbar({
           </div>
 
           <div className="flex min-w-0 items-center gap-1 [-webkit-app-region:no-drag]">
-            <InputGroup className="h-8 min-w-0 flex-1 border-transparent transition-[background-color,box-shadow] [transition-duration:var(--motion-duration-ui)] hover:bg-muted/80 has-[[data-slot=input-group-control]:focus-visible]:bg-background has-[[data-slot=input-group-control]:focus-visible]:shadow-[inset_0_0_0_1px_var(--ring),0_4px_14px_rgb(0_0_0/0.08)] has-[[data-slot=input-group-control]:focus-visible]:ring-0">
+            <InputGroup className="h-(--control-height-md) min-w-0 flex-1 border-transparent transition-[background-color,box-shadow] [transition-duration:var(--motion-duration-ui)] hover:bg-muted/80 has-[[data-slot=input-group-control]:focus-visible]:bg-background has-[[data-slot=input-group-control]:focus-visible]:shadow-[inset_0_0_0_1px_var(--ring),0_4px_14px_rgb(0_0_0/0.08)] has-[[data-slot=input-group-control]:focus-visible]:ring-0">
               <InputGroupInput
                 ref={searchRef}
-                className="h-8 min-w-0 text-sm [&::-webkit-search-cancel-button]:hidden md:text-sm"
+                className="h-(--control-height-md) min-w-0 text-sm [&::-webkit-search-cancel-button]:hidden md:text-sm"
                 type="search"
                 name="search"
                 aria-keyshortcuts="Control+K Meta+K Control+F Meta+F"
@@ -264,7 +264,7 @@ export function AppToolbar({
                   render={
                     <Button
                       className="rounded-xl"
-                      size="icon"
+                      size="icon-sm"
                       variant="ghost"
                       aria-label="Discard New item draft"
                       onClick={onDiscardDraft}

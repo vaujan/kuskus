@@ -344,7 +344,7 @@ function FolderTreeItem({
             <div
               draggable
               className={cn(
-                'group/folder-row relative -mx-2 flex h-8 w-[calc(100%+1rem)] min-w-0 items-center overflow-hidden text-sidebar-foreground/70 ring-inset ring-sidebar-ring outline-hidden before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-sidebar-selection before:opacity-0 transition-[background-color,color,box-shadow,scale] [transition-duration:var(--motion-duration-tooltip)] [transition-timing-function:var(--motion-ease-out)] hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground has-[:focus-visible]:ring-3 motion-reduce:scale-100 motion-reduce:transition-none',
+                'group/folder-row relative -mx-2 flex h-(--control-height-md) w-[calc(100%+1rem)] min-w-0 items-center overflow-hidden text-sidebar-foreground/70 ring-inset ring-sidebar-ring outline-hidden before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-sidebar-selection before:opacity-0 transition-[background-color,color,box-shadow,scale] [transition-duration:var(--motion-duration-tooltip)] [transition-timing-function:var(--motion-ease-out)] hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground has-[:focus-visible]:ring-3 motion-reduce:scale-100 motion-reduce:transition-none',
                 selectedId === folder.id &&
                   'bg-sidebar-accent font-medium text-sidebar-accent-foreground before:opacity-100 hover:bg-sidebar-accent',
                 dropActive &&
@@ -451,7 +451,7 @@ function FolderTreeItem({
             </button>
           ) : null}
           <SidebarMenuButton
-            className="mr-0 h-8 w-auto min-w-0 flex-1 bg-transparent px-0 pr-8 text-inherit before:hidden hover:bg-transparent hover:text-inherit focus-visible:ring-0 active:bg-transparent active:text-inherit data-active:bg-transparent data-active:text-inherit"
+            className="mr-0 h-(--control-height-md) w-auto min-w-0 flex-1 bg-transparent px-0 pr-8 text-inherit before:hidden hover:bg-transparent hover:text-inherit focus-visible:ring-0 active:bg-transparent active:text-inherit data-active:bg-transparent data-active:text-inherit"
             style={{ marginLeft: `${labelLeft}px` }}
             isActive={selectedId === folder.id}
             onClick={() => onSelect(folder.id)}
