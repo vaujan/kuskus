@@ -1425,3 +1425,72 @@ remain solid. Reduced-transparency, increased-contrast, and forced-color modes k
 - Focus and Masonry share one format-aware card implementation and one row-major visual order.
 - Caption controls, detail actions, and draggable regions coexist without restoring a global header.
 - The change adds no IPC, preload, schema, native-operation, or authoritative vault state.
+
+## DEC-046: Use a rebuildable incremental read model for performance
+
+Date: 2026-08-07
+Status: Accepted
+
+### Context
+
+The schema-v2 scanner reread and hashed every visible file, rewrote unchanged records, and reloaded
+the complete record directory once per note while resolving attachments. A 340-item mixed fixture
+took 74.7 seconds for one refresh and did not complete a second refresh within 120 seconds. The
+renderer also received complete note bodies and mounted every card at once.
+
+### Decision
+
+Keep visible vault files authoritative while adding `.kuskus/index/library-v1.json` as an atomic,
+versioned, disposable snapshot. Records retain file size and modification signatures so unchanged
+paths reuse metadata and fingerprints. Scans use bounded concurrency, stream changed-file hashes,
+load records once, build shared attachment/reference maps, and write only changed records.
+
+The main process owns a single-flight in-memory snapshot. Startup may return the validated cached
+snapshot immediately and reconcile in the background; watcher and focus reconciliation publish the
+new snapshot only after authoritative scanning succeeds. Renderer startup and refresh use
+`LibraryOverviewDto` note previews, full item detail is requested by validated item ID, and full-note
+search runs against the main-process snapshot. Visual and Grid views progressively mount ordered
+100-item pages, while media previews share a bounded request queue and LRU object-URL cache.
+
+Main and Quick Capture choose separate dynamic entry modules. The base font payload is limited to
+the used Latin Inter variable WOFF2 with system serif and monospace fallbacks.
+
+### Consequences
+
+- Deleting or corrupting the index affects speed only; the next compatible read rebuilds it.
+- External edits can briefly follow a cached paint but converge through startup, watcher, or focus
+  reconciliation without weakening conflict or path-safety checks.
+- Normal card/search IPC no longer requires complete note bodies, while detail editing still receives
+  exact authoritative Markdown.
+- Performance regressions are checked with temporary 100-, 1,000-, and 5,000-item fixtures rather
+  than committed synthetic libraries.
+
+## DEC-047: Deflate the eager renderer surfaces behind code-split boundaries
+
+Date: 2026-08-07
+Status: Accepted
+
+### Context
+
+The budget script found the main surface at 3.2 MB and Quick Capture at 2.7 MB of eager
+JavaScript, plus 1.1 MB of font assets, because the Markdown/capture stack was bundled into the
+startup graph of both windows. The perf budget could not detect this: `[...Set].map(basename)`
+passed the array index to `path.basename` as its `suffix` argument and threw.
+
+### Decision
+
+- Fix the budget script to wrap the callback: `[...discovered].map((file) => basename(file))`.
+- Load `AddItemComposer` lazily in both `workspace` and the Quick Capture entry so the Capture/CodeMirror
+  stack leaves the startup graph; load `MarkdownPreview` lazily in note cards so `react-markdown` and
+  KaTeX leave it as well. Each is a `React.lazy` import with a small `Suspense` fallback.
+- Generate a woff2-only KaTeX stylesheet (`scripts/generate-katex-woff2-css.cjs` →
+  `src/renderer/src/assets/katex-woff2.css`) and import that instead of `katex/dist/katex.min.css`,
+  because the Electron renderer is Chromium-only and never fetches the `.ttf`/`.woff` fallbacks.
+
+### Consequences
+
+- Quick Capture drops to ~1.5 MB and leaves the markdown editor stack out of the startup window; the
+  shared base-UI floating runtime (tooltip/dropdown/select) is still eager in the main surface, which
+  stays above the 1.5 MB budget until it is also deferred.
+- Font assets drop from ~1.1 MB to ~0.3 MB of woff2.
+- Card note previews and the composer may paint a brief `Suspense` fallback on first load per session.

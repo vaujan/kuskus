@@ -13,6 +13,11 @@ These workflows define the behavior Kuskus must preserve as its implementation e
 - A saved item must survive an application restart.
 - Failures must be visible and recoverable; Kuskus must not silently discard content.
 - Files controlled by Kuskus remain ordinary, user-readable files in the selected library.
+- A valid rebuildable library snapshot may paint immediately while Kuskus reconciles external edits
+  in the background. Cached state must never suppress a later watcher, focus, or startup repair.
+- At the 5,000-item performance fixture, cached state is returned within 500 ms, an unchanged focused
+  vault reconciles within 300 ms, search computation stays within 50 ms, and durable capture
+  acceptance stays within one second on the reference Windows SSD environment.
 
 ## 1. Create or open a library
 

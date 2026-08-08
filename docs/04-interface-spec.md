@@ -187,6 +187,8 @@ Rules:
 - Recommended minimum card width: 240-280 pixels, subject to prototype evaluation.
 - Column count follows available width rather than fixed breakpoints alone.
 - Expanded sidebar will commonly show three columns; hidden sidebar may show three or four.
+- Large result sets mount in ordered pages of approximately 100 cards. Additional pages load before
+  the scroll position reaches the end, without changing the established sort order or selection.
 
 ### Grid view
 
@@ -566,6 +568,8 @@ The detail interface must not become a general-purpose knowledge-management prop
 - Search is scoped to the active context by default.
 - The interface makes the scope visible.
 - Search covers title, note text, domain/URL, and filename.
+- Full-note matching uses the main-process library index; card payloads need only bounded Markdown
+  previews. Out-of-order search responses never replace results for newer input.
 - Filter supports item type and a Visibility group for referenced attachments. Non-default type or
   visibility values activate the Filter badge and **Clear filters** resets both.
 - Sorting offers newest first, oldest first, title A–Z, title Z–A, and grouping by item type within

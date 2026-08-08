@@ -1,7 +1,7 @@
 # Build Plan
 
 Status: Active  
-Last updated: 2026-08-02
+Last updated: 2026-08-07
 
 ## Delivery approach
 
@@ -191,3 +191,14 @@ was completed on 2026-07-19 and redesigned as Obsidian-compatible independent at
 shared-session bottom-right popup on 2026-07-30. Renderer-local `F2` rename and `Delete` item commands
 were completed on 2026-07-29. Milestone 2 continues with PDFs and general files. Library sorting by
 date added, title, and item type (Milestone 5 retrieval work) was completed on 2026-07-28.
+
+## Performance foundation (completed 2026-08-07)
+
+- Added repeatable temporary 100-, 1,000-, and 5,000-item benchmarks for cold rebuild, no-op
+  reconciliation, one-note edits, cached startup, search, memory, and unchanged record writes.
+- Added an atomic rebuildable library snapshot, unchanged-file signatures, bounded scanning,
+  streamed hashing, shared attachment resolution maps, and single-flight watcher/focus reconciliation.
+- Split lightweight library overview IPC from exact item-detail reads and moved full-note search to
+  the main-process snapshot.
+- Added 100-card progressive visual rendering, persistent Masonry observers, shared preview request
+  concurrency and LRU caching, separate dynamic surface entries, and a Latin-only base font asset.

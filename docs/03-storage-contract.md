@@ -26,6 +26,7 @@ Vault/
     library.json
     collections/<id>.json
     records/<id>.json
+    index/library-v1.json       # disposable validated library snapshot
     trash/<id>/
     thumbnails/<id>/
     temp/
@@ -91,6 +92,12 @@ Hidden attachment metadata may retain any validated vault-contained relative pat
 the authoritative reference relationship is always derived from Markdown. Schema-v1 staged capture
 aliases under `./assets/` are normalized when read and again during finalization; recovered captures
 therefore produce independent sibling images and current relative embeds without losing draft text.
+
+The versioned `.kuskus/index/` snapshot is a rebuildable startup and query cache. It may contain item
+summaries and searchable note text, but deleting, corrupting, or replacing it must only trigger a
+rebuild from visible files and stable hidden records. Per-record size and modification signatures
+allow unchanged files to reuse validated metadata and fingerprints; changed or identity-ambiguous
+files are read again. Cache writes are atomic and never modify visible vault content.
 
 ## Archive and Trash
 
