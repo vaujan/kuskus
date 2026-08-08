@@ -9,6 +9,7 @@ import {
 } from '@/features/items/item-card'
 import type { LibraryView } from '@/features/items/item-view'
 import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
+import { cn } from '@/lib/utils'
 import type { NoteItemDto } from '../../../../shared/library-contract'
 
 const MarkdownPreview = lazy(() =>
@@ -23,7 +24,8 @@ export function NoteItemCard({
   onOpen,
   selected,
   opensDialog,
-  view
+  view,
+  compact = false
 }: {
   item: NoteItemDto
   onActivate: (event: React.MouseEvent<HTMLButtonElement>) => void
@@ -31,6 +33,7 @@ export function NoteItemCard({
   selected: boolean
   opensDialog: boolean
   view: Exclude<LibraryView, 'table' | 'focus'>
+  compact?: boolean
 }): React.JSX.Element {
   return (
     <ItemCard data-selected={selected}>
@@ -47,7 +50,12 @@ export function NoteItemCard({
         }}
       />
       <ItemCardSelectionIndicator />
-      <ItemCardSurface className={view === 'grid' ? 'h-64 p-4' : 'max-h-[24rem] p-4'}>
+      <ItemCardSurface
+        className={cn(
+          view === 'grid' ? 'h-64 p-4' : 'max-h-[24rem] p-4',
+          compact && 'max-h-[15rem] p-3.5'
+        )}
+      >
         {item.missingContent ? (
           <div className="flex size-full min-h-28 flex-col items-center justify-center gap-2 bg-destructive/8 px-5 text-center text-destructive">
             <FileWarning className="size-5" aria-hidden="true" />
@@ -63,6 +71,7 @@ export function NoteItemCard({
               value={item.body}
               itemId={item.id}
               attachments={item.attachments}
+              presentation={compact ? 'compact' : 'card'}
               onOpenLink={(url) => void openExternalUrlWithFeedback(url)}
             />
           </Suspense>

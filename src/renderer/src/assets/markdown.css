@@ -14,7 +14,6 @@
   }
 
   .kuskus-typeset {
-    max-width: 37em;
     font-size: var(--typeset-size);
     color: var(--typeset-body-color);
   }
@@ -22,6 +21,10 @@
   .kuskus-typeset[data-typeset-presentation='card'],
   .cm-kuskus-live[data-typeset-presentation='card'] {
     --typeset-size: 15px;
+  }
+
+  .kuskus-typeset[data-typeset-presentation='compact'] {
+    --typeset-size: 13px;
   }
 
   .kuskus-typeset[data-typeset-presentation='detail'],

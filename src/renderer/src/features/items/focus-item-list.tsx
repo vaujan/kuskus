@@ -103,9 +103,8 @@ export function FocusItemList({
                 key={item.id}
                 className={cn(
                   'group/focus-card relative min-w-0 rounded-sm outline-none',
-                  'transition-[opacity,box-shadow] [transition-duration:var(--motion-duration-ui)]',
-                  'data-[dragging=true]:opacity-40 data-[active=true]:shadow-[0_0_0_1px_color-mix(in_oklab,var(--primary)_55%,transparent),0_8px_22px_-18px_var(--primary)]',
-                  'data-[selected=true]:shadow-none'
+                  'transition-opacity [transition-duration:var(--motion-duration-ui)]',
+                  'data-[dragging=true]:opacity-40'
                 )}
                 data-item-id={item.id}
                 data-active={active || undefined}
@@ -133,7 +132,8 @@ export function FocusItemList({
                 <SavedItemCard
                   item={item}
                   view="visual"
-                  selected={selected}
+                  compact
+                  selected={selected || active}
                   opensDialog={false}
                   onActivate={(event) => onActivate(item.id, event)}
                   onOpen={() => onActivate(item.id, PLAIN_ACTIVATION)}

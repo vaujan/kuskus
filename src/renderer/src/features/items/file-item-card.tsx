@@ -15,13 +15,15 @@ export function FileItemCard({
   view,
   selected,
   onActivate,
-  onOpen
+  onOpen,
+  compact = false
 }: {
   item: FileItemDto
   view: Exclude<LibraryView, 'table' | 'focus'>
   selected: boolean
   onActivate: (event: React.MouseEvent<HTMLButtonElement>) => void
   onOpen: () => void
+  compact?: boolean
 }): React.JSX.Element {
   const extension = item.contentFilename.split('.').pop()?.toLocaleUpperCase() || 'FILE'
   return (
@@ -41,11 +43,11 @@ export function FileItemCard({
         }
       >
         <div className="flex flex-col items-center gap-3 text-muted-foreground">
-          <File className="size-10" aria-hidden="true" />
+          <File className={compact ? 'size-8' : 'size-10'} aria-hidden="true" />
           <span className="text-xs font-medium tracking-wide">{extension}</span>
         </div>
       </ItemCardSurface>
-      <ItemCardCaption>
+      <ItemCardCaption compact={compact}>
         <span className="truncate">{item.title}</span>
       </ItemCardCaption>
     </ItemCard>

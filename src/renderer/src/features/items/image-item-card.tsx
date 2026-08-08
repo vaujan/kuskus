@@ -11,6 +11,7 @@ import {
 } from '@/features/items/item-card'
 import type { LibraryView } from '@/features/items/item-view'
 import { useImagePreview } from '@/features/items/use-image-preview'
+import { cn } from '@/lib/utils'
 import type { ImageItemDto } from '../../../../shared/library-contract'
 
 export function ImageItemCard({
@@ -19,7 +20,8 @@ export function ImageItemCard({
   onOpen,
   selected,
   opensDialog,
-  view
+  view,
+  compact = false
 }: {
   item: ImageItemDto
   onActivate: (event: React.MouseEvent<HTMLButtonElement>) => void
@@ -27,6 +29,7 @@ export function ImageItemCard({
   selected: boolean
   opensDialog: boolean
   view: Exclude<LibraryView, 'table' | 'focus'>
+  compact?: boolean
 }): React.JSX.Element {
   const { preview, previewError } = useImagePreview(item.id, item.missingContent)
   const [failedPreview, setFailedPreview] = useState<string | null>(null)
@@ -70,7 +73,10 @@ export function ImageItemCard({
             className={
               view === 'grid'
                 ? 'pointer-events-none size-full object-contain outline -outline-offset-1 outline-black/10 dark:outline-white/10'
-                : 'pointer-events-none max-h-[24rem] w-full object-contain outline -outline-offset-1 outline-black/10 dark:outline-white/10'
+                : cn(
+                    'pointer-events-none w-full object-contain outline -outline-offset-1 outline-black/10 dark:outline-white/10',
+                    compact ? 'max-h-[16rem]' : 'max-h-[24rem]'
+                  )
             }
           />
         ) : (
@@ -80,7 +86,7 @@ export function ImageItemCard({
           />
         )}
       </ItemCardSurface>
-      <ItemCardCaption>
+      <ItemCardCaption compact={compact}>
         <p className="min-w-0 flex-1 truncate font-normal text-foreground/80">{item.title}</p>
       </ItemCardCaption>
     </ItemCard>

@@ -66,13 +66,15 @@ export function ItemCardSelectionIndicator(): React.JSX.Element {
 
 export function ItemCardCaption({
   className,
+  compact = false,
   ...props
-}: ComponentProps<typeof CardFooter>): React.JSX.Element {
+}: ComponentProps<typeof CardFooter> & { compact?: boolean }): React.JSX.Element {
   return (
     <CardFooter
       data-slot="item-card-caption"
       className={cn(
-        'pointer-events-none gap-2 rounded-b-sm -mt-1 px-1 pb-1 pt-3 text-xs text-muted-foreground group-data-[selected=true]/item-card:bg-primary/8 group-data-[selected=true]/item-card:text-foreground',
+        'pointer-events-none -mt-1 gap-2 rounded-b-sm px-1 pb-1 pt-3 text-xs text-muted-foreground group-data-[selected=true]/item-card:bg-primary/8 group-data-[selected=true]/item-card:text-foreground',
+        compact && '-mt-px gap-1.5 rounded-b-md px-0.5 pb-0.5 pt-2 text-[0.6875rem]',
         className
       )}
       {...props}

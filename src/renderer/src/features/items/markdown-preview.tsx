@@ -41,7 +41,7 @@ export const MarkdownPreview = memo(function MarkdownPreview({
   attachmentPreviews?: Record<string, string>
   onOpenLink?: (url: string) => void
   onOpenVaultLink?: (target: string) => void
-  presentation?: 'card' | 'detail'
+  presentation?: 'card' | 'compact' | 'detail'
 }): React.JSX.Element {
   const previewRef = useRef<HTMLDivElement>(null)
   const [isClipped, setIsClipped] = useState(false)
@@ -164,7 +164,8 @@ export const MarkdownPreview = memo(function MarkdownPreview({
       className={cn(
         'relative',
         presentation === 'card' && 'max-h-80 overflow-hidden',
-        presentation === 'card' && isClipped && 'kuskus-card-content-fade'
+        presentation === 'compact' && 'max-h-[13.25rem] overflow-hidden',
+        presentation !== 'detail' && isClipped && 'kuskus-card-content-fade'
       )}
     >
       <div className="typeset kuskus-typeset" data-typeset-presentation={presentation}>

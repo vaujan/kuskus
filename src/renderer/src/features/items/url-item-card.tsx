@@ -15,6 +15,7 @@ import {
 } from '@/features/items/item-card'
 import type { LibraryView } from '@/features/items/item-view'
 import { useUrlPreview } from '@/features/items/use-url-preview'
+import { cn } from '@/lib/utils'
 import type { UrlItemDto } from '../../../../shared/library-contract'
 
 export function UrlItemCard({
@@ -23,7 +24,8 @@ export function UrlItemCard({
   onOpen,
   selected,
   opensDialog,
-  view
+  view,
+  compact = false
 }: {
   item: UrlItemDto
   onActivate: (event: React.MouseEvent<HTMLButtonElement>) => void
@@ -31,6 +33,7 @@ export function UrlItemCard({
   selected: boolean
   opensDialog: boolean
   view: Exclude<LibraryView, 'table' | 'focus'>
+  compact?: boolean
 }): React.JSX.Element {
   const preview = useUrlPreview(item.id, 'preview', item.hasPreviewImage)
   const favicon = useUrlPreview(item.id, 'favicon', item.hasFavicon)
@@ -86,12 +89,18 @@ export function UrlItemCard({
           <span className="truncate">{item.siteName}</span>
         </span>
       </ItemCardSurface>
-      <ItemCardCaption className="min-h-14 flex-col items-start justify-start gap-1.5">
+      <ItemCardCaption
+        compact={compact}
+        className="min-h-14 flex-col items-start justify-start gap-1.5"
+      >
         <p
           className={
             view === 'grid'
               ? 'w-full truncate text-xs font-normal text-foreground/80'
-              : 'line-clamp-2 w-full text-pretty text-xs leading-4 font-normal text-foreground/80'
+              : cn(
+                  'w-full text-pretty leading-4 font-normal text-foreground/80',
+                  compact ? 'line-clamp-1 text-[0.8125rem]' : 'line-clamp-2 text-xs'
+                )
           }
         >
           {item.title}

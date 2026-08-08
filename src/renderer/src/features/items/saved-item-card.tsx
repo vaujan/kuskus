@@ -12,7 +12,8 @@ export const SavedItemCard = memo(function SavedItemCard({
   onOpen,
   selected,
   opensDialog = true,
-  view = 'visual'
+  view = 'visual',
+  compact = false
 }: {
   item: LibraryItemDto
   onActivate: (event: React.MouseEvent<HTMLButtonElement>) => void
@@ -20,11 +21,13 @@ export const SavedItemCard = memo(function SavedItemCard({
   selected: boolean
   opensDialog?: boolean
   view?: Exclude<LibraryView, 'table' | 'focus'>
+  compact?: boolean
 }): React.JSX.Element {
   return item.type === 'note' ? (
     <NoteItemCard
       item={item}
       view={view}
+      compact={compact}
       selected={selected}
       opensDialog={opensDialog}
       onActivate={onActivate}
@@ -34,6 +37,7 @@ export const SavedItemCard = memo(function SavedItemCard({
     <ImageItemCard
       item={item}
       view={view}
+      compact={compact}
       selected={selected}
       opensDialog={opensDialog}
       onActivate={onActivate}
@@ -43,6 +47,7 @@ export const SavedItemCard = memo(function SavedItemCard({
     <UrlItemCard
       item={item}
       view={view}
+      compact={compact}
       selected={selected}
       opensDialog={opensDialog}
       onActivate={onActivate}
@@ -52,6 +57,7 @@ export const SavedItemCard = memo(function SavedItemCard({
     <FileItemCard
       item={item}
       view={view}
+      compact={compact}
       selected={selected}
       onActivate={onActivate}
       onOpen={onOpen}
