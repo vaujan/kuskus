@@ -161,7 +161,10 @@ export function FocusWorkspace({
             aria-hidden="true"
           />
           {hasRendererCaptionControls ? (
-            <div className="pointer-events-auto absolute top-0 right-0 z-50 h-10 [-webkit-app-region:no-drag]">
+            <div
+              data-focus-caption-controls
+              className="pointer-events-auto absolute top-0 right-0 z-50 h-10 [-webkit-app-region:no-drag]"
+            >
               <WindowControls onClose={onWindowClose} />
             </div>
           ) : null}

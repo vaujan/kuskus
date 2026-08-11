@@ -1,9 +1,10 @@
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
-import { syntaxHighlighting } from '@codemirror/language'
+import { bracketMatching, syntaxHighlighting } from '@codemirror/language'
 import { Compartment, EditorState, Transaction } from '@codemirror/state'
-import { EditorView, keymap } from '@codemirror/view'
+import { EditorView, highlightSpecialChars, keymap } from '@codemirror/view'
 import { GFM } from '@lezer/markdown'
+import { highlightSelectionMatches, searchKeymap } from '@codemirror/search'
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef } from 'react'
 
 import type { CaptureSurface } from '../../../../shared/capture-contract'
@@ -14,6 +15,8 @@ import {
   type LivePreviewOptions
 } from '@/features/items/markdown-live-preview'
 import { cn } from '@/lib/utils'
+import { markdownCodeLanguage } from '@/features/items/markdown-code'
+import { markdownSearchTheme } from '@/features/items/markdown-search-theme'
 
 export interface ComposerMarkdownEditorHandle {
   focus: () => void
@@ -130,9 +133,13 @@ export const ComposerMarkdownEditor = forwardRef<
         extensions: [
           history(),
           EditorView.lineWrapping,
-          markdown({ extensions: GFM }),
+          markdown({ extensions: GFM, codeLanguages: markdownCodeLanguage }),
+          bracketMatching(),
+          highlightSpecialChars(),
+          highlightSelectionMatches(),
           syntaxHighlighting(markdownLiveHighlightStyle),
           composerTheme(initialSurfaceRef.current),
+          markdownSearchTheme,
           editableCompartmentRef.current.of([
             EditorView.editable.of(!initialDisabledRef.current),
             EditorState.readOnly.of(initialDisabledRef.current)
@@ -155,7 +162,8 @@ export const ComposerMarkdownEditor = forwardRef<
               }
             },
             ...defaultKeymap,
-            ...historyKeymap
+            ...historyKeymap,
+            ...searchKeymap
           ]),
           EditorView.domEventHandlers({
             paste(event, view) {
@@ -172,7 +180,8 @@ export const ComposerMarkdownEditor = forwardRef<
           EditorView.contentAttributes.of({
             'aria-label': 'Markdown note or link',
             autocapitalize: 'off',
-            autocomplete: 'off'
+            autocomplete: 'off',
+            spellcheck: 'true'
           }),
           EditorView.updateListener.of((update) => {
             if (!update.docChanged) return

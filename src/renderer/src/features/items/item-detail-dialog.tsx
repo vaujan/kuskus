@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useReducer,
   useRef,
@@ -15,7 +16,6 @@ import {
   IconArrowsDiagonal as ArrowsDiagonal,
   IconArrowsDiagonalMinimize as ArrowsDiagonalMinimize,
   IconCalendar as Calendar,
-  IconChevronDown as ChevronDown,
   IconChevronLeft as ChevronLeft,
   IconChevronRight as ChevronRight,
   IconCode as Code,
@@ -32,11 +32,9 @@ import {
   IconLoader2 as LoaderCircle,
   IconPhotoOff as ImageOff,
   IconPhoto as Image,
-  IconPaperclip as Paperclip,
   IconPencil as Pencil,
   IconPlayerPlayFilled as Play,
   IconTrash as Trash,
-  IconViewportWide as ViewportWide,
   IconWorld as Globe2,
   IconX as X,
   type TablerIcon
@@ -57,18 +55,12 @@ import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSeparator,
   DropdownMenuShortcut,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import {
@@ -81,17 +73,8 @@ import {
 } from '@/components/ui/dialog'
 import { Kbd } from '@/components/ui/kbd'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import {
-  Popover,
-  PopoverContent,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger
-} from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { createMarkdownDiffRows } from '@/features/items/markdown-diff'
-import { resolveItemDetailContext } from '@/features/items/item-detail-context'
-import { FolderDropdownDestinationItems } from '@/features/collections/folder-destination-items'
 import {
   createInlineTitleEditState,
   reduceInlineTitleEdit,
@@ -100,6 +83,7 @@ import {
 import { MarkdownEditor, type MarkdownEditorHandle } from '@/features/items/markdown-editor'
 import { type LivePreviewOptions } from '@/features/items/markdown-live-preview'
 import { MarkdownPreview } from '@/features/items/markdown-preview'
+import { NoteProperties } from '@/features/items/note-properties'
 import {
   getScrollRatio,
   getScrollTopForRatio,
@@ -107,9 +91,13 @@ import {
 } from '@/features/items/markdown-scroll'
 import { NoteAutosaveCoordinator, type NoteAutosaveSnapshot } from '@/features/items/note-autosave'
 import {
+  NOTE_INLINE_TITLE_STORAGE_KEY,
+  parseNoteInlineTitle
+} from '@/features/items/note-inline-title'
+import type { NoteDetailMenuOptions } from '@/features/items/item-action-menu'
+import {
   NOTE_READING_WIDTH_STORAGE_KEY,
   parseNoteReadingWidth,
-  toggleNoteReadingWidth,
   type NoteReadingWidth
 } from '@/features/items/note-reading-width'
 import {
@@ -131,6 +119,7 @@ import type {
   LibraryItemDto
 } from '../../../../shared/library-contract'
 import { markdownImageTargetKey } from '../../../../shared/markdown-image-references'
+import { parseNoteFrontmatter } from '../../../../shared/note-frontmatter'
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   year: 'numeric',
@@ -422,11 +411,17 @@ function DetailToolbar({
     return (
       <header
         data-detail-focus-header
-        className="pointer-events-none relative z-40 grid h-10 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center"
+        className={cn(
+          'pointer-events-none relative z-40 grid h-10 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center',
+          expanded && '!bg-background/50'
+        )}
       >
         <div
           data-detail-focus-leading-actions
-          className="pointer-events-auto flex items-center [-webkit-app-region:no-drag] group-data-[focus-single-pane=true]/focus-detail:hidden"
+          className={cn(
+            'pointer-events-auto flex items-center [&_button]:[-webkit-app-region:no-drag]',
+            !expanded && 'group-data-[focus-single-pane=true]/focus-detail:hidden'
+          )}
         >
           {onExpandedChange ? (
             <Tooltip>
@@ -478,7 +473,7 @@ function DetailToolbar({
         <div
           data-detail-focus-actions
           className={cn(
-            'pointer-events-auto col-start-3 flex min-w-0 items-center justify-end [-webkit-app-region:no-drag]',
+            'pointer-events-auto col-start-3 flex min-w-0 items-center justify-end [&_button]:[-webkit-app-region:no-drag]',
             !isMac && 'pr-[8.625rem]'
           )}
         >
@@ -551,15 +546,11 @@ function DetailToolbar({
 function NoteModeControls({
   mode,
   onModeChange,
-  surface = 'toolbar',
-  readingWidth,
-  onReadingWidthChange
+  surface = 'toolbar'
 }: {
   mode: NoteMode
   onModeChange: (mode: NoteMode) => void
   surface?: 'toolbar' | 'caption'
-  readingWidth?: NoteReadingWidth
-  onReadingWidthChange?: () => void
 }): React.JSX.Element {
   const options = [
     { value: 'read' as const, label: 'Read (Ctrl+E)', icon: Eye, shortcut: 'Control+E' },
@@ -607,7 +598,7 @@ function NoteModeControls({
           >
             <ActiveIcon stroke={1.5} aria-hidden="true" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-60">
+          <DropdownMenuContent align="end" className="w-72">
             <DropdownMenuGroup>
               <DropdownMenuLabel>Note view</DropdownMenuLabel>
               <DropdownMenuRadioGroup
@@ -615,7 +606,7 @@ function NoteModeControls({
                 onValueChange={(value) => onModeChange(value as NoteMode)}
               >
                 {options.map(({ value, label, icon: Icon, shortcut }) => (
-                  <DropdownMenuRadioItem key={value} value={value}>
+                  <DropdownMenuRadioItem key={value} value={value} className="whitespace-nowrap">
                     <Icon aria-hidden="true" />
                     {label.replace(/ \(.+\)$/, '')}
                     <DropdownMenuShortcut>
@@ -624,17 +615,6 @@ function NoteModeControls({
                   </DropdownMenuRadioItem>
                 ))}
               </DropdownMenuRadioGroup>
-            </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>Reading layout</DropdownMenuLabel>
-              <DropdownMenuCheckboxItem
-                checked={readingWidth === 'wide'}
-                onCheckedChange={onReadingWidthChange}
-              >
-                <ViewportWide aria-hidden="true" />
-                Wide reading width
-              </DropdownMenuCheckboxItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -672,265 +652,106 @@ function NoteModeControls({
     </ButtonGroup>
   )
 }
-function NoteMetadataControls({
+function NoteDocumentBlocks({
   item,
-  collections,
-  libraryItems,
-  locationPath,
-  updatedLabel,
-  onMove,
-  onManageAttachments,
-  onRenameAttachment,
-  onError
-}: {
-  item: Extract<LibraryItemDto, { type: 'note' }>
-  collections: readonly CollectionDto[]
-  libraryItems: readonly LibraryItemDto[]
-  locationPath: readonly string[]
-  updatedLabel: string
-  onMove: (destination: ActiveItemLocation) => void
-  onManageAttachments: () => void
-  onRenameAttachment: (itemId: string) => void
-  onError: (message: string) => void
-}): React.JSX.Element {
-  const imageItems = useMemo(
-    () =>
-      new Map(
-        libraryItems
-          .filter(
-            (entry): entry is Extract<LibraryItemDto, { type: 'image' }> => entry.type === 'image'
-          )
-          .map((entry) => [entry.id, entry])
-      ),
-    [libraryItems]
-  )
-  const canMove = item.location.type === 'inbox' || item.location.type === 'collection'
-  const locationLabel = locationPath.join(' / ')
-  const attachmentLabel = `${item.attachments.length} ${
-    item.attachments.length === 1 ? 'attachment' : 'attachments'
-  }`
-  const metadataButtonClassName =
-    'h-10 w-fit shrink-0 gap-1 px-2 text-xs font-normal text-muted-foreground'
-
-  return (
-    <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-      {canMove ? (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className={metadataButtonClassName}
-                aria-label={`Move note from ${locationLabel}`}
-              />
-            }
-          >
-            <span>{locationLabel}</span>
-            <ChevronDown data-icon="inline-end" aria-hidden="true" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-max min-w-44 max-w-72">
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>Move note to</DropdownMenuLabel>
-              <FolderDropdownDestinationItems
-                collections={[...collections]}
-                currentLocations={[item.location]}
-                onSelect={onMove}
-              />
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ) : (
-        <span className="flex h-10 shrink-0 items-center">{locationLabel}</span>
-      )}
-
-      <span className="flex shrink-0 items-center gap-2">
-        <span aria-hidden="true">&middot;</span>
-        <Popover>
-          <PopoverTrigger
-            render={
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className={metadataButtonClassName}
-                aria-label="Show note dates"
-              />
-            }
-          >
-            <span>Updated {updatedLabel}</span>
-            <ChevronDown data-icon="inline-end" aria-hidden="true" />
-          </PopoverTrigger>
-          <PopoverContent align="start" sideOffset={0} className="w-72 gap-3 rounded-2xl p-3">
-            <PopoverHeader>
-              <PopoverTitle className="text-sm">Note details</PopoverTitle>
-            </PopoverHeader>
-            <dl className="flex flex-col gap-1">
-              <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-3 rounded-xl px-2 py-1.5">
-                <dt className="text-xs text-muted-foreground">Created</dt>
-                <dd className="min-w-0 text-xs tabular-nums">
-                  <time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time>
-                </dd>
-              </div>
-              <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-3 rounded-xl px-2 py-1.5">
-                <dt className="text-xs text-muted-foreground">Updated</dt>
-                <dd className="min-w-0 text-xs tabular-nums">
-                  <time dateTime={item.updatedAt}>{formatDate(item.updatedAt)}</time>
-                </dd>
-              </div>
-            </dl>
-          </PopoverContent>
-        </Popover>
-      </span>
-
-      {item.attachments.length > 0 ? (
-        <span className="flex shrink-0 items-center gap-2">
-          <span aria-hidden="true">&middot;</span>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className={metadataButtonClassName}
-                  aria-label={`Show ${attachmentLabel}`}
-                />
-              }
-            >
-              <Paperclip data-icon="inline-start" aria-hidden="true" />
-              <span className="tabular-nums">{attachmentLabel}</span>
-              <ChevronDown data-icon="inline-end" aria-hidden="true" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-max min-w-52 max-w-72">
-              <DropdownMenuGroup>
-                <DropdownMenuLabel className="tabular-nums">{attachmentLabel}</DropdownMenuLabel>
-                {item.attachments.map((attachment) => {
-                  const image = imageItems.get(attachment.id)
-                  if (!image || attachment.missingContent) {
-                    return (
-                      <DropdownMenuItem
-                        key={`${attachment.id}-${attachment.relativePath}`}
-                        disabled
-                      >
-                        <ImageOff aria-hidden="true" />
-                        <span className="min-w-0 flex-1 truncate" title={attachment.filename}>
-                          {attachment.filename}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {attachment.missingContent ? 'Missing' : 'Unavailable'}
-                        </span>
-                      </DropdownMenuItem>
-                    )
-                  }
-                  return (
-                    <DropdownMenuSub key={`${attachment.id}-${attachment.relativePath}`}>
-                      <DropdownMenuSubTrigger>
-                        <Image aria-hidden="true" />
-                        <span className="min-w-0 flex-1 truncate" title={attachment.filename}>
-                          {attachment.filename}
-                        </span>
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent className="w-52">
-                        <DropdownMenuGroup>
-                          <DropdownMenuLabel className="truncate" title={attachment.filename}>
-                            {attachment.filename}
-                          </DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => onRenameAttachment(image.id)}>
-                            <Pencil aria-hidden="true" />
-                            Rename
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => {
-                              void window.kuskus.showItemInExplorer(image.id).then((result) => {
-                                if (!result.ok) onError(result.error)
-                              })
-                            }}
-                          >
-                            <FolderOpen aria-hidden="true" />
-                            Show in Explorer
-                          </DropdownMenuItem>
-                        </DropdownMenuGroup>
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  )
-                })}
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem onClick={onManageAttachments}>
-                  <Paperclip aria-hidden="true" />
-                  Manage attachments...
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </span>
-      ) : null}
-    </div>
-  )
-}
-function NoteIdentityControls({
-  item,
-  collections,
-  libraryItems,
-  statusLabel,
+  markdown,
+  showInlineTitle,
+  showProperties,
+  className,
   onRenameTitle,
-  onMove,
-  onManageAttachments,
-  onRenameAttachment,
+  onDraftChange,
+  onOpenSource,
   onError
 }: {
   item: Extract<LibraryItemDto, { type: 'note' }>
-  collections: readonly CollectionDto[]
-  libraryItems: readonly LibraryItemDto[]
-  statusLabel: string | null
+  markdown: string
+  showInlineTitle: boolean
+  showProperties: boolean
+  className?: string
   onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
-  onMove: (destination: ActiveItemLocation) => void
-  onManageAttachments: () => void
-  onRenameAttachment: (itemId: string) => void
+  onDraftChange: (value: string) => void
+  onOpenSource: () => void
   onError: (message: string) => void
-}): React.JSX.Element {
-  const detailContext = useMemo(
-    () => resolveItemDetailContext(item.location, item.updatedAt, collections),
-    [collections, item.location, item.updatedAt]
-  )
+}): React.JSX.Element | null {
+  const frontmatter = parseNoteFrontmatter(markdown)
+  const hasProperties =
+    showProperties && frontmatter.status === 'valid' && frontmatter.properties.length > 0
+  if (!showInlineTitle && !hasProperties) return null
 
   return (
-    <div className="flex min-w-0 items-start gap-4">
-      <div className="min-w-0 flex-1">
+    <div
+      className={cn('not-typeset flex min-w-0 flex-col gap-8 font-sans', className)}
+      data-not-typeset
+    >
+      {showInlineTitle ? (
         <InlineItemTitle
           item={item}
           onRename={onRenameTitle}
-          className="font-heading text-xl leading-tight font-medium text-foreground text-balance"
+          className="font-heading text-3xl leading-tight font-semibold text-foreground text-balance"
           textClassName="break-words"
         />
-        <NoteMetadataControls
-          item={item}
-          collections={collections}
-          libraryItems={libraryItems}
-          locationPath={detailContext.locationPath}
-          updatedLabel={detailContext.updatedLabel}
-          onMove={onMove}
-          onManageAttachments={onManageAttachments}
-          onRenameAttachment={onRenameAttachment}
+      ) : null}
+      {hasProperties ? (
+        <NoteProperties
+          value={markdown}
+          onChange={onDraftChange}
+          onOpenSource={onOpenSource}
           onError={onError}
         />
-      </div>
-      {statusLabel ? (
-        <p className="shrink-0 text-xs text-destructive" aria-live="assertive" aria-atomic="true">
-          {statusLabel}
-        </p>
       ) : null}
     </div>
   )
 }
+
+function NoteDetailsDialog({
+  item,
+  open,
+  onOpenChange
+}: {
+  item: Extract<LibraryItemDto, { type: 'note' }>
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}): React.JSX.Element {
+  return (
+    <ConflictDialog open={open} onOpenChange={onOpenChange}>
+      <ConflictDialogContent className="sm:max-w-md">
+        <ConflictDialogHeader>
+          <ConflictDialogTitle>Note details</ConflictDialogTitle>
+          <ConflictDialogDescription>
+            System information stored outside YAML properties.
+          </ConflictDialogDescription>
+        </ConflictDialogHeader>
+        <dl className="flex flex-col gap-1 text-sm">
+          <div className="grid grid-cols-[5rem_minmax(0,1fr)] gap-3 rounded-xl px-2 py-1.5">
+            <dt className="text-muted-foreground">Created</dt>
+            <dd className="tabular-nums">{formatDate(item.createdAt)}</dd>
+          </div>
+          <div className="grid grid-cols-[5rem_minmax(0,1fr)] gap-3 rounded-xl px-2 py-1.5">
+            <dt className="text-muted-foreground">Updated</dt>
+            <dd className="tabular-nums">{formatDate(item.updatedAt)}</dd>
+          </div>
+          <div className="grid grid-cols-[5rem_minmax(0,1fr)] gap-3 rounded-xl px-2 py-1.5">
+            <dt className="text-muted-foreground">File</dt>
+            <dd className="break-all">{item.relativePath}</dd>
+          </div>
+          <div className="grid grid-cols-[5rem_minmax(0,1fr)] gap-3 rounded-xl px-2 py-1.5">
+            <dt className="text-muted-foreground">Files</dt>
+            <dd className="tabular-nums">
+              {item.attachments.length}{' '}
+              {item.attachments.length === 1 ? 'attachment' : 'attachments'}
+            </dd>
+          </div>
+        </dl>
+      </ConflictDialogContent>
+    </ConflictDialog>
+  )
+}
+
 function MissingContent({
   type,
   onMoveToTrash
 }: {
-  type: 'image' | 'note'
+  type: 'file' | 'image' | 'note'
   onMoveToTrash?: () => void
 }): React.JSX.Element {
   return (
@@ -940,7 +761,9 @@ function MissingContent({
       </span>
       <div className="space-y-1">
         <p className="text-sm font-medium text-foreground">
-          {type === 'image' ? 'Image file is missing' : 'Note file is missing'}
+          {type === 'note'
+            ? 'Note file is missing'
+            : `${type === 'image' ? 'Image' : 'File'} is missing`}
         </p>
         <p className="text-pretty text-xs leading-5 text-muted-foreground">
           Kuskus kept the item, but its stored content is no longer in the library.
@@ -966,7 +789,7 @@ function ImageCanvas({
   const { preview, previewError } = useImagePreview(item.id, item.missingContent)
 
   return (
-    <section className="flex min-h-64 min-w-0 items-center justify-center overflow-hidden bg-white p-5 dark:bg-black @min-[860px]/detail:min-h-0 @min-[860px]/detail:p-8">
+    <section className="flex min-h-64 min-w-0 items-center justify-center overflow-hidden bg-white p-5 dark:bg-black @min-[860px]/detail:min-h-0 @min-[860px]/detail:p-10">
       {item.missingContent ? (
         <MissingContent type="image" onMoveToTrash={onMoveToTrash} />
       ) : preview ? (
@@ -975,7 +798,7 @@ function ImageCanvas({
           alt={item.title}
           width={item.width}
           height={item.height}
-          className="max-h-full max-w-full object-contain outline -outline-offset-1 outline-black/10 dark:outline-white/10"
+          className="max-h-full max-w-full rounded-sm object-contain shadow-[0_20px_60px_-36px_rgb(0_0_0/0.8)] outline -outline-offset-1 outline-black/10 dark:outline-white/10"
         />
       ) : previewError ? (
         <div className="flex max-w-xs flex-col items-center gap-3 px-6 text-center">
@@ -1010,12 +833,12 @@ function UrlCanvas({
   const preview = useUrlPreview(item.id, 'preview', item.hasPreviewImage)
   const loading = item.metadataStatus === 'pending' || preview.loading
   return (
-    <section className="relative flex min-h-64 min-w-0 items-center justify-center overflow-hidden bg-muted/35 p-5 @min-[860px]/detail:min-h-0 @min-[860px]/detail:p-8">
+    <section className="relative flex min-h-64 min-w-0 items-center justify-center overflow-hidden bg-muted/25 p-5 @min-[860px]/detail:min-h-0 @min-[860px]/detail:p-10">
       {preview.preview ? (
         <img
           src={preview.preview}
           alt=""
-          className="max-h-full max-w-full object-contain outline -outline-offset-1 outline-black/10 dark:outline-white/10"
+          className="max-h-full max-w-full rounded-md object-contain shadow-[0_24px_72px_-40px_rgb(0_0_0/0.8)] outline -outline-offset-1 outline-black/10 dark:outline-white/10"
         />
       ) : (
         <div className="flex max-w-xs flex-col items-center gap-3 px-6 text-center">
@@ -1048,52 +871,35 @@ function UrlCanvas({
   )
 }
 
-function getNoteProblemStatusLabel(status: NoteAutosaveSnapshot['status']): string | null {
-  return status === 'invalid'
-    ? 'Not saved'
-    : status === 'error'
-      ? 'Unable to save'
-      : status === 'conflict'
-        ? 'Save conflict'
-        : null
-}
 function NoteCanvas({
   item,
-  collections,
-  libraryItems,
   mode,
   snapshot,
   readingWidth,
-  expanded,
+  showInlineTitle,
   onRenameTitle,
   onDraftChange,
+  onModeChange,
   onRetry,
   onRestore,
   onReviewConflict,
   onOpenVaultLink,
-  onMove,
-  onManageAttachments,
-  onRenameAttachment,
   onError,
   onMoveToTrash
 }: {
   item: Extract<LibraryItemDto, { type: 'note' }>
-  collections: readonly CollectionDto[]
   mode: NoteMode
-  libraryItems: readonly LibraryItemDto[]
   snapshot: NoteAutosaveSnapshot
   readingWidth: NoteReadingWidth
-  expanded: boolean
+  showInlineTitle: boolean
   onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
   onDraftChange: (value: string) => void
+  onModeChange: (mode: NoteMode) => void
   onRetry: () => void
   onRestore: () => void
   onReviewConflict: () => void
   onOpenVaultLink: (target: string) => void
   onMoveToTrash: (itemId: string) => void
-  onMove: (destination: ActiveItemLocation) => void
-  onManageAttachments: () => void
-  onRenameAttachment: (itemId: string) => void
   onError: (message: string) => void
 }): React.JSX.Element {
   const editorRef = useRef<MarkdownEditorHandle>(null)
@@ -1105,6 +911,26 @@ function NoteCanvas({
   const syncFrameRef = useRef<number | null>(null)
   const releaseSyncFrameRef = useRef<number | null>(null)
   const attachmentPreviews = useNoteAttachmentPreviews(item.id, item.attachments)
+  const frontmatter = useMemo(() => parseNoteFrontmatter(snapshot.draft), [snapshot.draft])
+  const hasProperties = frontmatter.status === 'valid' && frontmatter.properties.length > 0
+  const liveHiddenRange = useMemo(
+    () => (frontmatter.status === 'valid' ? { from: 0, to: frontmatter.endOffset } : undefined),
+    [frontmatter]
+  )
+  const editorTopContent =
+    showInlineTitle || (mode === 'live' && hasProperties) ? (
+      <NoteDocumentBlocks
+        item={item}
+        markdown={snapshot.draft}
+        showInlineTitle={showInlineTitle}
+        showProperties={mode === 'live'}
+        className="pb-8"
+        onRenameTitle={onRenameTitle}
+        onDraftChange={onDraftChange}
+        onOpenSource={() => onModeChange('markdown')}
+        onError={onError}
+      />
+    ) : undefined
 
   const noteAttachments = item.attachments
   const onOpenVaultLinkRef = useRef(onOpenVaultLink)
@@ -1132,10 +958,10 @@ function NoteCanvas({
         }
       },
       onOpenLink: (url) => void openExternalUrlWithFeedback(url),
-      onOpenVaultLink: (target) => onOpenVaultLinkRef.current(target)
+      onOpenVaultLink: (target) => onOpenVaultLinkRef.current(target),
+      hiddenRange: liveHiddenRange
     }
-  }, [attachmentPreviews, noteAttachments])
-  const problemStatusLabel = getNoteProblemStatusLabel(snapshot.status)
+  }, [attachmentPreviews, liveHiddenRange, noteAttachments])
 
   const scheduleScrollSynchronization = useCallback(
     (driver: 'source' | 'preview', recordDriver = true): void => {
@@ -1197,6 +1023,18 @@ function NoteCanvas({
     return () => preview.removeEventListener('scroll', handlePreviewScroll)
   }, [scheduleScrollSynchronization])
 
+  useLayoutEffect(() => {
+    if (mode === 'read') {
+      const preview = previewViewportRef.current
+      if (preview) {
+        preview.tabIndex = 0
+        preview.focus({ preventScroll: true })
+      }
+    } else if (mode === 'live' || mode === 'markdown') {
+      editorRef.current?.focus()
+    }
+  }, [mode])
+
   useEffect(() => {
     const previousMode = previousModeRef.current
     previousModeRef.current = mode
@@ -1244,26 +1082,7 @@ function NoteCanvas({
   )
 
   return (
-    <section
-      data-detail-structural-surface
-      className="flex h-full border-border border-t border-l rounded-tl-2xl min-w-0 flex-1 flex-col bg-background"
-      data-reading-width={readingWidth}
-    >
-      {!item.missingContent && !expanded ? (
-        <header className="kuskus-detail-document-frame flex shrink-0 flex-col border-b border-border/40 py-5">
-          <NoteIdentityControls
-            item={item}
-            collections={collections}
-            libraryItems={libraryItems}
-            statusLabel={problemStatusLabel}
-            onRenameTitle={onRenameTitle}
-            onMove={onMove}
-            onManageAttachments={onManageAttachments}
-            onRenameAttachment={onRenameAttachment}
-            onError={onError}
-          />
-        </header>
-      ) : null}
+    <div className="flex h-full min-w-0 flex-1 flex-col" data-reading-width={readingWidth}>
       {item.missingContent ? (
         <div className="flex min-h-0 flex-1 items-center justify-center">
           <MissingContent type="note" onMoveToTrash={() => onMoveToTrash(item.id)} />
@@ -1316,6 +1135,8 @@ function NoteCanvas({
                 active={mode !== 'read'}
                 live={mode === 'live'}
                 liveOptions={liveOptions}
+                topContent={editorTopContent}
+                hiddenRange={mode === 'live' ? liveHiddenRange : undefined}
                 onChange={(value) => {
                   activeScrollDriverRef.current = 'source'
                   onDraftChange(value)
@@ -1335,6 +1156,17 @@ function NoteCanvas({
               viewportRef={previewViewportRef}
             >
               <article className="kuskus-detail-document-frame min-h-full w-full py-8">
+                <NoteDocumentBlocks
+                  item={item}
+                  markdown={snapshot.draft}
+                  showInlineTitle={showInlineTitle}
+                  showProperties
+                  className="mb-8"
+                  onRenameTitle={onRenameTitle}
+                  onDraftChange={onDraftChange}
+                  onOpenSource={() => onModeChange('markdown')}
+                  onError={onError}
+                />
                 <MarkdownPreview
                   value={snapshot.draft}
                   itemId={item.id}
@@ -1349,7 +1181,7 @@ function NoteCanvas({
           </div>
         </div>
       )}
-    </section>
+    </div>
   )
 }
 
@@ -1503,6 +1335,14 @@ function NoteAttachmentsPanel({
   )
 }
 
+function DetailInspector({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return (
+    <aside className="min-w-0 border-t @min-[860px]/detail:border-t-0 @min-[860px]/detail:border-l">
+      <div className="flex flex-col gap-6 p-6">{children}</div>
+    </aside>
+  )
+}
+
 function ImageInspector({
   item,
   onRenameTitle
@@ -1511,37 +1351,58 @@ function ImageInspector({
   onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
 }): React.JSX.Element {
   return (
-    <aside
-      data-detail-structural-surface
-      className="min-w-0 border-t bg-popover @min-[860px]/detail:border-t-0 @min-[860px]/detail:border-l"
-    >
-      <div className="flex flex-col gap-5 p-5 sm:p-6">
-        <InlineItemTitle
-          item={item}
-          onRename={onRenameTitle}
-          className="text-xl leading-7 font-semibold text-popover-foreground"
-          textClassName="text-balance"
-        />
-        <PropertyList>
-          <PropertyRow icon={File} label="File name" valueClassName="break-words">
-            {item.sourceFilename ?? 'Pasted image'}
-          </PropertyRow>
-          <PropertyRow icon={FileTypography} label="Format">
-            {formatMediaType(item.mediaType)}
-          </PropertyRow>
-          <PropertyRow icon={Dimensions} label="Dimensions" valueClassName="tabular-nums">
-            {item.width} × {item.height}
-          </PropertyRow>
-          <PropertyRow icon={Calendar} label="Added" valueClassName="tabular-nums">
-            <time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time>
-          </PropertyRow>
-        </PropertyList>
-      </div>
-    </aside>
+    <DetailInspector>
+      <InlineItemTitle
+        item={item}
+        onRename={onRenameTitle}
+        className="text-2xl leading-8 font-semibold tracking-tight text-balance"
+        textClassName="break-words"
+      />
+      <PropertyList>
+        <PropertyRow icon={File} label="File name" valueClassName="break-words">
+          {item.sourceFilename ?? 'Pasted image'}
+        </PropertyRow>
+        <PropertyRow icon={FileTypography} label="Format">
+          {formatMediaType(item.mediaType)}
+        </PropertyRow>
+        <PropertyRow icon={Dimensions} label="Dimensions" valueClassName="tabular-nums">
+          {item.width} × {item.height}
+        </PropertyRow>
+        <PropertyRow icon={Calendar} label="Added" valueClassName="tabular-nums">
+          <time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time>
+        </PropertyRow>
+      </PropertyList>
+    </DetailInspector>
   )
 }
 
-function FileDetails({
+function FileCanvas({
+  item,
+  onMoveToTrash
+}: {
+  item: Extract<LibraryItemDto, { type: 'file' }>
+  onMoveToTrash: () => void
+}): React.JSX.Element {
+  return (
+    <section className="flex min-h-64 min-w-0 items-center justify-center overflow-hidden bg-muted/25 p-8 @min-[860px]/detail:min-h-0">
+      {item.missingContent ? (
+        <MissingContent type="file" onMoveToTrash={onMoveToTrash} />
+      ) : (
+        <div className="flex max-w-md flex-col items-center gap-5 text-center">
+          <span className="flex size-24 items-center justify-center rounded-3xl bg-background/75 text-muted-foreground shadow-[0_0_0_1px_rgb(0_0_0/0.06),0_12px_32px_-20px_rgb(0_0_0/0.45)] dark:shadow-[0_0_0_1px_rgb(255_255_255/0.08)]">
+            <File className="size-10" stroke={1.5} aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <p className="break-words text-sm font-medium">{item.contentFilename}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{item.mediaType || 'Unknown type'}</p>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}
+
+function FileInspector({
   item,
   onRenameTitle
 }: {
@@ -1549,31 +1410,25 @@ function FileDetails({
   onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
 }): React.JSX.Element {
   return (
-    <div className="flex min-h-full items-center justify-center px-7 py-20 @min-[860px]/detail:col-span-2">
-      <div className="flex w-full max-w-md flex-col items-center gap-6 text-center">
-        <span className="flex size-20 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
-          <File className="size-9" aria-hidden="true" />
-        </span>
-        <div className="flex min-w-0 flex-col gap-1">
-          <InlineItemTitle
-            item={item}
-            onRename={onRenameTitle}
-            className="text-xl font-semibold"
-            textClassName="break-words"
-            centered
-          />
-          <p className="text-sm text-muted-foreground">{item.contentFilename}</p>
-        </div>
-        <PropertyList>
-          <PropertyRow icon={FileTypography} label="Type">
-            {item.mediaType || 'Unknown'}
-          </PropertyRow>
-          <PropertyRow icon={Calendar} label="Added">
-            {formatDate(item.createdAt)}
-          </PropertyRow>
-        </PropertyList>
-      </div>
-    </div>
+    <DetailInspector>
+      <InlineItemTitle
+        item={item}
+        onRename={onRenameTitle}
+        className="text-2xl leading-8 font-semibold tracking-tight text-balance"
+        textClassName="break-words"
+      />
+      <PropertyList>
+        <PropertyRow icon={File} label="File name" valueClassName="break-words">
+          {item.sourceFilename || item.contentFilename}
+        </PropertyRow>
+        <PropertyRow icon={FileTypography} label="Type" valueClassName="break-words">
+          {item.mediaType || 'Unknown'}
+        </PropertyRow>
+        <PropertyRow icon={Calendar} label="Added" valueClassName="tabular-nums">
+          <time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time>
+        </PropertyRow>
+      </PropertyList>
+    </DetailInspector>
   )
 }
 
@@ -1587,42 +1442,43 @@ function UrlInspector({
   onOpenLink: () => void
 }): React.JSX.Element {
   return (
-    <aside
-      data-detail-structural-surface
-      className="min-w-0 border-t bg-popover @min-[860px]/detail:border-t-0 @min-[860px]/detail:border-l"
-    >
-      <div className="flex flex-col gap-5 p-5 sm:p-6">
+    <DetailInspector>
+      <div className="flex min-w-0 flex-col gap-2">
+        <p className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+          <Globe2 className="size-4 shrink-0" stroke={1.5} aria-hidden="true" />
+          <span className="truncate">{item.domain}</span>
+        </p>
         <InlineItemTitle
           item={item}
           onRename={onRenameTitle}
-          className="text-xl leading-7 font-semibold text-popover-foreground"
-          textClassName="text-balance"
+          className="text-2xl leading-8 font-semibold tracking-tight text-balance"
+          textClassName="break-words"
         />
-        <PropertyList>
-          <PropertyRow icon={Link} label="Source" valueClassName="break-all">
-            {item.sourceUrl}
-          </PropertyRow>
-          {item.description ? (
-            <PropertyRow icon={AlignLeft} label="Description" valueClassName="text-pretty">
-              {item.description}
-            </PropertyRow>
-          ) : null}
-          <PropertyRow icon={Calendar} label="Added" valueClassName="tabular-nums">
-            <time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time>
-          </PropertyRow>
-        </PropertyList>
-        <Button size="lg" className="w-full" aria-keyshortcuts="Control+Enter" onClick={onOpenLink}>
-          <ExternalLink data-icon="inline-start" aria-hidden="true" />
-          Open link
-          <Kbd
-            className="ml-1 hidden bg-primary-foreground/15 text-primary-foreground sm:inline-flex"
-            aria-hidden="true"
-          >
-            Ctrl+Enter
-          </Kbd>
-        </Button>
       </div>
-    </aside>
+      <PropertyList>
+        <PropertyRow icon={Link} label="Source" valueClassName="break-all">
+          {item.sourceUrl}
+        </PropertyRow>
+        {item.description ? (
+          <PropertyRow icon={AlignLeft} label="Description" valueClassName="text-pretty">
+            {item.description}
+          </PropertyRow>
+        ) : null}
+        <PropertyRow icon={Calendar} label="Added" valueClassName="tabular-nums">
+          <time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time>
+        </PropertyRow>
+      </PropertyList>
+      <Button size="lg" className="w-full" aria-keyshortcuts="Control+Enter" onClick={onOpenLink}>
+        <ExternalLink data-icon="inline-start" aria-hidden="true" />
+        Open link
+        <Kbd
+          className="ml-1 hidden bg-primary-foreground/15 text-primary-foreground sm:inline-flex"
+          aria-hidden="true"
+        >
+          Ctrl+Enter
+        </Kbd>
+      </Button>
+    </DetailInspector>
   )
 }
 
@@ -1643,7 +1499,10 @@ interface ItemDetailProps {
   onRenameItem: (item: LibraryItemDto, title: string) => Promise<DetailTitleRenameResult>
   libraryItems: readonly LibraryItemDto[]
   onRenameAttachment: (itemId: string) => void
-  renderActions?: (guard: (action: () => void) => void) => React.ReactNode
+  renderActions?: (
+    guard: (action: () => void) => void,
+    detailOptions?: NoteDetailMenuOptions
+  ) => React.ReactNode
   onOpenVaultLink: (target: string) => void
   onMoveItem: (destination: ActiveItemLocation) => void
   onMoveToTrash: (itemId: string) => void
@@ -1657,7 +1516,6 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
   function ItemDetailDialog(
     {
       item,
-      collections,
       hasPrevious,
       hasNext,
       onPrevious,
@@ -1669,7 +1527,6 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       onRenameAttachment,
       renderActions,
       onOpenVaultLink,
-      onMoveItem,
       onMoveToTrash,
       onError,
       expanded = false,
@@ -1685,6 +1542,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
           ? new NoteAutosaveCoordinator({
               itemId: openedNote.id,
               initialMarkdown: openedNote.body,
+              initialUpdatedAt: openedNote.updatedAt,
               save: (input) => window.kuskus.updateNote(input),
               onSaved: onItemUpdated,
               onDraftReplaced: () => undefined
@@ -1696,6 +1554,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       status: 'saved',
       draft: '',
       savedMarkdown: '',
+      savedUpdatedAt: '',
       error: null,
       conflict: null
     })
@@ -1709,9 +1568,13 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
     const [readingWidth, setReadingWidth] = useState<NoteReadingWidth>(() =>
       parseNoteReadingWidth(localStorage.getItem(NOTE_READING_WIDTH_STORAGE_KEY))
     )
+    const [showInlineTitle, setShowInlineTitle] = useState(() =>
+      parseNoteInlineTitle(localStorage.getItem(NOTE_INLINE_TITLE_STORAGE_KEY))
+    )
     const [conflictDialogOpen, setConflictDialogOpen] = useState(false)
     const [conflictResolution, setConflictResolution] = useState<'mine' | 'disk' | null>(null)
     const [attachmentsOpen, setAttachmentsOpen] = useState(false)
+    const [noteDetailsOpen, setNoteDetailsOpen] = useState(false)
     const changeExpanded = (nextExpanded: boolean): void => {
       if (nextExpanded) setAttachmentsOpen(false)
       onExpandedChange?.(nextExpanded)
@@ -1728,19 +1591,34 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       localStorage.setItem(NOTE_READING_WIDTH_STORAGE_KEY, readingWidth)
     }, [readingWidth])
     useEffect(() => {
-      if (
-        item?.type === 'note' &&
-        coordinator &&
-        item.body !== coordinator.getSnapshot().savedMarkdown &&
-        !coordinator.hasPendingChanges()
-      ) {
-        coordinator.useDiskVersion(item)
+      localStorage.setItem(NOTE_INLINE_TITLE_STORAGE_KEY, String(showInlineTitle))
+    }, [showInlineTitle])
+    useEffect(() => {
+      if (item?.type !== 'note' || !coordinator) return
+      const current = coordinator.getSnapshot()
+      if (item.body === current.draft) {
+        coordinator.acceptDiskVersion(item)
+        return
       }
-    }, [coordinator, item])
+      if (coordinator.hasPendingChanges() || !coordinator.acceptDiskVersion(item)) {
+        onItemUpdated({
+          ...item,
+          body: current.draft,
+          updatedAt: current.savedUpdatedAt || item.updatedAt
+        })
+      }
+    }, [coordinator, item, onItemUpdated])
     const changeMode = (nextMode: NoteMode): void => {
       if (nextMode === mode) return
       if (nextMode !== 'split') previousSingleModeRef.current = nextMode
       setMode(nextMode)
+    }
+    const toggleReadLiveMode = (): void => {
+      setMode((currentMode) => {
+        const nextMode = toggleReadLive(currentMode)
+        previousSingleModeRef.current = nextMode
+        return nextMode
+      })
     }
 
     const flushPendingNote = useCallback(async (): Promise<boolean> => {
@@ -1828,7 +1706,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
         item?.type === 'note'
       ) {
         event.preventDefault()
-        changeMode(toggleReadLive(mode))
+        toggleReadLiveMode()
         return
       }
       if (
@@ -1881,31 +1759,27 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
           }
           modeControls={
             item.type === 'note' ? (
-              presentation === 'focus' ? (
-                <NoteModeControls
-                  mode={mode}
-                  onModeChange={changeMode}
-                  surface="caption"
-                  readingWidth={readingWidth}
-                  onReadingWidthChange={() =>
-                    setReadingWidth((width) => toggleNoteReadingWidth(width))
-                  }
-                />
-              ) : (
-                <div className="flex items-center gap-2">
-                  <NoteModeControls mode={mode} onModeChange={changeMode} />
-                  <DetailControl
-                    label="Wide reading width"
-                    pressed={readingWidth === 'wide'}
-                    onClick={() => setReadingWidth((width) => toggleNoteReadingWidth(width))}
-                  >
-                    <ViewportWide aria-hidden="true" />
-                  </DetailControl>
-                </div>
-              )
+              <NoteModeControls
+                mode={mode}
+                onModeChange={changeMode}
+                surface={presentation === 'focus' ? 'caption' : 'toolbar'}
+              />
             ) : undefined
           }
-          actions={renderActions?.(requestGuardedAction)}
+          actions={renderActions?.(
+            requestGuardedAction,
+            item.type === 'note'
+              ? {
+                  inlineTitle: showInlineTitle,
+                  readableLineLength: readingWidth === 'comfortable',
+                  onInlineTitleChange: setShowInlineTitle,
+                  onReadableLineLengthChange: (checked) =>
+                    setReadingWidth(checked ? 'comfortable' : 'wide'),
+                  onManageAttachments: () => setAttachmentsOpen(true),
+                  onShowDetails: () => setNoteDetailsOpen(true)
+                }
+              : undefined
+          )}
           hasPrevious={hasPrevious}
           hasNext={hasNext}
           onPrevious={() => requestGuardedAction(onPrevious)}
@@ -1914,69 +1788,85 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
           presentation={presentation}
           showClose={presentation === 'dialog'}
         />
-        {item.type === 'note' ? (
-          <div className="relative flex min-w-0 flex-1">
-            <NoteCanvas
-              item={item}
-              collections={collections}
-              mode={mode}
-              snapshot={snapshot}
-              expanded={expanded}
-              libraryItems={libraryItems}
-              onRenameTitle={renameCurrentItem}
-              onDraftChange={(value) => coordinator?.updateDraft(value)}
-              readingWidth={readingWidth}
-              onRetry={() => void coordinator?.retry()}
-              onRestore={() => coordinator?.restoreSaved()}
-              onMove={(destination) => requestGuardedAction(() => onMoveItem(destination))}
-              onManageAttachments={() => setAttachmentsOpen(true)}
-              onRenameAttachment={(itemId) =>
-                requestGuardedAction(() => onRenameAttachment(itemId))
-              }
-              onError={onError}
-              onReviewConflict={() => setConflictDialogOpen(true)}
-              onOpenVaultLink={(target) => requestGuardedAction(() => onOpenVaultLink(target))}
-              onMoveToTrash={(itemId) => requestGuardedAction(() => onMoveToTrash(itemId))}
-            />
-            {attachmentsOpen ? (
-              <NoteAttachmentsPanel
-                note={item}
-                libraryItems={libraryItems}
-                onClose={() => setAttachmentsOpen(false)}
-                onRename={(itemId) => requestGuardedAction(() => onRenameAttachment(itemId))}
+        <section
+          data-detail-pane
+          data-detail-structural-surface
+          className="window-canvas relative flex min-h-0 min-w-0 flex-1 overflow-hidden rounded-tl-2xl border-t border-l border-border !bg-background/50"
+        >
+          {item.type === 'note' ? (
+            <div className="relative flex min-h-0 min-w-0 flex-1">
+              <NoteCanvas
+                item={item}
+                mode={mode}
+                snapshot={snapshot}
+                showInlineTitle={showInlineTitle}
+                onRenameTitle={renameCurrentItem}
+                onDraftChange={(value) => {
+                  coordinator?.updateDraft(value)
+                  onItemUpdated({ ...item, body: value })
+                }}
+                onModeChange={changeMode}
+                readingWidth={readingWidth}
+                onRetry={() => void coordinator?.retry()}
+                onRestore={() => coordinator?.restoreSaved()}
                 onError={onError}
+                onReviewConflict={() => setConflictDialogOpen(true)}
+                onOpenVaultLink={(target) => requestGuardedAction(() => onOpenVaultLink(target))}
+                onMoveToTrash={(itemId) => requestGuardedAction(() => onMoveToTrash(itemId))}
               />
-            ) : null}
-          </div>
-        ) : (
-          <ScrollArea
-            className="min-h-0 min-w-0 flex-1"
-            viewportClassName="focus-visible:ring-0 focus-visible:outline-none"
-          >
-            <div className="min-h-full min-w-0 @min-[860px]/detail:grid @min-[860px]/detail:grid-cols-[minmax(0,1fr)_20rem]">
-              {item.type === 'image' ? (
-                <>
-                  <ImageCanvas
-                    item={item}
-                    onMoveToTrash={() => requestGuardedAction(() => onMoveToTrash(item.id))}
-                  />
-                  <ImageInspector item={item} onRenameTitle={renameCurrentItem} />
-                </>
-              ) : item.type === 'url' ? (
-                <>
-                  <UrlCanvas item={item} />
-                  <UrlInspector
-                    item={item}
-                    onRenameTitle={renameCurrentItem}
-                    onOpenLink={() => void openLink()}
-                  />
-                </>
-              ) : (
-                <FileDetails item={item} onRenameTitle={renameCurrentItem} />
-              )}
+              {noteDetailsOpen ? (
+                <NoteDetailsDialog
+                  item={item}
+                  open={noteDetailsOpen}
+                  onOpenChange={setNoteDetailsOpen}
+                />
+              ) : null}
+              {attachmentsOpen ? (
+                <NoteAttachmentsPanel
+                  note={item}
+                  libraryItems={libraryItems}
+                  onClose={() => setAttachmentsOpen(false)}
+                  onRename={(itemId) => requestGuardedAction(() => onRenameAttachment(itemId))}
+                  onError={onError}
+                />
+              ) : null}
             </div>
-          </ScrollArea>
-        )}
+          ) : (
+            <ScrollArea
+              className="min-h-0 min-w-0 flex-1"
+              viewportClassName="focus-visible:ring-0 focus-visible:outline-none"
+            >
+              <div className="min-h-full min-w-0 @min-[860px]/detail:grid @min-[860px]/detail:grid-cols-[minmax(0,1fr)_20rem]">
+                {item.type === 'image' ? (
+                  <>
+                    <ImageCanvas
+                      item={item}
+                      onMoveToTrash={() => requestGuardedAction(() => onMoveToTrash(item.id))}
+                    />
+                    <ImageInspector item={item} onRenameTitle={renameCurrentItem} />
+                  </>
+                ) : item.type === 'url' ? (
+                  <>
+                    <UrlCanvas item={item} />
+                    <UrlInspector
+                      item={item}
+                      onRenameTitle={renameCurrentItem}
+                      onOpenLink={() => void openLink()}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <FileCanvas
+                      item={item}
+                      onMoveToTrash={() => requestGuardedAction(() => onMoveToTrash(item.id))}
+                    />
+                    <FileInspector item={item} onRenameTitle={renameCurrentItem} />
+                  </>
+                )}
+              </div>
+            </ScrollArea>
+          )}
+        </section>
       </div>
     ) : null
 

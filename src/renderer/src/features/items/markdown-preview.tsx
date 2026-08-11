@@ -1,5 +1,5 @@
-import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import ReactMarkdown, { type Components } from 'react-markdown'
+import { Children, isValidElement, memo, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import ReactMarkdown, { defaultUrlTransform, type Components } from 'react-markdown'
 import '@/assets/katex-woff2.css'
 import rehypeKatex from 'rehype-katex'
 import remarkBreaks from 'remark-breaks'
@@ -11,6 +11,7 @@ import { useNoteAttachmentPreviews } from '@/features/items/use-note-attachment-
 import type { NoteAttachmentDto } from '../../../../shared/library-contract'
 import { markdownImageTargetKey } from '../../../../shared/markdown-image-references'
 import { prepareObsidianMarkdown } from '@/features/items/obsidian-markdown'
+import { MarkdownCodeBlock } from '@/features/items/markdown-code-block'
 
 const REMARK_PLUGINS = [remarkGfm, remarkBreaks, remarkMath]
 const REHYPE_PLUGINS = [rehypeKatex]
@@ -151,6 +152,19 @@ export const MarkdownPreview = memo(function MarkdownPreview({
       }
       return <code>{source || alt || 'Invalid image'}</code>
     },
+    pre: ({ children }) => {
+      const child = Children.toArray(children)[0]
+      if (!isValidElement<{ className?: string; children?: React.ReactNode }>(child)) {
+        return <pre>{children}</pre>
+      }
+      const language = /(?:^|\s)language-([^\s]+)/.exec(child.props.className ?? '')?.[1] ?? ''
+      return (
+        <MarkdownCodeBlock
+          code={String(child.props.children ?? '').replace(/\n$/, '')}
+          language={language}
+        />
+      )
+    },
     table: ({ children, ...props }) => (
       <div className="typeset-scroll">
         <table {...props}>{children}</table>
@@ -173,6 +187,7 @@ export const MarkdownPreview = memo(function MarkdownPreview({
           remarkPlugins={REMARK_PLUGINS}
           rehypePlugins={REHYPE_PLUGINS}
           components={components}
+          urlTransform={(url) => (url.startsWith('kuskus-note:') ? url : defaultUrlTransform(url))}
         >
           {prepareObsidianMarkdown(value, attachments)}
         </ReactMarkdown>

@@ -6,7 +6,11 @@ import {
   IconExternalLink,
   IconFolder,
   IconFolderOpen,
+  IconInfoCircle,
+  IconPaperclip,
   IconPencil,
+  IconRulerMeasure,
+  IconTextCaption,
   IconRestore,
   IconTrash,
   IconTrashX
@@ -34,6 +38,7 @@ import {
 } from '@/components/ui/context-menu'
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -53,6 +58,15 @@ import type {
   ItemLocation,
   LibraryItemDto
 } from '../../../../shared/library-contract'
+
+export interface NoteDetailMenuOptions {
+  inlineTitle: boolean
+  readableLineLength: boolean
+  onInlineTitleChange: (checked: boolean) => void
+  onReadableLineLengthChange: (checked: boolean) => void
+  onManageAttachments: () => void
+  onShowDetails: () => void
+}
 
 export interface ItemActionHandlers {
   onOpen: () => void
@@ -76,6 +90,7 @@ interface ItemActionMenuProps extends ItemActionHandlers {
   alwaysVisible?: boolean
   showQuickSourceAction?: boolean
   triggerSurface?: 'default' | 'caption'
+  detailOptions?: NoteDetailMenuOptions
 }
 
 function selectedItemsLabel(count: number): string {
@@ -210,6 +225,39 @@ function ItemActions({
 
   return (
     <>
+      {surface === 'dropdown' && props.detailOptions ? (
+        <>
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>View</DropdownMenuLabel>
+            <DropdownMenuCheckboxItem
+              checked={props.detailOptions.readableLineLength}
+              onCheckedChange={props.detailOptions.onReadableLineLengthChange}
+            >
+              <IconRulerMeasure aria-hidden="true" />
+              Readable line length
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem
+              checked={props.detailOptions.inlineTitle}
+              onCheckedChange={props.detailOptions.onInlineTitleChange}
+            >
+              <IconTextCaption aria-hidden="true" />
+              Inline title
+            </DropdownMenuCheckboxItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            <DropdownMenuItem onClick={props.detailOptions.onManageAttachments}>
+              <IconPaperclip aria-hidden="true" />
+              Manage attachments
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={props.detailOptions.onShowDetails}>
+              <IconInfoCircle aria-hidden="true" />
+              Note details
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+        </>
+      ) : null}
       <ActionGroup surface={surface}>
         {bulk ? <ActionLabel surface={surface}>This item</ActionLabel> : null}
         <ActionItem surface={surface} onClick={props.onOpen}>

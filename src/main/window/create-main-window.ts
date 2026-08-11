@@ -5,6 +5,7 @@ import { is } from '@electron-toolkit/utils'
 import icon from '../../../resources/icon.png?asset'
 import { WINDOW_CHANNELS, type AppZoomShortcut } from '../../shared/window-contract'
 import { OPAQUE_WINDOW_BACKGROUND } from './window-material'
+import { installTextContextMenu } from './text-context-menu'
 
 export function createMainWindow(): BrowserWindow {
   const isMac = process.platform === 'darwin'
@@ -39,6 +40,8 @@ export function createMainWindow(): BrowserWindow {
     mainWindow.show()
     sendMaximizedState()
   })
+
+  installTextContextMenu(mainWindow)
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url)

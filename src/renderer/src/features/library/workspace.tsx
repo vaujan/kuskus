@@ -669,11 +669,7 @@ export function Workspace({
   )
 
   const handleFocusSplitChange = useCallback((split: boolean): void => {
-    if (split) {
-      setFocusDetailOpen(true)
-      return
-    }
-    setFocusNoteExpanded(false)
+    if (split) setFocusDetailOpen(true)
   }, [])
 
   const changeFocusNoteExpanded = useCallback(
@@ -1882,7 +1878,7 @@ export function Workspace({
           const target = library.items.find((item) => item.id === itemId)
           if (target) itemActions(target, [itemId]).onTrash()
         }}
-        renderActions={(guard) => {
+        renderActions={(guard, detailOptions) => {
           const actions = itemActions(focusItem, [focusItem.id])
           return (
             <ItemActionMenu
@@ -1892,6 +1888,7 @@ export function Workspace({
               targetLocations={[focusItem.location]}
               alwaysVisible
               triggerSurface="caption"
+              detailOptions={detailOptions}
               {...actions}
               onRename={() => guard(actions.onRename)}
               onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}
@@ -2312,7 +2309,7 @@ export function Workspace({
               const target = library.items.find((item) => item.id === itemId)
               if (target) itemActions(target, [itemId]).onTrash()
             }}
-            renderActions={(guard) => {
+            renderActions={(guard, detailOptions) => {
               if (!selectedItem) return null
               const actions = itemActions(selectedItem, [selectedItem.id])
               return (
@@ -2322,6 +2319,7 @@ export function Workspace({
                   targetCount={1}
                   targetLocations={[selectedItem.location]}
                   alwaysVisible
+                  detailOptions={detailOptions}
                   {...actions}
                   onRename={() => guard(actions.onRename)}
                   onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}

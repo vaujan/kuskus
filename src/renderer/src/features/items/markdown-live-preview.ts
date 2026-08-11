@@ -1,14 +1,15 @@
-import { StateEffect, type EditorState, type Extension, type Transaction } from '@codemirror/state'
-import { syntaxTree } from '@codemirror/language'
 import {
-  Decoration,
-  EditorView,
-  ViewPlugin,
-  WidgetType,
-  type DecorationSet,
-  type ViewUpdate
-} from '@codemirror/view'
+  StateEffect,
+  StateField,
+  type EditorState,
+  type Extension,
+  type Transaction
+} from '@codemirror/state'
+import { syntaxTree } from '@codemirror/language'
+import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view'
 import katex from 'katex'
+
+import { codeLanguageLabel, copyMarkdownCode, renderHighlightedCode } from './markdown-code'
 
 export interface LivePreviewImage {
   src: string | null
@@ -20,6 +21,7 @@ export interface LivePreviewOptions {
   resolveImage?: (target: string) => LivePreviewImage | null
   onOpenLink?: (url: string) => void
   onOpenVaultLink?: (target: string) => void
+  hiddenRange?: { from: number; to: number }
 }
 
 export type MarkdownTypesetPresentation = 'card' | 'detail'
@@ -42,15 +44,10 @@ function activeLineNumbers(state: EditorState): Set<number> {
   return lines
 }
 
-function activeLineKey(state: EditorState): string {
-  return Array.from(activeLineNumbers(state)).join(',')
-}
-
 class CheckboxWidget extends WidgetType {
   constructor(
     private readonly checked: boolean,
-    private readonly position: number,
-    private readonly toggle: (position: number) => void
+    private readonly position: number
   ) {
     super()
   }
@@ -65,11 +62,7 @@ class CheckboxWidget extends WidgetType {
     element.setAttribute('role', 'checkbox')
     element.setAttribute('aria-checked', String(this.checked))
     element.setAttribute('aria-label', this.checked ? 'Completed task' : 'Open task')
-    element.addEventListener('click', (event) => {
-      event.preventDefault()
-      event.stopPropagation()
-      this.toggle(this.position)
-    })
+    element.dataset.position = String(this.position)
     return element
   }
 }
@@ -105,21 +98,55 @@ class HorizontalRuleWidget extends WidgetType {
   }
 }
 
-class CodeFenceWidget extends WidgetType {
-  constructor(private readonly language: string) {
+class CodeBlockWidget extends WidgetType {
+  constructor(
+    private readonly code: string,
+    private readonly language: string,
+    private readonly position: number
+  ) {
     super()
   }
 
-  eq(other: CodeFenceWidget): boolean {
-    return other.language === this.language
+  eq(other: CodeBlockWidget): boolean {
+    return (
+      other.code === this.code &&
+      other.language === this.language &&
+      other.position === this.position
+    )
   }
 
   toDOM(): HTMLElement {
-    const element = document.createElement('div')
-    element.className = 'cm-kuskus-code-open'
-    element.setAttribute('aria-hidden', 'true')
-    element.textContent = this.language
-    return element
+    const wrapper = document.createElement('div')
+    wrapper.className = 'cm-kuskus-code-block'
+    wrapper.dataset.position = String(this.position)
+
+    const header = document.createElement('div')
+    header.className = 'cm-kuskus-code-header'
+    const label = document.createElement('span')
+    label.textContent = codeLanguageLabel(this.language)
+    const copy = document.createElement('button')
+    copy.type = 'button'
+    copy.className = 'cm-kuskus-code-copy'
+    copy.textContent = 'Copy'
+    copy.setAttribute('aria-label', 'Copy code')
+    copy.addEventListener('click', async (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      if (await copyMarkdownCode(this.code)) {
+        copy.textContent = 'Copied'
+        window.setTimeout(() => {
+          copy.textContent = 'Copy'
+        }, 1500)
+      }
+    })
+    header.append(label, copy)
+
+    const pre = document.createElement('pre')
+    const code = document.createElement('code')
+    renderHighlightedCode(code, this.code, this.language)
+    pre.append(code)
+    wrapper.append(header, pre)
+    return wrapper
   }
 }
 
@@ -222,8 +249,7 @@ class LiveDecorationBuilder {
   constructor(
     private readonly state: EditorState,
     private readonly options: LivePreviewOptions,
-    private readonly activeLines: Set<number>,
-    private readonly toggleTask: (position: number) => void
+    private readonly activeLines: Set<number>
   ) {}
 
   isActiveLine(position: number): boolean {
@@ -333,7 +359,7 @@ class LiveDecorationBuilder {
     for (let cursor: MarkdownSyntaxNode | null = node; cursor; cursor = cursor.parent) {
       if (cursor.name === 'Blockquote') depth += 1
     }
-    const lineClass = depth > 1 ? 'cm-kuskus-quote cm-kuskus-quote-nested' : 'cm-kuskus-quote'
+    const lineClass = `cm-kuskus-quote cm-kuskus-quote-depth-${Math.min(depth, 3)}`
     const startLine = this.state.doc.lineAt(node.from).number
     const endLine = this.state.doc.lineAt(Math.min(node.to, this.state.doc.length)).number
     for (let line = startLine; line <= endLine; line += 1) {
@@ -349,44 +375,24 @@ class LiveDecorationBuilder {
 
   private handleFencedCode(node: MarkdownSyntaxNode): void {
     const marks = node.getChildren('CodeMark')
-    if (marks.length === 0) return
-    const openMark = marks[0]
-    const closeMark = marks.length > 1 ? marks[marks.length - 1] : null
+    if (marks.length < 2) return
+    const openLine = this.state.doc.lineAt(marks[0].from)
+    const closeLine = this.state.doc.lineAt(marks[marks.length - 1].from)
+    for (let line = openLine.number; line <= closeLine.number; line += 1) {
+      if (this.isLineActive(line)) return
+    }
     const infoNode = node.getChild('CodeInfo')
     const language = infoNode ? this.state.sliceDoc(infoNode.from, infoNode.to).trim() : ''
-    const openLine = this.state.doc.lineAt(openMark.from)
-
-    const firstContentLine = openLine.number + 1
-    if (!this.isActiveLine(openMark.from)) {
-      if (language) {
-        this.addReplace(
-          openLine.from,
-          openLine.to,
-          Decoration.replace({ widget: new CodeFenceWidget(language), block: true })
-        )
-      } else {
-        const end = Math.min(openLine.to + 1, this.state.doc.length)
-        this.addReplace(openLine.from, end, Decoration.replace({}))
-      }
-    }
-
-    let lastContentLine = this.state.doc.lineAt(node.to).number
-    if (closeMark) {
-      const closeLine = this.state.doc.lineAt(closeMark.from)
-      lastContentLine = closeLine.number - 1
-      if (!this.isActiveLine(closeMark.from)) {
-        const end = Math.min(closeLine.to + 1, this.state.doc.length)
-        this.addReplace(closeLine.from, end, Decoration.replace({}))
-      }
-    }
-
-    const docLines = this.state.doc.lines
-    for (let line = firstContentLine; line <= Math.min(lastContentLine, docLines); line += 1) {
-      let className = 'cm-kuskus-codeblock'
-      if (line === firstContentLine && !language) className += ' cm-kuskus-codeblock-first'
-      if (line === lastContentLine) className += ' cm-kuskus-codeblock-last'
-      this.addLine(this.state.doc.line(line).from, Decoration.line({ class: className }))
-    }
+    const code = this.state.sliceDoc(openLine.to, closeLine.from).replace(/^\n|\n$/g, '')
+    const to = Math.min(closeLine.to + 1, this.state.doc.length)
+    this.addReplace(
+      openLine.from,
+      to,
+      Decoration.replace({
+        widget: new CodeBlockWidget(code, language, openLine.from),
+        block: true
+      })
+    )
   }
 
   private handleHorizontalRule(from: number): void {
@@ -408,6 +414,7 @@ class LiveDecorationBuilder {
       }
       if (cursor.name === 'BulletList') break
     }
+    if (!ordered && /^ \[[ xX]\]/.test(this.state.sliceDoc(node.to, node.to + 4))) return
     const label = ordered ? this.state.sliceDoc(node.from, node.to) : '•'
     let end = node.to
     if (this.state.sliceDoc(end, end + 1) === ' ') end += 1
@@ -446,11 +453,7 @@ class LiveDecorationBuilder {
     if (this.isActiveLine(from)) return
     const text = this.state.sliceDoc(from, to)
     const checked = /x/i.test(text.charAt(1))
-    this.addReplace(
-      from,
-      to,
-      Decoration.replace({ widget: new CheckboxWidget(checked, from, this.toggleTask) })
-    )
+    this.addReplace(from, to, Decoration.replace({ widget: new CheckboxWidget(checked, from) }))
   }
 
   private handleMarkerChildren(node: MarkdownSyntaxNode, markerName: string): void {
@@ -657,18 +660,17 @@ class LiveDecorationBuilder {
   }
 }
 
-function buildDecorations(view: EditorView, options: LivePreviewOptions): DecorationSet {
-  const activeLines = activeLineNumbers(view.state)
-  const toggleTask = (position: number): void => {
-    const current = view.state.sliceDoc(position + 1, position + 2)
-    view.dispatch({
-      changes: { from: position + 1, to: position + 2, insert: current === ' ' ? 'x' : ' ' },
-      userEvent: 'input'
-    })
-  }
-  const builder = new LiveDecorationBuilder(view.state, options, activeLines, toggleTask)
-  for (const range of view.visibleRanges) {
-    builder.buildRange(range.from, range.to)
+export function buildLivePreviewDecorations(
+  state: EditorState,
+  options: LivePreviewOptions
+): DecorationSet {
+  const builder = new LiveDecorationBuilder(state, options, activeLineNumbers(state))
+  const hidden = options.hiddenRange
+  if (!hidden) {
+    builder.buildRange(0, state.doc.length)
+  } else {
+    if (hidden.from > 0) builder.buildRange(0, hidden.from)
+    if (hidden.to < state.doc.length) builder.buildRange(hidden.to, state.doc.length)
   }
   return builder.finish()
 }
@@ -735,35 +737,16 @@ const livePreviewTheme = EditorView.theme({
     borderLeft: '2px solid var(--typeset-rule)',
     paddingLeft: '1em'
   },
-  '.cm-kuskus-quote-nested': {
-    paddingLeft: '1.75rem'
+  '.cm-kuskus-quote-depth-2': {
+    borderLeftColor: 'transparent',
+    boxShadow: 'inset 2px 0 var(--typeset-rule), inset 1.25em 0 var(--typeset-rule)',
+    paddingLeft: '2.25em'
   },
-  '.cm-kuskus-codeblock': {
-    backgroundColor: 'var(--typeset-code-background)',
-    fontFamily: 'var(--typeset-font-mono)',
-    fontSize: '0.875em',
-    lineHeight: '1.5',
-    padding: '0 1em'
-  },
-  '.cm-kuskus-codeblock-first': {
-    borderRadius: 'var(--radius) var(--radius) 0 0',
-    paddingTop: '0.75em'
-  },
-  '.cm-kuskus-codeblock-last': {
-    borderRadius: '0 0 var(--radius) var(--radius)',
-    paddingBottom: '0.75em'
-  },
-  '.cm-kuskus-codeblock-first.cm-kuskus-codeblock-last': {
-    borderRadius: 'var(--radius)'
-  },
-  '.cm-kuskus-code-open': {
-    backgroundColor: 'var(--typeset-code-background)',
-    borderRadius: 'var(--radius) var(--radius) 0 0',
-    color: 'var(--muted-foreground)',
-    fontFamily: 'var(--typeset-font-mono)',
-    fontSize: '0.75em',
-    lineHeight: '1.5',
-    padding: '0.5em 1em 0'
+  '.cm-kuskus-quote-depth-3': {
+    borderLeftColor: 'transparent',
+    boxShadow:
+      'inset 2px 0 var(--typeset-rule), inset 1.25em 0 var(--typeset-rule), inset 2.5em 0 var(--typeset-rule)',
+    paddingLeft: '3.5em'
   },
   '.cm-kuskus-hr': {
     borderTop: '1px solid var(--typeset-rule)',
@@ -858,8 +841,31 @@ const livePreviewTheme = EditorView.theme({
 function followClickHandler(getOptions: () => LivePreviewOptions): Extension {
   return EditorView.domEventHandlers({
     click(event, view) {
-      if (!(event.ctrlKey || event.metaKey)) return false
       const target = event.target as HTMLElement | null
+      const checkbox = target?.closest<HTMLElement>('.cm-kuskus-checkbox')
+      if (checkbox) {
+        const position = Number(checkbox.dataset.position)
+        if (Number.isInteger(position)) {
+          const current = view.state.sliceDoc(position + 1, position + 2)
+          view.dispatch({
+            changes: { from: position + 1, to: position + 2, insert: current === ' ' ? 'x' : ' ' },
+            userEvent: 'input'
+          })
+          event.preventDefault()
+          return true
+        }
+      }
+      const codeBlock = target?.closest<HTMLElement>('.cm-kuskus-code-block')
+      if (codeBlock) {
+        const position = Number(codeBlock.dataset.position)
+        if (Number.isInteger(position)) {
+          view.dispatch({ selection: { anchor: position } })
+          view.focus()
+          event.preventDefault()
+          return true
+        }
+      }
+      if (!(event.ctrlKey || event.metaKey)) return false
       const wiki = target?.closest('.cm-kuskus-wikilink')
       if (wiki) {
         const destination = wiki.getAttribute('data-target')
@@ -895,38 +901,23 @@ export function liveMarkdownPreview(
   getOptions: () => LivePreviewOptions,
   presentation: MarkdownTypesetPresentation
 ): Extension {
-  const plugin = ViewPlugin.fromClass(
-    class {
-      decorations: DecorationSet
-      private activeKey: string
-
-      constructor(view: EditorView) {
-        this.activeKey = activeLineKey(view.state)
-        this.decorations = buildDecorations(view, getOptions())
-      }
-
-      update(update: ViewUpdate): void {
-        const invalidated = update.transactions.some(hasInvalidation)
-        const nextKey = activeLineKey(update.state)
-        if (
-          update.docChanged ||
-          update.viewportChanged ||
-          invalidated ||
-          nextKey !== this.activeKey
-        ) {
-          this.activeKey = nextKey
-          this.decorations = buildDecorations(update.view, getOptions())
-        }
-      }
-    },
-    { decorations: (value) => value.decorations }
-  )
+  const decorations = StateField.define<DecorationSet>({
+    create: (state) => buildLivePreviewDecorations(state, getOptions()),
+    update: (value, transaction) =>
+      transaction.docChanged ||
+      hasInvalidation(transaction) ||
+      !transaction.startState.selection.eq(transaction.state.selection) ||
+      syntaxTree(transaction.startState) !== syntaxTree(transaction.state)
+        ? buildLivePreviewDecorations(transaction.state, getOptions())
+        : value,
+    provide: (field) => EditorView.decorations.from(field)
+  })
   return [
     EditorView.editorAttributes.of({
       class: 'cm-kuskus-live',
       'data-typeset-presentation': presentation
     }),
-    plugin,
+    decorations,
     livePreviewTheme,
     followClickHandler(getOptions)
   ]

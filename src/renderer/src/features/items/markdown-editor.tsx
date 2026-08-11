@@ -1,6 +1,6 @@
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
-import { syntaxHighlighting } from '@codemirror/language'
+import { bracketMatching, syntaxHighlighting } from '@codemirror/language'
 import {
   Compartment,
   EditorSelection,
@@ -8,11 +8,23 @@ import {
   Transaction,
   type Extension
 } from '@codemirror/state'
-import { EditorView, keymap } from '@codemirror/view'
+import { EditorView, highlightActiveLine, highlightSpecialChars, keymap } from '@codemirror/view'
 import { GFM } from '@lezer/markdown'
-import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef } from 'react'
+import { highlightSelectionMatches, searchKeymap } from '@codemirror/search'
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  type ReactNode
+} from 'react'
 
 import { getPublishedMarkdownChange } from '@/features/items/markdown-editor-change'
+import {
+  markdownEditorBlocks,
+  type MarkdownEditorBlocksOptions
+} from '@/features/items/markdown-editor-blocks'
 import { toggleMarkdownMarker } from '@/features/items/markdown-formatting'
 import {
   markdownHighlightStyle,
@@ -24,6 +36,8 @@ import {
   type LivePreviewOptions
 } from '@/features/items/markdown-live-preview'
 import { cn } from '@/lib/utils'
+import { markdownCodeLanguage } from '@/features/items/markdown-code'
+import { markdownSearchTheme } from '@/features/items/markdown-search-theme'
 
 export interface MarkdownEditorHandle {
   focus: () => void
@@ -37,6 +51,8 @@ interface MarkdownEditorProps {
   active: boolean
   live?: boolean
   liveOptions?: LivePreviewOptions
+  topContent?: ReactNode
+  hiddenRange?: { from: number; to: number }
   className?: string
   onChange: (value: string) => void
   onScroll?: (scroller: HTMLElement) => void
@@ -76,7 +92,11 @@ const editorTheme = EditorView.theme({
     padding: '2.5rem var(--typeset-detail-gutter)',
     caretColor: 'currentColor'
   },
-  '.cm-line': { padding: '0' }
+  '.cm-line': { padding: '0' },
+  '&.cm-kuskus-detail-editor .cm-activeLine': {
+    backgroundColor: 'color-mix(in oklab, var(--foreground) 6%, transparent)',
+    borderRadius: '0.25rem'
+  }
 })
 
 function markdownPresentation(live: boolean, getLiveOptions: () => LivePreviewOptions): Extension {
@@ -106,7 +126,18 @@ function markerCommand(marker: '*' | '**'): (view: EditorView) => boolean {
 
 export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
   function MarkdownEditor(
-    { value, invalid, active, live = false, liveOptions, className, onChange, onScroll },
+    {
+      value,
+      invalid,
+      active,
+      live = false,
+      liveOptions,
+      topContent,
+      hiddenRange,
+      className,
+      onChange,
+      onScroll
+    },
     forwardedRef
   ): React.JSX.Element {
     const hostRef = useRef<HTMLDivElement>(null)
@@ -116,12 +147,18 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     const onChangeRef = useRef(onChange)
     const onScrollRef = useRef(onScroll)
     const liveOptionsRef = useRef<LivePreviewOptions>(liveOptions ?? {})
+    const blocksOptionsRef = useRef<MarkdownEditorBlocksOptions>({
+      content: topContent,
+      hiddenRange
+    })
     const liveCompartmentRef = useRef(new Compartment())
+    const blocksCompartmentRef = useRef(new Compartment())
     const liveMountedRef = useRef(false)
 
     onChangeRef.current = onChange
     onScrollRef.current = onScroll
     liveOptionsRef.current = liveOptions ?? {}
+    blocksOptionsRef.current = { content: topContent, hiddenRange }
 
     useImperativeHandle(
       forwardedRef,
@@ -144,23 +181,30 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
           extensions: [
             history(),
             EditorView.lineWrapping,
-            markdown({ extensions: GFM }),
+            markdown({ extensions: GFM, codeLanguages: markdownCodeLanguage }),
+            bracketMatching(),
+            highlightSpecialChars(),
+            highlightActiveLine(),
+            highlightSelectionMatches(),
             EditorView.editorAttributes.of({ class: 'cm-kuskus-detail-editor' }),
             editorTheme,
+            markdownSearchTheme,
             liveCompartmentRef.current.of(
               markdownPresentation(initialLiveRef.current, () => liveOptionsRef.current)
             ),
+            blocksCompartmentRef.current.of(markdownEditorBlocks(() => blocksOptionsRef.current)),
             keymap.of([
               { key: 'Mod-b', preventDefault: true, run: markerCommand('**') },
               { key: 'Mod-i', preventDefault: true, run: markerCommand('*') },
               ...defaultKeymap,
-              ...historyKeymap
+              ...historyKeymap,
+              ...searchKeymap
             ]),
             EditorView.contentAttributes.of({
               'aria-label': 'Markdown editor',
               autocapitalize: 'off',
               autocomplete: 'off',
-              spellcheck: 'false'
+              spellcheck: 'true'
             }),
             EditorView.updateListener.of((update) => {
               const markdownChange = getPublishedMarkdownChange(
@@ -187,8 +231,13 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     useEffect(() => {
       const view = viewRef.current
       if (!view || view.state.doc.toString() === value) return
+      const { anchor, head } = view.state.selection.main
       view.dispatch({
         changes: { from: 0, to: view.state.doc.length, insert: value },
+        selection: EditorSelection.range(
+          Math.min(anchor, value.length),
+          Math.min(head, value.length)
+        ),
         annotations: Transaction.addToHistory.of(false)
       })
     }, [value])
@@ -225,6 +274,16 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       if (!view || !live) return
       view.dispatch({ effects: livePreviewInvalidation.of(null) })
     }, [live, liveOptions])
+
+    useEffect(() => {
+      const view = viewRef.current
+      if (!view) return
+      view.dispatch({
+        effects: blocksCompartmentRef.current.reconfigure(
+          markdownEditorBlocks(() => blocksOptionsRef.current)
+        )
+      })
+    }, [hiddenRange, topContent])
 
     return <div ref={hostRef} className={cn('size-full min-h-0', className)} />
   }

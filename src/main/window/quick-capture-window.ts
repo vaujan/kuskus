@@ -16,6 +16,7 @@ import {
   type QuickCapturePresentation
 } from './quick-capture-material'
 import { OPAQUE_WINDOW_BACKGROUND } from './window-material'
+import { installTextContextMenu } from './text-context-menu'
 
 export class QuickCaptureWindowController {
   private window: BrowserWindow | null = null
@@ -164,6 +165,8 @@ export class QuickCaptureWindowController {
     })
     this.window = window
     this.position(window)
+
+    installTextContextMenu(window)
 
     window.on('blur', () => {
       if (!this.blurSuppressed) window.hide()

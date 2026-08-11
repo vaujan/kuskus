@@ -10,6 +10,7 @@ export interface NoteAutosaveSnapshot {
   status: NoteSaveStatus
   draft: string
   savedMarkdown: string
+  savedUpdatedAt: string
   error: string | null
   conflict: NoteItemDto | null
 }
@@ -17,6 +18,7 @@ export interface NoteAutosaveSnapshot {
 interface NoteAutosaveOptions {
   itemId: string
   initialMarkdown: string
+  initialUpdatedAt?: string
   delay?: number
   save: (input: UpdateNoteInput) => Promise<UpdateNoteResult>
   onSaved: (item: NoteItemDto) => void
@@ -37,6 +39,7 @@ export class NoteAutosaveCoordinator {
       status: 'saved',
       draft: options.initialMarkdown,
       savedMarkdown: options.initialMarkdown,
+      savedUpdatedAt: options.initialUpdatedAt ?? '',
       error: null,
       conflict: null
     }
@@ -98,10 +101,28 @@ export class NoteAutosaveCoordinator {
       status: 'saved',
       draft: markdown,
       savedMarkdown: markdown,
+      savedUpdatedAt: this.snapshot.savedUpdatedAt,
       error: null,
       conflict: null
     })
     this.options.onDraftReplaced(markdown)
+  }
+
+  acceptDiskVersion(current: NoteItemDto): boolean {
+    if (current.body === this.snapshot.savedMarkdown) {
+      if (current.updatedAt > this.snapshot.savedUpdatedAt) {
+        this.setSnapshot({ ...this.snapshot, savedUpdatedAt: current.updatedAt })
+      }
+      return true
+    }
+    if (
+      this.hasPendingChanges() ||
+      (this.snapshot.savedUpdatedAt && current.updatedAt < this.snapshot.savedUpdatedAt)
+    ) {
+      return false
+    }
+    this.useDiskVersion(current)
+    return true
   }
 
   useDiskVersion(current: NoteItemDto): void {
@@ -110,6 +131,7 @@ export class NoteAutosaveCoordinator {
       status: 'saved',
       draft: current.body,
       savedMarkdown: current.body,
+      savedUpdatedAt: current.updatedAt,
       error: null,
       conflict: null
     })
@@ -122,6 +144,7 @@ export class NoteAutosaveCoordinator {
       ...this.snapshot,
       status: this.snapshot.draft.trim() ? 'dirty' : 'invalid',
       savedMarkdown: current.body,
+      savedUpdatedAt: current.updatedAt,
       error: this.snapshot.draft.trim() ? null : 'A saved note cannot be empty.',
       conflict: null
     })
@@ -198,6 +221,7 @@ export class NoteAutosaveCoordinator {
           ...this.snapshot,
           status: dirty ? 'dirty' : 'saved',
           savedMarkdown: result.data.body,
+          savedUpdatedAt: result.data.updatedAt,
           error: null,
           conflict: null
         })

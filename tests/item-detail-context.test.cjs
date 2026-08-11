@@ -101,7 +101,7 @@ test('reading width defaults safely and toggles between comfortable and wide', (
   assert.equal(toggleNoteReadingWidth('wide'), 'comfortable')
 })
 
-test('detail modes share the compact toolbar and configurable document frame', () => {
+test('detail modes share the compact toolbar and inline document flow', () => {
   const detailSource = readFileSync(
     require.resolve('../src/renderer/src/features/items/item-detail-dialog.tsx'),
     'utf8'
@@ -112,6 +112,10 @@ test('detail modes share the compact toolbar and configurable document frame', (
   )
   const markdownStyles = readFileSync(
     require.resolve('../src/renderer/src/assets/markdown.css'),
+    'utf8'
+  )
+  const windowMaterialStyles = readFileSync(
+    require.resolve('../src/renderer/src/assets/window-material.css'),
     'utf8'
   )
   const actionMenuSource = readFileSync(
@@ -130,6 +134,10 @@ test('detail modes share the compact toolbar and configurable document frame', (
     detailSource.indexOf("if (presentation === 'focus')"),
     detailSource.indexOf('const leadingControls')
   )
+  const focusSplitHandlerSource = workspaceSource.slice(
+    workspaceSource.indexOf('const handleFocusSplitChange'),
+    workspaceSource.indexOf('const changeFocusNoteExpanded')
+  )
 
   assert.match(detailSource, /data-detail-utility-bar/)
   assert.match(focusToolbarSource, /data-detail-focus-header/)
@@ -137,10 +145,13 @@ test('detail modes share the compact toolbar and configurable document frame', (
   assert.match(focusToolbarSource, /data-detail-focus-title/)
   assert.match(focusToolbarSource, /max-w-\[min\(32rem,42vw\)\] truncate/)
   assert.match(focusToolbarSource, /max-\[1080px\]:hidden/)
-  assert.match(focusToolbarSource, /shadow-\[inset_0_-1px_0_/)
   assert.match(focusToolbarSource, /expanded \? 'Restore item rail' : 'Expand note'/)
   assert.match(focusToolbarSource, /aria-pressed=\{expanded\}/)
   assert.match(focusToolbarSource, /onClick=\{\(\) => onExpandedChange\(!expanded\)\}/)
+  assert.match(
+    focusToolbarSource,
+    /!expanded && 'group-data-\[focus-single-pane=true\]\/focus-detail:hidden'/
+  )
   assert.match(focusToolbarSource, /<ArrowsDiagonal/)
   assert.match(focusToolbarSource, /<ArrowsDiagonalMinimize/)
   assert.match(
@@ -156,8 +167,8 @@ test('detail modes share the compact toolbar and configurable document frame', (
   assert.doesNotMatch(focusToolbarSource, /\[-webkit-app-region:drag\]/)
   assert.match(detailSource, /className="size-10 text-muted-foreground"/)
   assert.match(detailSource, /<DropdownMenuRadioGroup/)
-  assert.match(detailSource, /<DropdownMenuCheckboxItem/)
-  assert.match(detailSource, /<DropdownMenuLabel>Reading layout<\/DropdownMenuLabel>/)
+  assert.doesNotMatch(detailSource, /<DropdownMenuCheckboxItem/)
+  assert.match(actionMenuSource, /<DropdownMenuCheckboxItem/)
   assert.doesNotMatch(detailSource, /CaptionTileButton/)
   assert.match(actionMenuSource, /triggerSurface\?: 'default' \| 'caption'/)
   assert.match(actionMenuSource, /props\.triggerSurface === 'caption' \? 'ghost' : 'secondary'/)
@@ -166,6 +177,17 @@ test('detail modes share the compact toolbar and configurable document frame', (
   assert.match(focusWorkspaceSource, /expanded && 'hidden'/)
   assert.match(focusWorkspaceSource, /split && !expanded/)
   assert.match(focusWorkspaceSource, /data-focus-expanded={expanded}/)
+  assert.doesNotMatch(
+    windowMaterialStyles,
+    /\.focus-detail-surface\[data-focus-expanded='true'\] \{[^}]*background-color:/
+  )
+  assert.match(
+    windowMaterialStyles,
+    /\.focus-detail-surface\[data-focus-expanded='true'\] \[data-detail-structural-surface\] \{[\s\S]*?border: 0;[\s\S]*?border-radius: 0;/
+  )
+  assert.match(windowMaterialStyles, /\[data-focus-caption-controls\][\s\S]*?opacity: 0\.35/)
+  assert.match(windowMaterialStyles, /:is\(:hover, :focus-within\)[\s\S]*?opacity: 1/)
+  assert.match(focusWorkspaceSource, /data-focus-caption-controls/)
   assert.doesNotMatch(focusWorkspaceSource, /Focus history|Back to items|aria-label="Forward"/)
   assert.match(
     focusWorkspaceSource,
@@ -174,7 +196,7 @@ test('detail modes share the compact toolbar and configurable document frame', (
   assert.match(focusWorkspaceSource, /inset-x-0 top-0 z-30 h-10 \[-webkit-app-region:drag\]/)
   assert.match(detailSource, /data-detail-content-stack/)
   assert.match(detailSource, /flex-1 flex-col/)
-  assert.match(detailSource, /!item\.missingContent && !expanded/)
+  assert.match(detailSource, /relative flex min-h-0 min-w-0 flex-1/)
   assert.match(detailSource, /if \(nextExpanded\) setAttachmentsOpen\(false\)/)
   assert.match(
     detailSource,
@@ -187,6 +209,7 @@ test('detail modes share the compact toolbar and configurable document frame', (
   assert.match(workspaceSource, /focusItemSummary\?\.type === 'note'/)
   assert.match(workspaceSource, /open=\{!sidebarHidden && !focusNoteExpansionActive\}/)
   assert.match(workspaceSource, /setFocusNoteExpanded\(false\)/)
+  assert.doesNotMatch(focusSplitHandlerSource, /setFocusNoteExpanded\(false\)/)
   assert.match(
     workspaceSource,
     /announceStatus\(expanded \? 'Note expanded' : 'Item rail restored'\)/
@@ -197,36 +220,28 @@ test('detail modes share the compact toolbar and configurable document frame', (
   )
   assert.match(detailSource, /<ButtonGroup/)
   assert.match(detailSource, /aria-pressed={mode === value}/)
-  assert.match(detailSource, /<header className="kuskus-detail-document-frame/)
-  assert.match(detailSource, /label="Wide reading width"/)
-  assert.match(detailSource, /pressed={readingWidth === 'wide'}/)
+  assert.doesNotMatch(detailSource, /<header className="kuskus-detail-document-frame/)
+  assert.doesNotMatch(detailSource, /NoteMetadataControls|NoteIdentityControls/)
+  assert.match(detailSource, /function NoteDocumentBlocks/)
+  assert.match(detailSource, /showInlineTitle/)
   assert.match(
     detailSource,
-    /localStorage\.setItem\(NOTE_READING_WIDTH_STORAGE_KEY, readingWidth\)/
+    /localStorage\.setItem\(NOTE_INLINE_TITLE_STORAGE_KEY, String\(showInlineTitle\)\)/
   )
   assert.match(detailSource, /data-reading-width={readingWidth}/)
-  assert.match(detailSource, /<ViewportWide aria-hidden="true" \/>/)
-  assert.match(detailSource, /function NoteMetadataControls/)
-  assert.match(detailSource, /function NoteIdentityControls/)
+  assert.equal((detailSource.match(/data-detail-pane/g) ?? []).length, 1)
   assert.match(
     detailSource,
-    /kuskus-detail-document-frame flex shrink-0 flex-col border-b border-border\/40 py-5/
+    /data-detail-pane[\s\S]{0,240}window-canvas[\s\S]{0,240}rounded-tl-2xl/
   )
-  assert.doesNotMatch(detailSource, /identityControls=|showIdentityHeader/)
-  assert.match(detailSource, /h-10 w-fit shrink-0 gap-1 px-2/)
-  assert.match(detailSource, /w-max min-w-44 max-w-72/)
-  assert.match(detailSource, /w-max min-w-52 max-w-72/)
-  assert.match(detailSource, /aria-label={`Move note from \${locationLabel}`}/)
-  assert.match(detailSource, /<PopoverTitle className="text-sm">Note details<\/PopoverTitle>/)
-  assert.match(detailSource, /<FolderDropdownDestinationItems/)
-  assert.match(detailSource, /Manage attachments\.\.\./)
-  assert.doesNotMatch(
-    detailSource,
-    /<DropdownMenuLabel[^>]*>[\s\S]*?<\/DropdownMenuLabel>\s*<DropdownMenuGroup>/
-  )
-  assert.doesNotMatch(detailSource, /attachmentControl/)
+  assert.match(detailSource, /function DetailInspector/)
+  assert.match(detailSource, /function FileCanvas/)
   assert.match(detailSource, /<article className="kuskus-detail-document-frame/)
-  assert.match(detailSource, /mode === 'split' && 'hidden @min-\[860px\]\/detail:flex'/)
+  assert.match(actionMenuSource, /<DropdownMenuLabel>View<\/DropdownMenuLabel>/)
+  assert.match(actionMenuSource, /Readable line length/)
+  assert.match(actionMenuSource, /Inline title/)
+  assert.match(actionMenuSource, /Manage attachments/)
+  assert.match(actionMenuSource, /Note details/)
   assert.match(markdownStyles, /--detail-document-max-width: 48rem/)
   assert.match(markdownStyles, /max-width: var\(--detail-document-max-width\)/)
   assert.match(markdownStyles, /\[data-reading-width='wide'\] \.kuskus-detail-document-frame/)

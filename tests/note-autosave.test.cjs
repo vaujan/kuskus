@@ -117,6 +117,52 @@ test('restores a pending autosave when a dirty draft survives a remount', async 
   coordinator.dispose()
 })
 
+test('ignores stale library refreshes without replacing the current draft', () => {
+  const replacements = []
+  const coordinator = new NoteAutosaveCoordinator({
+    itemId: 'item-1',
+    initialMarkdown: '# Current',
+    initialUpdatedAt: '2026-07-28T10:00:00.000Z',
+    save: async () => ({ ok: true, data: makeNote('# Current') }),
+    onSaved: () => undefined,
+    onDraftReplaced: (markdown) => replacements.push(markdown)
+  })
+
+  assert.equal(
+    coordinator.acceptDiskVersion({
+      ...makeNote('# Stale'),
+      updatedAt: '2026-07-28T09:00:00.000Z'
+    }),
+    false
+  )
+  assert.equal(coordinator.getSnapshot().draft, '# Current')
+  assert.deepEqual(replacements, [])
+  coordinator.dispose()
+})
+
+test('accepts a newer disk version when there are no local changes', () => {
+  const replacements = []
+  const coordinator = new NoteAutosaveCoordinator({
+    itemId: 'item-1',
+    initialMarkdown: '# Current',
+    initialUpdatedAt: '2026-07-28T09:00:00.000Z',
+    save: async () => ({ ok: true, data: makeNote('# Current') }),
+    onSaved: () => undefined,
+    onDraftReplaced: (markdown) => replacements.push(markdown)
+  })
+
+  assert.equal(
+    coordinator.acceptDiskVersion({
+      ...makeNote('# External'),
+      updatedAt: '2026-07-28T10:00:00.000Z'
+    }),
+    true
+  )
+  assert.equal(coordinator.getSnapshot().draft, '# External')
+  assert.deepEqual(replacements, ['# External'])
+  coordinator.dispose()
+})
+
 test('stays disposed after the final unmount and ignores late updates', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
   const saves = []
