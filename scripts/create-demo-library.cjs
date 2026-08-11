@@ -13,7 +13,19 @@ const ids = {
   kuskus: '20000000-0000-4000-8000-000000000001',
   interfaceReferences: '20000000-0000-4000-8000-000000000002',
   research: '20000000-0000-4000-8000-000000000003',
-  writing: '20000000-0000-4000-8000-000000000004'
+  writing: '20000000-0000-4000-8000-000000000004',
+  markdownLab: '20000000-0000-4000-8000-000000000005'
+}
+
+const markdownLabIds = {
+  guide: '70000000-0000-4000-8000-000000000001',
+  typography: '70000000-0000-4000-8000-000000000002',
+  lists: '70000000-0000-4000-8000-000000000003',
+  links: '70000000-0000-4000-8000-000000000004',
+  code: '70000000-0000-4000-8000-000000000005',
+  stress: '70000000-0000-4000-8000-000000000006',
+  spacedImage: '70000000-0000-4000-8000-000000000007',
+  parenthesizedImage: '70000000-0000-4000-8000-000000000008'
 }
 
 function timestamp(daysAgo, hour = 9, minute = 0) {
@@ -107,6 +119,344 @@ function url(id, title, daysAgo, sourceUrl, description) {
   }
 }
 
+function markdownDocument(lines) {
+  return `${lines.join('\n')}\n`
+}
+
+function stressSection(index) {
+  return markdownDocument([
+    `## Stress section ${String(index).padStart(2, '0')}`,
+    '',
+    `Section ${index} repeats realistic prose so long-note scrolling, editor updates, and preview layout can be checked without generated filler. **Strong text**, *emphasis*, ~~discarded copy~~, and \`inline code ${index}\` share one paragraph.`,
+    '',
+    'A deliberate hard break follows this phrase.  ',
+    `This sentence is line two of section ${index}, while this`,
+    'soft source break is rendered by the configured breaks plugin.',
+    '',
+    `- Section ${index} unordered item`,
+    `  - Nested observation ${index}.1`,
+    `  - Nested observation ${index}.2 with [an external link](https://example.com/stress/${index})`,
+    `1. Ordered checkpoint ${index}`,
+    `2. Another checkpoint ${index}`,
+    `- [${index % 2 === 0 ? 'x' : ' '}] Alternating task state for section ${index}`,
+    '',
+    `> Quoted field note ${index}: long documents should remain readable and responsive.`,
+    '>',
+    `> > Nested response ${index}: source markers should reappear on the active line.`,
+    '',
+    '| Measure | Value | Result |',
+    '| :-- | --: | :--: |',
+    `| Section | ${index} | visible |`,
+    `| Formula | $x_${index}^2$ | rendered |`,
+    '',
+    '```ts',
+    `const stressSection${index} = { index: ${index}, stable: true }`,
+    `console.log(stressSection${index})`,
+    '```',
+    '',
+    `Inline math $a_${index} + b_${index} = c_${index}$ sits beside prose.`,
+    '',
+    '$$',
+    `\\sum_{n=1}^{${index + 3}} n = \\frac{${index + 3}(${index + 4})}{2}`,
+    '$$',
+    '',
+    '---',
+    ''
+  ])
+}
+function markdownLabGuide() {
+  return markdownDocument([
+    '---',
+    'fixture: markdown-lab',
+    'purpose: manual-renderer-verification',
+    'tags:',
+    '  - development',
+    '  - markdown',
+    '---',
+    '',
+    '# Markdown Lab',
+    '',
+    'This collection is the canonical manual fixture for Kuskus Markdown rendering. The YAML above must remain in source mode but stay hidden in preview mode.',
+    '',
+    '## Coverage map',
+    '',
+    '- [[01 — Typography and blocks]] covers prose and block structure.',
+    '- [[02 — Lists, tasks, and tables]] covers GFM collections.',
+    '- [[03 — Links, wikilinks, and images]] covers navigation and attachment resolution.',
+    '- [[04 — Code and mathematics]] covers literal and typeset technical content.',
+    '- [[99 — Long mixed-content stress test]] exercises sustained scrolling and editing.',
+    '',
+    '## Manual workflow',
+    '',
+    '- [ ] Inspect each note as a masonry card.',
+    '- [ ] Open detail preview and switch between narrow and wide reading widths.',
+    '- [ ] Toggle live preview and source mode; place the caret on decorated lines.',
+    '- [ ] Toggle tasks and edit text near the beginning, middle, and end.',
+    '- [ ] Close and restart the app, then confirm autosaved changes reload.',
+    '- [ ] Run `pnpm demo:reset` and confirm the canonical fixture returns.',
+    '',
+    '> The fixture contains intentionally unresolved links and images. Those are presentation edge cases, not corrupt library records.'
+  ])
+}
+
+function markdownLabTypography() {
+  return markdownDocument([
+    '# Heading level one',
+    '',
+    'Opening paragraph with **strong text**, *emphasized text*, ***strong emphasis***, ~~strikethrough~~, and an escaped \\*asterisk\\*.',
+    '',
+    '## Heading level two',
+    '',
+    'A soft source break appears here',
+    'and should render as a visible line break because Kuskus enables remark-breaks.',
+    '',
+    'A Markdown hard break appears here.  ',
+    'This line follows two trailing spaces.',
+    '',
+    '### Heading level three',
+    '',
+    'Typography should handle punctuation—em dashes, “curly quotes,” ellipses…, emoji 🌿, accented text café, and non-Latin text 日本語 العربية—without changing the source.',
+    '',
+    '#### Heading level four',
+    '',
+    '> A blockquote begins with a single level.',
+    '>',
+    '> It can contain **formatting**, `inline code`, and multiple paragraphs.',
+    '>',
+    '> > A nested quote tests the second visual depth.',
+    '> >',
+    '> > > A third source depth should remain structurally valid.',
+    '',
+    '##### Heading level five',
+    '',
+    'Escapes: \\# not a heading, \\[not a link\\], \\`not code\\`, and literal backslash \\\\.',
+    '',
+    '---',
+    '',
+    '###### Heading level six',
+    '',
+    'The horizontal rule above separates the smallest heading from the preceding examples. This final paragraph is deliberately long enough to wrap several times at the narrow reading width and expose text wrapping, balanced headings, selection, and caret behavior.'
+  ])
+}
+function markdownLabLists() {
+  return markdownDocument([
+    '# Lists, tasks, and tables',
+    '',
+    '## Unordered and mixed nesting',
+    '',
+    '- First top-level item',
+    '- Second top-level item',
+    '  - Nested bullet',
+    '    1. Ordered item inside a bullet',
+    '    2. Second ordered item',
+    '       - Fourth-level mixed item',
+    '  - A multiline item whose continuation remains part of the item',
+    '    and wraps onto another source line for indentation testing.',
+    '- Final top-level item',
+    '',
+    '## Ordered list',
+    '',
+    '1. Capture the reference.',
+    '2. Review it in the detail view.',
+    '3. Move it into a collection.',
+    '   1. Confirm nested numbering.',
+    '   2. Confirm alignment after number nine.',
+    '4. Reload the app.',
+    '',
+    '## GFM task list',
+    '',
+    '- [ ] Open task',
+    '- [x] Completed lowercase task',
+    '- [X] Completed uppercase task',
+    '- [ ] Parent task',
+    '  - [x] Completed child',
+    '  - [ ] Open child with **formatted text**',
+    '',
+    '## Alignment and escaping table',
+    '',
+    '| Left aligned | Centered | Right aligned | Escaped content |',
+    '| :-- | :--: | --: | :-- |',
+    '| alpha | beta | 1,234 | pipe \\| character |',
+    '| a long cell that must wrap instead of crushing neighboring columns | **strong** | 99.95 | `inline code` |',
+    '| 日本語 | $x^2$ | -42 | [link](https://example.com/table) |',
+    '',
+    '## Wide overflow table',
+    '',
+    '| Column one | Column two | Column three | Column four | Column five | Column six | Column seven |',
+    '| --- | --- | --- | --- | --- | --- | --- |',
+    '| one | two | three | four | five | six | seven |',
+    '| intentionally long value | another intentionally long value | compact | compact | compact | compact | final value |'
+  ])
+}
+
+function markdownLabLinks(spacedFilename) {
+  return markdownDocument([
+    '# Links, wikilinks, and images',
+    '',
+    '## Web links',
+    '',
+    '- Inline: [Example domain](https://example.com/path?query=markdown#fragment)',
+    '- Autolink: <https://example.com/autolink>',
+    '- Reference: [Kuskus reference][kuskus-docs]',
+    '- Bare text is intentionally not linked: https://example.com/bare',
+    '',
+    '[kuskus-docs]: https://example.com/reference "Reference title"',
+    '',
+    '## Vault navigation',
+    '',
+    '- Plain wikilink: [[01 — Typography and blocks]]',
+    '- Aliased wikilink: [[01 — Typography and blocks|typography fixture]]',
+    '- Heading target: [[01 — Typography and blocks#Heading level two|jump to heading]]',
+    '- Unresolved note: [[This note intentionally does not exist]]',
+    '- Note embed fallback: ![[02 — Lists, tasks, and tables|embedded list note]]',
+    '',
+    '## Local image resolution',
+    '',
+    'Standard angle-wrapped destination with a space:',
+    '',
+    `![Wide Markdown sample](<./${spacedFilename}>)`,
+    '',
+    'URL-encoded destination with parentheses:',
+    '',
+    '![Detailed Markdown sample](./Markdown%20sample%20%28detail%29.png)',
+    '',
+    'Obsidian attachment embed and alias:',
+    '',
+    `![[${spacedFilename}|Obsidian image alias]]`,
+    '',
+    '## Safe fallbacks',
+    '',
+    'A remote image is presented as a link rather than fetched into the document:',
+    '',
+    '![Remote image](https://example.com/remote-image.png)',
+    '',
+    'A missing relative image becomes a readable target instead of an unsafe filesystem read:',
+    '',
+    '![Intentionally missing image](./missing-image.png)',
+    '',
+    'An empty destination remains visibly invalid:',
+    '',
+    '![Invalid image]()'
+  ])
+}
+function markdownLabCodeAndMath() {
+  return markdownDocument([
+    '# Code and mathematics',
+    '',
+    'Inline code preserves Markdown punctuation: `const marker = "**not strong**"` and ``code containing a ` backtick``.',
+    '',
+    '## Fenced code with language',
+    '',
+    '```ts',
+    'type MarkdownFixture = {',
+    "  mode: 'source' | 'live' | 'preview'",
+    '  stable: boolean',
+    '}',
+    '',
+    "const fixture: MarkdownFixture = { mode: 'live', stable: true }",
+    '```',
+    '',
+    '## Fence without language',
+    '',
+    '```',
+    '# This stays literal rather than becoming a heading',
+    '- [ ] This stays literal rather than becoming a task',
+    '```',
+    '',
+    '## Long code line',
+    '',
+    '```js',
+    "const longLine = 'This intentionally long source line checks horizontal containment without changing or wrapping the stored Markdown value when switching between source and live preview modes.'",
+    '```',
+    '',
+    '## Literal Markdown example',
+    '',
+    'To create emphasis, type `*text*`; to create a local image, type `![alt](./image.png)`.',
+    '',
+    '## Inline math',
+    '',
+    'The identity $e^{i\\pi} + 1 = 0$ should sit on the text baseline, alongside $x_1, x_2, \\ldots, x_n$.',
+    '',
+    '## Display math',
+    '',
+    '$$',
+    '\\int_{-\\infty}^{\\infty} e^{-x^2} \\, dx = \\sqrt{\\pi}',
+    '$$',
+    '',
+    '$$\\frac{a}{b} = \\left(\\frac{c}{d}\\right)^2$$',
+    '',
+    '## Malformed math fallback',
+    '',
+    'The renderer must remain usable even when KaTeX receives an unknown command: $\\definitelyNotACommand{x}$.',
+    '',
+    '$$',
+    '\\frac{unfinished}{',
+    '$$'
+  ])
+}
+
+function markdownLabStress() {
+  return markdownDocument([
+    '# Long mixed-content stress test',
+    '',
+    'Use this note to test card clipping, long detail scrolling, narrow and wide reading widths, live preview decorations, source editing, autosave, and restart recovery. The repeated sections are intentionally meaningful and deterministic.',
+    '',
+    '![Stress-test header](<./Markdown sample wide.png>)',
+    '',
+    ...Array.from({ length: 16 }, (_, index) => stressSection(index + 1)),
+    '## End-of-document checkpoint',
+    '',
+    '- [ ] Edit this final line, wait for autosave, restart Kuskus, and confirm the change returns.',
+    '- [ ] Run `pnpm demo:reset` when the experiment is complete.'
+  ])
+}
+
+async function markdownLabItems() {
+  const image = await loadPng('wireframe-notebook.png')
+  const spacedFilename = 'Markdown sample wide.png'
+  const parenthesizedFilename = 'Markdown sample (detail).png'
+  const attachments = [
+    {
+      id: markdownLabIds.spacedImage,
+      filename: spacedFilename,
+      relativePath: `./${spacedFilename}`,
+      sourceFilename: 'wireframe-notebook.png',
+      mediaType: 'image/png',
+      width: image.width,
+      height: image.height
+    },
+    {
+      id: markdownLabIds.parenthesizedImage,
+      filename: parenthesizedFilename,
+      relativePath: `./${parenthesizedFilename}`,
+      sourceFilename: 'wireframe-notebook.png',
+      mediaType: 'image/png',
+      width: image.width,
+      height: image.height
+    }
+  ]
+
+  return [
+    note(markdownLabIds.guide, '00 — Markdown Lab guide', 0, markdownLabGuide()),
+    note(markdownLabIds.typography, '01 — Typography and blocks', 0, markdownLabTypography()),
+    note(markdownLabIds.lists, '02 — Lists, tasks, and tables', 0, markdownLabLists()),
+    note(
+      markdownLabIds.links,
+      '03 — Links, wikilinks, and images',
+      0,
+      markdownLabLinks(spacedFilename),
+      {
+        attachments,
+        files: {
+          [`assets/${spacedFilename}`]: image.bytes,
+          [`assets/${parenthesizedFilename}`]: image.bytes
+        }
+      }
+    ),
+    note(markdownLabIds.code, '04 — Code and mathematics', 0, markdownLabCodeAndMath()),
+    note(markdownLabIds.stress, '99 — Long mixed-content stress test', 0, markdownLabStress())
+  ]
+}
 async function writeJson(path, value) {
   await writeFile(path, `${JSON.stringify(value, null, 2)}\n`, 'utf8')
 }
@@ -388,9 +738,11 @@ async function seedDemoEnvironment({ root = DEFAULT_DEMO_ROOT, reset = false } =
       [ids.kuskus, 'Kuskus', 'rocket', 92],
       [ids.interfaceReferences, 'Interface references', 'palette', 71],
       [ids.research, 'Research', 'flask', 58],
-      [ids.writing, 'Writing', 'notes', 43]
+      [ids.writing, 'Writing', 'notes', 43],
+      [ids.markdownLab, 'Markdown Lab', 'markdown', 0]
     ]
     const itemsByCollection = collectionItems()
+    itemsByCollection.set(ids.markdownLab, await markdownLabItems())
     for (const [id, name, icon, daysAgo] of collections) {
       const directory = join(libraryPath, name)
       await mkdir(directory, { recursive: true })

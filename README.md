@@ -42,7 +42,9 @@ After closing the demo app, restore the original mock folders and data at any ti
 pnpm demo:reset
 ```
 
-Use `pnpm demo:seed` to create a missing demo library without resetting existing demo changes. The fixture represents a designer-developer actively dogfooding Kuskus, with recent working notes, original local visuals in several proportions, healthy URL references, a portable note attachment, partially populated folders, and one Trash item.
+Use `pnpm demo:seed` to create a missing demo library without resetting existing demo changes. The fixture represents a designer-developer actively dogfooding Kuskus, with recent working notes, original local visuals in several proportions, healthy URL references, a portable note attachment, partially populated folders, one Trash item, and a dedicated Markdown Lab containing focused feature fixtures plus a long stress document.
+
+If `.demo` already exists, run `pnpm demo:reset` once to add or restore the canonical Markdown Lab. `demo:seed` intentionally preserves an existing profile and will not overwrite local dogfooding changes.
 
 ## Verification
 

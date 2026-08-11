@@ -12,7 +12,7 @@ const {
   writeFile
 } = require('node:fs/promises')
 const { tmpdir } = require('node:os')
-const { dirname, join } = require('node:path')
+const { dirname, join, relative, resolve } = require('node:path')
 const test = require('node:test')
 const ts = require('typescript')
 
@@ -2551,11 +2551,11 @@ test('seeds and resets a cultivated isolated demo profile', async (context) => {
   assert.equal(state.status, 'ready')
   assert.equal(state.library.path, libraryPath)
   assert.equal(state.library.name, LIBRARY_NAME)
-  assert.equal(state.library.items.length, 19)
-  assert.equal(state.library.collections.length, 4)
+  assert.equal(state.library.items.length, 27)
+  assert.equal(state.library.collections.length, 5)
   assert.deepEqual(
     state.library.collections.map((collection) => collection.name),
-    ['Kuskus', 'Interface references', 'Research', 'Writing']
+    ['Kuskus', 'Interface references', 'Research', 'Writing', 'Markdown Lab']
   )
   assert.deepEqual(
     new Set(state.library.items.map((item) => item.type)),
@@ -2572,7 +2572,7 @@ test('seeds and resets a cultivated isolated demo profile', async (context) => {
   )
 
   const attachedNote = state.library.items.find(
-    (item) => item.type === 'note' && item.attachments.length > 0
+    (item) => item.type === 'note' && item.title === 'This week — close the capture loop'
   )
   assert.ok(attachedNote)
   assert.equal(attachedNote.title, 'This week \u2014 close the capture loop')
@@ -2596,17 +2596,75 @@ test('seeds and resets a cultivated isolated demo profile', async (context) => {
     true
   )
 
+  const markdownLabPath = join(libraryPath, 'Markdown Lab')
+  const guidePath = join(markdownLabPath, '00 — Markdown Lab guide.md')
+  const typographyPath = join(markdownLabPath, '01 — Typography and blocks.md')
+  const listsPath = join(markdownLabPath, '02 — Lists, tasks, and tables.md')
+  const linksPath = join(markdownLabPath, '03 — Links, wikilinks, and images.md')
+  const codePath = join(markdownLabPath, '04 — Code and mathematics.md')
+  const stressPath = join(markdownLabPath, '99 — Long mixed-content stress test.md')
+  const expectedLabNotes = [guidePath, typographyPath, listsPath, linksPath, codePath, stressPath]
+  assert.equal(
+    expectedLabNotes.every((path) => existsSync(path)),
+    true
+  )
+
+  const guide = await readFile(guidePath, 'utf8')
+  const typography = await readFile(typographyPath, 'utf8')
+  const lists = await readFile(listsPath, 'utf8')
+  const links = await readFile(linksPath, 'utf8')
+  const code = await readFile(codePath, 'utf8')
+  const stress = await readFile(stressPath, 'utf8')
+  assert.match(guide, /^---\nfixture: markdown-lab/m)
+  assert.match(typography, /###### Heading level six/)
+  assert.match(lists, /\| :-- \| :--: \| --: \|/)
+  assert.match(links, /!\[Intentionally missing image\]\(\.\/missing-image\.png\)/)
+  assert.match(links, /!\[Detailed Markdown sample\]\(\.\/Markdown%20sample%20%28detail%29\.png\)/)
+  assert.match(code, /\$\$\n\\int_\{-\\infty\}/)
+  assert.ok(stress.length > 12_000)
+  assert.match(stress, /## Stress section 16/)
+
+  const spacedAttachment = join(markdownLabPath, 'Markdown sample wide.png')
+  const parenthesizedAttachment = join(markdownLabPath, 'Markdown sample (detail).png')
+  assert.equal(existsSync(spacedAttachment), true)
+  assert.equal(existsSync(parenthesizedAttachment), true)
+  assert.equal(existsSync(join(markdownLabPath, 'missing-image.png')), false)
+
+  const labCollection = JSON.parse(
+    await readFile(
+      join(libraryPath, '.kuskus', 'collections', '20000000-0000-4000-8000-000000000005.json'),
+      'utf8'
+    )
+  )
+  assert.equal(labCollection.name, 'Markdown Lab')
+  assert.equal(labCollection.relativePath, 'Markdown Lab')
+
+  for (let index = 1; index <= 8; index += 1) {
+    const recordPath = join(
+      libraryPath,
+      '.kuskus',
+      'records',
+      `70000000-0000-4000-8000-${String(index).padStart(12, '0')}.json`
+    )
+    const record = JSON.parse(await readFile(recordPath, 'utf8'))
+    const resolvedItemPath = resolve(libraryPath, record.relativePath)
+    assert.equal(relative(libraryPath, resolvedItemPath).startsWith('..'), false)
+    assert.equal(record.relativePath.startsWith('Markdown Lab/'), true)
+  }
   const librarySentinel = join(libraryPath, 'preserve-without-reset.txt')
   const profileSentinel = join(userDataPath, 'stale-profile-state')
   await writeFile(librarySentinel, 'keep')
   await writeFile(profileSentinel, 'stale')
+  await writeFile(typographyPath, `${typography}\nLOCAL MARKDOWN LAB EDIT\n`)
   await seedDemoEnvironment({ root })
   assert.equal(existsSync(librarySentinel), true)
   assert.equal(existsSync(profileSentinel), true)
+  assert.match(await readFile(typographyPath, 'utf8'), /LOCAL MARKDOWN LAB EDIT/)
 
   const reset = await seedDemoEnvironment({ root, reset: true })
   assert.equal(reset.libraryPath, libraryPath)
   assert.equal(existsSync(librarySentinel), false)
   assert.equal(existsSync(profileSentinel), false)
   assert.equal(existsSync(join(reset.libraryPath, '.kuskus', 'library.json')), true)
+  assert.doesNotMatch(await readFile(typographyPath, 'utf8'), /LOCAL MARKDOWN LAB EDIT/)
 })
