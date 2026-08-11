@@ -422,7 +422,7 @@ function DetailToolbar({
     return (
       <header
         data-detail-focus-header
-        className="pointer-events-none relative z-40 grid h-10 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center shadow-[inset_0_-1px_0_var(--border)]"
+        className="pointer-events-none relative z-40 grid h-10 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center"
       >
         <div
           data-detail-focus-leading-actions
