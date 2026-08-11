@@ -250,6 +250,7 @@ export function Workspace({
   })
   const [focusItemId, setFocusItemId] = useState<string | null>(null)
   const [focusDetailOpen, setFocusDetailOpen] = useState(false)
+  const [focusNoteExpanded, setFocusNoteExpanded] = useState(false)
   const [showReferencedAttachments, setShowReferencedAttachments] = useState(
     () => localStorage.getItem('kuskus-show-referenced-attachments') === 'true'
   )
@@ -315,6 +316,15 @@ export function Workspace({
     if (detail) detail.requestTransition(action)
     else action()
   }, [])
+
+  const changeFocusItemId = useCallback(
+    (itemId: string | null): void => {
+      const item = library.items.find((candidate) => candidate.id === itemId)
+      setFocusNoteExpanded((current) => (item?.type === 'note' ? current : false))
+      setFocusItemId(itemId)
+    },
+    [library.items]
+  )
 
   const guardFocusTargets = useCallback(
     (itemIds: readonly string[], action: () => void): void => {
@@ -489,14 +499,14 @@ export function Workspace({
       }
       if (view === 'focus') {
         requestFocusTransition(() => {
-          setFocusItemId(matches[0].id)
+          changeFocusItemId(matches[0].id)
           setFocusDetailOpen(true)
         })
       } else {
         setSelectedItemId(matches[0].id)
       }
     },
-    [library.items, requestFocusTransition, view]
+    [changeFocusItemId, library.items, requestFocusTransition, view]
   )
   const selectAllVisibleItems = useCallback((): void => {
     setSelectedIds(new Set(visibleItems.map((item) => item.id)))
@@ -568,6 +578,9 @@ export function Workspace({
     () => library.items.find((item) => item.id === focusItemId) ?? null,
     [focusItemId, library.items]
   )
+  const focusNoteExpansionActive =
+    focusNoteExpanded && view === 'focus' && !composerOpen && focusItemSummary?.type === 'note'
+
   const focusItem =
     focusItemSummary?.type === 'note' && focusItemSummary.bodyTruncated
       ? (itemDetails.get(focusItemSummary.id) ?? null)
@@ -608,13 +621,13 @@ export function Workspace({
 
   const selectPreviousFocusItem = useCallback((): void => {
     if (focusVisibleIndex <= 0) return
-    requestFocusTransition(() => setFocusItemId(visibleItems[focusVisibleIndex - 1].id))
-  }, [focusVisibleIndex, requestFocusTransition, visibleItems])
+    requestFocusTransition(() => changeFocusItemId(visibleItems[focusVisibleIndex - 1].id))
+  }, [changeFocusItemId, focusVisibleIndex, requestFocusTransition, visibleItems])
 
   const selectNextFocusItem = useCallback((): void => {
     if (focusVisibleIndex < 0 || focusVisibleIndex >= visibleItems.length - 1) return
-    requestFocusTransition(() => setFocusItemId(visibleItems[focusVisibleIndex + 1].id))
-  }, [focusVisibleIndex, requestFocusTransition, visibleItems])
+    requestFocusTransition(() => changeFocusItemId(visibleItems[focusVisibleIndex + 1].id))
+  }, [changeFocusItemId, focusVisibleIndex, requestFocusTransition, visibleItems])
 
   const hasActiveRetrieval = search.trim().length > 0 || typeFilters.length > 0
 
@@ -625,6 +638,7 @@ export function Workspace({
         setSelectedIds(new Set())
         setSelectionAnchorId(null)
         setSelectedItemId(null)
+        setFocusNoteExpanded(false)
         setFocusItemId(null)
         setFocusDetailOpen(false)
         setComposerOpen(false)
@@ -641,6 +655,7 @@ export function Workspace({
       if (availableView === view) return
       const apply = (): void => {
         setView(availableView)
+        setFocusNoteExpanded(false)
         setSelectedItemId(null)
         setFocusDetailOpen(false)
         if (availableView === 'focus') {
@@ -654,8 +669,20 @@ export function Workspace({
   )
 
   const handleFocusSplitChange = useCallback((split: boolean): void => {
-    if (split) setFocusDetailOpen(true)
+    if (split) {
+      setFocusDetailOpen(true)
+      return
+    }
+    setFocusNoteExpanded(false)
   }, [])
+
+  const changeFocusNoteExpanded = useCallback(
+    (expanded: boolean): void => {
+      setFocusNoteExpanded(expanded)
+      announceStatus(expanded ? 'Note expanded' : 'Item rail restored')
+    },
+    [announceStatus]
+  )
 
   const pruneSelectionForRetrieval = useCallback(
     (query: string, filters: ItemTypeFilter[]): void => {
@@ -755,6 +782,7 @@ export function Workspace({
         return null
       }
       setLibrary(result.data)
+      setFocusNoteExpanded(false)
       setSelectedItemId((current) => {
         if (!current) return current
         const item = result.data.items.find((entry) => entry.id === current)
@@ -1146,14 +1174,21 @@ export function Workspace({
         }
         requestFocusTransition(() => {
           setComposerOpen(false)
-          setFocusItemId(itemId)
+          changeFocusItemId(itemId)
           setFocusDetailOpen(true)
         })
       } else {
         setSelectedItemId(itemId)
       }
     },
-    [announceStatus, composerHasTransientWork, requestFocusTransition, selectItem, view]
+    [
+      announceStatus,
+      changeFocusItemId,
+      composerHasTransientWork,
+      requestFocusTransition,
+      selectItem,
+      view
+    ]
   )
 
   const itemActions = useCallback(
@@ -1162,7 +1197,7 @@ export function Workspace({
         if (view === 'focus') {
           requestFocusTransition(() => {
             setComposerOpen(false)
-            setFocusItemId(item.id)
+            changeFocusItemId(item.id)
             setFocusDetailOpen(true)
           })
         } else setSelectedItemId(item.id)
@@ -1186,6 +1221,7 @@ export function Workspace({
     }),
     [
       archiveItemIds,
+      changeFocusItemId,
       guardFocusTargets,
       moveItemIds,
       openSource,
@@ -1337,6 +1373,7 @@ export function Workspace({
     const open = (): void => {
       mainComposerOwnershipRequested.current = captureOwner.current !== 'main'
       setComposerOpen(true)
+      setFocusNoteExpanded(false)
       if (view === 'focus') setFocusDetailOpen(true)
       setComposerFocusRequest((request) => request + 1)
     }
@@ -1353,6 +1390,7 @@ export function Workspace({
     setSelectedIds(new Set())
     setSelectionAnchorId(null)
     setComposerOpen(true)
+    setFocusNoteExpanded(false)
     if (!modalOpen) setComposerFocusRequest((request) => request + 1)
     announceStatus('Global capture ready in Inbox.')
     if (modalOpen) notifyGlobalCapturePrepared()
@@ -1400,6 +1438,7 @@ export function Workspace({
     (open: boolean): void => {
       if (!open) mainComposerOwnershipRequested.current = false
       setComposerOpen(open)
+      if (open) setFocusNoteExpanded(false)
       if (!open && view === 'focus') {
         const capturedItemId = focusAfterCaptureRef.current
         focusAfterCaptureRef.current = null
@@ -1820,6 +1859,8 @@ export function Workspace({
         key={`focus-${focusItem.id}`}
         presentation="focus"
         item={focusItem}
+        expanded={focusNoteExpansionActive}
+        onExpandedChange={changeFocusNoteExpanded}
         collections={library.collections}
         hasPrevious={focusVisibleIndex > 0}
         hasNext={focusVisibleIndex >= 0 && focusVisibleIndex < visibleItems.length - 1}
@@ -1886,7 +1927,7 @@ export function Workspace({
   return (
     <SidebarProvider
       keyboardShortcutEnabled={selectedItem === null}
-      open={!sidebarHidden}
+      open={!sidebarHidden && !focusNoteExpansionActive}
       onOpenChange={(open) => setSidebarHidden(!open)}
       width={sidebarWidth}
       onWidthChange={setSidebarWidth}
@@ -1998,17 +2039,10 @@ export function Workspace({
             <FocusWorkspace
               listWidth={focusListWidth}
               onListWidthChange={setFocusListWidth}
+              expanded={focusNoteExpansionActive}
               detailOpen={focusDetailOpen || composerOpen || showExternalDropShadow}
               onSplitChange={handleFocusSplitChange}
               onWindowClose={() => requestFocusTransition(window.electron.window.close)}
-              onBack={() => {
-                if (composerHasTransientWork) {
-                  announceStatus('Finish the current capture before returning to the list.')
-                  return
-                }
-                if (composerOpen) changeComposerOpen(false)
-                else requestFocusTransition(() => setFocusDetailOpen(false))
-              }}
               list={focusList}
               detail={focusDetail}
             />
@@ -2502,6 +2536,7 @@ export function Workspace({
           onOpenChange={setCaptureRecoveryOpen}
           onRestored={() => {
             setComposerOpen(true)
+            setFocusNoteExpanded(false)
             setComposerFocusRequest((request) => request + 1)
           }}
         />

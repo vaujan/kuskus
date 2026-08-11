@@ -122,6 +122,10 @@ test('detail modes share the compact toolbar and configurable document frame', (
     require.resolve('../src/renderer/src/features/library/focus-workspace.tsx'),
     'utf8'
   )
+  const workspaceSource = readFileSync(
+    require.resolve('../src/renderer/src/features/library/workspace.tsx'),
+    'utf8'
+  )
   const focusToolbarSource = detailSource.slice(
     detailSource.indexOf("if (presentation === 'focus')"),
     detailSource.indexOf('const leadingControls')
@@ -130,18 +134,39 @@ test('detail modes share the compact toolbar and configurable document frame', (
   assert.match(detailSource, /data-detail-utility-bar/)
   assert.match(focusToolbarSource, /data-detail-focus-header/)
   assert.match(focusToolbarSource, /grid h-10 shrink-0 grid-cols-/)
+  assert.match(focusToolbarSource, /data-detail-focus-title/)
+  assert.match(focusToolbarSource, /max-w-\[min\(32rem,42vw\)\] truncate/)
+  assert.match(focusToolbarSource, /max-\[1080px\]:hidden/)
+  assert.match(focusToolbarSource, /shadow-\[inset_0_-1px_0_/)
+  assert.match(focusToolbarSource, /expanded \? 'Restore item rail' : 'Expand note'/)
+  assert.match(focusToolbarSource, /aria-pressed=\{expanded\}/)
+  assert.match(focusToolbarSource, /onClick=\{\(\) => onExpandedChange\(!expanded\)\}/)
+  assert.match(focusToolbarSource, /<ArrowsDiagonal/)
+  assert.match(focusToolbarSource, /<ArrowsDiagonalMinimize/)
+  assert.match(
+    focusToolbarSource,
+    /transition-\[opacity,scale,filter\].*cubic-bezier\(0\.2,0,0,1\).*motion-reduce:transition-none/
+  )
   assert.doesNotMatch(focusToolbarSource, /data-detail-focus-identity|identityControls/)
   assert.match(focusToolbarSource, /data-detail-focus-actions/)
+  assert.match(focusToolbarSource, /col-start-3/)
+  assert.match(focusToolbarSource, /\{modeControls\}\s*\{actions\}/)
   assert.match(focusToolbarSource, /!isMac && 'pr-\[8\.625rem\]'/)
   assert.doesNotMatch(focusToolbarSource, /Previous item|Next item/)
   assert.doesNotMatch(focusToolbarSource, /\[-webkit-app-region:drag\]/)
-  assert.match(detailSource, /surface === 'caption' \? 'h-10 rounded-2xl'/)
+  assert.match(detailSource, /className="size-10 text-muted-foreground"/)
+  assert.match(detailSource, /<DropdownMenuRadioGroup/)
+  assert.match(detailSource, /<DropdownMenuCheckboxItem/)
+  assert.match(detailSource, /<DropdownMenuLabel>Reading layout<\/DropdownMenuLabel>/)
   assert.doesNotMatch(detailSource, /CaptionTileButton/)
   assert.match(actionMenuSource, /triggerSurface\?: 'default' \| 'caption'/)
   assert.match(actionMenuSource, /props\.triggerSurface === 'caption' \? 'ghost' : 'secondary'/)
   assert.doesNotMatch(actionMenuSource, /CaptionTileButton/)
   assert.match(focusWorkspaceSource, /data-focus-single-pane={!split}/)
-  assert.match(focusWorkspaceSource, /aria-label="Back to items"/)
+  assert.match(focusWorkspaceSource, /expanded && 'hidden'/)
+  assert.match(focusWorkspaceSource, /split && !expanded/)
+  assert.match(focusWorkspaceSource, /data-focus-expanded={expanded}/)
+  assert.doesNotMatch(focusWorkspaceSource, /Focus history|Back to items|aria-label="Forward"/)
   assert.match(
     focusWorkspaceSource,
     /pointer-events-auto absolute top-0 right-0 z-50 h-10 \[-webkit-app-region:no-drag\]/
@@ -149,6 +174,27 @@ test('detail modes share the compact toolbar and configurable document frame', (
   assert.match(focusWorkspaceSource, /inset-x-0 top-0 z-30 h-10 \[-webkit-app-region:drag\]/)
   assert.match(detailSource, /data-detail-content-stack/)
   assert.match(detailSource, /flex-1 flex-col/)
+  assert.match(detailSource, /!item\.missingContent && !expanded/)
+  assert.match(detailSource, /if \(nextExpanded\) setAttachmentsOpen\(false\)/)
+  assert.match(
+    detailSource,
+    /event\.key === 'Escape' && expanded && !isEditingTarget[\s\S]*changeExpanded\(false\)/
+  )
+  assert.match(
+    workspaceSource,
+    /const \[focusNoteExpanded, setFocusNoteExpanded\] = useState\(false\)/
+  )
+  assert.match(workspaceSource, /focusItemSummary\?\.type === 'note'/)
+  assert.match(workspaceSource, /open=\{!sidebarHidden && !focusNoteExpansionActive\}/)
+  assert.match(workspaceSource, /setFocusNoteExpanded\(false\)/)
+  assert.match(
+    workspaceSource,
+    /announceStatus\(expanded \? 'Note expanded' : 'Item rail restored'\)/
+  )
+  assert.doesNotMatch(
+    workspaceSource,
+    /localStorage\.(?:getItem|setItem)\([^\n]*focus-note-expanded/
+  )
   assert.match(detailSource, /<ButtonGroup/)
   assert.match(detailSource, /aria-pressed={mode === value}/)
   assert.match(detailSource, /<header className="kuskus-detail-document-frame/)

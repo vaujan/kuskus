@@ -12,6 +12,8 @@ import {
 } from 'react'
 import {
   IconAlignLeft as AlignLeft,
+  IconArrowsDiagonal as ArrowsDiagonal,
+  IconArrowsDiagonalMinimize as ArrowsDiagonalMinimize,
   IconCalendar as Calendar,
   IconChevronDown as ChevronDown,
   IconChevronLeft as ChevronLeft,
@@ -55,11 +57,15 @@ import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -382,6 +388,7 @@ function DetailControl({
 
 function DetailToolbar({
   itemId,
+  title,
   modeControls,
   actions,
   hasPrevious,
@@ -390,9 +397,12 @@ function DetailToolbar({
   onNext,
   onError,
   presentation,
+  expanded = false,
+  onExpandedChange,
   showClose = true
 }: {
   itemId: string
+  title: string
   modeControls?: React.ReactNode
   actions?: React.ReactNode
   hasPrevious: boolean
@@ -401,33 +411,83 @@ function DetailToolbar({
   onNext: () => void
   onError: (message: string) => void
   presentation: 'dialog' | 'focus'
+  expanded?: boolean
+  onExpandedChange?: (expanded: boolean) => void
   showClose?: boolean
 }): React.JSX.Element {
   if (presentation === 'focus') {
     const isMac = window.electron.window.platform === 'darwin'
+    const expandLabel = expanded ? 'Restore item rail' : 'Expand note'
 
     return (
       <header
         data-detail-focus-header
-        className="pointer-events-none relative z-40 grid h-10 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center"
+        className="pointer-events-none relative z-40 grid h-10 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center shadow-[inset_0_-1px_0_var(--border)]"
       >
-        <div aria-hidden="true" />
-        <div className="pointer-events-auto flex shrink-0 items-center [-webkit-app-region:no-drag]">
-          {modeControls}
+        <div
+          data-detail-focus-leading-actions
+          className="pointer-events-auto flex items-center [-webkit-app-region:no-drag] group-data-[focus-single-pane=true]/focus-detail:hidden"
+        >
+          {onExpandedChange ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="size-10 text-muted-foreground"
+                    aria-label={expandLabel}
+                    aria-pressed={expanded}
+                    onClick={() => onExpandedChange(!expanded)}
+                  />
+                }
+              >
+                <span className="relative size-4" aria-hidden="true">
+                  <ArrowsDiagonal
+                    stroke={1.5}
+                    className={cn(
+                      'absolute inset-0 size-4 transition-[opacity,scale,filter] duration-300 [transition-timing-function:cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none',
+                      expanded
+                        ? 'scale-[0.25] opacity-0 blur-[4px]'
+                        : 'scale-100 opacity-100 blur-0'
+                    )}
+                  />
+                  <ArrowsDiagonalMinimize
+                    stroke={1.5}
+                    className={cn(
+                      'absolute inset-0 size-4 transition-[opacity,scale,filter] duration-300 [transition-timing-function:cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none',
+                      expanded
+                        ? 'scale-100 opacity-100 blur-0'
+                        : 'scale-[0.25] opacity-0 blur-[4px]'
+                    )}
+                  />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>{expandLabel}</TooltipContent>
+            </Tooltip>
+          ) : null}
         </div>
+        <p
+          data-detail-focus-title
+          className="max-w-[min(32rem,42vw)] truncate px-4 text-center text-sm font-light max-[1080px]:hidden"
+          title={title}
+        >
+          {title}
+        </p>
         <div
           data-detail-focus-actions
           className={cn(
-            'pointer-events-auto flex min-w-0 justify-end [-webkit-app-region:no-drag]',
+            'pointer-events-auto col-start-3 flex min-w-0 items-center justify-end [-webkit-app-region:no-drag]',
             !isMac && 'pr-[8.625rem]'
           )}
         >
+          {modeControls}
           {actions}
         </div>
       </header>
     )
   }
-
   const leadingControls = modeControls ? (
     <div className="flex items-center gap-2">{modeControls}</div>
   ) : null
@@ -491,11 +551,15 @@ function DetailToolbar({
 function NoteModeControls({
   mode,
   onModeChange,
-  surface = 'toolbar'
+  surface = 'toolbar',
+  readingWidth,
+  onReadingWidthChange
 }: {
   mode: NoteMode
   onModeChange: (mode: NoteMode) => void
   surface?: 'toolbar' | 'caption'
+  readingWidth?: NoteReadingWidth
+  onReadingWidthChange?: () => void
 }): React.JSX.Element {
   const options = [
     { value: 'read' as const, label: 'Read (Ctrl+E)', icon: Eye, shortcut: 'Control+E' },
@@ -519,13 +583,70 @@ function NoteModeControls({
     }
   ]
 
+  if (surface === 'caption') {
+    const activeOption = options.find((option) => option.value === mode) ?? options[0]
+    const ActiveIcon = activeOption.icon
+
+    return (
+      <Tooltip>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="size-10 text-muted-foreground"
+                    aria-label={`Note mode: ${activeOption.label}`}
+                  />
+                }
+              />
+            }
+          >
+            <ActiveIcon stroke={1.5} aria-hidden="true" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-60">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Note view</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={mode}
+                onValueChange={(value) => onModeChange(value as NoteMode)}
+              >
+                {options.map(({ value, label, icon: Icon, shortcut }) => (
+                  <DropdownMenuRadioItem key={value} value={value}>
+                    <Icon aria-hidden="true" />
+                    {label.replace(/ \(.+\)$/, '')}
+                    <DropdownMenuShortcut>
+                      {shortcut.replace('Control', 'Ctrl')}
+                    </DropdownMenuShortcut>
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Reading layout</DropdownMenuLabel>
+              <DropdownMenuCheckboxItem
+                checked={readingWidth === 'wide'}
+                onCheckedChange={onReadingWidthChange}
+              >
+                <ViewportWide aria-hidden="true" />
+                Wide reading width
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <TooltipContent>{activeOption.label}</TooltipContent>
+      </Tooltip>
+    )
+  }
+
   return (
     <ButtonGroup
       aria-label="Note mode"
-      className={cn(
-        'bg-muted/40 shadow-sm ring-1 ring-foreground/8',
-        surface === 'caption' ? 'h-10 rounded-2xl' : 'rounded-xl p-1'
-      )}
+      className="rounded-xl bg-muted/40 p-1 shadow-sm ring-1 ring-foreground/8"
     >
       {options.map(({ value, label, icon: Icon, shortcut }) => (
         <Tooltip key={value}>
@@ -535,10 +656,7 @@ function NoteModeControls({
                 type="button"
                 size="icon"
                 variant="ghost"
-                className={cn(
-                  'size-10 text-muted-foreground aria-pressed:bg-muted aria-pressed:text-foreground',
-                  surface === 'toolbar' && 'first:rounded-l-lg! last:rounded-r-lg!'
-                )}
+                className="size-10 text-muted-foreground first:rounded-l-lg! last:rounded-r-lg! aria-pressed:bg-muted aria-pressed:text-foreground"
                 aria-label={label}
                 aria-pressed={mode === value}
                 aria-keyshortcuts={shortcut}
@@ -946,6 +1064,7 @@ function NoteCanvas({
   mode,
   snapshot,
   readingWidth,
+  expanded,
   onRenameTitle,
   onDraftChange,
   onRetry,
@@ -964,6 +1083,7 @@ function NoteCanvas({
   libraryItems: readonly LibraryItemDto[]
   snapshot: NoteAutosaveSnapshot
   readingWidth: NoteReadingWidth
+  expanded: boolean
   onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
   onDraftChange: (value: string) => void
   onRetry: () => void
@@ -1126,10 +1246,10 @@ function NoteCanvas({
   return (
     <section
       data-detail-structural-surface
-      className="flex h-full min-w-0 flex-1 flex-col bg-popover"
+      className="flex h-full border-border border-t border-l rounded-tl-2xl min-w-0 flex-1 flex-col bg-background"
       data-reading-width={readingWidth}
     >
-      {!item.missingContent ? (
+      {!item.missingContent && !expanded ? (
         <header className="kuskus-detail-document-frame flex shrink-0 flex-col border-b border-border/40 py-5">
           <NoteIdentityControls
             item={item}
@@ -1529,6 +1649,8 @@ interface ItemDetailProps {
   onMoveToTrash: (itemId: string) => void
   onError: (message: string) => void
   presentation?: 'dialog' | 'focus'
+  expanded?: boolean
+  onExpandedChange?: (expanded: boolean) => void
 }
 
 export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
@@ -1550,6 +1672,8 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       onMoveItem,
       onMoveToTrash,
       onError,
+      expanded = false,
+      onExpandedChange,
       presentation = 'dialog'
     },
     ref
@@ -1588,6 +1712,11 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
     const [conflictDialogOpen, setConflictDialogOpen] = useState(false)
     const [conflictResolution, setConflictResolution] = useState<'mine' | 'disk' | null>(null)
     const [attachmentsOpen, setAttachmentsOpen] = useState(false)
+    const changeExpanded = (nextExpanded: boolean): void => {
+      if (nextExpanded) setAttachmentsOpen(false)
+      onExpandedChange?.(nextExpanded)
+    }
+
     const diffRows = useMemo(
       () =>
         snapshot.conflict ? createMarkdownDiffRows(snapshot.draft, snapshot.conflict.body) : [],
@@ -1658,6 +1787,11 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       if (event.defaultPrevented) return
       const target = event.target as HTMLElement | null
       const isEditingTarget = Boolean(target?.closest('input, textarea, [contenteditable="true"]'))
+      if (event.key === 'Escape' && expanded && !isEditingTarget) {
+        event.preventDefault()
+        changeExpanded(false)
+        return
+      }
       if (
         event.key.toLocaleLowerCase() === 'e' &&
         event.ctrlKey &&
@@ -1740,22 +1874,35 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       <div data-detail-content-stack className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <DetailToolbar
           itemId={item.id}
+          title={item.title}
+          expanded={expanded}
+          onExpandedChange={
+            item.type === 'note' && !item.missingContent ? changeExpanded : undefined
+          }
           modeControls={
             item.type === 'note' ? (
-              <div className="flex items-center gap-2">
+              presentation === 'focus' ? (
                 <NoteModeControls
                   mode={mode}
                   onModeChange={changeMode}
-                  surface={presentation === 'focus' ? 'caption' : 'toolbar'}
+                  surface="caption"
+                  readingWidth={readingWidth}
+                  onReadingWidthChange={() =>
+                    setReadingWidth((width) => toggleNoteReadingWidth(width))
+                  }
                 />
-                <DetailControl
-                  label="Wide reading width"
-                  pressed={readingWidth === 'wide'}
-                  onClick={() => setReadingWidth((width) => toggleNoteReadingWidth(width))}
-                >
-                  <ViewportWide aria-hidden="true" />
-                </DetailControl>
-              </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <NoteModeControls mode={mode} onModeChange={changeMode} />
+                  <DetailControl
+                    label="Wide reading width"
+                    pressed={readingWidth === 'wide'}
+                    onClick={() => setReadingWidth((width) => toggleNoteReadingWidth(width))}
+                  >
+                    <ViewportWide aria-hidden="true" />
+                  </DetailControl>
+                </div>
+              )
             ) : undefined
           }
           actions={renderActions?.(requestGuardedAction)}
@@ -1774,6 +1921,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
               collections={collections}
               mode={mode}
               snapshot={snapshot}
+              expanded={expanded}
               libraryItems={libraryItems}
               onRenameTitle={renameCurrentItem}
               onDraftChange={(value) => coordinator?.updateDraft(value)}

@@ -481,10 +481,10 @@ Focus pane instead shares the workspace with its compact item rail.
 
 The dialog uses a compact utility row for note modes, navigation, reveal, item actions, and close
 while retaining 40-pixel desktop hit areas. Focus instead uses one compact 40-pixel caption header:
-the note-mode segmented control remains geometrically centered, and More sits immediately before
-the renderer-owned minimize, maximize or restore, and close controls. Focus hides visible previous
-and next buttons for now; Left Arrow and Right Arrow navigation remain available. The note identity
-stays with the document rather than the caption.
+The current item title remains geometrically centered, and a single note-mode menu plus More sit
+immediately before the renderer-owned minimize, maximize or restore, and close controls. Focus
+exposes no Back or Forward caption controls; Left Arrow and Right Arrow item navigation remain
+available. The note identity stays with the document rather than the caption.
 
 At ordinary desktop widths, images and URLs use two panes:
 
@@ -513,10 +513,20 @@ dialog. The inspector is not manually collapsible and its visibility is not pers
 The detail dialog exposes:
 
 - A compact, fixed utility row in the detail dialog. Focus removes that row and uses a single
-  cross-platform caption header: Back remains at the leading edge in single-pane focus, note modes
-  occupy the true center, and More sits beside the native window controls at the trailing edge.
-  Visible previous and next controls are omitted in Focus. Empty caption space remains draggable
-  and macOS reserves its traffic-light inset.
+  cross-platform caption header: the current item title occupies the true center, and a compact
+  note-mode menu plus More sit beside the native window controls at the trailing edge. Back and
+  Forward controls are omitted. Empty caption space remains draggable and macOS reserves its
+  traffic-light inset.
+- At desktop split widths, an available note shows **Expand note** at the caption's leading edge.
+  Expanding enters a transient Zen presentation: the application sidebar, mounted item rail, and
+  rail resize divider are hidden; the detail fills the workspace; and the document identity and
+  metadata header are omitted. Restoring the item rail also restores the sidebar to its prior state.
+  The caption title, note-mode and More menus, window controls, document canvas, attachments, and
+  critical save or conflict feedback remain available. The control becomes **Restore item rail**;
+  `Escape` also restores the rail unless an editor, menu, popover, or dialog owns the key. Expansion
+  survives previous or next navigation between notes, but resets for non-note items, capture,
+  leaving Focus, or crossing below the split breakpoint. The rail retains its width, scroll, and
+  selection while hidden, and the expansion preference is not persisted across app restarts.
 - A quiet item identity immediately above the note content, with the editable title stacked above
   interactive metadata: active Inbox or folder context opens the existing move destination menu;
   Updated opens a Created and Updated timestamp popover; and the attachment count opens a bounded
@@ -531,9 +541,9 @@ The detail dialog exposes:
   Enter or blur submits a non-empty change, Escape restores the current title, and a failed rename
   leaves the draft and error visible. Trash titles are not interactive.
 - The complete rendered note body without card-style clipping, plus a compact four-icon segmented
-  control for Read, Live, Markdown, and Split. It sits in the dialog utility row and at the exact
-  horizontal center of the Focus caption, independent of leading and trailing controls. Every choice
-  uses at least a 40-pixel hit area and exposes its name and shortcut to assistive technology.
+  control for Read, Live, Markdown, and Split in the dialog utility row. Focus collapses those choices
+  into one 40-pixel menu trigger whose icon reflects the active mode; the menu exposes all four modes,
+  shortcuts, and the reading-width toggle. Every choice remains named for assistive technology.
 - `Ctrl+E` toggles Read and Live and returns Markdown or Split to Live. `Ctrl+Alt+E` toggles Markdown
   source and Live. `Ctrl+Shift+E` toggles Split and returns to the previous single-pane mode.
 - Live edits the authoritative source in one Obsidian-style CodeMirror canvas. Heading, emphasis,
