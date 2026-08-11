@@ -134,9 +134,9 @@ The user wants one obvious place to add any supported kind of content without ch
 - Repeated paste events cannot accidentally create duplicates because one event was handled twice.
 - Failed input remains recoverable in the card.
 - The draft and saved item work in Masonry, Grid, and Focus views, even if their presentation differs.
-- In Focus, New item appears as a temporary first visual-card slot and the recoverable composer uses the detail
-  pane. Hiding it retains the shared draft; successful capture activates the saved item at its
-  sorted position.
+- In Focus, New item appears as the temporary first rail entry in the active Index or Visual
+  density, and the recoverable composer uses the detail pane. Hiding it retains the shared draft;
+  successful capture activates the saved item at its sorted position.
 - The global shortcut opens or focuses one taskbar-hidden composer popup on the pointer's monitor
   without restoring, navigating, searching, filtering, or changing selection in the main window.
 - After the popup hides, opening New item in the main window continues the exact same draft inline.
@@ -390,11 +390,17 @@ The user returns to a project and wants to rediscover a saved reference.
   and detail navigation.
 - Changing the sort preserves the item selection, and the most recently selected sort is restored
   on the next launch.
-- Selected items remain unmistakable over every preview type in Masonry, Grid, and Focus through a
-  checked marker plus a high-contrast accent treatment that does not rely on color alone.
-- Focus reuses the natural-height Masonry cards in an independently scrolling visual rail. The rail
-  remains one column until its actual resized width can preserve the minimum card width in multiple
-  columns; its active-detail accent remains distinct from bulk selection.
+- Selected items remain unmistakable in Masonry and Grid through the existing checked marker and
+  high-contrast accent. Focus uses a quieter semantic tint for every active or bulk-selected item
+  while preserving distinct accessible states.
+- Focus defaults to a single-column Index rail of compact 52-pixel, text-first rows for sequential
+  scanning beside the complete detail. Index shows relative time, a secondary Note, URL, Image, or
+  File badge, and optional domain, dimensions/format, or file-extension detail without acquiring
+  thumbnails; the Visual density remains the media-rich browsing option.
+- The Focus retrieval menu also offers the previous natural-height Visual card rail. The selected
+  density persists per device. Active and bulk-selected items share the same calm tint without
+  selection borders or check icons; Index alone retains a three-pixel leading accent for the active
+  detail item.
 - The most recently selected Masonry, Grid, or Focus view is restored on the next launch. Persisted
   Table or legacy List preferences fall back to Masonry while Table is unavailable.
 - Hiding the sidebar gives the content area more space without hiding Search or Filter. View and

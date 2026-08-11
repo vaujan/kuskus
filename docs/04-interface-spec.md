@@ -52,10 +52,13 @@ Sidebar visibility and the most recently selected width should persist between l
 - The current library is shown as context in the final row at the bottom of the sidebar. Clicking
   anywhere on that row opens **Open Another Library**, **Create New Library**, and **Copy Library
   Path** actions without presenting the identity row as a destination selector.
-- A **Settings** row appears immediately above the library identity. It opens a centered modal
-  Settings dialog with General, Appearance, and Library categories. Appearance contains the
-  persisted Masonry, Grid, and Focus selection plus explicit Light and Dark choices. Settings apply
-  immediately; unavailable future controls are omitted until implemented.
+- A **Settings** row appears immediately above the library identity. It opens a compact **Quick
+  settings** popover toward the content area, with collision handling that keeps it inside the
+  supported window bounds. The popover presents View, Appearance, and Capture groups in one
+  scannable column. View contains the persisted Masonry, Grid, and Focus selection; Appearance
+  contains explicit Light and Dark choices. Settings apply immediately without closing the popover;
+  unavailable future controls are omitted until implemented. Outside click or `Escape` closes the
+  popover and returns keyboard focus to the Settings row.
 - On Windows, Appearance includes **Translucent background**. It is enabled by default on Windows
   11 22H2 or newer, applies native Acrylic behind a visibly translucent, continuous toolbar/content
   material and a slightly heavier sidebar, and persists as app-local presentation state. Borders,
@@ -123,12 +126,12 @@ Requirements:
 - Move menus and dialogs preserve tree indentation and icons, identify the current destination, and
   disambiguate same-name folders in different branches.
 
-The General category in the Settings dialog shows the fixed `Ctrl+Shift+Space` **Global capture**
-shortcut and whether its system-wide registration is available. A registration conflict also
-produces one non-blocking notice per app run. The shortcut cannot be changed or disabled in the
-first version.
+The Capture group in Quick settings shows the fixed `Ctrl+Shift+Space` **Global capture** shortcut
+and whether its system-wide registration is checking, available, or unavailable. A registration
+conflict also produces one non-blocking notice per app run. The shortcut cannot be changed or
+disabled in the first version.
 
-The Settings dialog has no empty Library category. **Show referenced attachments** lives in a
+Quick settings has no empty Library category. **Show referenced attachments** lives in a
 **Visibility** group in the Masonry/Grid toolbar Filter menu and Focus rail Filter menu. It is off by default so images already embedded by
 notes do not duplicate the visual canvas. The preference persists per device, contributes to the
 active-filter badge, applies in Masonry, Grid, and Focus, and resets with **Clear filters**.
@@ -208,20 +211,26 @@ Rules:
 
 ### Focus view
 
-- A responsive visual-card rail sits beside the complete item detail surface for sequential triage,
+- A responsive item rail sits beside the complete item detail surface for sequential triage,
   reading, and editing. The rail starts at 420 pixels, resizes from 320 to 720 pixels without
-  exceeding 45 percent of the content pane, and persists its width per device.
+  exceeding 45 percent of the content pane, and persists its width and selected density per device.
+  Index is the first-use default; Visual remains available from the combined retrieval menu.
 - Normal activation updates the detail and clears bulk selection. Ctrl-click, Cmd-click, and
   Shift-click retain the existing multi-selection without changing the active detail; active and
   selected rows use distinct accessible states.
-- The rail reuses the natural-height Masonry note, image, URL, and file cards at a compact density:
-  the focused card and cards in bulk selection share the same accent halo, hover, press, and
-  checked-indicator feedback as their Masonry counterparts, while `data-active` and `aria-current`
-  keep the active and selected states accessible. Rail card content (typeset, preview caps, and
-  caption size) is smaller than in Masonry to match the narrower pane; Masonry and Grid are
-  unchanged. Ordered Masonry keeps one column until the actual rail width can fit additional
-  256-pixel columns with 16-pixel gaps. Up, Down, Home, and End move through the shared logical item
-  order.
+- Index presents one fixed-height 52-pixel text-first row per item with a one-line title and a
+  truncated metadata line containing relative modified time, a secondary Note, URL, Image, or File
+  badge, and optional domain, dimensions/format, or file-extension detail. It renders no thumbnails
+  or replacement type icons and acquires no previews; Visual remains the media-rich density.
+- Active and bulk-selected Index rows use the same full-width semantic tint. The active detail row
+  alone retains a three-pixel leading accent and `aria-current`; bulk selection retains
+  `aria-pressed` without adding a border, halo, check icon, or text indentation. Hover, keyboard
+  focus, dragging, context menus, and the 40-pixel trailing action target remain distinct.
+- Visual reuses the natural-height compact Masonry cards and ordered multi-column rail. Active and
+  bulk-selected cards use the same wrapper tint with no leading accent, selection border, halo, or
+  check icon, while `aria-current` and `aria-pressed` remain distinct. Masonry and Grid retain their
+  existing selection treatment. Up, Down, Home, and End follow the shared logical item order in both
+  Focus densities.
 - One rail row contains the sidebar trigger, destination-scoped Search, the combined Sort and Filter
   menu, and New item. `Ctrl+K` and `Ctrl+F` focus Search; `Ctrl+N` opens or continues the pane composer.
 - Search, filters, and sorting do not forcibly close an active detail. Destination, view, library,
@@ -470,12 +479,12 @@ as a persistent application pane, including note editing, guarded autosave, conf
 and item actions. The dialog uses most of the available window so content remains dominant; the
 Focus pane instead shares the workspace with its compact item rail.
 
-The dialog has no dedicated header. Previous, next, and close actions use a compact floating
-control group in its upper-right corner while retaining 40-pixel desktop hit areas. In Focus, the
-previous, More, and next navigation tiles line up flush against the left edge of the Windows
-caption controls, reusing their transparent 46-pixel tile dimensions, hover fill, focus ring,
-and disabled dimming. The note-mode segmented control and the attachments toggle remain a separate
-floating pill above the note body instead of adopting caption styling.
+The dialog uses a compact utility row for note modes, navigation, reveal, item actions, and close
+while retaining 40-pixel desktop hit areas. Focus instead uses one compact 40-pixel caption header:
+the note-mode segmented control remains geometrically centered, and More sits immediately before
+the renderer-owned minimize, maximize or restore, and close controls. Focus hides visible previous
+and next buttons for now; Left Arrow and Right Arrow navigation remain available. The note identity
+stays with the document rather than the caption.
 
 At ordinary desktop widths, images and URLs use two panes:
 
@@ -485,10 +494,11 @@ At ordinary desktop widths, images and URLs use two panes:
   image format and dimensions remain separate, independently scannable fields.
 
 Notes use a single reading pane without a right inspector or nested card surface. The note canvas
-has no content width cap: it spans the full available pane edge-to-edge with responsive gutters,
-and its header rests directly on that canvas without a separating border or a surface of its own, so
-the note reads as one continuous surface. A compact fixed header identifies the library item with a
-prominent editable title that remains visually subordinate to headings authored inside the Markdown
+defaults to a centered 48-rem comfortable document measure with responsive gutters. A persistent
+toolbar toggle lets the user expand the shared header, editor, and preview measure to the available
+pane width. The item-identity header rests directly on that canvas without a nested card surface, so
+the note reads as one continuous surface.
+The compact editable title remains visually subordinate to headings authored inside the Markdown
 document.
 Note cards and the Read canvas use the same semantic Markdown typesetting rules so headings,
 prose, lists, quotes, links, code, tables, math, and images retain one visual hierarchy across both
@@ -502,14 +512,27 @@ dialog. The inspector is not manually collapsible and its visibility is not pers
 
 The detail dialog exposes:
 
+- A compact, fixed utility row in the detail dialog. Focus removes that row and uses a single
+  cross-platform caption header: Back remains at the leading edge in single-pane focus, note modes
+  occupy the true center, and More sits beside the native window controls at the trailing edge.
+  Visible previous and next controls are omitted in Focus. Empty caption space remains draggable
+  and macOS reserves its traffic-light inset.
+- A quiet item identity immediately above the note content, with the editable title stacked above
+  interactive metadata: active Inbox or folder context opens the existing move destination menu;
+  Updated opens a Created and Updated timestamp popover; and the attachment count opens a bounded
+  list with Rename, Show in Explorer, and Manage attachments actions. Metadata triggers and their
+  dropdowns size to their content within bounded maximum widths. Archive and Trash context remains
+  informational so moving cannot bypass restore semantics. The identity and its subtle bottom
+  divider use the same comfortable or wide document frame as the note body. Read, Live, Markdown,
+  and each Split pane share that responsive frame.
 - Larger preview when supported.
 - A directly editable visible title for every active item type. Clicking the title edits the same
   typography in place without field borders, backgrounds, controls, or other editing indicators.
   Enter or blur submits a non-empty change, Escape restores the current title, and a failed rename
   leaves the draft and error visible. Trash titles are not interactive.
 - The complete rendered note body without card-style clipping, plus a compact four-icon segmented
-  control for Read, Live, Markdown, and Split, aligned beside the detail-navigation group in the
-  dialog and rendered as its own floating pill in Focus. Every choice
+  control for Read, Live, Markdown, and Split. It sits in the dialog utility row and at the exact
+  horizontal center of the Focus caption, independent of leading and trailing controls. Every choice
   uses at least a 40-pixel hit area and exposes its name and shortcut to assistive technology.
 - `Ctrl+E` toggles Read and Live and returns Markdown or Split to Live. `Ctrl+Alt+E` toggles Markdown
   source and Live. `Ctrl+Shift+E` toggles Split and returns to the previous single-pane mode.
@@ -554,9 +577,9 @@ The detail dialog exposes:
   backdrop dims the complete window. Dialog-owned Windows minimize, maximize/restore, and guarded
   close controls remain above it while all other underlying toolbar actions and workspace keyboard
   shortcuts stay modal.
-- Note bodies and responsive image and URL details use the shared shadcn ScrollArea treatment; the
-  note mode header and the dialog's floating detail controls remain fixed outside their scroll owner,
-  while Focus navigation tiles sit in the caption bar rather than over the scroll surface.
+- Note bodies and responsive image and URL details use the shared shadcn ScrollArea treatment. The
+  dialog utility row and integrated Focus caption remain fixed outside their scroll owner rather than
+  floating over the scroll surface.
 - Source URL or stored filename.
 - Added date for image and URL items.
 - Dimensions and media format for images.

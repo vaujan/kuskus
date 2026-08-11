@@ -73,8 +73,9 @@ The MVP is complete when all golden workflows work against a real local library 
 
 - Responsive Masonry view with format-aware cards and natural card heights.
 - Uniform Grid view.
-- Focus view with a resizable, responsive visual-card rail and the complete item detail beside it,
-  adapting to list-first drill-in navigation when the content pane is narrow.
+- Focus view with a resizable, responsive rail and the complete item detail beside it, defaulting to
+  a compact text-first Index while retaining the media-rich natural-height Visual density and adapting to
+  list-first drill-in navigation when the content pane is narrow.
 - Consistent selection-first, focused-item fallback for `F2` and `Delete` across Masonry, Grid, and
   Focus, including active-item fallback in Focus, suspended while editors, menus, details, or
   dialogs own the keyboard.

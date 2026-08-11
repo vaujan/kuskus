@@ -61,9 +61,12 @@ import { SavedItemsTable } from '@/features/items/saved-items-table'
 import { FocusItemList } from '@/features/items/focus-item-list'
 import { FocusListHeader } from '@/features/items/focus-list-header'
 import {
+  FOCUS_RAIL_DENSITY_STORAGE_KEY,
+  parseFocusRailDensity,
   parseFocusListWidth,
   resolveFocusAfterRemoval,
-  resolveInitialFocusItemId
+  resolveInitialFocusItemId,
+  type FocusRailDensity
 } from '@/features/items/focus-view-state'
 import { KUSKUS_ITEM_DRAG_TYPE, setKuskusItemDragPreview } from '@/features/items/item-drag'
 import type { DetailTitleRenameResult, ItemDetailHandle } from '@/features/items/item-detail-dialog'
@@ -238,6 +241,13 @@ export function Workspace({
   const [focusListWidth, setFocusListWidth] = useState(() =>
     parseFocusListWidth(localStorage.getItem('kuskus-focus-list-width'))
   )
+  const [focusRailDensity, setFocusRailDensity] = useState<FocusRailDensity>(() => {
+    try {
+      return parseFocusRailDensity(localStorage.getItem(FOCUS_RAIL_DENSITY_STORAGE_KEY))
+    } catch {
+      return 'index'
+    }
+  })
   const [focusItemId, setFocusItemId] = useState<string | null>(null)
   const [focusDetailOpen, setFocusDetailOpen] = useState(false)
   const [showReferencedAttachments, setShowReferencedAttachments] = useState(
@@ -330,6 +340,14 @@ export function Workspace({
   useEffect(() => {
     localStorage.setItem('kuskus-focus-list-width', String(Math.round(focusListWidth)))
   }, [focusListWidth])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(FOCUS_RAIL_DENSITY_STORAGE_KEY, focusRailDensity)
+    } catch {
+      // This renderer-only preference can safely fall back to Index next launch.
+    }
+  }, [focusRailDensity])
 
   useEffect(() => {
     localStorage.setItem(ITEM_SORT_STORAGE_KEY, sort)
@@ -1742,9 +1760,12 @@ export function Workspace({
         }}
         sort={sort}
         onSortChange={setSort}
+        density={focusRailDensity}
+        onDensityChange={setFocusRailDensity}
       />
       <FocusItemList
         items={visibleItems}
+        density={focusRailDensity}
         activeItemId={composerOpen ? null : focusItemId}
         selectedIds={selectedIds}
         draggedIds={draggedItemIds}
@@ -1760,7 +1781,7 @@ export function Workspace({
           <ItemActionMenu
             item={item}
             collections={library.collections}
-            showQuickSourceAction
+            showQuickSourceAction={focusRailDensity === 'visual'}
             {...getItemMenuProps(item)}
           />
         )}
@@ -1799,6 +1820,7 @@ export function Workspace({
         key={`focus-${focusItem.id}`}
         presentation="focus"
         item={focusItem}
+        collections={library.collections}
         hasPrevious={focusVisibleIndex > 0}
         hasNext={focusVisibleIndex >= 0 && focusVisibleIndex < visibleItems.length - 1}
         onPrevious={selectPreviousFocusItem}
@@ -1813,6 +1835,7 @@ export function Workspace({
           setRenameTarget(image)
           setRenameTitle(image.title)
         }}
+        onMoveItem={(destination) => itemActions(focusItem, [focusItem.id]).onMove(destination)}
         onOpenVaultLink={openVaultLink}
         onMoveToTrash={(itemId) => {
           const target = library.items.find((item) => item.id === itemId)
@@ -1827,7 +1850,7 @@ export function Workspace({
               targetCount={1}
               targetLocations={[focusItem.location]}
               alwaysVisible
-              tile
+              triggerSurface="caption"
               {...actions}
               onRename={() => guard(actions.onRename)}
               onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}
@@ -2229,6 +2252,7 @@ export function Workspace({
           <ItemDetailDialog
             key={selectedItem?.id ?? 'closed-item-detail'}
             item={selectedItem}
+            collections={library.collections}
             hasPrevious={hasPreviousItem}
             hasNext={hasNextItem}
             onPrevious={selectPreviousItem}
@@ -2244,6 +2268,10 @@ export function Workspace({
               if (!image || image.type !== 'image') return
               setRenameTarget(image)
               setRenameTitle(image.title)
+            }}
+            onMoveItem={(destination) => {
+              if (!selectedItem) return
+              itemActions(selectedItem, [selectedItem.id]).onMove(destination)
             }}
             onOpenVaultLink={openVaultLink}
             onMoveToTrash={(itemId) => {

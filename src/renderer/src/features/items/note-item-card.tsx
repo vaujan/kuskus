@@ -25,7 +25,8 @@ export function NoteItemCard({
   selected,
   opensDialog,
   view,
-  compact = false
+  compact = false,
+  showSelectionVisual = true
 }: {
   item: NoteItemDto
   onActivate: (event: React.MouseEvent<HTMLButtonElement>) => void
@@ -34,9 +35,10 @@ export function NoteItemCard({
   opensDialog: boolean
   view: Exclude<LibraryView, 'table' | 'focus'>
   compact?: boolean
+  showSelectionVisual?: boolean
 }): React.JSX.Element {
   return (
-    <ItemCard data-selected={selected}>
+    <ItemCard data-selected={selected && showSelectionVisual}>
       <ItemCardPrimaryAction
         aria-label={`Open note ${item.title}`}
         aria-haspopup={opensDialog ? 'dialog' : undefined}
@@ -63,9 +65,7 @@ export function NoteItemCard({
           </div>
         ) : (
           <Suspense
-            fallback={
-              <div className="size-full min-h-28 animate-pulse rounded-lg bg-muted/40" />
-            }
+            fallback={<div className="size-full min-h-28 animate-pulse rounded-lg bg-muted/40" />}
           >
             <MarkdownPreview
               value={item.body}

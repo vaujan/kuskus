@@ -155,8 +155,9 @@ Deliverables:
 - Uniform Grid view.
 - Retain the existing compact Table implementation while keeping it unavailable pending a revised
   retrieval and toolbar decision.
-- Focus master-detail view with a responsive natural-height visual-card rail, shared full detail,
-  pane-based capture, integrated retrieval chrome, and narrow drill-in behavior.
+- Focus master-detail view with a responsive default text-first Index rail, optional natural-height Visual
+  rail, shared full detail, pane-based capture, integrated retrieval chrome, persisted density,
+  unified Focus selection tint with distinct active/bulk semantics, and narrow drill-in behavior.
 - Search by title, note, URL/domain, and filename.
 - Type filters, referenced-attachment visibility, and basic sorting.
 - Persist sidebar and view preferences.

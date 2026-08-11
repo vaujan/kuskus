@@ -69,9 +69,9 @@ const editorTheme = EditorView.theme({
   '.cm-scroller::-webkit-scrollbar-corner': { backgroundColor: 'transparent' },
   '.cm-content': {
     minHeight: '100%',
-    // Center the text column inside the full-width scroller so the scrollbar stays
-    // at the pane edge, matching the Read mode article (max-w-3xl).
-    maxWidth: '48rem',
+    // Keep every note mode on the same centered document frame while the
+    // full-width scroller leaves its scrollbar at the pane edge.
+    maxWidth: 'var(--detail-document-max-width)',
     margin: '0 auto',
     padding: '2.5rem var(--typeset-detail-gutter)',
     caretColor: 'currentColor'

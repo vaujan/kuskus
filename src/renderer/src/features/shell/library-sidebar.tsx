@@ -73,7 +73,7 @@ import { CollectionIcon } from '@/features/collections/collection-icons'
 import { FolderIconPickerDialog } from '@/features/collections/folder-icon-picker-dialog'
 import { FolderMoveDialog } from '@/features/collections/folder-move-dialog'
 import { FolderNameDialog } from '@/features/collections/folder-name-dialog'
-import { SettingsDialog } from '@/features/shell/settings-dialog'
+import { QuickSettingsPopover } from '@/features/shell/quick-settings-popover'
 import {
   hasKuskusFolderDrag,
   KUSKUS_FOLDER_DRAG_TYPE,
@@ -564,7 +564,6 @@ export function LibrarySidebar({
   const [iconPickerFolderId, setIconPickerFolderId] = useState<string | null>(null)
   const [folderToMoveId, setFolderToMoveId] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const settingsTriggerRef = useRef<HTMLButtonElement>(null)
   const [inboxDropActive, setInboxDropActive] = useState(false)
   const [activeFolderDropTarget, setActiveFolderDropTarget] = useState<FolderDropTarget>(null)
   const [storedCollapsedFolderIds, setStoredCollapsedFolderIds] = useState(() =>
@@ -968,16 +967,25 @@ export function LibrarySidebar({
         <SidebarFooter className="[-webkit-app-region:no-drag]">
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton
-                ref={settingsTriggerRef}
-                aria-label="Open Settings"
-                aria-haspopup="dialog"
-                aria-expanded={settingsOpen}
-                onClick={() => setSettingsOpen(true)}
-              >
-                <IconSettings aria-hidden="true" />
-                <span>Settings</span>
-              </SidebarMenuButton>
+              <QuickSettingsPopover
+                open={settingsOpen}
+                onOpenChange={setSettingsOpen}
+                trigger={
+                  <SidebarMenuButton aria-label="Open Settings">
+                    <IconSettings aria-hidden="true" />
+                    <span>Settings</span>
+                  </SidebarMenuButton>
+                }
+                theme={theme}
+                onThemeChange={onThemeChange}
+                view={view}
+                onViewChange={onViewChange}
+                globalCaptureShortcutStatus={globalCaptureShortcutStatus}
+                translucentBackgroundEnabled={translucentBackgroundEnabled}
+                translucentBackgroundSupported={translucentBackgroundSupported}
+                translucentBackgroundReduced={translucentBackgroundReduced}
+                onTranslucentBackgroundChange={onTranslucentBackgroundChange}
+              />
             </SidebarMenuItem>
           </SidebarMenu>
           <SidebarSeparator className="mx-1" />
@@ -1088,20 +1096,6 @@ export function LibrarySidebar({
         onMove={(parentId) => {
           if (folderToMoveId) void moveFolder(folderToMoveId, parentId)
         }}
-      />
-      <SettingsDialog
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-        finalFocusRef={settingsTriggerRef}
-        theme={theme}
-        onThemeChange={onThemeChange}
-        view={view}
-        onViewChange={onViewChange}
-        globalCaptureShortcutStatus={globalCaptureShortcutStatus}
-        translucentBackgroundEnabled={translucentBackgroundEnabled}
-        translucentBackgroundSupported={translucentBackgroundSupported}
-        translucentBackgroundReduced={translucentBackgroundReduced}
-        onTranslucentBackgroundChange={onTranslucentBackgroundChange}
       />
       <Dialog
         open={creatingLibrary}

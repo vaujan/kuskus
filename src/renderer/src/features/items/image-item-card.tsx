@@ -21,7 +21,8 @@ export function ImageItemCard({
   selected,
   opensDialog,
   view,
-  compact = false
+  compact = false,
+  showSelectionVisual = true
 }: {
   item: ImageItemDto
   onActivate: (event: React.MouseEvent<HTMLButtonElement>) => void
@@ -30,13 +31,14 @@ export function ImageItemCard({
   opensDialog: boolean
   view: Exclude<LibraryView, 'table' | 'focus'>
   compact?: boolean
+  showSelectionVisual?: boolean
 }): React.JSX.Element {
   const { preview, previewError } = useImagePreview(item.id, item.missingContent)
   const [failedPreview, setFailedPreview] = useState<string | null>(null)
   const previewAvailable = preview !== null && failedPreview !== preview
 
   return (
-    <ItemCard data-selected={selected}>
+    <ItemCard data-selected={selected && showSelectionVisual}>
       <ItemCardPrimaryAction
         aria-label={`Open image ${item.title}`}
         aria-haspopup={opensDialog ? 'dialog' : undefined}

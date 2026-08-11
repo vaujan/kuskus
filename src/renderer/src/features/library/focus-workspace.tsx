@@ -2,6 +2,7 @@ import { IconArrowLeft } from '@tabler/icons-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   clampFocusListWidth,
   FOCUS_SPLIT_BREAKPOINT,
@@ -39,7 +40,8 @@ export function FocusWorkspace({
   const dragStartRef = useRef<{ pointerX: number; width: number } | null>(null)
   const [availableWidth, setAvailableWidth] = useState(0)
   const split = availableWidth >= FOCUS_SPLIT_BREAKPOINT
-  const hasRendererCaptionControls = window.electron.window.platform !== 'darwin'
+  const isMac = window.electron.window.platform === 'darwin'
+  const hasRendererCaptionControls = !isMac
   const boundedWidth =
     availableWidth > 0 ? clampFocusListWidth(listWidth, availableWidth) : listWidth
 
@@ -114,7 +116,7 @@ export function FocusWorkspace({
           aria-valuemax={Math.min(MAX_FOCUS_LIST_WIDTH, Math.floor(availableWidth * 0.45))}
           aria-valuenow={Math.round(boundedWidth)}
           tabIndex={0}
-          className="group relative z-10 w-px shrink-0 cursor-col-resize bg-border outline-none after:absolute after:inset-y-0 after:left-1/2 after:w-3 after:-translate-x-1/2 focus-visible:bg-ring"
+          className="group relative z-10 w-px shrink-0 cursor-col-resize bg-border/20 outline-none after:absolute after:inset-y-0 after:left-1/2 after:w-3 after:-translate-x-1/2 focus-visible:bg-ring"
           onPointerDown={(event) => {
             dragStartRef.current = { pointerX: event.clientX, width: boundedWidth }
             event.currentTarget.setPointerCapture(event.pointerId)
@@ -150,7 +152,8 @@ export function FocusWorkspace({
       {split || detailOpen ? (
         <section
           ref={detailRef}
-          className="focus-detail-surface relative flex min-h-0 min-w-0 flex-1 flex-col"
+          data-focus-single-pane={!split}
+          className="focus-detail-surface group/focus-detail relative flex min-h-0 min-w-0 flex-1 flex-col"
           aria-label="Focused item"
           tabIndex={-1}
         >
@@ -159,16 +162,34 @@ export function FocusWorkspace({
             aria-hidden="true"
           />
           {hasRendererCaptionControls ? (
-            <div className="absolute top-0 right-0 z-50 h-10">
+            <div className="pointer-events-auto absolute top-0 right-0 z-50 h-10 [-webkit-app-region:no-drag]">
               <WindowControls onClose={onWindowClose} />
             </div>
           ) : null}
           {!split ? (
-            <div className="absolute top-3 left-3 z-40 [-webkit-app-region:no-drag]">
-              <Button size="sm" variant="secondary" onClick={onBack}>
-                <IconArrowLeft data-icon="inline-start" aria-hidden="true" />
-                Items
-              </Button>
+            <div
+              className={cn(
+                'absolute top-0 z-50 flex h-10 items-center [-webkit-app-region:no-drag]',
+                isMac ? 'left-20' : 'left-0'
+              )}
+            >
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="size-10"
+                      aria-label="Back to items"
+                      onClick={onBack}
+                    />
+                  }
+                >
+                  <IconArrowLeft aria-hidden="true" />
+                </TooltipTrigger>
+                <TooltipContent>Back to items</TooltipContent>
+              </Tooltip>
             </div>
           ) : null}
           {detail}

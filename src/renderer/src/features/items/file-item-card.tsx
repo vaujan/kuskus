@@ -16,7 +16,8 @@ export function FileItemCard({
   selected,
   onActivate,
   onOpen,
-  compact = false
+  compact = false,
+  showSelectionVisual = true
 }: {
   item: FileItemDto
   view: Exclude<LibraryView, 'table' | 'focus'>
@@ -24,13 +25,15 @@ export function FileItemCard({
   onActivate: (event: React.MouseEvent<HTMLButtonElement>) => void
   onOpen: () => void
   compact?: boolean
+  showSelectionVisual?: boolean
 }): React.JSX.Element {
   const extension = item.contentFilename.split('.').pop()?.toLocaleUpperCase() || 'FILE'
   return (
-    <ItemCard data-selected={selected}>
+    <ItemCard data-selected={selected && showSelectionVisual}>
       <ItemCardPrimaryAction
         aria-label={`Open file ${item.title}`}
         aria-haspopup="dialog"
+        aria-pressed={selected}
         onClick={onActivate}
         onDoubleClick={onOpen}
       />

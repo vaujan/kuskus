@@ -6,7 +6,7 @@
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",
-    "test": "node --test tests/library-service.test.cjs tests/note-autosave.test.cjs tests/global-capture-shortcut.test.cjs tests/quick-capture.test.cjs tests/item-shortcuts.test.cjs tests/focus-view.test.cjs tests/window-material.test.cjs tests/window-material-controller.test.cjs",
+    "test": "node --test tests/library-service.test.cjs tests/note-autosave.test.cjs tests/global-capture-shortcut.test.cjs tests/quick-capture.test.cjs tests/item-shortcuts.test.cjs tests/focus-view.test.cjs tests/item-detail-context.test.cjs tests/window-material.test.cjs tests/window-material-controller.test.cjs",
     "demo:seed": "node scripts/create-demo-library.cjs",
     "demo:reset": "node scripts/create-demo-library.cjs --reset",
     "perf:benchmark": "node scripts/benchmark-performance.cjs",

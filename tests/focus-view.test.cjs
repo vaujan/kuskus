@@ -18,6 +18,7 @@ require.extensions['.ts'] = (module, filename) => {
 
 const {
   clampFocusListWidth,
+  parseFocusRailDensity,
   parseFocusListWidth,
   resolveFocusAfterRemoval,
   resolveFocusNavigationItemId,
@@ -43,6 +44,13 @@ test('uses a bounded persisted Focus list width', () => {
   assert.equal(clampFocusListWidth(420, 800), 360)
 })
 
+test('defaults the Focus rail to Index and validates the persisted density', () => {
+  assert.equal(parseFocusRailDensity(null), 'index')
+  assert.equal(parseFocusRailDensity('index'), 'index')
+  assert.equal(parseFocusRailDensity('visual'), 'visual')
+  assert.equal(parseFocusRailDensity('unknown'), 'index')
+})
+
 test('initial Focus activation uses the leading visible item but preserves an active item', () => {
   assert.equal(resolveInitialFocusItemId(['first', 'second'], null), 'first')
   assert.equal(resolveInitialFocusItemId(['first'], 'outside-results'), 'outside-results')
@@ -64,4 +72,49 @@ test('Focus keyboard navigation remains bounded and supports endpoints', () => {
   assert.equal(resolveFocusNavigationItemId(ids, 'b', 'Home'), 'a')
   assert.equal(resolveFocusNavigationItemId(ids, 'b', 'End'), 'c')
   assert.equal(resolveFocusNavigationItemId(ids, 'c', 'ArrowDown'), 'c')
+})
+
+test('Focus Index uses compact type badges and tint-only bulk selection', () => {
+  const source = readFileSync(
+    require.resolve('../src/renderer/src/features/items/focus-index-row.tsx'),
+    'utf8'
+  )
+  assert.match(source, /relative h-\[52px\]/)
+  assert.match(source, /contain-intrinsic-size:52px/)
+  assert.doesNotMatch(source, /useImagePreview|useUrlPreview|IntersectionObserver/)
+  assert.doesNotMatch(source, /<img|Thumbnail/)
+  assert.match(source, /content-visibility:auto/)
+  assert.match(source, /'Note' \| 'URL' \| 'Image' \| 'File'/)
+  assert.match(source, /<Badge variant="secondary">\{typeLabel\}<\/Badge>/)
+  assert.match(source, /data-\[active=true\].*before:opacity-100/)
+  assert.match(source, /data-\[selected=true\]:bg-primary\/12/)
+  assert.doesNotMatch(source, /IconCheck|data-\[selected=true\].*shadow-|selected=true.*pl-8/)
+})
+
+test('Focus Visual uses tint without shared card selection decorations', () => {
+  const listSource = readFileSync(
+    require.resolve('../src/renderer/src/features/items/focus-item-list.tsx'),
+    'utf8'
+  )
+  const savedCardSource = readFileSync(
+    require.resolve('../src/renderer/src/features/items/saved-item-card.tsx'),
+    'utf8'
+  )
+  const typeCardSources = ['note', 'image', 'url', 'file'].map((type) =>
+    readFileSync(
+      require.resolve(`../src/renderer/src/features/items/${type}-item-card.tsx`),
+      'utf8'
+    )
+  )
+
+  assert.match(listSource, /data-\[active=true\]:bg-primary\/10/)
+  assert.match(listSource, /data-\[selected=true\]:bg-primary\/10/)
+  assert.match(listSource, /showSelectionVisual=\{false\}/)
+  assert.doesNotMatch(listSource, /data-\[active=true\]:before:opacity-100/)
+  assert.doesNotMatch(listSource, /data-\[selected=true\]:shadow-/)
+  assert.match(savedCardSource, /showSelectionVisual = true/)
+  for (const source of typeCardSources) {
+    assert.match(source, /data-selected=\{selected && showSelectionVisual\}/)
+    assert.match(source, /aria-pressed=\{selected\}/)
+  }
 })

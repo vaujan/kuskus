@@ -32,24 +32,33 @@
     --typeset-size: 16px;
   }
 
-  .kuskus-markdown-detail-canvas,
+  .kuskus-detail-document-frame,
   .cm-kuskus-detail-editor {
+    --detail-document-max-width: 48rem;
     --typeset-detail-gutter: 1.75rem;
   }
 
-  .kuskus-markdown-detail-canvas {
+  .kuskus-detail-document-frame {
+    width: 100%;
+    max-width: var(--detail-document-max-width);
+    margin-inline: auto;
     padding-inline: var(--typeset-detail-gutter);
   }
 
+  [data-reading-width='wide'] .kuskus-detail-document-frame,
+  [data-reading-width='wide'] .cm-kuskus-detail-editor {
+    --detail-document-max-width: none;
+  }
+
   @media (min-width: 40rem) {
-    .kuskus-markdown-detail-canvas,
+    .kuskus-detail-document-frame,
     .cm-kuskus-detail-editor {
       --typeset-detail-gutter: 3rem;
     }
   }
 
   @media (min-width: 53.75rem) {
-    .kuskus-markdown-detail-canvas,
+    .kuskus-detail-document-frame,
     .cm-kuskus-detail-editor {
       --typeset-detail-gutter: 4rem;
     }

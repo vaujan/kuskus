@@ -6,6 +6,10 @@ import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
@@ -16,6 +20,7 @@ import {
   InputGroupInput
 } from '@/components/ui/input-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import type { FocusRailDensity } from '@/features/items/focus-view-state'
 import { ItemFilterMenuGroups, ItemSortMenuGroup } from '@/features/items/item-retrieval-menu'
 import { DEFAULT_ITEM_SORT, type ItemSort } from '@/features/items/item-sort'
 import type { ItemTypeFilter } from '@/features/items/item-view'
@@ -39,7 +44,9 @@ export function FocusListHeader({
   onShowReferencedAttachmentsChange,
   onClearFilters,
   sort,
-  onSortChange
+  onSortChange,
+  density,
+  onDensityChange
 }: {
   keyboardShortcutsEnabled: boolean
   destinationLabel: string
@@ -59,6 +66,8 @@ export function FocusListHeader({
   onClearFilters: () => void
   sort: ItemSort
   onSortChange: (sort: ItemSort) => void
+  density: FocusRailDensity
+  onDensityChange: (density: FocusRailDensity) => void
 }): React.JSX.Element {
   const searchRef = useRef<HTMLInputElement>(null)
   const newItemRef = useRef<HTMLButtonElement>(null)
@@ -112,7 +121,7 @@ export function FocusListHeader({
   return (
     <header
       data-focus-list-header
-      className="@container/focus-header flex h-14 shrink-0 select-none items-center gap-1 border-b border-border/70 px-2 [-webkit-app-region:drag]"
+      className="@container/focus-header flex p-2 shrink-0 select-none items-center gap-1 [-webkit-app-region:drag]"
     >
       <ShellSidebarTrigger />
 
@@ -200,6 +209,17 @@ export function FocusListHeader({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
               <ItemSortMenuGroup sort={sort} onSortChange={onSortChange} />
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Item layout</DropdownMenuLabel>
+                <DropdownMenuRadioGroup
+                  value={density}
+                  onValueChange={(value) => onDensityChange(value as FocusRailDensity)}
+                >
+                  <DropdownMenuRadioItem value="index">Index</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="visual">Visual</DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
+              </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <ItemFilterMenuGroups
                 typeFilters={typeFilters}

@@ -13,6 +13,7 @@ import {
 import {
   IconAlignLeft as AlignLeft,
   IconCalendar as Calendar,
+  IconChevronDown as ChevronDown,
   IconChevronLeft as ChevronLeft,
   IconChevronRight as ChevronRight,
   IconCode as Code,
@@ -33,6 +34,7 @@ import {
   IconPencil as Pencil,
   IconPlayerPlayFilled as Play,
   IconTrash as Trash,
+  IconViewportWide as ViewportWide,
   IconWorld as Globe2,
   IconX as X,
   type TablerIcon
@@ -50,6 +52,19 @@ import {
   AlertDialogTitle
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { ButtonGroup } from '@/components/ui/button-group'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
 import {
   Dialog as ConflictDialog,
   DialogContent as ConflictDialogContent,
@@ -60,8 +75,17 @@ import {
 } from '@/components/ui/dialog'
 import { Kbd } from '@/components/ui/kbd'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Popover,
+  PopoverContent,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger
+} from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { createMarkdownDiffRows } from '@/features/items/markdown-diff'
+import { resolveItemDetailContext } from '@/features/items/item-detail-context'
+import { FolderDropdownDestinationItems } from '@/features/collections/folder-destination-items'
 import {
   createInlineTitleEditState,
   reduceInlineTitleEdit,
@@ -77,6 +101,12 @@ import {
 } from '@/features/items/markdown-scroll'
 import { NoteAutosaveCoordinator, type NoteAutosaveSnapshot } from '@/features/items/note-autosave'
 import {
+  NOTE_READING_WIDTH_STORAGE_KEY,
+  parseNoteReadingWidth,
+  toggleNoteReadingWidth,
+  type NoteReadingWidth
+} from '@/features/items/note-reading-width'
+import {
   getSplitToggleMode,
   toggleReadLive,
   toggleSourceMode,
@@ -87,9 +117,13 @@ import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
 import { useImagePreview } from '@/features/items/use-image-preview'
 import { useNoteAttachmentPreviews } from '@/features/items/use-note-attachment-previews'
 import { useUrlPreview } from '@/features/items/use-url-preview'
-import { CaptionTileButton, WindowControls } from '@/features/shell/window-controls'
+import { WindowControls } from '@/features/shell/window-controls'
 import { cn } from '@/lib/utils'
-import type { LibraryItemDto } from '../../../../shared/library-contract'
+import type {
+  ActiveItemLocation,
+  CollectionDto,
+  LibraryItemDto
+} from '../../../../shared/library-contract'
 import { markdownImageTargetKey } from '../../../../shared/markdown-image-references'
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
@@ -316,11 +350,13 @@ function PropertyList({ children }: { children: React.ReactNode }): React.JSX.El
 function DetailControl({
   label,
   disabled = false,
+  pressed,
   onClick,
   children
 }: {
   label: string
   disabled?: boolean
+  pressed?: boolean
   onClick?: () => void
   children: React.ReactNode
 }): React.JSX.Element {
@@ -330,9 +366,10 @@ function DetailControl({
         <Button
           type="button"
           variant="ghost"
-          className="size-10"
+          className="size-10 aria-pressed:bg-muted aria-pressed:text-foreground"
           aria-label={label}
           disabled={disabled}
+          aria-pressed={pressed}
           onClick={onClick}
         >
           {children}
@@ -343,58 +380,68 @@ function DetailControl({
   )
 }
 
-function FloatingControls({
+function DetailToolbar({
   itemId,
-  leadingControls,
+  modeControls,
   actions,
   hasPrevious,
   hasNext,
   onPrevious,
   onNext,
   onError,
-  captionAligned = false,
+  presentation,
   showClose = true
 }: {
   itemId: string
-  leadingControls?: React.ReactNode
+  modeControls?: React.ReactNode
   actions?: React.ReactNode
   hasPrevious: boolean
   hasNext: boolean
   onPrevious: () => void
   onNext: () => void
   onError: (message: string) => void
-  captionAligned?: boolean
+  presentation: 'dialog' | 'focus'
   showClose?: boolean
 }): React.JSX.Element {
-  if (captionAligned) {
+  if (presentation === 'focus') {
+    const isMac = window.electron.window.platform === 'darwin'
+
     return (
-      <>
-        <div className="absolute top-0 right-[8.625rem] z-50 flex h-10 [-webkit-app-region:no-drag]">
-          <CaptionTileButton
-            label="Previous item (Left arrow)"
-            disabled={!hasPrevious}
-            onClick={onPrevious}
-          >
-            <ChevronLeft className="size-4" aria-hidden="true" />
-          </CaptionTileButton>
-          {actions}
-          <CaptionTileButton label="Next item (Right arrow)" disabled={!hasNext} onClick={onNext}>
-            <ChevronRight className="size-4" aria-hidden="true" />
-          </CaptionTileButton>
+      <header
+        data-detail-focus-header
+        className="pointer-events-none relative z-40 grid h-10 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center"
+      >
+        <div aria-hidden="true" />
+        <div className="pointer-events-auto flex shrink-0 items-center [-webkit-app-region:no-drag]">
+          {modeControls}
         </div>
-        {leadingControls ? (
-          <div className="absolute top-12 right-3 z-20 flex max-w-[calc(100%-1.5rem)] justify-end">
-            {leadingControls}
-          </div>
-        ) : null}
-      </>
+        <div
+          data-detail-focus-actions
+          className={cn(
+            'pointer-events-auto flex min-w-0 justify-end [-webkit-app-region:no-drag]',
+            !isMac && 'pr-[8.625rem]'
+          )}
+        >
+          {actions}
+        </div>
+      </header>
     )
   }
 
+  const leadingControls = modeControls ? (
+    <div className="flex items-center gap-2">{modeControls}</div>
+  ) : null
+
   return (
-    <div className="absolute top-3 right-3 z-20 flex max-w-[calc(100%-1.5rem)] flex-wrap justify-end gap-2">
+    <header
+      data-detail-utility-bar
+      className={cn(
+        'flex min-h-14 shrink-0 items-center gap-3 border-b bg-popover px-3',
+        leadingControls ? 'justify-between' : 'justify-end'
+      )}
+    >
       {leadingControls}
-      <div className="flex rounded-full bg-popover/85 p-0.5 shadow-sm ring-1 ring-foreground/8 backdrop-blur-md">
+      <div className="flex items-center rounded-xl bg-muted/40 p-1 shadow-sm ring-1 ring-foreground/8">
         <DetailControl
           label="Previous item (Left arrow)"
           disabled={!hasPrevious}
@@ -437,16 +484,18 @@ function FloatingControls({
           </Tooltip>
         ) : null}
       </div>
-    </div>
+    </header>
   )
 }
 
 function NoteModeControls({
   mode,
-  onModeChange
+  onModeChange,
+  surface = 'toolbar'
 }: {
   mode: NoteMode
   onModeChange: (mode: NoteMode) => void
+  surface?: 'toolbar' | 'caption'
 }): React.JSX.Element {
   const options = [
     { value: 'read' as const, label: 'Read (Ctrl+E)', icon: Eye, shortcut: 'Control+E' },
@@ -471,37 +520,294 @@ function NoteModeControls({
   ]
 
   return (
-    <div
-      className="flex rounded-full bg-popover/85 p-0.5 shadow-sm ring-1 ring-foreground/8 backdrop-blur-md"
-      role="group"
+    <ButtonGroup
       aria-label="Note mode"
+      className={cn(
+        'bg-muted/40 shadow-sm ring-1 ring-foreground/8',
+        surface === 'caption' ? 'h-10 rounded-2xl' : 'rounded-xl p-1'
+      )}
     >
       {options.map(({ value, label, icon: Icon, shortcut }) => (
         <Tooltip key={value}>
-          <TooltipTrigger render={<span className="inline-flex" />}>
-            <Button
-              type="button"
-              variant="ghost"
-              className={cn(
-                'size-10 rounded-full text-muted-foreground shadow-none',
-                mode === value &&
-                  'bg-foreground/8 text-foreground shadow-sm hover:bg-foreground/10 dark:bg-foreground/10 dark:hover:bg-foreground/12'
-              )}
-              aria-label={label}
-              aria-pressed={mode === value}
-              aria-keyshortcuts={shortcut}
-              onClick={() => onModeChange(value)}
-            >
-              <Icon stroke={1.5} aria-hidden="true" />
-            </Button>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className={cn(
+                  'size-10 text-muted-foreground aria-pressed:bg-muted aria-pressed:text-foreground',
+                  surface === 'toolbar' && 'first:rounded-l-lg! last:rounded-r-lg!'
+                )}
+                aria-label={label}
+                aria-pressed={mode === value}
+                aria-keyshortcuts={shortcut}
+                onClick={() => onModeChange(value)}
+              />
+            }
+          >
+            <Icon stroke={1.5} aria-hidden="true" />
           </TooltipTrigger>
           <TooltipContent>{label}</TooltipContent>
         </Tooltip>
       ))}
+    </ButtonGroup>
+  )
+}
+function NoteMetadataControls({
+  item,
+  collections,
+  libraryItems,
+  locationPath,
+  updatedLabel,
+  onMove,
+  onManageAttachments,
+  onRenameAttachment,
+  onError
+}: {
+  item: Extract<LibraryItemDto, { type: 'note' }>
+  collections: readonly CollectionDto[]
+  libraryItems: readonly LibraryItemDto[]
+  locationPath: readonly string[]
+  updatedLabel: string
+  onMove: (destination: ActiveItemLocation) => void
+  onManageAttachments: () => void
+  onRenameAttachment: (itemId: string) => void
+  onError: (message: string) => void
+}): React.JSX.Element {
+  const imageItems = useMemo(
+    () =>
+      new Map(
+        libraryItems
+          .filter(
+            (entry): entry is Extract<LibraryItemDto, { type: 'image' }> => entry.type === 'image'
+          )
+          .map((entry) => [entry.id, entry])
+      ),
+    [libraryItems]
+  )
+  const canMove = item.location.type === 'inbox' || item.location.type === 'collection'
+  const locationLabel = locationPath.join(' / ')
+  const attachmentLabel = `${item.attachments.length} ${
+    item.attachments.length === 1 ? 'attachment' : 'attachments'
+  }`
+  const metadataButtonClassName =
+    'h-10 w-fit shrink-0 gap-1 px-2 text-xs font-normal text-muted-foreground'
+
+  return (
+    <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+      {canMove ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className={metadataButtonClassName}
+                aria-label={`Move note from ${locationLabel}`}
+              />
+            }
+          >
+            <span>{locationLabel}</span>
+            <ChevronDown data-icon="inline-end" aria-hidden="true" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-max min-w-44 max-w-72">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Move note to</DropdownMenuLabel>
+              <FolderDropdownDestinationItems
+                collections={[...collections]}
+                currentLocations={[item.location]}
+                onSelect={onMove}
+              />
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : (
+        <span className="flex h-10 shrink-0 items-center">{locationLabel}</span>
+      )}
+
+      <span className="flex shrink-0 items-center gap-2">
+        <span aria-hidden="true">&middot;</span>
+        <Popover>
+          <PopoverTrigger
+            render={
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className={metadataButtonClassName}
+                aria-label="Show note dates"
+              />
+            }
+          >
+            <span>Updated {updatedLabel}</span>
+            <ChevronDown data-icon="inline-end" aria-hidden="true" />
+          </PopoverTrigger>
+          <PopoverContent align="start" sideOffset={0} className="w-72 gap-3 rounded-2xl p-3">
+            <PopoverHeader>
+              <PopoverTitle className="text-sm">Note details</PopoverTitle>
+            </PopoverHeader>
+            <dl className="flex flex-col gap-1">
+              <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-3 rounded-xl px-2 py-1.5">
+                <dt className="text-xs text-muted-foreground">Created</dt>
+                <dd className="min-w-0 text-xs tabular-nums">
+                  <time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time>
+                </dd>
+              </div>
+              <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-3 rounded-xl px-2 py-1.5">
+                <dt className="text-xs text-muted-foreground">Updated</dt>
+                <dd className="min-w-0 text-xs tabular-nums">
+                  <time dateTime={item.updatedAt}>{formatDate(item.updatedAt)}</time>
+                </dd>
+              </div>
+            </dl>
+          </PopoverContent>
+        </Popover>
+      </span>
+
+      {item.attachments.length > 0 ? (
+        <span className="flex shrink-0 items-center gap-2">
+          <span aria-hidden="true">&middot;</span>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className={metadataButtonClassName}
+                  aria-label={`Show ${attachmentLabel}`}
+                />
+              }
+            >
+              <Paperclip data-icon="inline-start" aria-hidden="true" />
+              <span className="tabular-nums">{attachmentLabel}</span>
+              <ChevronDown data-icon="inline-end" aria-hidden="true" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-max min-w-52 max-w-72">
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="tabular-nums">{attachmentLabel}</DropdownMenuLabel>
+                {item.attachments.map((attachment) => {
+                  const image = imageItems.get(attachment.id)
+                  if (!image || attachment.missingContent) {
+                    return (
+                      <DropdownMenuItem
+                        key={`${attachment.id}-${attachment.relativePath}`}
+                        disabled
+                      >
+                        <ImageOff aria-hidden="true" />
+                        <span className="min-w-0 flex-1 truncate" title={attachment.filename}>
+                          {attachment.filename}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {attachment.missingContent ? 'Missing' : 'Unavailable'}
+                        </span>
+                      </DropdownMenuItem>
+                    )
+                  }
+                  return (
+                    <DropdownMenuSub key={`${attachment.id}-${attachment.relativePath}`}>
+                      <DropdownMenuSubTrigger>
+                        <Image aria-hidden="true" />
+                        <span className="min-w-0 flex-1 truncate" title={attachment.filename}>
+                          {attachment.filename}
+                        </span>
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="w-52">
+                        <DropdownMenuGroup>
+                          <DropdownMenuLabel className="truncate" title={attachment.filename}>
+                            {attachment.filename}
+                          </DropdownMenuLabel>
+                          <DropdownMenuItem onClick={() => onRenameAttachment(image.id)}>
+                            <Pencil aria-hidden="true" />
+                            Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              void window.kuskus.showItemInExplorer(image.id).then((result) => {
+                                if (!result.ok) onError(result.error)
+                              })
+                            }}
+                          >
+                            <FolderOpen aria-hidden="true" />
+                            Show in Explorer
+                          </DropdownMenuItem>
+                        </DropdownMenuGroup>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  )
+                })}
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem onClick={onManageAttachments}>
+                  <Paperclip aria-hidden="true" />
+                  Manage attachments...
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </span>
+      ) : null}
     </div>
   )
 }
+function NoteIdentityControls({
+  item,
+  collections,
+  libraryItems,
+  statusLabel,
+  onRenameTitle,
+  onMove,
+  onManageAttachments,
+  onRenameAttachment,
+  onError
+}: {
+  item: Extract<LibraryItemDto, { type: 'note' }>
+  collections: readonly CollectionDto[]
+  libraryItems: readonly LibraryItemDto[]
+  statusLabel: string | null
+  onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
+  onMove: (destination: ActiveItemLocation) => void
+  onManageAttachments: () => void
+  onRenameAttachment: (itemId: string) => void
+  onError: (message: string) => void
+}): React.JSX.Element {
+  const detailContext = useMemo(
+    () => resolveItemDetailContext(item.location, item.updatedAt, collections),
+    [collections, item.location, item.updatedAt]
+  )
 
+  return (
+    <div className="flex min-w-0 items-start gap-4">
+      <div className="min-w-0 flex-1">
+        <InlineItemTitle
+          item={item}
+          onRename={onRenameTitle}
+          className="font-heading text-xl leading-tight font-medium text-foreground text-balance"
+          textClassName="break-words"
+        />
+        <NoteMetadataControls
+          item={item}
+          collections={collections}
+          libraryItems={libraryItems}
+          locationPath={detailContext.locationPath}
+          updatedLabel={detailContext.updatedLabel}
+          onMove={onMove}
+          onManageAttachments={onManageAttachments}
+          onRenameAttachment={onRenameAttachment}
+          onError={onError}
+        />
+      </div>
+      {statusLabel ? (
+        <p className="shrink-0 text-xs text-destructive" aria-live="assertive" aria-atomic="true">
+          {statusLabel}
+        </p>
+      ) : null}
+    </div>
+  )
+}
 function MissingContent({
   type,
   onMoveToTrash
@@ -624,21 +930,40 @@ function UrlCanvas({
   )
 }
 
+function getNoteProblemStatusLabel(status: NoteAutosaveSnapshot['status']): string | null {
+  return status === 'invalid'
+    ? 'Not saved'
+    : status === 'error'
+      ? 'Unable to save'
+      : status === 'conflict'
+        ? 'Save conflict'
+        : null
+}
 function NoteCanvas({
   item,
+  collections,
+  libraryItems,
   mode,
   snapshot,
+  readingWidth,
   onRenameTitle,
   onDraftChange,
   onRetry,
   onRestore,
   onReviewConflict,
   onOpenVaultLink,
+  onMove,
+  onManageAttachments,
+  onRenameAttachment,
+  onError,
   onMoveToTrash
 }: {
   item: Extract<LibraryItemDto, { type: 'note' }>
+  collections: readonly CollectionDto[]
   mode: NoteMode
+  libraryItems: readonly LibraryItemDto[]
   snapshot: NoteAutosaveSnapshot
+  readingWidth: NoteReadingWidth
   onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
   onDraftChange: (value: string) => void
   onRetry: () => void
@@ -646,6 +971,10 @@ function NoteCanvas({
   onReviewConflict: () => void
   onOpenVaultLink: (target: string) => void
   onMoveToTrash: (itemId: string) => void
+  onMove: (destination: ActiveItemLocation) => void
+  onManageAttachments: () => void
+  onRenameAttachment: (itemId: string) => void
+  onError: (message: string) => void
 }): React.JSX.Element {
   const editorRef = useRef<MarkdownEditorHandle>(null)
   const previewViewportRef = useRef<HTMLDivElement>(null)
@@ -656,6 +985,7 @@ function NoteCanvas({
   const syncFrameRef = useRef<number | null>(null)
   const releaseSyncFrameRef = useRef<number | null>(null)
   const attachmentPreviews = useNoteAttachmentPreviews(item.id, item.attachments)
+
   const noteAttachments = item.attachments
   const onOpenVaultLinkRef = useRef(onOpenVaultLink)
   useEffect(() => {
@@ -685,14 +1015,7 @@ function NoteCanvas({
       onOpenVaultLink: (target) => onOpenVaultLinkRef.current(target)
     }
   }, [attachmentPreviews, noteAttachments])
-  const problemStatusLabel =
-    snapshot.status === 'invalid'
-      ? 'Not saved'
-      : snapshot.status === 'error'
-        ? 'Unable to save'
-        : snapshot.status === 'conflict'
-          ? 'Save conflict'
-          : null
+  const problemStatusLabel = getNoteProblemStatusLabel(snapshot.status)
 
   const scheduleScrollSynchronization = useCallback(
     (driver: 'source' | 'preview', recordDriver = true): void => {
@@ -804,28 +1127,21 @@ function NoteCanvas({
     <section
       data-detail-structural-surface
       className="flex h-full min-w-0 flex-1 flex-col bg-popover"
+      data-reading-width={readingWidth}
     >
       {!item.missingContent ? (
-        <header className="flex shrink-0 flex-col gap-4 px-5 pt-28 pb-5 @min-[64rem]/detail:px-8 @min-[64rem]/detail:pt-5 @min-[64rem]/detail:pr-[23rem]">
-          <div className="flex min-w-0 flex-wrap items-start gap-x-5 gap-y-3">
-            <div className="min-w-0 flex-1 basis-full sm:basis-auto">
-              <InlineItemTitle
-                item={item}
-                onRename={onRenameTitle}
-                className="font-heading text-2xl leading-tight font-medium text-foreground text-balance"
-                textClassName="break-words"
-              />
-            </div>
-            {problemStatusLabel ? (
-              <p
-                className="shrink-0 text-xs text-destructive"
-                aria-live="assertive"
-                aria-atomic="true"
-              >
-                {problemStatusLabel}
-              </p>
-            ) : null}
-          </div>
+        <header className="kuskus-detail-document-frame flex shrink-0 flex-col border-b border-border/40 py-5">
+          <NoteIdentityControls
+            item={item}
+            collections={collections}
+            libraryItems={libraryItems}
+            statusLabel={problemStatusLabel}
+            onRenameTitle={onRenameTitle}
+            onMove={onMove}
+            onManageAttachments={onManageAttachments}
+            onRenameAttachment={onRenameAttachment}
+            onError={onError}
+          />
         </header>
       ) : null}
       {item.missingContent ? (
@@ -835,7 +1151,7 @@ function NoteCanvas({
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
           {snapshot.error ? (
-            <div className="shrink-0 px-7 pt-4 sm:px-12">
+            <div className="kuskus-detail-document-frame shrink-0 pt-2">
               <Alert variant="destructive">
                 <AlertTitle>
                   {snapshot.status === 'conflict' ? 'The note changed on disk' : 'Note not saved'}
@@ -898,7 +1214,7 @@ function NoteCanvas({
               viewportClassName="focus-visible:ring-0 focus-visible:outline-none"
               viewportRef={previewViewportRef}
             >
-              <article className="kuskus-markdown-detail-canvas min-h-full w-full py-10">
+              <article className="kuskus-detail-document-frame min-h-full w-full py-8">
                 <MarkdownPreview
                   value={snapshot.draft}
                   itemId={item.id}
@@ -1079,7 +1395,7 @@ function ImageInspector({
       data-detail-structural-surface
       className="min-w-0 border-t bg-popover @min-[860px]/detail:border-t-0 @min-[860px]/detail:border-l"
     >
-      <div className="space-y-5 p-5 pt-18 sm:p-6 sm:pt-20">
+      <div className="flex flex-col gap-5 p-5 sm:p-6">
         <InlineItemTitle
           item={item}
           onRename={onRenameTitle}
@@ -1155,7 +1471,7 @@ function UrlInspector({
       data-detail-structural-surface
       className="min-w-0 border-t bg-popover @min-[860px]/detail:border-t-0 @min-[860px]/detail:border-l"
     >
-      <div className="space-y-5 p-5 pt-18 sm:p-6 sm:pt-20">
+      <div className="flex flex-col gap-5 p-5 sm:p-6">
         <InlineItemTitle
           item={item}
           onRename={onRenameTitle}
@@ -1197,6 +1513,7 @@ export interface ItemDetailHandle {
 
 interface ItemDetailProps {
   item: LibraryItemDto | null
+  collections: readonly CollectionDto[]
   hasPrevious: boolean
   hasNext: boolean
   onPrevious: () => void
@@ -1208,6 +1525,7 @@ interface ItemDetailProps {
   onRenameAttachment: (itemId: string) => void
   renderActions?: (guard: (action: () => void) => void) => React.ReactNode
   onOpenVaultLink: (target: string) => void
+  onMoveItem: (destination: ActiveItemLocation) => void
   onMoveToTrash: (itemId: string) => void
   onError: (message: string) => void
   presentation?: 'dialog' | 'focus'
@@ -1217,6 +1535,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
   function ItemDetailDialog(
     {
       item,
+      collections,
       hasPrevious,
       hasNext,
       onPrevious,
@@ -1228,6 +1547,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       onRenameAttachment,
       renderActions,
       onOpenVaultLink,
+      onMoveItem,
       onMoveToTrash,
       onError,
       presentation = 'dialog'
@@ -1262,6 +1582,9 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
     const [mode, setMode] = useState<NoteMode>('read')
     const previousSingleModeRef = useRef<SinglePaneNoteMode>('read')
     const [leaving, setLeaving] = useState(false)
+    const [readingWidth, setReadingWidth] = useState<NoteReadingWidth>(() =>
+      parseNoteReadingWidth(localStorage.getItem(NOTE_READING_WIDTH_STORAGE_KEY))
+    )
     const [conflictDialogOpen, setConflictDialogOpen] = useState(false)
     const [conflictResolution, setConflictResolution] = useState<'mine' | 'disk' | null>(null)
     const [attachmentsOpen, setAttachmentsOpen] = useState(false)
@@ -1272,6 +1595,9 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
     )
 
     useEffect(() => () => coordinator?.dispose(), [coordinator])
+    useEffect(() => {
+      localStorage.setItem(NOTE_READING_WIDTH_STORAGE_KEY, readingWidth)
+    }, [readingWidth])
     useEffect(() => {
       if (
         item?.type === 'note' &&
@@ -1411,23 +1737,24 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
     }
 
     const detailContent = item ? (
-      <>
-        <FloatingControls
+      <div data-detail-content-stack className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+        <DetailToolbar
           itemId={item.id}
-          leadingControls={
+          modeControls={
             item.type === 'note' ? (
-              <div className="flex gap-2">
-                <NoteModeControls mode={mode} onModeChange={changeMode} />
-                {item.attachments.length > 0 ? (
-                  <div className="flex rounded-full bg-popover/85 p-0.5 shadow-sm ring-1 ring-foreground/8 backdrop-blur-md">
-                    <DetailControl
-                      label={`Attachments (${item.attachments.length})`}
-                      onClick={() => setAttachmentsOpen((open) => !open)}
-                    >
-                      <Paperclip aria-hidden="true" />
-                    </DetailControl>
-                  </div>
-                ) : null}
+              <div className="flex items-center gap-2">
+                <NoteModeControls
+                  mode={mode}
+                  onModeChange={changeMode}
+                  surface={presentation === 'focus' ? 'caption' : 'toolbar'}
+                />
+                <DetailControl
+                  label="Wide reading width"
+                  pressed={readingWidth === 'wide'}
+                  onClick={() => setReadingWidth((width) => toggleNoteReadingWidth(width))}
+                >
+                  <ViewportWide aria-hidden="true" />
+                </DetailControl>
               </div>
             ) : undefined
           }
@@ -1437,21 +1764,28 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
           onPrevious={() => requestGuardedAction(onPrevious)}
           onNext={() => requestGuardedAction(onNext)}
           onError={onError}
-          captionAligned={
-            presentation === 'focus' && window.electron.window.platform !== 'darwin'
-          }
+          presentation={presentation}
           showClose={presentation === 'dialog'}
         />
         {item.type === 'note' ? (
           <div className="relative flex min-w-0 flex-1">
             <NoteCanvas
               item={item}
+              collections={collections}
               mode={mode}
               snapshot={snapshot}
+              libraryItems={libraryItems}
               onRenameTitle={renameCurrentItem}
               onDraftChange={(value) => coordinator?.updateDraft(value)}
+              readingWidth={readingWidth}
               onRetry={() => void coordinator?.retry()}
               onRestore={() => coordinator?.restoreSaved()}
+              onMove={(destination) => requestGuardedAction(() => onMoveItem(destination))}
+              onManageAttachments={() => setAttachmentsOpen(true)}
+              onRenameAttachment={(itemId) =>
+                requestGuardedAction(() => onRenameAttachment(itemId))
+              }
+              onError={onError}
               onReviewConflict={() => setConflictDialogOpen(true)}
               onOpenVaultLink={(target) => requestGuardedAction(() => onOpenVaultLink(target))}
               onMoveToTrash={(itemId) => requestGuardedAction(() => onMoveToTrash(itemId))}
@@ -1495,7 +1829,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
             </div>
           </ScrollArea>
         )}
-      </>
+      </div>
     ) : null
 
     return (
