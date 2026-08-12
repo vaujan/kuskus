@@ -99,7 +99,9 @@ The user wants one obvious place to add any supported kind of content without ch
   `Ctrl+Enter`.
 - `Escape` hides the card and retains unfinished content; discard is a separate explicit action.
 - Quick capture hides as soon as the submission is durably accepted. Its authoritative write may
-  continue in a FIFO background queue without blocking a fresh composer session.
+  continue in a FIFO background queue without blocking a fresh composer session. For note drafts,
+  **Continue in editor** or `Ctrl+Shift+Enter` waits for the note, reveals the main window, and opens
+  its live editor instead.
 - After a successful inline commit, keyboard focus returns to **New item** unless the user has started another action.
 
 ### Destination and ordering

@@ -1231,7 +1231,7 @@ test('pauses autosave for conflicts and resolves with either reviewed version', 
   assert.equal(coordinator.getSnapshot().status, 'saved')
 })
 
-test('protects blank notes and produces a side-by-side Markdown diff', () => {
+test('keeps blank edits pending and produces a side-by-side Markdown diff', () => {
   const coordinator = new NoteAutosaveCoordinator({
     itemId: noteDto('Initial').id,
     initialMarkdown: 'Initial',
@@ -1240,8 +1240,8 @@ test('protects blank notes and produces a side-by-side Markdown diff', () => {
     onDraftReplaced: () => undefined
   })
   coordinator.updateDraft('   ')
-  assert.equal(coordinator.getSnapshot().status, 'invalid')
-  assert.match(coordinator.getSnapshot().error, /cannot be empty/i)
+  assert.equal(coordinator.getSnapshot().status, 'dirty')
+  assert.equal(coordinator.getSnapshot().error, null)
   coordinator.dispose()
 
   const rows = createMarkdownDiffRows('Same\nMy line\nSame end', 'Same\nDisk line\nSame end')

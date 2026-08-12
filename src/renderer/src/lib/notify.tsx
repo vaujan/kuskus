@@ -161,6 +161,15 @@ export function notifyTrashed(count: number, onUndo: () => void): void {
   })
 }
 
+export function notifyEmptyNoteTrashed(onUndo: () => void): void {
+  showUndoableToast({
+    title: 'Note moved to Trash',
+    description: 'It was empty.',
+    icon: <IconTrash />,
+    onUndo
+  })
+}
+
 export function notifyRestored(count: number, description?: string): void {
   showVerbToast({
     title: count === 1 ? 'Item restored' : `${count} items restored`,

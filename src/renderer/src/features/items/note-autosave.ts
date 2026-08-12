@@ -4,7 +4,7 @@ import type {
   UpdateNoteResult
 } from '../../../../shared/library-contract'
 
-export type NoteSaveStatus = 'saved' | 'dirty' | 'saving' | 'invalid' | 'error' | 'conflict'
+export type NoteSaveStatus = 'saved' | 'dirty' | 'saving' | 'error' | 'conflict'
 
 export interface NoteAutosaveSnapshot {
   status: NoteSaveStatus
@@ -69,22 +69,25 @@ export class NoteAutosaveCoordinator {
     if (this.disposed || markdown === this.snapshot.draft) return
     this.clearTimer()
     const dirty = markdown !== this.snapshot.savedMarkdown
-    const invalid = dirty && !markdown.trim()
     this.setSnapshot({
       ...this.snapshot,
       draft: markdown,
-      error: this.snapshot.conflict
-        ? this.snapshot.error
-        : invalid
-          ? 'A saved note cannot be empty.'
-          : null,
-      status: this.snapshot.conflict ? 'conflict' : invalid ? 'invalid' : dirty ? 'dirty' : 'saved'
+      error: this.snapshot.conflict ? this.snapshot.error : null,
+      status: this.snapshot.conflict ? 'conflict' : dirty ? 'dirty' : 'saved'
     })
-    if (dirty && !invalid && !this.snapshot.conflict) this.schedule()
+    if (dirty && markdown.trim() && !this.snapshot.conflict) this.schedule()
   }
 
   async flush(): Promise<boolean> {
     this.clearTimer()
+    if (this.inFlight) await this.inFlight
+    if (!this.snapshot.draft.trim()) {
+      return (
+        !this.snapshot.savedMarkdown.trim() &&
+        this.snapshot.status !== 'error' &&
+        this.snapshot.status !== 'conflict'
+      )
+    }
     return this.savePending(true)
   }
 
@@ -142,10 +145,10 @@ export class NoteAutosaveCoordinator {
   async useLocalVersion(current: NoteItemDto): Promise<boolean> {
     this.setSnapshot({
       ...this.snapshot,
-      status: this.snapshot.draft.trim() ? 'dirty' : 'invalid',
+      status: 'dirty',
       savedMarkdown: current.body,
       savedUpdatedAt: current.updatedAt,
-      error: this.snapshot.draft.trim() ? null : 'A saved note cannot be empty.',
+      error: null,
       conflict: null
     })
     return this.flush()

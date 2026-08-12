@@ -110,6 +110,7 @@ import type { GlobalCaptureShortcutStatus } from '../../../../shared/window-cont
 import type { CaptureSurface } from '../../../../shared/capture-contract'
 import {
   notifyArchived,
+  notifyEmptyNoteTrashed,
   notifyGlobalCapturePrepared,
   notifyGlobalCaptureUnavailable,
   notifyPermanentlyDeleted,
@@ -249,6 +250,7 @@ export function Workspace({
     }
   })
   const [focusItemId, setFocusItemId] = useState<string | null>(null)
+  const [focusItemEditOnOpenId, setFocusItemEditOnOpenId] = useState<string | null>(null)
   const [focusDetailOpen, setFocusDetailOpen] = useState(false)
   const [focusNoteExpanded, setFocusNoteExpanded] = useState(false)
   const [showReferencedAttachments, setShowReferencedAttachments] = useState(
@@ -257,6 +259,7 @@ export function Workspace({
   const [message, setMessage] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
+  const [selectedItemEditOnOpenId, setSelectedItemEditOnOpenId] = useState<string | null>(null)
   const [itemDetails, setItemDetails] = useState<Map<string, LibraryItemDto>>(() => new Map())
   const [destination, setDestination] = useState<LibraryDestination>({ type: 'inbox' })
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
@@ -297,7 +300,6 @@ export function Workspace({
   const mainComposerOwnershipRequested = useRef(false)
   const focusDetailRef = useRef<ItemDetailHandle>(null)
   const previousVisibleItemIdsRef = useRef<string[]>([])
-  const focusAfterCaptureRef = useRef<string | null>(null)
   const draftStorageKey = `kuskus-note-draft:${library.path}`
 
   const announceStatus = useCallback((message: string): void => {
@@ -321,6 +323,7 @@ export function Workspace({
     (itemId: string | null): void => {
       const item = library.items.find((candidate) => candidate.id === itemId)
       setFocusNoteExpanded((current) => (item?.type === 'note' ? current : false))
+      setFocusItemEditOnOpenId(null)
       setFocusItemId(itemId)
     },
     [library.items]
@@ -722,7 +725,7 @@ export function Workspace({
   )
 
   const addCreatedItem = useCallback(
-    async (item: LibraryItemDto): Promise<boolean> => {
+    async (item: LibraryItemDto, openInEditor = false): Promise<boolean> => {
       const refreshed = await window.kuskus.getState()
       const nextLibrary =
         refreshed.ok && refreshed.data.status === 'ready' ? refreshed.data.library : null
@@ -734,9 +737,10 @@ export function Workspace({
         itemMatchesDestination(nextItem, destination, collectionSubtreeIds) &&
         itemMatchesRetrieval(nextItem, search.trim().toLocaleLowerCase(), typeFilters)
       if (remainsVisible) pendingRevealItemId.current = nextItem.id
-      if (view === 'focus' && remainsVisible) {
-        focusAfterCaptureRef.current = nextItem.id
+      if (view === 'focus' && openInEditor && nextItem.type === 'note') {
         setFocusItemId(nextItem.id)
+        setFocusItemEditOnOpenId(nextItem.id)
+        setFocusDetailOpen(true)
       }
       return remainsVisible
     },
@@ -1021,23 +1025,23 @@ export function Workspace({
   )
 
   const trashItemIds = useCallback(
-    async (itemIds: string[], showUndo = true): Promise<void> => {
+    async (itemIds: string[], showUndo = true): Promise<boolean> => {
       setItemOperationBusy(true)
       try {
         const inspected = await window.kuskus.inspectItemDeletion({ itemIds, mode: 'trash' })
         if (!inspected.ok) {
           setMessage(inspected.error)
-          return
+          return false
         }
         if (inspected.data.referencedItems.length > 0) {
           setTrashReview({ itemIds, inspection: inspected.data })
-          return
+          return false
         }
         const result = await window.kuskus.trashItems({
           itemIds,
           referenceRevision: inspected.data.revision
         })
-        if (!applyLibraryResult(result)) return
+        if (!applyLibraryResult(result)) return false
         if (showUndo) {
           notifyTrashed(itemIds.length, () => {
             void window.kuskus
@@ -1045,11 +1049,26 @@ export function Workspace({
               .then((undoResult) => applyLibraryResult(undoResult))
           })
         }
+        return true
       } finally {
         setItemOperationBusy(false)
       }
     },
     [applyLibraryResult]
+  )
+
+  const trashEmptyNote = useCallback(
+    async (itemId: string): Promise<boolean> => {
+      const trashed = await trashItemIds([itemId], false)
+      if (!trashed) return false
+      notifyEmptyNoteTrashed(() => {
+        void window.kuskus
+          .restoreItems({ itemIds: [itemId] })
+          .then((result) => applyLibraryResult(result))
+      })
+      return true
+    },
+    [applyLibraryResult, trashItemIds]
   )
 
   const confirmReferencedTrash = async (): Promise<void> => {
@@ -1174,6 +1193,7 @@ export function Workspace({
           setFocusDetailOpen(true)
         })
       } else {
+        setSelectedItemEditOnOpenId(null)
         setSelectedItemId(itemId)
       }
     },
@@ -1196,7 +1216,10 @@ export function Workspace({
             changeFocusItemId(item.id)
             setFocusDetailOpen(true)
           })
-        } else setSelectedItemId(item.id)
+        } else {
+          setSelectedItemEditOnOpenId(null)
+          setSelectedItemId(item.id)
+        }
       },
       onRename: () => {
         guardFocusTargets([item.id], () => {
@@ -1370,12 +1393,32 @@ export function Workspace({
       mainComposerOwnershipRequested.current = captureOwner.current !== 'main'
       setComposerOpen(true)
       setFocusNoteExpanded(false)
-      if (view === 'focus') setFocusDetailOpen(true)
       setComposerFocusRequest((request) => request + 1)
     }
     if (view === 'focus') requestFocusTransition(open)
     else open()
   }, [requestFocusTransition, view])
+
+  useEffect(() => {
+    if (view !== 'focus') return
+    const handleNewItemShortcut = (event: KeyboardEvent): void => {
+      if (
+        event.defaultPrevented ||
+        !event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        event.shiftKey ||
+        event.key.toLocaleLowerCase() !== 'n' ||
+        document.querySelector('[role="dialog"], [role="menu"], [role="listbox"]') !== null
+      ) {
+        return
+      }
+      event.preventDefault()
+      openComposer()
+    }
+    window.addEventListener('keydown', handleNewItemShortcut)
+    return () => window.removeEventListener('keydown', handleNewItemShortcut)
+  }, [openComposer, view])
 
   const prepareGlobalCapture = useCallback((): void => {
     const modalOpen = document.querySelector('[role="dialog"]') !== null
@@ -1430,20 +1473,48 @@ export function Workspace({
     []
   )
 
-  const changeComposerOpen = useCallback(
-    (open: boolean): void => {
-      if (!open) mainComposerOwnershipRequested.current = false
-      setComposerOpen(open)
-      if (open) setFocusNoteExpanded(false)
-      if (!open && view === 'focus') {
-        const capturedItemId = focusAfterCaptureRef.current
-        focusAfterCaptureRef.current = null
-        setFocusDetailOpen(capturedItemId !== null)
-      }
-      if (!open) setNewItemFocusRequest((request) => request + 1)
-    },
-    [view]
+  useEffect(
+    () =>
+      window.capture.onMainItemRequested((itemId) => {
+        void window.kuskus.getState().then((result) => {
+          if (!result.ok || result.data.status !== 'ready') {
+            setMessage('The saved note could not be opened.')
+            return
+          }
+          const nextLibrary = result.data.library
+          const item = nextLibrary.items.find((candidate) => candidate.id === itemId)
+          if (!item) {
+            setMessage('The saved note could not be found.')
+            return
+          }
+          const open = (): void => {
+            setLibrary(nextLibrary)
+            setMessage('')
+            setSelectedIds(new Set())
+            setSelectionAnchorId(null)
+            if (view === 'focus') {
+              setFocusNoteExpanded(false)
+              setFocusItemId(item.id)
+              setFocusItemEditOnOpenId(item.type === 'note' ? item.id : null)
+              setFocusDetailOpen(true)
+            } else {
+              setSelectedItemId(item.id)
+              setSelectedItemEditOnOpenId(item.type === 'note' ? item.id : null)
+            }
+          }
+          if (view === 'focus') requestFocusTransition(open)
+          else open()
+        })
+      }),
+    [requestFocusTransition, view]
   )
+
+  const changeComposerOpen = useCallback((open: boolean, returnFocus = true): void => {
+    if (!open) mainComposerOwnershipRequested.current = false
+    setComposerOpen(open)
+    if (open) setFocusNoteExpanded(false)
+    if (!open && returnFocus) setNewItemFocusRequest((request) => request + 1)
+  }, [])
 
   useEffect(() => {
     const pending = library.items.filter(
@@ -1670,7 +1741,7 @@ export function Workspace({
       draftStorageKey={draftStorageKey}
       importRequest={importRequest}
       view={view}
-      presentation={view === 'focus' ? 'pane' : 'card'}
+      presentation="card"
       onOpenChange={changeComposerOpen}
       onImportRequestHandled={(id) =>
         setImportRequest((current) => (current?.id === id ? null : current))
@@ -1687,10 +1758,6 @@ export function Workspace({
           itemMatchesRetrieval(released, search.trim().toLocaleLowerCase(), typeFilters)
         ) {
           pendingRevealItemId.current = itemId
-        }
-        if (view === 'focus') {
-          focusAfterCaptureRef.current = itemId
-          setFocusItemId(itemId)
         }
       }}
       onStatus={announceStatus}
@@ -1801,15 +1868,11 @@ export function Workspace({
       <FocusItemList
         items={visibleItems}
         density={focusRailDensity}
-        activeItemId={composerOpen ? null : focusItemId}
+        activeItemId={focusItemId}
         selectedIds={selectedIds}
         draggedIds={draggedItemIds}
-        composerOpen={composerOpen || showExternalDropShadow}
-        composerBusy={composerHasTransientWork || showExternalDropShadow}
-        composerHasDraft={composerHasDraft}
+        composer={composerOpen || showExternalDropShadow ? captureSlot : null}
         onActivate={activateItem}
-        onActivateComposer={openComposer}
-        onDiscardComposer={() => setComposerDiscardRequest((request) => request + 1)}
         onDragStart={beginItemDrag}
         onDragEnd={endItemDrag}
         renderActions={(item) => (
@@ -1834,27 +1897,14 @@ export function Workspace({
     </div>
   )
 
-  const focusDetail = showExternalDropShadow ? (
-    <Empty className="size-full">
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <Inbox aria-hidden="true" />
-        </EmptyMedia>
-        <EmptyTitle>{isDragging ? 'Drop to add this image' : 'Preparing New item'}</EmptyTitle>
-        <EmptyDescription>
-          The image will remain a recoverable draft until you confirm it.
-        </EmptyDescription>
-      </EmptyHeader>
-    </Empty>
-  ) : composerOpen ? (
-    addItemComposer
-  ) : focusItem ? (
+  const focusDetail = focusItem ? (
     <Suspense fallback={<div className="size-full animate-pulse bg-muted/20" />}>
       <ItemDetailDialog
         ref={focusDetailRef}
         key={`focus-${focusItem.id}`}
         presentation="focus"
         item={focusItem}
+        initialNoteMode={focusItemEditOnOpenId === focusItem.id ? 'live' : undefined}
         expanded={focusNoteExpansionActive}
         onExpandedChange={changeFocusNoteExpanded}
         collections={library.collections}
@@ -1878,6 +1928,7 @@ export function Workspace({
           const target = library.items.find((item) => item.id === itemId)
           if (target) itemActions(target, [itemId]).onTrash()
         }}
+        onEmptyNote={trashEmptyNote}
         renderActions={(guard, detailOptions) => {
           const actions = itemActions(focusItem, [focusItem.id])
           return (
@@ -2037,7 +2088,7 @@ export function Workspace({
               listWidth={focusListWidth}
               onListWidthChange={setFocusListWidth}
               expanded={focusNoteExpansionActive}
-              detailOpen={focusDetailOpen || composerOpen || showExternalDropShadow}
+              detailOpen={focusDetailOpen}
               onSplitChange={handleFocusSplitChange}
               onWindowClose={() => requestFocusTransition(window.electron.window.close)}
               list={focusList}
@@ -2283,13 +2334,17 @@ export function Workspace({
           <ItemDetailDialog
             key={selectedItem?.id ?? 'closed-item-detail'}
             item={selectedItem}
+            initialNoteMode={selectedItemEditOnOpenId === selectedItem?.id ? 'live' : undefined}
             collections={library.collections}
             hasPrevious={hasPreviousItem}
             hasNext={hasNextItem}
             onPrevious={selectPreviousItem}
             onNext={selectNextItem}
             onOpenChange={(open) => {
-              if (!open) setSelectedItemId(null)
+              if (!open) {
+                setSelectedItemEditOnOpenId(null)
+                setSelectedItemId(null)
+              }
             }}
             onItemUpdated={updateItem}
             onRenameItem={renameItemTitle}
@@ -2309,6 +2364,7 @@ export function Workspace({
               const target = library.items.find((item) => item.id === itemId)
               if (target) itemActions(target, [itemId]).onTrash()
             }}
+            onEmptyNote={trashEmptyNote}
             renderActions={(guard, detailOptions) => {
               if (!selectedItem) return null
               const actions = itemActions(selectedItem, [selectedItem.id])

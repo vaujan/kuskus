@@ -1133,14 +1133,17 @@ A second renderer surface is useful only if it cannot fork drafts, lose staged f
 Supersede DEC-034's main-window presentation while retaining its fixed shortcut, explicit commit,
 single process, registration reporting, and no-clipboard-read constraints. `Ctrl+Shift+Space` opens
 one frameless, taskbar-hidden quick-capture window at the bottom-right of the pointer's monitor. The
-main window remains unchanged. An unavailable library reveals the existing main recovery flow.
+main window remains unchanged unless the user explicitly continues a captured note in the full
+editor. An unavailable library reveals the existing main recovery flow.
 
 A main-process capture-session service persists revisioned text per library in app-local state and
 broadcasts one active editing owner between the inline and popup renderers. Staged images remain in
 the controlled vault temporary area; general files now stage there before commit as well. Typed IPC
 exposes session, ownership, staging, validated popup sizing, hide, and main-window handoff operations
 without renderer paths or arbitrary window bounds. Successful popup capture confirms for 650 ms and
-hides after authoritative local persistence; optional URL metadata continues independently.
+hides after authoritative local persistence; continuing a note waits for that persistence, then
+reveals the main window and opens the saved note in its live editor. Optional URL metadata continues
+independently.
 
 ### Consequences
 

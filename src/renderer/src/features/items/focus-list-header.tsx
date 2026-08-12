@@ -98,21 +98,10 @@ export function FocusListHeader({
         searchRef.current?.select()
         return
       }
-      if (
-        event.ctrlKey &&
-        !event.metaKey &&
-        !event.altKey &&
-        !event.shiftKey &&
-        key === 'n' &&
-        document.querySelector('[role="dialog"], [role="menu"], [role="listbox"]') === null
-      ) {
-        event.preventDefault()
-        onNewItem()
-      }
     }
     window.addEventListener('keydown', handleShortcut)
     return () => window.removeEventListener('keydown', handleShortcut)
-  }, [keyboardShortcutsEnabled, onNewItem])
+  }, [keyboardShortcutsEnabled])
 
   useEffect(() => {
     if (newItemFocusRequest > 0) newItemRef.current?.focus()

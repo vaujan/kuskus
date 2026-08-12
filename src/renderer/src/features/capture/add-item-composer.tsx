@@ -16,6 +16,7 @@ import {
   IconLoader2,
   IconPhoto,
   IconPhotoPlus,
+  IconPencil,
   IconRefresh,
   IconTrash,
   IconX
@@ -236,9 +237,9 @@ export function AddItemComposer({
   importRequest: ImportRequest | null
   view: LibraryView
   presentation?: 'card' | 'pane'
-  onOpenChange: (open: boolean) => void
+  onOpenChange: (open: boolean, returnFocus?: boolean) => void
   onImportRequestHandled: (id: number) => void
-  onCreated: (item: LibraryItemDto) => boolean | Promise<boolean>
+  onCreated: (item: LibraryItemDto, openInEditor?: boolean) => boolean | Promise<boolean>
   onLinkCommitted: (item: UrlItemDto) => Promise<{ item: UrlItemDto; remainsVisible: boolean }>
   onLinkUpdated: (item: UrlItemDto) => void
   onLinkReleased: (itemId: string) => void
@@ -331,6 +332,9 @@ export function AddItemComposer({
   const savingFeedback = saving || exiting
   const captureKind = detectCaptureKind(draft, attachments.length)
   const effectiveKind = fileCandidate ? 'file' : captureKind
+  const canContinueInEditor =
+    effectiveKind === 'note' &&
+    (surface === 'quick' || (view === 'focus' && presentation === 'card'))
   const displayedError = error || captureSession.error
   const draftPreviews = useCaptureDraftPreviews(attachments)
   const liveOptions = useMemo<LivePreviewOptions>(() => {
@@ -360,10 +364,10 @@ export function AddItemComposer({
   }, [attachments, captureSession.loaded, draft, setDraft, surfaceActive])
 
   useEffect(() => onDraftStateChange(hasDraft), [hasDraft, onDraftStateChange])
-  useEffect(
-    () => onTransientWorkChange(hasTransientWork || captureSession.busy || queue.pendingCount > 0),
-    [captureSession.busy, hasTransientWork, onTransientWorkChange, queue.pendingCount]
-  )
+  useEffect(() => {
+    onTransientWorkChange(hasTransientWork || captureSession.busy || queue.pendingCount > 0)
+    return () => onTransientWorkChange(false)
+  }, [captureSession.busy, hasTransientWork, onTransientWorkChange, queue.pendingCount])
 
   useEffect(() => {
     if (surfaceActive) void captureSession.setBusy(hasTransientWork)
@@ -531,10 +535,10 @@ export function AddItemComposer({
   )
 
   const finishCreate = useCallback(
-    async (item: LibraryItemDto, message: string): Promise<void> => {
+    async (item: LibraryItemDto, message: string, openInEditor: boolean): Promise<void> => {
       if (dismissNoteInBackground && item.type === 'note') {
         setError('')
-        const remainsVisible = await onCreated(item)
+        const remainsVisible = await onCreated(item, openInEditor)
         onStatus(
           remainsVisible
             ? message
@@ -546,9 +550,9 @@ export function AddItemComposer({
       setMorphedItem(item)
       setError('')
       await wait(completionDelayMs)
-      const remainsVisible = await onCreated(item)
+      const remainsVisible = await onCreated(item, openInEditor)
       setMorphedItem(null)
-      onOpenChange(false)
+      onOpenChange(false, !openInEditor)
       onStatus(
         remainsVisible
           ? message
@@ -576,7 +580,7 @@ export function AddItemComposer({
     [completionDelayMs, onLinkReleased, onOpenChange, onStatus]
   )
 
-  const save = async (): Promise<void> => {
+  const save = async (openInEditor = false): Promise<void> => {
     if (effectiveKind === 'empty' || saving || captureBlocked) return
     setSaving(true)
     setError('')
@@ -622,7 +626,7 @@ export function AddItemComposer({
       setFileCandidate(null)
       setFailedStage(null)
       setSavingLink(null)
-      if (surface === 'quick') {
+      if (surface === 'quick' && !(openInEditor && kind === 'note')) {
         onOpenChange(false)
         onStatus('Capture accepted.')
         return
@@ -650,7 +654,8 @@ export function AddItemComposer({
             ? 'Image saved to Inbox.'
             : captureKind === 'link'
               ? 'Link saved to Inbox. Loading page details…'
-              : 'Note saved to Inbox.'
+              : 'Note saved to Inbox.',
+        openInEditor && kind === 'note'
       )
     } catch (caught) {
       setSavingLink(null)
@@ -781,6 +786,7 @@ export function AddItemComposer({
         }}
         onPasteImage={handlePasteImage}
         onSave={() => void save()}
+        onContinueInEditor={canContinueInEditor ? () => void save(true) : undefined}
         onEscape={() => {
           if (hasTransientWork) return
           onOpenChange(false)
@@ -996,8 +1002,20 @@ export function AddItemComposer({
             >
               <IconDots aria-hidden="true" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuContent align="end" className={cn('w-44', canContinueInEditor && 'w-64')}>
               <DropdownMenuGroup>
+                {canContinueInEditor ? (
+                  <DropdownMenuItem
+                    aria-keyshortcuts="Control+Shift+Enter Meta+Shift+Enter"
+                    onClick={() => void save(true)}
+                  >
+                    <IconPencil aria-hidden="true" />
+                    Continue in editor
+                    <Kbd className="ml-auto" aria-hidden="true">
+                      Ctrl+Shift+Enter
+                    </Kbd>
+                  </DropdownMenuItem>
+                ) : null}
                 <DropdownMenuItem
                   onClick={() => {
                     onFileDialogActiveChange?.(true)

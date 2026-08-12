@@ -95,6 +95,25 @@ test('resolves quick-capture material and corner ownership by platform capabilit
   })
 })
 
+test('continues Quick Capture notes in the main editor', () => {
+  const composerSource = readFileSync(
+    require.resolve('../src/renderer/src/features/capture/add-item-composer.tsx'),
+    'utf8'
+  )
+  const quickAppSource = readFileSync(
+    require.resolve('../src/renderer/src/features/capture/quick-capture-app.tsx'),
+    'utf8'
+  )
+  const mainSource = readFileSync(require.resolve('../src/main/index.ts'), 'utf8')
+  const contractSource = readFileSync(require.resolve('../src/shared/capture-contract.ts'), 'utf8')
+
+  assert.match(composerSource, /const canContinueInEditor =[\s\S]*surface === 'quick'/)
+  assert.match(composerSource, /surface === 'quick' && !\(openInEditor && kind === 'note'\)/)
+  assert.match(quickAppSource, /window\.capture\.openMainItem\(item\.id\)/)
+  assert.match(mainSource, /CAPTURE_CHANNELS\.mainItemRequested, itemId/)
+  assert.match(contractSource, /openMainItem: \(itemId: string\) => void/)
+})
+
 test('persists revisioned capture text and rejects stale or inactive writers', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-capture-session-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
@@ -137,10 +156,7 @@ test('keeps first ownership claims silent and waits only for transient work', ()
   }
   assert.equal(resolveCaptureOwnershipAction(mainWaiting), 'wait')
   assert.equal(resolveCaptureOwnershipAction({ ...mainWaiting, busy: false }), 'claim')
-  assert.equal(
-    resolveCaptureOwnershipAction({ ...mainWaiting, busy: false, owner: null }),
-    'claim'
-  )
+  assert.equal(resolveCaptureOwnershipAction({ ...mainWaiting, busy: false, owner: null }), 'claim')
 
   const quickWaiting = { ...mainWaiting, owner: 'main', surface: 'quick' }
   assert.equal(resolveCaptureOwnershipAction(quickWaiting), 'wait')

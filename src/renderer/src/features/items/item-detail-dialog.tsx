@@ -1106,7 +1106,7 @@ function NoteCanvas({
                       Retry save
                     </Button>
                   ) : null}
-                  {snapshot.status === 'error' || snapshot.status === 'invalid' ? (
+                  {snapshot.status === 'error' ? (
                     <Button type="button" variant="ghost" size="sm" onClick={onRestore}>
                       Restore saved version
                     </Button>
@@ -1131,7 +1131,6 @@ function NoteCanvas({
               <MarkdownEditor
                 ref={editorRef}
                 value={snapshot.draft}
-                invalid={snapshot.status === 'invalid'}
                 active={mode !== 'read'}
                 live={mode === 'live'}
                 liveOptions={liveOptions}
@@ -1506,8 +1505,10 @@ interface ItemDetailProps {
   onOpenVaultLink: (target: string) => void
   onMoveItem: (destination: ActiveItemLocation) => void
   onMoveToTrash: (itemId: string) => void
+  onEmptyNote: (itemId: string) => Promise<boolean>
   onError: (message: string) => void
   presentation?: 'dialog' | 'focus'
+  initialNoteMode?: NoteMode
   expanded?: boolean
   onExpandedChange?: (expanded: boolean) => void
 }
@@ -1528,7 +1529,9 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       renderActions,
       onOpenVaultLink,
       onMoveToTrash,
+      onEmptyNote,
       onError,
+      initialNoteMode = 'read',
       expanded = false,
       onExpandedChange,
       presentation = 'dialog'
@@ -1562,8 +1565,10 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       coordinator?.subscribe ?? (() => () => undefined),
       coordinator?.getSnapshot ?? (() => fallbackSnapshot.current)
     )
-    const [mode, setMode] = useState<NoteMode>('read')
-    const previousSingleModeRef = useRef<SinglePaneNoteMode>('read')
+    const [mode, setMode] = useState<NoteMode>(initialNoteMode)
+    const previousSingleModeRef = useRef<SinglePaneNoteMode>(
+      initialNoteMode === 'split' ? 'read' : initialNoteMode
+    )
     const [leaving, setLeaving] = useState(false)
     const [readingWidth, setReadingWidth] = useState<NoteReadingWidth>(() =>
       parseNoteReadingWidth(localStorage.getItem(NOTE_READING_WIDTH_STORAGE_KEY))
@@ -1621,24 +1626,46 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       })
     }
 
-    const flushPendingNote = useCallback(async (): Promise<boolean> => {
-      if (leaving) return false
-      if (!coordinator?.hasPendingChanges()) return true
+    const resolvePendingNote = useCallback(async (): Promise<'ready' | 'trashed' | 'blocked'> => {
+      if (leaving) return 'blocked'
+      if (!coordinator) return 'ready'
+      const current = coordinator.getSnapshot()
+      if (!coordinator.hasPendingChanges() && current.draft.trim()) return 'ready'
       setLeaving(true)
       try {
-        return await coordinator.flush()
+        const saved = await coordinator.flush()
+        if (saved || coordinator.getSnapshot().draft.trim()) {
+          return saved ? 'ready' : 'blocked'
+        }
+        const settled = coordinator.getSnapshot()
+        if (settled.status === 'error' || settled.status === 'conflict') return 'blocked'
+        return (await onEmptyNote(openedNote!.id)) ? 'trashed' : 'blocked'
       } finally {
         setLeaving(false)
       }
-    }, [coordinator, leaving])
+    }, [coordinator, leaving, onEmptyNote, openedNote])
+
+    const flushPendingNote = useCallback(
+      async (): Promise<boolean> => (await resolvePendingNote()) !== 'blocked',
+      [resolvePendingNote]
+    )
 
     const requestGuardedAction = useCallback(
       (action: () => void): void => {
-        void flushPendingNote().then((saved) => {
-          if (saved) action()
+        void resolvePendingNote().then((resolution) => {
+          if (resolution !== 'blocked') action()
         })
       },
-      [flushPendingNote]
+      [resolvePendingNote]
+    )
+
+    const requestGuardedItemAction = useCallback(
+      (action: () => void): void => {
+        void resolvePendingNote().then((resolution) => {
+          if (resolution === 'ready') action()
+        })
+      },
+      [resolvePendingNote]
     )
 
     useImperativeHandle(
@@ -1649,9 +1676,15 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
 
     const renameCurrentItem = async (title: string): Promise<DetailTitleRenameResult> => {
       if (!item) return { ok: false, error: 'The item is no longer available.' }
-      const saved = await flushPendingNote()
-      if (!saved) {
-        return { ok: false, error: snapshot.error ?? 'Save the note before renaming it.' }
+      const resolution = await resolvePendingNote()
+      if (resolution !== 'ready') {
+        return {
+          ok: false,
+          error:
+            resolution === 'trashed'
+              ? 'The empty note was moved to Trash.'
+              : (snapshot.error ?? 'Save the note before renaming it.')
+        }
       }
       return onRenameItem(item, title)
     }
@@ -1767,7 +1800,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
             ) : undefined
           }
           actions={renderActions?.(
-            requestGuardedAction,
+            requestGuardedItemAction,
             item.type === 'note'
               ? {
                   inlineTitle: showInlineTitle,

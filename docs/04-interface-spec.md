@@ -232,12 +232,14 @@ Rules:
   existing selection treatment. Up, Down, Home, and End follow the shared logical item order in both
   Focus densities.
 - One rail row contains the sidebar trigger, destination-scoped Search, the combined Sort and Filter
-  menu, and New item. `Ctrl+K` and `Ctrl+F` focus Search; `Ctrl+N` opens or continues the pane composer.
+  menu, and New item. `Ctrl+K` and `Ctrl+F` focus Search; `Ctrl+N` opens or continues the capture card
+  at the beginning of the rail without replacing the current detail.
 - Search, filters, and sorting do not forcibly close an active detail. Destination, view, library,
   item, and window-close transitions flush guarded note work before leaving.
 - At content widths below 760 pixels, Focus becomes list-first drill-in navigation. Activating an
-  item or New item replaces the list with detail or composer, and a visible Back action returns to
-  the preserved list state.
+  item replaces the list with detail, while New item remains in the list. Continuing a captured note
+  in the editor drills into its saved detail, and a visible Back action returns to the preserved list
+  state.
 - The list and detail own independent scroll areas. A keyboard-operable vertical separator adjusts
   the rail at wide widths.
 
@@ -258,14 +260,15 @@ button summons one temporary draft at the beginning of the active view.
 - The action uses a plus icon and visible label at ordinary widths, collapsing to an accessible icon at narrow widths.
 - When a hidden draft exists, the action reads **Continue draft**, shows a quiet indicator, and exposes explicit discard.
 - Repeated activation scrolls to and focuses the existing card rather than creating another draft.
-- `Ctrl+N` performs the same action while Kuskus is focused. Item details and dialogs suspend it with
-  the other workspace shortcuts.
+- `Ctrl+N` performs the same action while Kuskus is focused. Dialogs suspend it, but a Focus detail
+  does not, so capture remains available while reading or editing an item.
 
 ### Draft card
 
 - Uses a normal Masonry or Grid card width and grows vertically to a capped editing height.
 - Appears as a standalone full-width card above Table.
-- Appears as a temporary first row with a full detail-pane composer in Focus.
+- Appears as a temporary first card in the Focus rail and leaves the current detail visible. Index
+  density gives the card the full rail width above its compact rows.
 - Receives keyboard focus without dimming, blurring, or disabling the saved-content canvas.
 - Accepts URLs, clipboard images, dropped or selected images, plain text, and Markdown without a type picker.
 - Keeps the active destination visible; inline capture snapshots the exact active collection, while
@@ -298,8 +301,10 @@ button summons one temporary draft at the beginning of the active view.
 ### Completion
 
 - Recognized URLs and images expose **Save link** or **Save image** and support `Ctrl+Enter`.
-- Notes expose **Save note** and support `Ctrl+Enter`; all detected content remains a recoverable
-  draft until committed or discarded.
+- Notes expose **Save note** and support `Ctrl+Enter`; in Focus and Quick Capture,
+  **Continue in editor** or `Ctrl+Shift+Enter` commits the draft, selects the resulting note, and
+  opens its normal live-autosaving editor. Quick Capture reveals the main window only for this
+  explicit handoff. All detected content remains a recoverable draft until committed or discarded.
 - Notes and images cross-fade directly into their format-aware saved cards. Links first replace the
   composer with a same-size, non-editable saving card.
 - The link saving card uses **Saving link** while creating the local record and **Preparing preview**
@@ -316,7 +321,8 @@ button summons one temporary draft at the beginning of the active view.
 - Pasting while the content canvas has focus invokes the same detection and saving pipeline without requiring a preliminary click.
 - Pressing `Ctrl+Shift+Space` while Kuskus is running opens or focuses the shared composer in a
   singleton bottom-right Inbox popup without reading the clipboard. The main window retains its
-  visibility, destination, retrieval, selection, detail, and dialog state.
+  visibility, destination, retrieval, selection, detail, and dialog state unless the user explicitly
+  chooses **Continue in editor**.
 - The popup and inline card share one revisioned library-scoped session. Summoning global capture
   transfers editing ownership to the popup without replacing the draft or allowing duplicate saves.
 - If the current owner is staging or accepting a submission, the requested surface shows a neutral
@@ -326,7 +332,8 @@ button summons one temporary draft at the beginning of the active view.
   action are visible; it does not bypass explicit commit.
 - Dragging a supported image over the window reserves the first New Item slot with a static neutral
   silhouette instead of covering the canvas. Visual and Grid use a shadow card, Table uses a
-  shadow row, and Focus reserves a draft row plus the composer pane. On drop, the silhouette cross-fades into the existing confirmation composer; an open
+  shadow row, and Focus reserves the capture-card slot in the rail without replacing the detail. On
+  drop, the silhouette cross-fades into the existing confirmation composer; an open
   draft remains mounted and unchanged beneath the temporary silhouette.
 - Unsupported-only file drags do not reserve a slot. Dropping them preserves the existing visible
   error behavior, and dropping a valid image still requires explicit **Save image** confirmation.
@@ -578,11 +585,16 @@ The detail dialog exposes:
 - Typing `/` inserts an ordinary slash; the editor has no slash menu, block handles, drag controls,
   floating formatting toolbar, or fixed formatting toolbar.
 - `Ctrl+Enter` flushes autosave immediately from Live, Markdown, or Split without adding routine save chrome. The header does not
-  show Saved, Saving, or pending-save states; invalid drafts, write failures, and conflicts remain
-  persistently visible and exposed to assistive technology. A failed or blank draft can restore the
-  last saved body.
-- Close or previous/next navigation flushes pending work before leaving. External-edit conflicts
-  retain the draft and offer a side-by-side Markdown diff before the user explicitly chooses a version.
+  show Saved, Saving, or pending-save states; write failures and conflicts remain persistently visible
+  and exposed to assistive technology. Empty content is a quiet temporary editing state and is not
+  written over a previously populated note.
+- Close, previous/next navigation, item changes, destination changes, and window close flush pending
+  work before leaving. If a previously populated note was cleared, leaving moves its last persisted
+  version to Trash and offers Undo. Notes that were already empty when opened, including external
+  Obsidian vault files, remain unchanged. External-edit conflicts retain the draft and offer a
+  side-by-side Markdown diff before the user explicitly chooses a version.
+- Empty and whitespace-only notes render as identifiable **Empty note** cards with their stored title
+  in Visual, Grid, and visual-density Focus rails rather than collapsing into blank surfaces.
 - The detail surface begins below the application title bar, while a standard-strength, blur-free
   backdrop dims the complete window. Dialog-owned Windows minimize, maximize/restore, and guarded
   close controls remain above it while all other underlying toolbar actions and workspace keyboard

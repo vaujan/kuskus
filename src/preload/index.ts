@@ -18,6 +18,8 @@ const globalCaptureCallbacks = new Set<() => void>()
 let globalCaptureRequestPending = false
 const quickCaptureCallbacks = new Set<() => void>()
 let quickCaptureRequestPending = false
+const mainItemCallbacks = new Set<(itemId: string) => void>()
+let pendingMainItemId: string | null = null
 
 ipcRenderer.on(WINDOW_CHANNELS.globalCaptureRequested, () => {
   if (globalCaptureCallbacks.size === 0) {
@@ -33,6 +35,14 @@ ipcRenderer.on(CAPTURE_CHANNELS.quickCaptureActivated, () => {
     return
   }
   for (const callback of quickCaptureCallbacks) callback()
+})
+
+ipcRenderer.on(CAPTURE_CHANNELS.mainItemRequested, (_event, itemId: string) => {
+  if (mainItemCallbacks.size === 0) {
+    pendingMainItemId = itemId
+    return
+  }
+  for (const callback of mainItemCallbacks) callback(itemId)
 })
 
 const windowApi: ElectronWindowApi = {
@@ -159,6 +169,7 @@ const captureApi: CaptureApi = {
   discardSubmission: (id) => ipcRenderer.invoke(CAPTURE_CHANNELS.discardSubmission, id),
   hideQuickCapture: () => ipcRenderer.send(CAPTURE_CHANNELS.hideQuickCapture),
   openMainCapture: () => ipcRenderer.send(CAPTURE_CHANNELS.openMainCapture),
+  openMainItem: (itemId) => ipcRenderer.send(CAPTURE_CHANNELS.openMainItem, itemId),
   openRecovery: () => ipcRenderer.send(CAPTURE_CHANNELS.openRecovery),
   setQuickCaptureHeight: (height) =>
     ipcRenderer.send(CAPTURE_CHANNELS.setQuickCaptureHeight, height),
@@ -190,6 +201,15 @@ const captureApi: CaptureApi = {
       queueMicrotask(callback)
     }
     return () => quickCaptureCallbacks.delete(callback)
+  },
+  onMainItemRequested: (callback: (itemId: string) => void): (() => void) => {
+    mainItemCallbacks.add(callback)
+    if (pendingMainItemId) {
+      const itemId = pendingMainItemId
+      pendingMainItemId = null
+      queueMicrotask(() => callback(itemId))
+    }
+    return () => mainItemCallbacks.delete(callback)
   }
 }
 

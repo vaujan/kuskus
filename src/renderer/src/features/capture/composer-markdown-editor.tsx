@@ -34,6 +34,7 @@ interface ComposerMarkdownEditorProps {
   transformInput?: (before: string, after: string) => string | null
   onPasteImage: (file: File, from: number, to: number) => void
   onSave: () => void
+  onContinueInEditor?: () => void
   onEscape: () => void
 }
 
@@ -90,6 +91,7 @@ export const ComposerMarkdownEditor = forwardRef<
     transformInput,
     onPasteImage,
     onSave,
+    onContinueInEditor,
     onEscape
   },
   forwardedRef
@@ -102,13 +104,13 @@ export const ComposerMarkdownEditor = forwardRef<
   const onChangeRef = useRef(onChange)
   const transformRef = useRef(transformInput)
   const liveOptionsRef = useRef<LivePreviewOptions>(liveOptions ?? {})
-  const actionsRef = useRef({ onPasteImage, onSave, onEscape })
+  const actionsRef = useRef({ onPasteImage, onSave, onContinueInEditor, onEscape })
   const editableCompartmentRef = useRef(new Compartment())
 
   onChangeRef.current = onChange
   transformRef.current = transformInput
   liveOptionsRef.current = liveOptions ?? {}
-  actionsRef.current = { onPasteImage, onSave, onEscape }
+  actionsRef.current = { onPasteImage, onSave, onContinueInEditor, onEscape }
 
   useImperativeHandle(
     forwardedRef,
@@ -146,6 +148,15 @@ export const ComposerMarkdownEditor = forwardRef<
           ]),
           liveMarkdownPreview(() => liveOptionsRef.current, 'card'),
           keymap.of([
+            {
+              key: 'Mod-Shift-Enter',
+              run: () => {
+                const action = actionsRef.current.onContinueInEditor
+                if (!action) return false
+                action()
+                return true
+              }
+            },
             {
               key: 'Mod-Enter',
               preventDefault: true,

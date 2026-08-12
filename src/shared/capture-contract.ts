@@ -20,6 +20,8 @@ export const CAPTURE_CHANNELS = {
   quickCaptureActivated: 'capture:quick-activated',
   hideQuickCapture: 'capture:hide-quick',
   openMainCapture: 'capture:open-main',
+  openMainItem: 'capture:open-main-item',
+  mainItemRequested: 'capture:main-item-requested',
   setQuickCaptureHeight: 'capture:set-quick-height',
   setQuickCaptureBlurSuppressed: 'capture:set-quick-blur-suppressed'
 } as const
@@ -89,10 +91,12 @@ export interface CaptureApi {
   openRecovery: () => void
   hideQuickCapture: () => void
   openMainCapture: () => void
+  openMainItem: (itemId: string) => void
   setQuickCaptureHeight: (height: number) => void
   setQuickCaptureBlurSuppressed: (suppressed: boolean) => void
   onSessionChanged: (callback: (session: CaptureSessionDto) => void) => () => void
   onQueueChanged: (callback: (queue: CaptureQueueDto) => void) => () => void
   onRecoveryRequested: (callback: () => void) => () => void
   onQuickCaptureActivated: (callback: () => void) => () => void
+  onMainItemRequested: (callback: (itemId: string) => void) => () => void
 }

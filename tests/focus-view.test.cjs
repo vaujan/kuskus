@@ -91,6 +91,47 @@ test('Focus Index uses compact type badges and tint-only bulk selection', () => 
   assert.doesNotMatch(source, /IconCheck|data-\[selected=true\].*shadow-|selected=true.*pl-8/)
 })
 
+test('Focus capture stays in the rail and can promote notes into the editor', () => {
+  const workspaceSource = readFileSync(
+    require.resolve('../src/renderer/src/features/library/workspace.tsx'),
+    'utf8'
+  )
+  const listSource = readFileSync(
+    require.resolve('../src/renderer/src/features/items/focus-item-list.tsx'),
+    'utf8'
+  )
+  const composerSource = readFileSync(
+    require.resolve('../src/renderer/src/features/capture/add-item-composer.tsx'),
+    'utf8'
+  )
+  const composerEditorSource = readFileSync(
+    require.resolve('../src/renderer/src/features/capture/composer-markdown-editor.tsx'),
+    'utf8'
+  )
+
+  assert.match(workspaceSource, /presentation="card"/)
+  assert.match(
+    workspaceSource,
+    /composer=\{composerOpen \|\| showExternalDropShadow \? captureSlot : null\}/
+  )
+  assert.match(workspaceSource, /const focusDetail = focusItem \? \(/)
+  assert.match(workspaceSource, /if \(view !== 'focus'\) return/)
+  assert.match(workspaceSource, /event\.key\.toLocaleLowerCase\(\) !== 'n'/)
+  assert.match(workspaceSource, /openComposer\(\)/)
+  assert.match(workspaceSource, /window\.capture\.onMainItemRequested/)
+  assert.match(workspaceSource, /setSelectedItemEditOnOpenId/)
+  assert.doesNotMatch(workspaceSource, /composerOpen \? \(\s*addItemComposer/)
+  assert.match(listSource, /composer: React\.ReactNode/)
+  assert.doesNotMatch(listSource, /Draft in progress/)
+  assert.match(composerSource, /Continue in editor/)
+  assert.match(composerSource, /openInEditor && kind === 'note'/)
+  assert.match(composerSource, /onOpenChange\(false, !openInEditor\)/)
+  assert.match(composerSource, /return \(\) => onTransientWorkChange\(false\)/)
+  assert.match(composerSource, /Control\+Shift\+Enter Meta\+Shift\+Enter/)
+  assert.match(composerEditorSource, /key: 'Mod-Shift-Enter'/)
+  assert.match(composerEditorSource, /if \(!action\) return false/)
+})
+
 test('Focus Visual uses tint without shared card selection decorations', () => {
   const listSource = readFileSync(
     require.resolve('../src/renderer/src/features/items/focus-item-list.tsx'),

@@ -117,6 +117,46 @@ test('restores a pending autosave when a dirty draft survives a remount', async 
   coordinator.dispose()
 })
 
+test('keeps an empty edit quiet and resumes autosave when typing continues', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const saves = []
+  const coordinator = createCoordinator(saves)
+  coordinator.subscribe(() => undefined)
+
+  coordinator.updateDraft('   ')
+  assert.equal(coordinator.getSnapshot().status, 'dirty')
+  assert.equal(coordinator.getSnapshot().error, null)
+  t.mock.timers.tick(1600)
+  await flushMicrotasks()
+  assert.equal(saves.length, 0)
+
+  coordinator.updateDraft('# Replacement')
+  t.mock.timers.tick(800)
+  await flushMicrotasks()
+  assert.equal(saves.length, 1)
+  assert.equal(saves[0].markdown, '# Replacement')
+  coordinator.dispose()
+})
+
+test('distinguishes an imported empty note from a cleared saved note on flush', async () => {
+  const cleared = createCoordinator([])
+  cleared.subscribe(() => undefined)
+  cleared.updateDraft('')
+  assert.equal(await cleared.flush(), false)
+  cleared.dispose()
+
+  const imported = new NoteAutosaveCoordinator({
+    itemId: 'item-2',
+    initialMarkdown: '   ',
+    save: async (input) => ({ ok: true, data: makeNote(input.markdown) }),
+    onSaved: () => undefined,
+    onDraftReplaced: () => undefined
+  })
+  imported.subscribe(() => undefined)
+  assert.equal(await imported.flush(), true)
+  imported.dispose()
+})
+
 test('ignores stale library refreshes without replacing the current draft', () => {
   const replacements = []
   const coordinator = new NoteAutosaveCoordinator({

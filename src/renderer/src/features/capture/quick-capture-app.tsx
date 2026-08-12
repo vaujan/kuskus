@@ -73,31 +73,34 @@ function QuickCaptureSurface({ library }: { library: LibraryDto }): React.JSX.El
       <div ref={rootRef} className="quick-capture-shell">
         <div className="quick-capture-composer">
           <Suspense fallback={null}>
-          <AddItemComposer
-            open
-            focusRequest={focusRequest}
-            discardRequest={0}
-            libraryId={library.id}
-            surface="quick"
-            ownershipActive={visible}
-            importRequest={null}
-            view="grid"
-            completionDelayMs={650}
-            completeLinkAfterLocalSave
-            dismissNoteInBackground
-            onOpenChange={(open) => {
-              if (!open) window.capture.hideQuickCapture()
-            }}
-            onImportRequestHandled={() => undefined}
-            onCreated={() => true}
-            onLinkCommitted={async (item) => ({ item, remainsVisible: true })}
-            onLinkUpdated={() => undefined}
-            onLinkReleased={() => undefined}
-            onStatus={setStatus}
-            onDraftStateChange={() => undefined}
-            onTransientWorkChange={() => undefined}
-            onFileDialogActiveChange={window.capture.setQuickCaptureBlurSuppressed}
-          />
+            <AddItemComposer
+              open
+              focusRequest={focusRequest}
+              discardRequest={0}
+              libraryId={library.id}
+              surface="quick"
+              ownershipActive={visible}
+              importRequest={null}
+              view="grid"
+              completionDelayMs={650}
+              completeLinkAfterLocalSave
+              dismissNoteInBackground
+              onOpenChange={(open) => {
+                if (!open) window.capture.hideQuickCapture()
+              }}
+              onImportRequestHandled={() => undefined}
+              onCreated={(item, openInEditor) => {
+                if (openInEditor) window.capture.openMainItem(item.id)
+                return true
+              }}
+              onLinkCommitted={async (item) => ({ item, remainsVisible: true })}
+              onLinkUpdated={() => undefined}
+              onLinkReleased={() => undefined}
+              onStatus={setStatus}
+              onDraftStateChange={() => undefined}
+              onTransientWorkChange={() => undefined}
+              onFileDialogActiveChange={window.capture.setQuickCaptureBlurSuppressed}
+            />
           </Suspense>
         </div>
         <p className="sr-only" role="status" aria-live="polite">

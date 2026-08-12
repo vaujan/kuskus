@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { IconFileAlert as FileWarning } from '@tabler/icons-react'
+import { IconFileAlert as FileWarning, IconNote as Note } from '@tabler/icons-react'
 
 import {
   ItemCard,
@@ -62,6 +62,14 @@ export function NoteItemCard({
           <div className="flex size-full min-h-28 flex-col items-center justify-center gap-2 bg-destructive/8 px-5 text-center text-destructive">
             <FileWarning className="size-5" aria-hidden="true" />
             <span className="text-xs font-medium">The note file is missing from the library.</span>
+          </div>
+        ) : !item.body.trim() ? (
+          <div className="flex size-full min-h-28 flex-col items-center justify-center gap-2 px-5 text-center text-muted-foreground">
+            <Note className="size-5" stroke={1.5} aria-hidden="true" />
+            <span className="max-w-full truncate text-sm font-medium text-foreground">
+              {item.title}
+            </span>
+            <span className="text-xs">Empty note</span>
           </div>
         ) : (
           <Suspense

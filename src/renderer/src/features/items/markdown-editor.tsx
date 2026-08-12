@@ -47,7 +47,6 @@ export interface MarkdownEditorHandle {
 
 interface MarkdownEditorProps {
   value: string
-  invalid: boolean
   active: boolean
   live?: boolean
   liveOptions?: LivePreviewOptions
@@ -128,7 +127,6 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
   function MarkdownEditor(
     {
       value,
-      invalid,
       active,
       live = false,
       liveOptions,
@@ -241,12 +239,6 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         annotations: Transaction.addToHistory.of(false)
       })
     }, [value])
-
-    useEffect(() => {
-      const view = viewRef.current
-      if (!view) return
-      view.contentDOM.setAttribute('aria-invalid', String(invalid))
-    }, [invalid])
 
     useEffect(() => {
       const view = viewRef.current

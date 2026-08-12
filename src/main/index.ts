@@ -76,6 +76,20 @@ function openMainCapture(): void {
   else target.onceRendererReady(target.sendCaptureRequest)
 }
 
+function openMainItem(itemId: string): void {
+  quickCaptureWindow?.hide()
+  const target = mainCaptureWindowTarget()
+  const send = (): void => {
+    const window = ensureMainWindow()
+    if (!window.isDestroyed()) {
+      window.webContents.send(CAPTURE_CHANNELS.mainItemRequested, itemId)
+    }
+  }
+  target.reveal()
+  if (target.isRendererReady()) send()
+  else target.onceRendererReady(send)
+}
+
 function openCaptureRecovery(): void {
   quickCaptureWindow?.hide()
   const target = mainCaptureWindowTarget()
@@ -150,6 +164,7 @@ if (!hasSingleInstanceLock) {
       },
       hideQuickCapture: () => quickCaptureWindow?.hide(),
       openMainCapture,
+      openMainItem,
       openRecovery: openCaptureRecovery,
       setQuickCaptureHeight: (height) => quickCaptureWindow?.setHeight(height),
       setQuickCaptureBlurSuppressed: (suppressed) =>

@@ -21,6 +21,7 @@ interface CaptureWindowActions {
   surfaceFor: (sender: WebContents) => CaptureSurface | null
   hideQuickCapture: () => void
   openMainCapture: () => void
+  openMainItem: (itemId: string) => void
   openRecovery: () => void
   setQuickCaptureHeight: (height: number) => void
   setQuickCaptureBlurSuppressed: (suppressed: boolean) => void
@@ -207,6 +208,9 @@ export function registerCaptureIpc(
 
   ipcMain.on(CAPTURE_CHANNELS.hideQuickCapture, windows.hideQuickCapture)
   ipcMain.on(CAPTURE_CHANNELS.openMainCapture, windows.openMainCapture)
+  ipcMain.on(CAPTURE_CHANNELS.openMainItem, (_event, itemId: unknown) => {
+    if (typeof itemId === 'string' && itemId.length > 0) windows.openMainItem(itemId)
+  })
   ipcMain.on(CAPTURE_CHANNELS.openRecovery, windows.openRecovery)
   ipcMain.on(CAPTURE_CHANNELS.setQuickCaptureHeight, (_event, height: unknown) => {
     if (typeof height === 'number') windows.setQuickCaptureHeight(height)
