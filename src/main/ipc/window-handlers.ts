@@ -2,6 +2,7 @@ import {
   BrowserWindow,
   ipcMain,
   nativeTheme,
+  type WebContents,
   type IpcMainEvent,
   type IpcMainInvokeEvent
 } from 'electron'
@@ -21,7 +22,9 @@ function windowFromEvent(event: IpcMainEvent | IpcMainInvokeEvent): BrowserWindo
 }
 
 export function registerWindowIpc(
-  getGlobalCaptureShortcutStatus: () => GlobalCaptureShortcutStatus
+  getGlobalCaptureShortcutStatus: () => GlobalCaptureShortcutStatus,
+  openNoteWindow: (itemId: string) => Promise<void>,
+  resolveNoteWindowClose: (sender: WebContents, approved: boolean) => void
 ): void {
   ipcMain.on(WINDOW_CHANNELS.minimize, (event) => windowFromEvent(event)?.minimize())
   ipcMain.on(WINDOW_CHANNELS.toggleMaximize, (event) => {
@@ -63,4 +66,11 @@ export function registerWindowIpc(
   ipcMain.handle(WINDOW_CHANNELS.getGlobalCaptureShortcutStatus, () =>
     getGlobalCaptureShortcutStatus()
   )
+  ipcMain.handle(WINDOW_CHANNELS.openNoteWindow, async (_event, itemId: unknown) => {
+    if (typeof itemId !== 'string' || !itemId) throw new Error('The note identifier is invalid.')
+    await openNoteWindow(itemId)
+  })
+  ipcMain.on(WINDOW_CHANNELS.resolveNoteWindowClose, (event, approved: unknown) => {
+    if (typeof approved === 'boolean') resolveNoteWindowClose(event.sender, approved)
+  })
 }

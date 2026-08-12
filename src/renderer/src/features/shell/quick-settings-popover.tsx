@@ -1,7 +1,6 @@
 import {
   IconLayoutDashboard,
   IconLayoutGrid,
-  IconLayoutSidebarRight,
   IconMoon,
   IconSun,
   type TablerIcon
@@ -34,8 +33,7 @@ import type { GlobalCaptureShortcutStatus } from '../../../../shared/window-cont
 
 const VIEW_OPTIONS: Array<{ value: LibraryView; label: string; icon: TablerIcon }> = [
   { value: 'visual', label: 'Masonry', icon: IconLayoutDashboard },
-  { value: 'grid', label: 'Grid', icon: IconLayoutGrid },
-  { value: 'focus', label: 'Focus', icon: IconLayoutSidebarRight }
+  { value: 'grid', label: 'Grid', icon: IconLayoutGrid }
 ]
 
 export function QuickSettingsPopover({

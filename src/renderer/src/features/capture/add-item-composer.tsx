@@ -92,9 +92,7 @@ function SavingLinkCard({
 }): React.JSX.Element {
   return (
     <ItemCard aria-busy="true">
-      <ItemCardSurface
-        className={view === 'grid' || view === 'table' ? 'h-64 bg-muted' : 'aspect-[16/9] bg-muted'}
-      >
+      <ItemCardSurface className={view === 'grid' ? 'h-64 bg-muted' : 'aspect-[16/9] bg-muted'}>
         <div
           key={phase}
           className="flex size-full flex-col items-center justify-center gap-3 px-6 text-center opacity-100 transition-opacity [transition-duration:var(--motion-duration-press)] [transition-timing-function:var(--motion-ease-out)] starting:opacity-0 motion-reduce:transition-none"
@@ -333,8 +331,7 @@ export function AddItemComposer({
   const captureKind = detectCaptureKind(draft, attachments.length)
   const effectiveKind = fileCandidate ? 'file' : captureKind
   const canContinueInEditor =
-    effectiveKind === 'note' &&
-    (surface === 'quick' || (view === 'focus' && presentation === 'card'))
+    effectiveKind === 'note' && (surface === 'quick' || presentation === 'card')
   const displayedError = error || captureSession.error
   const draftPreviews = useCaptureDraftPreviews(attachments)
   const liveOptions = useMemo<LivePreviewOptions>(() => {

@@ -6,6 +6,7 @@ import {
   MAX_FOCUS_LIST_WIDTH,
   MIN_FOCUS_LIST_WIDTH
 } from '@/features/items/focus-view-state'
+import { ShellSidebarTrigger } from '@/features/shell/shell-sidebar-trigger'
 import { WindowControls } from '@/features/shell/window-controls'
 import { cn } from '@/lib/utils'
 
@@ -146,6 +147,11 @@ export function FocusWorkspace({
             )
           }}
         />
+      ) : null}
+      {detailOpen && !split && !expanded ? (
+        <div className="absolute top-0 left-1 z-50 flex h-10 items-center">
+          <ShellSidebarTrigger />
+        </div>
       ) : null}
       {split || detailOpen ? (
         <section

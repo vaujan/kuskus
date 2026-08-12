@@ -21,7 +21,7 @@ export const SavedItemCard = memo(function SavedItemCard({
   onOpen: () => void
   selected: boolean
   opensDialog?: boolean
-  view?: Exclude<LibraryView, 'table' | 'focus'>
+  view?: LibraryView
   compact?: boolean
   showSelectionVisual?: boolean
 }): React.JSX.Element {

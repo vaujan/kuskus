@@ -1,4 +1,4 @@
-import { Badge } from '@/components/ui/badge'
+import { focusIndexSupportingText } from '@/features/items/focus-index-row-text'
 import type { LibraryItemDto } from '../../../../shared/library-contract'
 
 const MINUTE = 60_000
@@ -6,52 +6,37 @@ const HOUR = 60 * MINUTE
 const DAY = 24 * HOUR
 const MONTH = 30 * DAY
 const YEAR = 365 * DAY
+const RELATIVE_TIME = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
 
 function relativeUpdatedTime(value: string, now = Date.now()): string {
-  const updatedAt = Date.parse(value)
-  if (!Number.isFinite(updatedAt)) return 'Recently'
-  const elapsed = Math.max(0, now - updatedAt)
+  const elapsed = Math.max(0, now - Date.parse(value))
+  if (!Number.isFinite(elapsed)) return 'Recently'
   if (elapsed < MINUTE) return 'Just now'
-  if (elapsed < HOUR) {
-    const minutes = Math.max(1, Math.round(elapsed / MINUTE))
-    return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`
-  }
-  if (elapsed < DAY) {
-    const hours = Math.max(1, Math.round(elapsed / HOUR))
-    return `${hours} ${hours === 1 ? 'hour' : 'hours'}`
-  }
-  if (elapsed < MONTH) {
-    const days = Math.max(1, Math.round(elapsed / DAY))
-    return `${days} ${days === 1 ? 'day' : 'days'}`
-  }
-  if (elapsed < YEAR) {
-    const months = Math.max(1, Math.round(elapsed / MONTH))
-    return `${months} ${months === 1 ? 'month' : 'months'}`
-  }
-  const years = Math.max(1, Math.round(elapsed / YEAR))
-  return `${years} ${years === 1 ? 'year' : 'years'}`
+  if (elapsed < HOUR)
+    return RELATIVE_TIME.format(-Math.max(1, Math.round(elapsed / MINUTE)), 'minute')
+  if (elapsed < DAY) return RELATIVE_TIME.format(-Math.max(1, Math.round(elapsed / HOUR)), 'hour')
+  if (elapsed < MONTH) return RELATIVE_TIME.format(-Math.max(1, Math.round(elapsed / DAY)), 'day')
+  if (elapsed < YEAR)
+    return RELATIVE_TIME.format(-Math.max(1, Math.round(elapsed / MONTH)), 'month')
+  return RELATIVE_TIME.format(-Math.max(1, Math.round(elapsed / YEAR)), 'year')
 }
 
 function extensionFromFilename(filename: string): string {
   const extension = filename.split('.').pop()
-  return extension && extension !== filename ? extension.toLocaleUpperCase() : 'FILE'
+  return extension && extension !== filename ? extension.toLocaleUpperCase() : 'File'
 }
 
-function itemTypeLabel(item: LibraryItemDto): 'Note' | 'URL' | 'Image' | 'File' {
+function itemTypeLabel(item: LibraryItemDto): string {
   if (item.type === 'note') return 'Note'
-  if (item.type === 'url') return 'URL'
-  if (item.type === 'image') return 'Image'
-  return 'File'
+  if (item.type === 'url') return 'Link'
+  if (item.type === 'image') return item.mediaType.split('/').pop()?.toLocaleUpperCase() || 'Image'
+  return extensionFromFilename(item.contentFilename)
 }
 
 function itemDetail(item: LibraryItemDto): string | null {
-  if (item.type === 'note') return null
   if (item.type === 'url') return item.domain || null
-  if (item.type === 'image') {
-    const format = item.mediaType.split('/').pop()?.toLocaleUpperCase() || 'Image'
-    return `${item.width} \u00d7 ${item.height} \u00b7 ${format}`
-  }
-  return extensionFromFilename(item.contentFilename)
+  if (item.type === 'image') return `${item.width} × ${item.height}`
+  return null
 }
 
 export function FocusIndexRow({
@@ -78,13 +63,11 @@ export function FocusIndexRow({
   const updatedTime = relativeUpdatedTime(item.updatedAt)
   const typeLabel = itemTypeLabel(item)
   const detail = itemDetail(item)
-  const metadataTitle = ['Updated ' + new Date(item.updatedAt).toLocaleString(), typeLabel, detail]
-    .filter(Boolean)
-    .join(' · ')
+  const supportingText = focusIndexSupportingText(item)
 
   return (
     <div
-      className="group/focus-index-row group/saved-item relative h-[52px] min-w-0 overflow-hidden bg-transparent outline-none [content-visibility:auto] [contain-intrinsic-size:52px] transition-[background-color,opacity] [transition-duration:var(--motion-duration-ui)] [transition-timing-function:var(--motion-ease-out)] before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:z-10 before:w-[3px] before:bg-primary before:opacity-0 hover:bg-muted/55 data-[active=true]:bg-primary/12 data-[active=true]:before:opacity-100 data-[dragging=true]:opacity-40 data-[selected=true]:bg-primary/12"
+      className="group/focus-index-row group/saved-item relative min-h-[88px] min-w-0 overflow-hidden border-b border-border/45 bg-transparent outline-none [content-visibility:auto] [contain-intrinsic-size:96px] transition-[background-color,opacity,box-shadow] [transition-duration:var(--motion-duration-ui)] [transition-timing-function:var(--motion-ease-out)] before:pointer-events-none before:absolute before:inset-y-2.5 before:left-0 before:z-10 before:w-0.5 before:rounded-r-full before:bg-primary before:opacity-0 hover:bg-muted/45 data-[active=true]:bg-primary/9 data-[active=true]:before:opacity-100 data-[dragging=true]:opacity-40 data-[selected=true]:shadow-[inset_0_0_0_1px_var(--primary)]"
       data-item-id={item.id}
       data-active={active || undefined}
       data-selected={selected || undefined}
@@ -107,28 +90,28 @@ export function FocusIndexRow({
           onNavigate(event.key as 'ArrowUp' | 'ArrowDown' | 'Home' | 'End')
         }}
       />
-      <div className="pointer-events-none flex h-full min-w-0 items-center py-1 pr-12 pl-3">
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-sm font-medium text-foreground">{item.title}</span>
-          <span
-            className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground group-data-[active=true]/focus-index-row:text-foreground/70"
-            title={metadataTitle}
-          >
-            <span className="shrink-0 tabular-nums">{updatedTime}</span>
-            <span aria-hidden="true">·</span>
-            <Badge variant="secondary">{typeLabel}</Badge>
-            {detail ? (
-              <>
-                <span aria-hidden="true">·</span>
-                <span className="truncate">{detail}</span>
-              </>
-            ) : null}
+
+      <div className="pointer-events-none flex min-w-0 flex-col py-2.5 pr-14 pl-4">
+        <span className="line-clamp-2 text-sm leading-5 font-semibold text-pretty text-foreground">
+          {item.title}
+        </span>
+        <span className="mt-1 flex min-w-0 items-center gap-2.5 text-[0.6875rem] leading-4 text-muted-foreground">
+          <time className="shrink-0 tabular-nums" dateTime={item.updatedAt}>
+            {updatedTime}
+          </time>
+          <span className="shrink-0 rounded-sm bg-muted px-1.5 font-medium text-foreground/70">
+            {typeLabel}
           </span>
+          {detail ? <span className="truncate text-foreground/55">{detail}</span> : null}
+        </span>
+        <span className="mt-0.5 truncate text-[0.8125rem] leading-[1.125rem] text-muted-foreground/85">
+          {supportingText || 'No preview available'}
         </span>
       </div>
+
       <div
         data-drag-preview-hidden
-        className="absolute top-1.5 right-2 z-30 opacity-0 transition-[opacity] [transition-duration:var(--motion-duration-ui)] group-hover/focus-index-row:opacity-100 group-focus-within/focus-index-row:opacity-100 group-data-[active=true]/focus-index-row:opacity-100 group-data-[active=true]/focus-index-row:[&_[data-slot=button]]:opacity-100 [&_[data-slot=button]]:size-10"
+        className="absolute top-2 right-2 z-30 opacity-0 transition-[opacity] [transition-duration:var(--motion-duration-ui)] group-hover/focus-index-row:opacity-100 group-focus-within/focus-index-row:opacity-100 [&_[data-slot=button]]:size-10 [&_[data-slot=button]]:rounded-md [&_[data-slot=button]]:bg-transparent [&_[data-slot=button]]:shadow-none [&_[data-slot=button]:hover]:bg-muted"
         onClick={(event) => event.stopPropagation()}
       >
         {actions}

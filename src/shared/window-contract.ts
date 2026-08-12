@@ -9,7 +9,10 @@ export const WINDOW_CHANNELS = {
   reducedTransparencyChanged: 'window:reduced-transparency-changed',
   zoomShortcut: 'window:zoom-shortcut',
   getGlobalCaptureShortcutStatus: 'window:get-global-capture-shortcut-status',
-  globalCaptureRequested: 'window:global-capture-requested'
+  globalCaptureRequested: 'window:global-capture-requested',
+  openNoteWindow: 'window:open-note-window',
+  noteWindowCloseRequested: 'window:note-window-close-requested',
+  resolveNoteWindowClose: 'window:resolve-note-window-close'
 } as const
 
 export const APP_ZOOM_FACTORS = [0.8, 0.9, 1, 1.1, 1.2, 1.25] as const
@@ -58,4 +61,7 @@ export interface ElectronWindowApi {
   onZoomShortcut: (callback: (shortcut: AppZoomShortcut) => void) => () => void
   getGlobalCaptureShortcutStatus: () => Promise<GlobalCaptureShortcutStatus>
   onGlobalCaptureRequested: (callback: () => void) => () => void
+  openNoteWindow: (itemId: string) => Promise<void>
+  onNoteWindowCloseRequested: (callback: () => void) => () => void
+  resolveNoteWindowClose: (approved: boolean) => void
 }

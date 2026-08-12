@@ -66,7 +66,8 @@ import {
   SidebarMenuItem,
   SidebarMenuSub,
   SidebarRail,
-  SidebarSeparator
+  SidebarSeparator,
+  useSidebar
 } from '@/components/ui/sidebar'
 import { Spinner } from '@/components/ui/spinner'
 import { CollectionIcon } from '@/features/collections/collection-icons'
@@ -554,6 +555,7 @@ export function LibrarySidebar({
   translucentBackgroundReduced: boolean
   onTranslucentBackgroundChange: (enabled: boolean) => void
 }): React.JSX.Element {
+  const { isMobile, setOpenMobile } = useSidebar()
   const [folderDialog, setFolderDialog] = useState<FolderDialogState>(null)
   const [folderName, setFolderName] = useState('')
   const [folderOperationBusy, setFolderOperationBusy] = useState(false)
@@ -584,6 +586,10 @@ export function LibrarySidebar({
   useEffect(() => {
     saveCollapsedFolderIds(library.id, collapsedFolderIds)
   }, [collapsedFolderIds, library.id])
+
+  useEffect(() => {
+    if (isMobile) setOpenMobile(false)
+  }, [destination, isMobile, setOpenMobile])
 
   useEffect(() => {
     const clearDropTargets = (): void => {

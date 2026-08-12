@@ -19,7 +19,10 @@ import {
 import { LibraryService, NoteUpdateConflictError } from '../library/library-service'
 import { errorResult } from './api-result'
 
-export function registerLibraryIpc(libraryService: LibraryService): void {
+export function registerLibraryIpc(
+  libraryService: LibraryService,
+  beforeLibraryChange: () => Promise<boolean>
+): void {
   libraryService.onVaultChanged(() => {
     for (const window of BrowserWindow.getAllWindows()) {
       window.webContents.send(KUSKUS_CHANNELS.vaultChanged)
@@ -94,6 +97,12 @@ export function registerLibraryIpc(libraryService: LibraryService): void {
     }
 
     try {
+      if (!(await beforeLibraryChange())) {
+        return errorResult(
+          new Error('Save or resolve the open note before switching libraries.'),
+          'busy'
+        )
+      }
       return {
         ok: true,
         data: await libraryService.createIn(selection.filePaths[0], requestedName)
@@ -119,6 +128,12 @@ export function registerLibraryIpc(libraryService: LibraryService): void {
     }
 
     try {
+      if (!(await beforeLibraryChange())) {
+        return errorResult(
+          new Error('Save or resolve the open note before switching libraries.'),
+          'busy'
+        )
+      }
       return { ok: true, data: await libraryService.openAt(selection.filePaths[0]) }
     } catch (error) {
       return errorResult(error)

@@ -53,7 +53,10 @@
 }
 
 .focus-detail-surface[data-focus-expanded='true']
-  :is([data-detail-focus-header]:is(:hover, :focus-within) > *, [data-focus-caption-controls]):is(:hover, :focus-within) {
+  :is([data-detail-focus-header]:is(:hover, :focus-within) > *, [data-focus-caption-controls]):is(
+    :hover,
+    :focus-within
+  ) {
   opacity: 1;
 }
 

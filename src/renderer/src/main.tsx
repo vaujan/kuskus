@@ -14,7 +14,9 @@ const useDarkTheme =
 document.documentElement.classList.toggle('dark', useDarkTheme)
 document.documentElement.style.colorScheme = useDarkTheme ? 'dark' : 'light'
 const searchParams = new URLSearchParams(window.location.search)
-const isQuickCapture = searchParams.get('surface') === 'quick-capture'
+const surface = searchParams.get('surface')
+const isQuickCapture = surface === 'quick-capture'
+const isNoteWindow = surface === 'note-window'
 if (isQuickCapture) {
   document.documentElement.dataset.surface = 'quick-capture'
   const acrylicCapable = searchParams.get('acrylic-capable') === 'true'
@@ -35,6 +37,15 @@ if (isQuickCapture) {
     root.render(
       <StrictMode>
         <QuickCaptureApp />
+      </StrictMode>
+    )
+  })
+} else if (isNoteWindow) {
+  void import('./features/items/note-window-app').then(({ NoteWindowApp }) => {
+    performance.mark('kuskus:surface-module-loaded')
+    root.render(
+      <StrictMode>
+        <NoteWindowApp itemId={searchParams.get('itemId') ?? ''} />
       </StrictMode>
     )
   })

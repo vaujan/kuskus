@@ -17,6 +17,7 @@ import {
 import { WINDOW_CHANNELS } from '../shared/window-contract'
 import { CAPTURE_CHANNELS } from '../shared/capture-contract'
 import { QuickCaptureWindowController } from './window/quick-capture-window'
+import { NoteWindowController } from './window/note-window'
 
 const demoUserDataPath = process.env.KUSKUS_DEMO_USER_DATA
 performance.mark('kuskus:main-entry')
@@ -148,14 +149,17 @@ if (!hasSingleInstanceLock) {
       globalShortcut,
       globalCaptureWindowTarget
     )
+    const noteWindows = new NoteWindowController(libraryService)
     registerWindowIpc(
       () =>
         globalCaptureShortcut?.getStatus() ?? {
           accelerator: 'Ctrl+Shift+Space',
           registered: false
-        }
+        },
+      (itemId) => noteWindows.open(itemId),
+      (sender, approved) => noteWindows.resolveClose(sender, approved)
     )
-    registerLibraryIpc(libraryService)
+    registerLibraryIpc(libraryService, () => noteWindows.closeAll())
     registerCaptureIpc(captureSessions, libraryService, {
       surfaceFor: (sender) => {
         if (quickCaptureWindow?.isSender(sender)) return 'quick'

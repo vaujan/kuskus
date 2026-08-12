@@ -47,7 +47,7 @@ export function FocusItemList({
       viewportClassName="dark:library-scroll-viewport focus-visible:ring-0 focus-visible:outline-none"
     >
       {density === 'index' ? (
-        <div className="min-h-full" role="group" aria-label="Items">
+        <div className="min-h-full pt-2" role="group" aria-label="Items">
           {composer ? <div className="p-2">{composer}</div> : null}
 
           {items.map((item) => {
@@ -78,8 +78,8 @@ export function FocusItemList({
           })}
         </div>
       ) : (
-        <div className="min-h-full p-3" role="group" aria-label="Items">
-          <OrderedMasonry>
+        <div className="min-h-full py-2 pr-3 pl-2" role="group" aria-label="Items">
+          <OrderedMasonry gap={8}>
             {composer}
 
             {items.map((item) => {
@@ -89,7 +89,7 @@ export function FocusItemList({
                 <div
                   key={item.id}
                   className={cn(
-                    'group/focus-card group/saved-item relative min-w-0 rounded-sm p-1.5 outline-none',
+                    'group/focus-card group/saved-item relative min-w-0 rounded-sm p-1 outline-none',
                     'transition-[background-color,opacity] [transition-duration:var(--motion-duration-ui)]',
                     'data-[active=true]:bg-primary/10 data-[selected=true]:bg-primary/10 data-[dragging=true]:opacity-40'
                   )}
@@ -128,7 +128,7 @@ export function FocusItemList({
                   />
                   <div
                     data-drag-preview-hidden
-                    className="absolute top-3.5 right-3.5 z-30 group-data-[active=true]/focus-card:[&_[data-slot=button]]:opacity-100"
+                    className="absolute top-3 right-3 z-30 group-data-[active=true]/focus-card:[&_[data-slot=button]]:opacity-100"
                     onClick={(event) => event.stopPropagation()}
                   >
                     {renderActions(item)}

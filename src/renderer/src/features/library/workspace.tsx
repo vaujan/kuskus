@@ -1,4 +1,5 @@
 import {
+  Activity,
   startTransition,
   lazy,
   Suspense,
@@ -57,7 +58,6 @@ import { ExternalDropShadow } from '@/features/capture/external-drop-shadow'
 import { CaptureRecoveryDialog } from '@/features/capture/capture-recovery-dialog'
 import { getFolderSubtreeIds } from '@/features/collections/folder-tree'
 import { SavedItemCard } from '@/features/items/saved-item-card'
-import { SavedItemsTable } from '@/features/items/saved-items-table'
 import { FocusItemList } from '@/features/items/focus-item-list'
 import { FocusListHeader } from '@/features/items/focus-list-header'
 import {
@@ -242,13 +242,9 @@ export function Workspace({
   const [focusListWidth, setFocusListWidth] = useState(() =>
     parseFocusListWidth(localStorage.getItem('kuskus-focus-list-width'))
   )
-  const [focusRailDensity, setFocusRailDensity] = useState<FocusRailDensity>(() => {
-    try {
-      return parseFocusRailDensity(localStorage.getItem(FOCUS_RAIL_DENSITY_STORAGE_KEY))
-    } catch {
-      return 'index'
-    }
-  })
+  const [focusRailDensity, setFocusRailDensity] = useState<FocusRailDensity>(() =>
+    parseFocusRailDensity(localStorage.getItem(FOCUS_RAIL_DENSITY_STORAGE_KEY))
+  )
   const [focusItemId, setFocusItemId] = useState<string | null>(null)
   const [focusItemEditOnOpenId, setFocusItemEditOnOpenId] = useState<string | null>(null)
   const [focusDetailOpen, setFocusDetailOpen] = useState(false)
@@ -258,8 +254,6 @@ export function Workspace({
   )
   const [message, setMessage] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
-  const [selectedItemEditOnOpenId, setSelectedItemEditOnOpenId] = useState<string | null>(null)
   const [itemDetails, setItemDetails] = useState<Map<string, LibraryItemDto>>(() => new Map())
   const [destination, setDestination] = useState<LibraryDestination>({ type: 'inbox' })
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
@@ -329,13 +323,28 @@ export function Workspace({
     [library.items]
   )
 
+  const openDetail = useCallback(
+    (itemId: string, edit = false): void => {
+      const apply = (): void => {
+        setComposerOpen(false)
+        setFocusNoteExpanded(false)
+        setFocusItemId(itemId)
+        setFocusItemEditOnOpenId(edit ? itemId : null)
+        setFocusDetailOpen(true)
+      }
+      if (focusItemId) requestFocusTransition(apply)
+      else apply()
+    },
+    [focusItemId, requestFocusTransition]
+  )
+
   const guardFocusTargets = useCallback(
     (itemIds: readonly string[], action: () => void): void => {
-      if (view === 'focus' && focusItemId && itemIds.includes(focusItemId)) {
+      if (focusItemId && itemIds.includes(focusItemId)) {
         requestFocusTransition(action)
       } else action()
     },
-    [focusItemId, requestFocusTransition, view]
+    [focusItemId, requestFocusTransition]
   )
 
   useEffect(() => {
@@ -355,11 +364,7 @@ export function Workspace({
   }, [focusListWidth])
 
   useEffect(() => {
-    try {
-      localStorage.setItem(FOCUS_RAIL_DENSITY_STORAGE_KEY, focusRailDensity)
-    } catch {
-      // This renderer-only preference can safely fall back to Index next launch.
-    }
+    localStorage.setItem(FOCUS_RAIL_DENSITY_STORAGE_KEY, focusRailDensity)
   }, [focusRailDensity])
 
   useEffect(() => {
@@ -458,7 +463,7 @@ export function Workspace({
     return () => window.cancelAnimationFrame(frame)
   }, [renderedItems.length])
   useEffect(() => {
-    if (view === 'focus' || view === 'table' || renderedItems.length >= visibleItems.length) return
+    if (focusItemId || renderedItems.length >= visibleItems.length) return
     const target = loadMoreItemsRef.current
     if (!target) return
     const observer = new IntersectionObserver(
@@ -476,7 +481,7 @@ export function Workspace({
     )
     observer.observe(target)
     return () => observer.disconnect()
-  }, [renderedItems.length, retrievalPageKey, view, visibleItems.length])
+  }, [focusItemId, renderedItems.length, retrievalPageKey, visibleItems.length])
   const destinationItems = useMemo(
     () =>
       library.items.filter((item) =>
@@ -500,16 +505,9 @@ export function Workspace({
         )
         return
       }
-      if (view === 'focus') {
-        requestFocusTransition(() => {
-          changeFocusItemId(matches[0].id)
-          setFocusDetailOpen(true)
-        })
-      } else {
-        setSelectedItemId(matches[0].id)
-      }
+      openDetail(matches[0].id)
     },
-    [changeFocusItemId, library.items, requestFocusTransition, view]
+    [library.items, openDetail]
   )
   const selectAllVisibleItems = useCallback((): void => {
     setSelectedIds(new Set(visibleItems.map((item) => item.id)))
@@ -541,8 +539,7 @@ export function Workspace({
   }, [announceStatus, visibleItems])
 
   useEffect(() => {
-    const requestedIds = [...new Set([selectedItemId, focusItemId].filter(Boolean))] as string[]
-    const summaries = requestedIds
+    const summaries = [focusItemId]
       .map((id) => library.items.find((item) => item.id === id))
       .filter(
         (item): item is Extract<LibraryItemDto, { type: 'note' }> =>
@@ -567,22 +564,14 @@ export function Workspace({
     return () => {
       active = false
     }
-  }, [focusItemId, itemDetails, library.items, selectedItemId])
+  }, [focusItemId, itemDetails, library.items])
 
-  const selectedItemSummary = useMemo(
-    () => library.items.find((item) => item.id === selectedItemId) ?? null,
-    [library.items, selectedItemId]
-  )
-  const selectedItem =
-    selectedItemSummary?.type === 'note' && selectedItemSummary.bodyTruncated
-      ? (itemDetails.get(selectedItemSummary.id) ?? null)
-      : selectedItemSummary
   const focusItemSummary = useMemo(
     () => library.items.find((item) => item.id === focusItemId) ?? null,
     [focusItemId, library.items]
   )
   const focusNoteExpansionActive =
-    focusNoteExpanded && view === 'focus' && !composerOpen && focusItemSummary?.type === 'note'
+    focusNoteExpanded && !composerOpen && focusItemSummary?.type === 'note'
 
   const focusItem =
     focusItemSummary?.type === 'note' && focusItemSummary.bodyTruncated
@@ -594,7 +583,7 @@ export function Workspace({
   )
 
   useEffect(() => {
-    if (view !== 'focus') return
+    if (!focusItemId) return
     setFocusItemId((current) => {
       if (current && library.items.some((item) => item.id === current)) return current
       return resolveFocusAfterRemoval(
@@ -604,24 +593,7 @@ export function Workspace({
       )
     })
     previousVisibleItemIdsRef.current = [...visibleItemIdList]
-  }, [library.items, view, visibleItemIdList])
-  const selectedVisibleIndex = useMemo(
-    () => visibleItems.findIndex((item) => item.id === selectedItemId),
-    [selectedItemId, visibleItems]
-  )
-  const hasPreviousItem = selectedVisibleIndex > 0
-  const hasNextItem = selectedVisibleIndex >= 0 && selectedVisibleIndex < visibleItems.length - 1
-
-  const selectPreviousItem = useCallback((): void => {
-    if (selectedVisibleIndex <= 0) return
-    setSelectedItemId(visibleItems[selectedVisibleIndex - 1].id)
-  }, [selectedVisibleIndex, visibleItems])
-
-  const selectNextItem = useCallback((): void => {
-    if (selectedVisibleIndex < 0 || selectedVisibleIndex >= visibleItems.length - 1) return
-    setSelectedItemId(visibleItems[selectedVisibleIndex + 1].id)
-  }, [selectedVisibleIndex, visibleItems])
-
+  }, [focusItemId, library.items, visibleItemIdList])
   const selectPreviousFocusItem = useCallback((): void => {
     if (focusVisibleIndex <= 0) return
     requestFocusTransition(() => changeFocusItemId(visibleItems[focusVisibleIndex - 1].id))
@@ -640,36 +612,18 @@ export function Workspace({
         setDestination(next)
         setSelectedIds(new Set())
         setSelectionAnchorId(null)
-        setSelectedItemId(null)
         setFocusNoteExpanded(false)
         setFocusItemId(null)
         setFocusDetailOpen(false)
         setComposerOpen(false)
       }
-      if (view === 'focus') requestFocusTransition(apply)
+      if (focusItemId) requestFocusTransition(apply)
       else apply()
     },
-    [requestFocusTransition, view]
+    [focusItemId, requestFocusTransition]
   )
 
-  const changeView = useCallback(
-    (next: LibraryView): void => {
-      const availableView = next === 'table' ? 'visual' : next
-      if (availableView === view) return
-      const apply = (): void => {
-        setView(availableView)
-        setFocusNoteExpanded(false)
-        setSelectedItemId(null)
-        setFocusDetailOpen(false)
-        if (availableView === 'focus') {
-          setFocusItemId((current) => current ?? visibleItems[0]?.id ?? null)
-        }
-      }
-      if (view === 'focus') requestFocusTransition(apply)
-      else apply()
-    },
-    [requestFocusTransition, view, visibleItems]
-  )
+  const changeView = useCallback((next: LibraryView): void => setView(next), [])
 
   const handleFocusSplitChange = useCallback((split: boolean): void => {
     if (split) setFocusDetailOpen(true)
@@ -737,14 +691,10 @@ export function Workspace({
         itemMatchesDestination(nextItem, destination, collectionSubtreeIds) &&
         itemMatchesRetrieval(nextItem, search.trim().toLocaleLowerCase(), typeFilters)
       if (remainsVisible) pendingRevealItemId.current = nextItem.id
-      if (view === 'focus' && openInEditor && nextItem.type === 'note') {
-        setFocusItemId(nextItem.id)
-        setFocusItemEditOnOpenId(nextItem.id)
-        setFocusDetailOpen(true)
-      }
+      if (openInEditor && nextItem.type === 'note') openDetail(nextItem.id, true)
       return remainsVisible
     },
-    [collectionSubtreeIds, destination, search, typeFilters, view]
+    [collectionSubtreeIds, destination, openDetail, search, typeFilters]
   )
 
   const commitLinkItem = useCallback(
@@ -783,13 +733,6 @@ export function Workspace({
       }
       setLibrary(result.data)
       setFocusNoteExpanded(false)
-      setSelectedItemId((current) => {
-        if (!current) return current
-        const item = result.data.items.find((entry) => entry.id === current)
-        return item && itemMatchesDestination(item, destination, collectionSubtreeIds)
-          ? current
-          : null
-      })
       setFocusItemId((current) => {
         if (!current) return current
         const nextVisibleIds = sortItems(
@@ -1182,44 +1125,23 @@ export function Workspace({
 
       setSelectedIds(new Set())
       setSelectionAnchorId(null)
-      if (view === 'focus') {
-        if (composerHasTransientWork) {
-          announceStatus('Finish the current capture before opening another item.')
-          return
-        }
-        requestFocusTransition(() => {
-          setComposerOpen(false)
-          changeFocusItemId(itemId)
-          setFocusDetailOpen(true)
-        })
-      } else {
-        setSelectedItemEditOnOpenId(null)
-        setSelectedItemId(itemId)
+      if (composerHasTransientWork) {
+        announceStatus('Finish the current capture before opening another item.')
+        return
       }
+      openDetail(itemId)
     },
-    [
-      announceStatus,
-      changeFocusItemId,
-      composerHasTransientWork,
-      requestFocusTransition,
-      selectItem,
-      view
-    ]
+    [announceStatus, composerHasTransientWork, openDetail, selectItem]
   )
 
   const itemActions = useCallback(
     (item: LibraryItemDto, targetIds: string[]): ItemActionHandlers => ({
-      onOpen: () => {
-        if (view === 'focus') {
-          requestFocusTransition(() => {
-            setComposerOpen(false)
-            changeFocusItemId(item.id)
-            setFocusDetailOpen(true)
-          })
-        } else {
-          setSelectedItemEditOnOpenId(null)
-          setSelectedItemId(item.id)
-        }
+      onOpen: () => openDetail(item.id),
+      onOpenInNewWindow: () => {
+        if (item.type !== 'note') return
+        void window.electron.window.openNoteWindow(item.id).catch((error: unknown) => {
+          setMessage(error instanceof Error ? error.message : 'The note could not be opened.')
+        })
       },
       onRename: () => {
         guardFocusTargets([item.id], () => {
@@ -1240,7 +1162,6 @@ export function Workspace({
     }),
     [
       archiveItemIds,
-      changeFocusItemId,
       guardFocusTargets,
       moveItemIds,
       openSource,
@@ -1249,8 +1170,7 @@ export function Workspace({
       revealItem,
       trashItemIds,
       unarchiveItemIds,
-      requestFocusTransition,
-      view
+      openDetail
     ]
   )
 
@@ -1263,7 +1183,6 @@ export function Workspace({
         event.ctrlKey ||
         event.metaKey ||
         event.shiftKey ||
-        selectedItemId !== null ||
         renameTarget !== null ||
         deleteTargets.length > 0 ||
         itemOperationBusy
@@ -1287,7 +1206,7 @@ export function Workspace({
           : null
       const targetIds = resolveItemShortcutTargets(
         selectedIds,
-        focusedItemId ?? (view === 'focus' ? focusItemId : null),
+        focusedItemId ?? focusItemId,
         visibleItemIds
       )
       if (targetIds.length === 0) return
@@ -1321,11 +1240,9 @@ export function Workspace({
     renameTarget,
     requestPermanentDelete,
     selectedIds,
-    selectedItemId,
     trashItemIds,
     visibleItemIds,
     visibleItems,
-    view,
     focusItemId,
     guardFocusTargets
   ])
@@ -1335,7 +1252,6 @@ export function Workspace({
       if (
         event.defaultPrevented ||
         event.key !== 'Escape' ||
-        selectedItemId !== null ||
         renameTarget !== null ||
         deleteTargets.length > 0 ||
         selectedIds.size === 0
@@ -1350,7 +1266,7 @@ export function Workspace({
     }
     window.addEventListener('keydown', clearSelectionOnEscape)
     return () => window.removeEventListener('keydown', clearSelectionOnEscape)
-  }, [clearSelection, deleteTargets.length, renameTarget, selectedIds.size, selectedItemId])
+  }, [clearSelection, deleteTargets.length, renameTarget, selectedIds.size])
 
   useEffect(() => {
     const selectAllItems = (event: KeyboardEvent): void => {
@@ -1359,7 +1275,6 @@ export function Workspace({
         event.altKey ||
         (!event.ctrlKey && !event.metaKey) ||
         event.key.toLocaleLowerCase() !== 'a' ||
-        selectedItemId !== null ||
         renameTarget !== null ||
         deleteTargets.length > 0 ||
         visibleItems.length === 0
@@ -1380,13 +1295,7 @@ export function Workspace({
     }
     window.addEventListener('keydown', selectAllItems)
     return () => window.removeEventListener('keydown', selectAllItems)
-  }, [
-    deleteTargets.length,
-    renameTarget,
-    selectAllVisibleItems,
-    selectedItemId,
-    visibleItems.length
-  ])
+  }, [deleteTargets.length, renameTarget, selectAllVisibleItems, visibleItems.length])
 
   const openComposer = useCallback((): void => {
     const open = (): void => {
@@ -1395,30 +1304,9 @@ export function Workspace({
       setFocusNoteExpanded(false)
       setComposerFocusRequest((request) => request + 1)
     }
-    if (view === 'focus') requestFocusTransition(open)
+    if (focusItemId) requestFocusTransition(open)
     else open()
-  }, [requestFocusTransition, view])
-
-  useEffect(() => {
-    if (view !== 'focus') return
-    const handleNewItemShortcut = (event: KeyboardEvent): void => {
-      if (
-        event.defaultPrevented ||
-        !event.ctrlKey ||
-        event.metaKey ||
-        event.altKey ||
-        event.shiftKey ||
-        event.key.toLocaleLowerCase() !== 'n' ||
-        document.querySelector('[role="dialog"], [role="menu"], [role="listbox"]') !== null
-      ) {
-        return
-      }
-      event.preventDefault()
-      openComposer()
-    }
-    window.addEventListener('keydown', handleNewItemShortcut)
-    return () => window.removeEventListener('keydown', handleNewItemShortcut)
-  }, [openComposer, view])
+  }, [focusItemId, requestFocusTransition])
 
   const prepareGlobalCapture = useCallback((): void => {
     const modalOpen = document.querySelector('[role="dialog"]') !== null
@@ -1492,21 +1380,12 @@ export function Workspace({
             setMessage('')
             setSelectedIds(new Set())
             setSelectionAnchorId(null)
-            if (view === 'focus') {
-              setFocusNoteExpanded(false)
-              setFocusItemId(item.id)
-              setFocusItemEditOnOpenId(item.type === 'note' ? item.id : null)
-              setFocusDetailOpen(true)
-            } else {
-              setSelectedItemId(item.id)
-              setSelectedItemEditOnOpenId(item.type === 'note' ? item.id : null)
-            }
+            openDetail(item.id, item.type === 'note')
           }
-          if (view === 'focus') requestFocusTransition(open)
-          else open()
+          open()
         })
       }),
-    [requestFocusTransition, view]
+    [openDetail]
   )
 
   const changeComposerOpen = useCallback((open: boolean, returnFocus = true): void => {
@@ -1667,7 +1546,6 @@ export function Workspace({
       if (!applyLibraryResult(result)) return
       const count = deleteTargets.length
       closePermanentDelete()
-      setSelectedItemId(null)
       notifyPermanentlyDeleted(count)
     } finally {
       setItemOperationBusy(false)
@@ -1788,7 +1666,6 @@ export function Workspace({
           isDragging ? 'Release the image to add it to New Item' : 'Preparing image in New Item'
         }
         overlay={composerOpen}
-        view={view}
       />
     </div>
   )
@@ -1817,7 +1694,7 @@ export function Workspace({
                 view={view === 'visual' ? 'visual' : 'grid'}
                 selected={selectedIds.has(item.id)}
                 onActivate={(event) => activateItem(item.id, event)}
-                onOpen={() => setSelectedItemId(item.id)}
+                onOpen={() => openDetail(item.id)}
               />
               <div
                 data-drag-preview-hidden
@@ -1841,7 +1718,7 @@ export function Workspace({
   const focusList = (
     <div className="flex size-full min-h-0 flex-col">
       <FocusListHeader
-        keyboardShortcutsEnabled={selectedItem === null}
+        keyboardShortcutsEnabled
         destinationLabel={destinationLabel(destination, library)}
         composerOpen={composerOpen}
         hasDraft={composerHasDraft}
@@ -1941,6 +1818,7 @@ export function Workspace({
               triggerSurface="caption"
               detailOptions={detailOptions}
               {...actions}
+              onOpenInNewWindow={() => guard(actions.onOpenInNewWindow)}
               onRename={() => guard(actions.onRename)}
               onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}
               onArchive={() => guard(actions.onArchive)}
@@ -1974,7 +1852,7 @@ export function Workspace({
 
   return (
     <SidebarProvider
-      keyboardShortcutEnabled={selectedItem === null}
+      keyboardShortcutEnabled={focusItem === null}
       open={!sidebarHidden && !focusNoteExpansionActive}
       onOpenChange={(open) => setSidebarHidden(!open)}
       width={sidebarWidth}
@@ -1994,7 +1872,7 @@ export function Workspace({
         onDestinationChange={changeDestination}
         onLibraryChange={(nextLibrary) => {
           const apply = (): void => setLibrary(nextLibrary)
-          if (view === 'focus') requestFocusTransition(apply)
+          if (focusItemId) requestFocusTransition(apply)
           else apply()
         }}
         onError={setMessage}
@@ -2010,9 +1888,9 @@ export function Workspace({
         onTranslucentBackgroundChange={translucentBackground.setEnabled}
       />
       <SidebarInset>
-        {view === 'visual' || view === 'grid' ? (
+        {focusItemId ? null : (
           <AppToolbar
-            keyboardShortcutsEnabled={selectedItem === null}
+            keyboardShortcutsEnabled
             newItemOpen={composerOpen}
             hasDraft={composerHasDraft}
             newItemFocusRequest={newItemFocusRequest}
@@ -2036,8 +1914,8 @@ export function Workspace({
             onSortChange={setSort}
             onWindowClose={window.electron.window.close}
           />
-        ) : null}
-        {view === 'focus' ? (
+        )}
+        {focusItemId ? (
           <main
             className="window-canvas flex min-h-0 min-w-0 flex-1 flex-col"
             onDragEnter={(event) => {
@@ -2095,7 +1973,8 @@ export function Workspace({
               detail={focusDetail}
             />
           </main>
-        ) : (
+        ) : null}
+        <Activity mode={focusItemId ? 'hidden' : 'visible'}>
           <ScrollArea
             className="window-canvas min-h-0 min-w-0 flex-1"
             viewportClassName="dark:library-scroll-viewport focus-visible:ring-0 focus-visible:outline-none"
@@ -2161,39 +2040,7 @@ export function Workspace({
                     </AlertAction>
                   </Alert>
                 )}
-                {view === 'table' ? (
-                  <div className="flex flex-col gap-4">
-                    {captureSlot}
-                    {visibleItems.length > 0 ? (
-                      <SavedItemsTable
-                        items={visibleItems}
-                        selectedIds={selectedIds}
-                        draggedIds={draggedItemIds}
-                        onActivate={activateItem}
-                        onOpen={(itemId) => setSelectedItemId(itemId)}
-                        onDragStart={beginItemDrag}
-                        onDragEnd={endItemDrag}
-                        renderActions={(item) => (
-                          <ItemActionMenu
-                            item={item}
-                            collections={library.collections}
-                            {...getItemMenuProps(item)}
-                          />
-                        )}
-                        wrapRow={(item, row) => (
-                          <ItemContextMenu
-                            key={item.id}
-                            item={item}
-                            collections={library.collections}
-                            {...getItemMenuProps(item)}
-                          >
-                            {row}
-                          </ItemContextMenu>
-                        )}
-                      />
-                    ) : null}
-                  </div>
-                ) : view === 'visual' ? (
+                {view === 'visual' ? (
                   <>
                     <OrderedMasonry>{cardLayoutContent}</OrderedMasonry>
                     {renderedItems.length < visibleItems.length ? (
@@ -2307,7 +2154,7 @@ export function Workspace({
               </div>
             </main>
           </ScrollArea>
-        )}
+        </Activity>
         <BulkActionToolbar
           selectedItemIds={selectedItemIds}
           selectedItemLocations={selectedItemLocations}
@@ -2330,66 +2177,6 @@ export function Workspace({
         <p className="sr-only" aria-live="polite" aria-atomic="true">
           {statusMessage}
         </p>
-        <Suspense fallback={null}>
-          <ItemDetailDialog
-            key={selectedItem?.id ?? 'closed-item-detail'}
-            item={selectedItem}
-            initialNoteMode={selectedItemEditOnOpenId === selectedItem?.id ? 'live' : undefined}
-            collections={library.collections}
-            hasPrevious={hasPreviousItem}
-            hasNext={hasNextItem}
-            onPrevious={selectPreviousItem}
-            onNext={selectNextItem}
-            onOpenChange={(open) => {
-              if (!open) {
-                setSelectedItemEditOnOpenId(null)
-                setSelectedItemId(null)
-              }
-            }}
-            onItemUpdated={updateItem}
-            onRenameItem={renameItemTitle}
-            libraryItems={library.items}
-            onRenameAttachment={(itemId) => {
-              const image = library.items.find((item) => item.id === itemId)
-              if (!image || image.type !== 'image') return
-              setRenameTarget(image)
-              setRenameTitle(image.title)
-            }}
-            onMoveItem={(destination) => {
-              if (!selectedItem) return
-              itemActions(selectedItem, [selectedItem.id]).onMove(destination)
-            }}
-            onOpenVaultLink={openVaultLink}
-            onMoveToTrash={(itemId) => {
-              const target = library.items.find((item) => item.id === itemId)
-              if (target) itemActions(target, [itemId]).onTrash()
-            }}
-            onEmptyNote={trashEmptyNote}
-            renderActions={(guard, detailOptions) => {
-              if (!selectedItem) return null
-              const actions = itemActions(selectedItem, [selectedItem.id])
-              return (
-                <ItemActionMenu
-                  item={selectedItem}
-                  collections={library.collections}
-                  targetCount={1}
-                  targetLocations={[selectedItem.location]}
-                  alwaysVisible
-                  detailOptions={detailOptions}
-                  {...actions}
-                  onRename={() => guard(actions.onRename)}
-                  onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}
-                  onArchive={() => guard(actions.onArchive)}
-                  onUnarchive={() => guard(actions.onUnarchive)}
-                  onTrash={() => guard(actions.onTrash)}
-                  onRestore={() => guard(actions.onRestore)}
-                  onDeletePermanently={() => guard(actions.onDeletePermanently)}
-                />
-              )
-            }}
-            onError={setMessage}
-          />
-        </Suspense>
         <Dialog
           open={renameTarget !== null}
           onOpenChange={(open) => {

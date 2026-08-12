@@ -20,7 +20,7 @@ export function FileItemCard({
   showSelectionVisual = true
 }: {
   item: FileItemDto
-  view: Exclude<LibraryView, 'table' | 'focus'>
+  view: LibraryView
   selected: boolean
   onActivate: (event: React.MouseEvent<HTMLButtonElement>) => void
   onOpen: () => void

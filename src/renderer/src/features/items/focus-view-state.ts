@@ -7,9 +7,8 @@ export const FOCUS_RAIL_DENSITY_STORAGE_KEY = 'kuskus-focus-rail-density:v1'
 export type FocusRailDensity = 'index' | 'visual'
 
 export function parseFocusRailDensity(value: string | null): FocusRailDensity {
-  return value === 'visual' ? 'visual' : 'index'
+  return value === 'index' ? 'index' : 'visual'
 }
-
 export function clampFocusListWidth(
   width: number,
   availableWidth = Number.POSITIVE_INFINITY

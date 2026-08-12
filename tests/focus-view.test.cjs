@@ -25,9 +25,12 @@ const {
   resolveInitialFocusItemId
 } = require('../src/renderer/src/features/items/focus-view-state.ts')
 const { parseLibraryView } = require('../src/renderer/src/features/items/item-view.ts')
+const {
+  focusIndexSupportingText
+} = require('../src/renderer/src/features/items/focus-index-row-text.ts')
 
-test('parses Focus and disables persisted Table or legacy List views', () => {
-  assert.equal(parseLibraryView('focus'), 'focus')
+test('parses layouts and disables persisted Focus, Table, or legacy List views', () => {
+  assert.equal(parseLibraryView('focus'), 'visual')
   assert.equal(parseLibraryView('table'), 'visual')
   assert.equal(parseLibraryView('list'), 'visual')
   assert.equal(parseLibraryView('unknown'), 'visual')
@@ -44,11 +47,11 @@ test('uses a bounded persisted Focus list width', () => {
   assert.equal(clampFocusListWidth(420, 800), 360)
 })
 
-test('defaults the Focus rail to Index and validates the persisted density', () => {
-  assert.equal(parseFocusRailDensity(null), 'index')
-  assert.equal(parseFocusRailDensity('index'), 'index')
+test('defaults the combined item rail to Visual', () => {
+  assert.equal(parseFocusRailDensity(null), 'visual')
   assert.equal(parseFocusRailDensity('visual'), 'visual')
-  assert.equal(parseFocusRailDensity('unknown'), 'index')
+  assert.equal(parseFocusRailDensity('index'), 'index')
+  assert.equal(parseFocusRailDensity('unknown'), 'visual')
 })
 
 test('initial Focus activation uses the leading visible item but preserves an active item', () => {
@@ -74,24 +77,69 @@ test('Focus keyboard navigation remains bounded and supports endpoints', () => {
   assert.equal(resolveFocusNavigationItemId(ids, 'c', 'ArrowDown'), 'c')
 })
 
-test('Focus Index uses compact type badges and tint-only bulk selection', () => {
+test('medium windows use an overlay sidebar with a persistent detail trigger', () => {
+  const mobileSource = readFileSync(
+    require.resolve('../src/renderer/src/hooks/use-mobile.ts'),
+    'utf8'
+  )
+  const focusWorkspaceSource = readFileSync(
+    require.resolve('../src/renderer/src/features/library/focus-workspace.tsx'),
+    'utf8'
+  )
+
+  assert.match(mobileSource, /MOBILE_BREAKPOINT = 1024/)
+  assert.match(focusWorkspaceSource, /detailOpen && !split && !expanded/)
+  assert.match(focusWorkspaceSource, /<ShellSidebarTrigger \/>/)
+})
+
+test('visual notes use the same compact title caption as other item types', () => {
+  const source = readFileSync(
+    require.resolve('../src/renderer/src/features/items/note-item-card.tsx'),
+    'utf8'
+  )
+  assert.match(source, /<ItemCardCaption compact=\{compact\}>/)
+  assert.match(source, /\{item\.title\}/)
+})
+
+test('Focus Index uses text-first rows with previews and distinct active and selected states', () => {
   const source = readFileSync(
     require.resolve('../src/renderer/src/features/items/focus-index-row.tsx'),
     'utf8'
   )
-  assert.match(source, /relative h-\[52px\]/)
-  assert.match(source, /contain-intrinsic-size:52px/)
+  assert.match(source, /min-h-\[88px\]/)
+  assert.match(source, /contain-intrinsic-size:96px/)
   assert.doesNotMatch(source, /useImagePreview|useUrlPreview|IntersectionObserver/)
-  assert.doesNotMatch(source, /<img|Thumbnail/)
+  assert.doesNotMatch(source, /<img|Thumbnail|<Badge/)
   assert.match(source, /content-visibility:auto/)
-  assert.match(source, /'Note' \| 'URL' \| 'Image' \| 'File'/)
-  assert.match(source, /<Badge variant="secondary">\{typeLabel\}<\/Badge>/)
+  assert.match(source, /line-clamp-2/)
+  assert.match(source, /focusIndexSupportingText\(item\)/)
+  assert.match(source, /pr-14 pl-4/)
+  assert.match(source, /\[&_\[data-slot=button\]\]:bg-transparent/)
   assert.match(source, /data-\[active=true\].*before:opacity-100/)
-  assert.match(source, /data-\[selected=true\]:bg-primary\/12/)
-  assert.doesNotMatch(source, /IconCheck|data-\[selected=true\].*shadow-|selected=true.*pl-8/)
+  assert.match(source, /data-\[selected=true\]:shadow-/)
+  assert.doesNotMatch(source, /aria-hidden="true">·/)
 })
 
-test('Focus capture stays in the rail and can promote notes into the editor', () => {
+test('Focus Index derives quiet supporting text without repeating a note title', () => {
+  assert.equal(
+    focusIndexSupportingText({
+      type: 'note',
+      title: 'Release checklist',
+      body: '# Release checklist\n\nShip the signed build with **release notes**.'
+    }),
+    'Ship the signed build with release notes.'
+  )
+  assert.equal(
+    focusIndexSupportingText({
+      type: 'url',
+      description: 'A practical guide',
+      sourceUrl: 'https://example.com'
+    }),
+    'A practical guide'
+  )
+})
+
+test('Detail capture stays in the rail and can promote notes into the editor', () => {
   const workspaceSource = readFileSync(
     require.resolve('../src/renderer/src/features/library/workspace.tsx'),
     'utf8'
@@ -115,11 +163,10 @@ test('Focus capture stays in the rail and can promote notes into the editor', ()
     /composer=\{composerOpen \|\| showExternalDropShadow \? captureSlot : null\}/
   )
   assert.match(workspaceSource, /const focusDetail = focusItem \? \(/)
-  assert.match(workspaceSource, /if \(view !== 'focus'\) return/)
-  assert.match(workspaceSource, /event\.key\.toLocaleLowerCase\(\) !== 'n'/)
-  assert.match(workspaceSource, /openComposer\(\)/)
+  assert.match(workspaceSource, /if \(!focusItemId\) return/)
+  assert.match(workspaceSource, /if \(focusItemId\) requestFocusTransition\(open\)/)
   assert.match(workspaceSource, /window\.capture\.onMainItemRequested/)
-  assert.match(workspaceSource, /setSelectedItemEditOnOpenId/)
+  assert.match(workspaceSource, /openDetail\(nextItem\.id, true\)/)
   assert.doesNotMatch(workspaceSource, /composerOpen \? \(\s*addItemComposer/)
   assert.match(listSource, /composer: React\.ReactNode/)
   assert.doesNotMatch(listSource, /Draft in progress/)
@@ -130,32 +177,6 @@ test('Focus capture stays in the rail and can promote notes into the editor', ()
   assert.match(composerSource, /Control\+Shift\+Enter Meta\+Shift\+Enter/)
   assert.match(composerEditorSource, /key: 'Mod-Shift-Enter'/)
   assert.match(composerEditorSource, /if \(!action\) return false/)
-})
-
-test('Focus Visual uses tint without shared card selection decorations', () => {
-  const listSource = readFileSync(
-    require.resolve('../src/renderer/src/features/items/focus-item-list.tsx'),
-    'utf8'
-  )
-  const savedCardSource = readFileSync(
-    require.resolve('../src/renderer/src/features/items/saved-item-card.tsx'),
-    'utf8'
-  )
-  const typeCardSources = ['note', 'image', 'url', 'file'].map((type) =>
-    readFileSync(
-      require.resolve(`../src/renderer/src/features/items/${type}-item-card.tsx`),
-      'utf8'
-    )
-  )
-
-  assert.match(listSource, /data-\[active=true\]:bg-primary\/10/)
-  assert.match(listSource, /data-\[selected=true\]:bg-primary\/10/)
-  assert.match(listSource, /showSelectionVisual=\{false\}/)
-  assert.doesNotMatch(listSource, /data-\[active=true\]:before:opacity-100/)
-  assert.doesNotMatch(listSource, /data-\[selected=true\]:shadow-/)
-  assert.match(savedCardSource, /showSelectionVisual = true/)
-  for (const source of typeCardSources) {
-    assert.match(source, /data-selected=\{selected && showSelectionVisual\}/)
-    assert.match(source, /aria-pressed=\{selected\}/)
-  }
+  assert.match(listSource, /min-h-full pt-2/)
+  assert.match(listSource, /<OrderedMasonry gap=\{8\}>/)
 })

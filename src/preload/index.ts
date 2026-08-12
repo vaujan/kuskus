@@ -88,7 +88,16 @@ const windowApi: ElectronWindowApi = {
       queueMicrotask(callback)
     }
     return () => globalCaptureCallbacks.delete(callback)
-  }
+  },
+  openNoteWindow: (itemId): Promise<void> =>
+    ipcRenderer.invoke(WINDOW_CHANNELS.openNoteWindow, itemId),
+  onNoteWindowCloseRequested: (callback): (() => void) => {
+    const listener = (): void => callback()
+    ipcRenderer.on(WINDOW_CHANNELS.noteWindowCloseRequested, listener)
+    return () => ipcRenderer.removeListener(WINDOW_CHANNELS.noteWindowCloseRequested, listener)
+  },
+  resolveNoteWindowClose: (approved): void =>
+    ipcRenderer.send(WINDOW_CHANNELS.resolveNoteWindowClose, approved)
 }
 
 const libraryApi: KuskusLibraryApi = {

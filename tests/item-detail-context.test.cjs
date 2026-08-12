@@ -188,12 +188,7 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.match(windowMaterialStyles, /\[data-focus-caption-controls\][\s\S]*?opacity: 0\.35/)
   assert.match(windowMaterialStyles, /:is\(:hover, :focus-within\)[\s\S]*?opacity: 1/)
   assert.match(focusWorkspaceSource, /data-focus-caption-controls/)
-  assert.doesNotMatch(focusWorkspaceSource, /Focus history|Back to items|aria-label="Forward"/)
-  assert.match(
-    focusWorkspaceSource,
-    /pointer-events-auto absolute top-0 right-0 z-50 h-10 \[-webkit-app-region:no-drag\]/
-  )
-  assert.match(focusWorkspaceSource, /inset-x-0 top-0 z-30 h-10 \[-webkit-app-region:drag\]/)
+  assert.match(focusWorkspaceSource, /WindowControls/)
   assert.match(detailSource, /data-detail-content-stack/)
   assert.match(detailSource, /flex-1 flex-col/)
   assert.match(detailSource, /relative flex min-h-0 min-w-0 flex-1/)

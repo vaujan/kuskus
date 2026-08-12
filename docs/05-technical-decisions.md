@@ -1604,21 +1604,21 @@ denser master list without removing the existing visual option or weakening mixe
 
 ### Decision
 
-- Add renderer-local `index` and `visual` Focus rail densities. Index is the default for missing or
+- Add renderer-local `index` and `visual` Focus rail densities. Visual is the default for missing or
   invalid preferences; the selected density persists per device in a versioned localStorage key.
-- Index uses fixed 52-pixel text-first rows with title, relative modified time, a secondary badge
-  for the four basic content types, and optional useful detail. It mounts no image or URL preview
-  hooks and renders no replacement type icons; `content-visibility` still avoids unnecessary
-  offscreen paint.
+- Index uses text-first rows with a two-line title, independently spaced modified time and neutral
+  type label, one line of format-appropriate supporting text, and useful details such as domain or
+  image dimensions. Row height follows the title rather than forcing every item into one fixed size.
+  It mounts no image or URL preview hooks; `content-visibility` still avoids unnecessary offscreen
+  paint.
 - Active detail and bulk selection remain separate semantic states through `aria-current` and
-  `aria-pressed`, but share one calm tint in Focus. Index alone keeps the three-pixel active accent;
-  Visual has no leading accent. Focus suppresses shared card selection borders, halos, caption accents,
-  and check indicators while Masonry and Grid retain them.
+  `aria-pressed`. Index uses a calm active tint with a slim leading accent, while bulk selection uses
+  a distinct inset outline. Visual retains its card treatment.
 - The existing retrieval menu owns the density radio group. Capture, keyboard order, drag/drop,
   context menus, detail navigation, storage, IPC, and authoritative vault content remain unchanged.
 
 ### Consequences
 
-- Focus opens as a fast-scanning Index while Visual remains one menu choice away.
+- Focus Index supports recognition from titles and excerpts while Visual remains one menu choice away.
 - The rail can represent large libraries without acquiring media previews for Index rows.
 - No library migration, shared contract change, preload expansion, or new dependency is required.

@@ -13,7 +13,8 @@ import {
   IconTextCaption,
   IconRestore,
   IconTrash,
-  IconTrashX
+  IconTrashX,
+  IconWindowMaximize
 } from '@tabler/icons-react'
 import { useState, type ReactNode } from 'react'
 
@@ -70,6 +71,7 @@ export interface NoteDetailMenuOptions {
 
 export interface ItemActionHandlers {
   onOpen: () => void
+  onOpenInNewWindow: () => void
   onRename: () => void
   onMove: (destination: ActiveItemLocation) => void
   onReveal: () => void
@@ -264,6 +266,12 @@ function ItemActions({
           <IconEye aria-hidden="true" />
           Open
         </ActionItem>
+        {!bulk && item.type === 'note' ? (
+          <ActionItem surface={surface} onClick={props.onOpenInNewWindow}>
+            <IconWindowMaximize aria-hidden="true" />
+            Open in new window
+          </ActionItem>
+        ) : null}
         {!inTrash && item.type === 'url' ? (
           <ActionItem surface={surface} onClick={props.onOpenSource}>
             <IconExternalLink aria-hidden="true" />

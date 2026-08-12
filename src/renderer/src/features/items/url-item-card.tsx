@@ -33,7 +33,7 @@ export function UrlItemCard({
   onOpen: () => void
   selected: boolean
   opensDialog: boolean
-  view: Exclude<LibraryView, 'table' | 'focus'>
+  view: LibraryView
   compact?: boolean
   showSelectionVisual?: boolean
 }): React.JSX.Element {

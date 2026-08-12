@@ -3,6 +3,7 @@ import { IconFileAlert as FileWarning, IconNote as Note } from '@tabler/icons-re
 
 import {
   ItemCard,
+  ItemCardCaption,
   ItemCardPrimaryAction,
   ItemCardSelectionIndicator,
   ItemCardSurface
@@ -33,7 +34,7 @@ export function NoteItemCard({
   onOpen: () => void
   selected: boolean
   opensDialog: boolean
-  view: Exclude<LibraryView, 'table' | 'focus'>
+  view: LibraryView
   compact?: boolean
   showSelectionVisual?: boolean
 }): React.JSX.Element {
@@ -85,6 +86,11 @@ export function NoteItemCard({
           </Suspense>
         )}
       </ItemCardSurface>
+      {!item.missingContent && item.body.trim() ? (
+        <ItemCardCaption compact={compact}>
+          <p className="min-w-0 flex-1 truncate font-normal text-foreground/80">{item.title}</p>
+        </ItemCardCaption>
+      ) : null}
     </ItemCard>
   )
 }
