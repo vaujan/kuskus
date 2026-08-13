@@ -22,7 +22,7 @@ export const ComposerRichMarkdownEditor = forwardRef<
     options?: RichMarkdownEditorOptions
     className?: string
     onChange: (value: string) => void
-    onPasteImage: (file: File) => void
+    onPasteImage: (file: File, insertAtSelection: (src: string) => void) => void
     onSave: () => void
     onContinueInEditor?: () => void
     onEscape: () => void
@@ -60,7 +60,8 @@ export const ComposerRichMarkdownEditor = forwardRef<
     >
       {!value ? (
         <span
-          className="pointer-events-none absolute inset-x-1 top-2 text-[15px] leading-[1.75] text-muted-foreground/70"
+          className="typeset kuskus-typeset pointer-events-none absolute inset-0 text-muted-foreground/70"
+          data-typeset-presentation="card"
           aria-hidden="true"
         >
           {placeholder}

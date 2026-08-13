@@ -7,7 +7,6 @@ import {
   rootCtx
 } from '@milkdown/core'
 import { history } from '@milkdown/plugin-history'
-import { listener, listenerCtx } from '@milkdown/plugin-listener'
 import type { Node as ProseNode } from '@milkdown/prose/model'
 import type {
   EditorView as ProseEditorView,
@@ -17,10 +16,18 @@ import type {
 import { commonmark } from '@milkdown/preset-commonmark'
 import { gfm } from '@milkdown/preset-gfm'
 import { replaceAll } from '@milkdown/utils'
-import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef } from 'react'
-
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState
+} from 'react'
 import { cn } from '@/lib/utils'
+import { richMarkdownActiveLine } from '@/features/items/rich-markdown-active-line'
 import { richMarkdownMath } from '@/features/items/rich-markdown-math'
+import { richMarkdownPublisher } from '@/features/items/rich-markdown-publisher'
 import { partitionRichMarkdownSource } from '@/features/items/rich-markdown-source'
 import {
   prepareRichMarkdown,
@@ -38,7 +45,8 @@ export interface RichMarkdownEditorOptions {
   resolveImage?: (target: string) => RichMarkdownImage | null
   onOpenLink?: (url: string) => void
   onOpenVaultLink?: (target: string) => void
-  onPasteImage?: (file: File) => void
+  onPasteImage?: (file: File, insertAtSelection: (src: string) => void) => void
+  tasksEditable?: boolean
 }
 
 export interface RichMarkdownEditorHandle {
@@ -114,7 +122,8 @@ function imageNodeView(node: ProseNode, getOptions: () => RichMarkdownEditorOpti
 function listItemNodeView(
   node: ProseNode,
   view: ProseEditorView,
-  getPos: () => number | undefined
+  getPos: () => number | undefined,
+  getOptions: () => RichMarkdownEditorOptions
 ): NodeView {
   let currentNode = node
   const dom = document.createElement('li')
@@ -124,13 +133,28 @@ function listItemNodeView(
   dom.dataset.checked = String(node.attrs.checked)
   const checkbox = document.createElement('input')
   checkbox.type = 'checkbox'
-  checkbox.checked = Boolean(node.attrs.checked)
   checkbox.className = 'kuskus-task-checkbox'
   checkbox.contentEditable = 'false'
-  checkbox.setAttribute('aria-label', checkbox.checked ? 'Completed task' : 'Open task')
   const content = document.createElement('div')
   content.className = 'kuskus-rich-task-content'
   dom.append(checkbox, content)
+
+  const renderCheckbox = (): void => {
+    checkbox.checked = Boolean(currentNode.attrs.checked)
+    checkbox.disabled = !view.editable && !getOptions().tasksEditable
+    checkbox.setAttribute('aria-label', checkbox.checked ? 'Completed task' : 'Open task')
+  }
+  checkbox.addEventListener('change', () => {
+    const position = getPos()
+    if (position === undefined || checkbox.disabled) return renderCheckbox()
+    view.dispatch(
+      view.state.tr.setNodeMarkup(position, undefined, {
+        ...currentNode.attrs,
+        checked: checkbox.checked
+      })
+    )
+  })
+  renderCheckbox()
 
   return {
     dom,
@@ -138,29 +162,11 @@ function listItemNodeView(
     update: (next) => {
       if (next.type !== node.type || next.attrs.checked == null) return false
       currentNode = next
-      checkbox.checked = Boolean(next.attrs.checked)
       dom.dataset.checked = String(next.attrs.checked)
+      renderCheckbox()
       return true
     },
-    stopEvent: (event) => {
-      if (event.target !== checkbox) return false
-      if (event.type === 'change') {
-        if (!view.editable) {
-          checkbox.checked = Boolean(currentNode.attrs.checked)
-          return true
-        }
-        const position = getPos()
-        if (position !== undefined) {
-          view.dispatch(
-            view.state.tr.setNodeMarkup(position, undefined, {
-              ...currentNode.attrs,
-              checked: checkbox.checked
-            })
-          )
-        }
-      }
-      return true
-    }
+    stopEvent: (event) => event.target === checkbox
   }
 }
 
@@ -177,6 +183,7 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
     const onChangeRef = useRef(onChange)
     const onErrorRef = useRef(onError)
     const publishedRef = useRef<string | null>(null)
+    const [failed, setFailed] = useState(false)
 
     valueRef.current = value
     editableRef.current = editable
@@ -195,17 +202,32 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
       const source = partitionRichMarkdownSource(valueRef.current)
       if (!host || !source || !supportsRichMarkdown(source.body)) return
       let disposed = false
+      setFailed(false)
 
       const imageView: NodeViewConstructor = (node) => imageNodeView(node, () => optionsRef.current)
       const taskView: NodeViewConstructor = (node, view, getPos) =>
-        listItemNodeView(node, view, typeof getPos === 'function' ? getPos : () => undefined)
+        listItemNodeView(
+          node,
+          view,
+          typeof getPos === 'function' ? getPos : () => undefined,
+          () => optionsRef.current
+        )
 
+      const publisher = richMarkdownPublisher((markdown) => {
+        const current = partitionRichMarkdownSource(valueRef.current)
+        if (!current) return
+        const next = current.prefix + restoreRichMarkdown(markdown)
+        publishedRef.current = next
+        valueRef.current = next
+        onChangeRef.current(next)
+      })
       const editor = Editor.make()
         .use(commonmark)
         .use(gfm)
         .use(richMarkdownMath)
+        .use(richMarkdownActiveLine)
+        .use(publisher)
         .use(history)
-        .use(listener)
         .config((ctx) => {
           ctx.set(rootCtx, host)
           ctx.set(defaultValueCtx, prepareRichMarkdown(source.body))
@@ -219,25 +241,31 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
             attributes: {
               'aria-label': editableRef.current ? 'Rich Markdown editor' : 'Markdown document',
               spellcheck: 'true'
+            },
+            handlePaste: (view, event) => {
+              const file = Array.from(event.clipboardData?.items ?? [])
+                .find((entry) => entry.type.startsWith('image/'))
+                ?.getAsFile()
+              const onPasteImage = optionsRef.current.onPasteImage
+              if (!file || !onPasteImage) return false
+              event.preventDefault()
+              const position = view.state.selection.from
+              onPasteImage(file, (src) => {
+                const image = view.state.schema.nodes.image?.create({ src, alt: '', title: '' })
+                if (!image) return
+                try {
+                  view.dispatch(
+                    view.state.tr.insert(Math.min(position, view.state.doc.content.size), image)
+                  )
+                } catch {
+                  onErrorRef.current?.('The image could not be inserted at the current position.')
+                }
+              })
+              return true
             }
-          })
-          ctx.get(listenerCtx).markdownUpdated((_ctx, markdown) => {
-            const current = partitionRichMarkdownSource(valueRef.current)
-            if (!current) return
-            const next = current.prefix + restoreRichMarkdown(markdown)
-            publishedRef.current = next
-            onChangeRef.current(next)
           })
         })
 
-      const handlePaste = (event: ClipboardEvent): void => {
-        const file = Array.from(event.clipboardData?.items ?? [])
-          .find((entry) => entry.type.startsWith('image/'))
-          ?.getAsFile()
-        if (!file || !optionsRef.current.onPasteImage) return
-        event.preventDefault()
-        optionsRef.current.onPasteImage(file)
-      }
       const handleClick = (event: MouseEvent): void => {
         const anchor = (event.target as HTMLElement | null)?.closest<HTMLAnchorElement>('a[href]')
         if (!anchor) return
@@ -253,7 +281,6 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
         event.preventDefault()
       }
       host.addEventListener('click', handleClick)
-      host.addEventListener('paste', handlePaste)
 
       void editor
         .create()
@@ -269,6 +296,7 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
           }
         })
         .catch((error: unknown) => {
+          setFailed(true)
           onErrorRef.current?.(
             error instanceof Error ? error.message : 'The rich Markdown editor could not be opened.'
           )
@@ -277,7 +305,6 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
       return () => {
         disposed = true
         host.removeEventListener('click', handleClick)
-        host.removeEventListener('paste', handlePaste)
         if (editorRef.current === editor) editorRef.current = null
         void editor.destroy()
       }
@@ -306,10 +333,22 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
             'aria-label': editable ? 'Rich Markdown editor' : 'Markdown document'
           }
         })
+        view.dom.querySelectorAll<HTMLInputElement>('.kuskus-task-checkbox').forEach((checkbox) => {
+          checkbox.disabled = !editable && !optionsRef.current.tasksEditable
+        })
       })
       if (active && editable) editor.action((ctx) => ctx.get(editorViewCtx).focus())
     }, [active, editable])
 
-    return <div ref={hostRef} className={cn('kuskus-rich-editor min-w-0', className)} />
+    return (
+      <div className={cn('kuskus-rich-editor min-w-0', className)}>
+        <div ref={hostRef} className={failed ? 'hidden' : undefined} />
+        {failed ? (
+          <pre className="whitespace-pre-wrap font-mono text-sm" role="alert">
+            {value}
+          </pre>
+        ) : null}
+      </div>
+    )
   }
 )

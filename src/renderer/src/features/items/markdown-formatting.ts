@@ -12,6 +12,13 @@ export function decodeMarkdownLinkTarget(value: string): string | null {
   }
 }
 
+export function setMarkdownTaskChecked(value: string, taskIndex: number, checked: boolean): string {
+  let index = 0
+  return value.replace(/^(\s*(?:[-+*]|\d+[.)])\s+\[)[ xX](\])/gm, (match, start, end) =>
+    index++ === taskIndex ? `${start}${checked ? 'x' : ' '}${end}` : match
+  )
+}
+
 function countAdjacentMarkers(value: string, index: number, direction: -1 | 1): number {
   let count = 0
   let cursor = direction === -1 ? index - 1 : index

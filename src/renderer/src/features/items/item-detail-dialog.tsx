@@ -287,7 +287,7 @@ function InlineItemTitle({
         <button
           type="button"
           className={cn(
-            'group/title -my-2.5 flex max-w-full items-center gap-1.5 py-2.5 text-left outline-none',
+            '-my-2.5 flex max-w-full items-center py-2.5 text-left outline-none',
             className,
             centered && 'justify-center text-center'
           )}
@@ -301,11 +301,6 @@ function InlineItemTitle({
           <span className={cn('min-w-0', textClassName)} title={item.title}>
             {item.title}
           </span>
-          <Pencil
-            className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/title:opacity-100 group-focus-visible/title:opacity-100"
-            stroke={1.75}
-            aria-hidden="true"
-          />
         </button>
       )}
       {state.error ? (
@@ -549,6 +544,30 @@ function DetailToolbar({
   )
 }
 
+function NoteModeHud({ mode, visible }: { mode: NoteMode; visible: boolean }): React.JSX.Element {
+  const option = {
+    read: { label: 'Read', icon: Eye },
+    live: { label: 'Live preview', icon: EyeEdit },
+    markdown: { label: 'Markdown source', icon: Code },
+    split: { label: 'Split view', icon: Columns2 }
+  }[mode]
+  const Icon = option.icon
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className={cn(
+        'pointer-events-none absolute bottom-6 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-lg bg-popover/45 px-3 py-2 text-sm font-medium text-popover-foreground shadow-lg backdrop-blur-xl transition-opacity duration-150 motion-reduce:transition-none',
+        visible ? 'opacity-100' : 'opacity-0'
+      )}
+    >
+      <Icon className="size-4" stroke={1.5} aria-hidden="true" />
+      <span>{visible ? option.label : ''}</span>
+    </div>
+  )
+}
+
 function NoteModeControls({
   mode,
   onModeChange,
@@ -559,22 +578,31 @@ function NoteModeControls({
   surface?: 'toolbar' | 'caption'
 }): React.JSX.Element {
   const options = [
-    { value: 'read' as const, label: 'Read (Ctrl+E)', icon: Eye, shortcut: 'Control+E' },
+    {
+      value: 'read' as const,
+      label: 'Read (Ctrl+E)',
+      shortLabel: 'Read',
+      icon: Eye,
+      shortcut: 'Control+E'
+    },
     {
       value: 'live' as const,
       label: 'Live preview (Ctrl+E)',
+      shortLabel: 'Live',
       icon: EyeEdit,
       shortcut: 'Control+E'
     },
     {
       value: 'markdown' as const,
       label: 'Markdown source (Ctrl+Alt+E)',
+      shortLabel: 'Markdown',
       icon: Code,
       shortcut: 'Control+Alt+E'
     },
     {
       value: 'split' as const,
       label: 'Split view (Ctrl+Shift+E)',
+      shortLabel: 'Split',
       icon: Columns2,
       shortcut: 'Control+Shift+E'
     }
@@ -593,9 +621,8 @@ function NoteModeControls({
                 render={
                   <Button
                     type="button"
-                    size="icon"
                     variant="ghost"
-                    className="size-10 text-muted-foreground"
+                    className="h-10 gap-2 px-3 text-muted-foreground"
                     aria-label={`Note mode: ${activeOption.label}`}
                   />
                 }
@@ -603,6 +630,7 @@ function NoteModeControls({
             }
           >
             <ActiveIcon stroke={1.5} aria-hidden="true" />
+            <span>{activeOption.shortLabel}</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-72">
             <DropdownMenuGroup>
@@ -663,6 +691,7 @@ function NoteDocumentBlocks({
   markdown,
   showInlineTitle,
   showProperties,
+  propertiesEditable,
   className,
   onRenameTitle,
   onDraftChange,
@@ -673,6 +702,7 @@ function NoteDocumentBlocks({
   markdown: string
   showInlineTitle: boolean
   showProperties: boolean
+  propertiesEditable: boolean
   className?: string
   onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
   onDraftChange: (value: string) => void
@@ -700,6 +730,7 @@ function NoteDocumentBlocks({
       {hasProperties ? (
         <NoteProperties
           value={markdown}
+          editable={propertiesEditable}
           onChange={onDraftChange}
           onOpenSource={onOpenSource}
           onError={onError}
@@ -881,6 +912,7 @@ function NoteCanvas({
   item,
   mode,
   snapshot,
+  historyRevision,
   readingWidth,
   showInlineTitle,
   onRenameTitle,
@@ -896,6 +928,7 @@ function NoteCanvas({
   item: Extract<LibraryItemDto, { type: 'note' }>
   mode: NoteMode
   snapshot: NoteAutosaveSnapshot
+  historyRevision: number
   readingWidth: NoteReadingWidth
   showInlineTitle: boolean
   onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
@@ -946,9 +979,10 @@ function NoteCanvas({
         }
       },
       onOpenLink: (url) => void openExternalUrlWithFeedback(url),
-      onOpenVaultLink: (target) => onOpenVaultLinkRef.current(target)
+      onOpenVaultLink: (target) => onOpenVaultLinkRef.current(target),
+      tasksEditable: mode === 'read'
     }
-  }, [attachmentPreviews, noteAttachments])
+  }, [attachmentPreviews, mode, noteAttachments])
 
   const scheduleScrollSynchronization = useCallback(
     (driver: 'source' | 'preview', recordDriver = true): void => {
@@ -1070,8 +1104,25 @@ function NoteCanvas({
     []
   )
 
+  const handleUndo = (event: React.KeyboardEvent): void => {
+    if (event.altKey || (!event.ctrlKey && !event.metaKey)) return
+    const key = event.key.toLocaleLowerCase()
+    if (key !== 'z' && key !== 'y') return
+    const target = event.target as HTMLElement | null
+    if (target?.closest('input:not([readonly]), textarea:not([readonly]), select')) return
+    const redo = key === 'y' || event.shiftKey
+    const handled = redo ? editorRef.current?.redo() : editorRef.current?.undo()
+    if (!handled) return
+    event.preventDefault()
+    event.stopPropagation()
+  }
+
   return (
-    <div className="flex h-full min-w-0 flex-1 flex-col" data-reading-width={readingWidth}>
+    <div
+      className="flex h-full min-w-0 flex-1 flex-col"
+      data-reading-width={readingWidth}
+      onKeyDownCapture={handleUndo}
+    >
       {item.missingContent ? (
         <div className="flex min-h-0 flex-1 items-center justify-center">
           <MissingContent type="note" onMoveToTrash={() => onMoveToTrash(item.id)} />
@@ -1112,14 +1163,26 @@ function NoteCanvas({
           >
             <div
               className={cn(
-                'min-h-0 min-w-0',
+                'min-h-0 min-w-0 flex-col',
                 mode === 'markdown' || mode === 'split' ? 'flex' : 'hidden'
               )}
             >
+              {showInlineTitle ? (
+                <div className="kuskus-detail-document-frame shrink-0 pt-10 pb-2">
+                  <InlineItemTitle
+                    item={item}
+                    onRename={onRenameTitle}
+                    className="font-heading text-3xl leading-tight font-semibold text-foreground text-balance"
+                    textClassName="break-words"
+                  />
+                </div>
+              ) : null}
               <MarkdownEditor
+                key={historyRevision}
                 ref={editorRef}
                 value={snapshot.draft}
                 active={mode === 'markdown' || mode === 'split'}
+                className={cn('flex-1', showInlineTitle && '[&_.cm-content]:pt-4')}
                 onChange={(value) => {
                   activeScrollDriverRef.current = 'source'
                   onDraftChange(value)
@@ -1139,44 +1202,48 @@ function NoteCanvas({
                   markdown={snapshot.draft}
                   showInlineTitle={showInlineTitle}
                   showProperties
+                  propertiesEditable={mode === 'live'}
                   className="mb-8"
                   onRenameTitle={onRenameTitle}
                   onDraftChange={onDraftChange}
                   onOpenSource={() => onModeChange('markdown')}
                   onError={onError}
                 />
-                {richSupported ? (
-                  <RichMarkdownEditor
-                    ref={richEditorRef}
-                    value={snapshot.draft}
-                    editable={mode === 'live'}
-                    active={mode === 'live'}
-                    options={richOptions}
-                    onChange={onDraftChange}
-                    onError={onError}
-                  />
-                ) : (
-                  <>
-                    {mode === 'live' ? (
-                      <Alert className="mb-6">
-                        <AlertTitle>Open Markdown source to edit this note</AlertTitle>
-                        <AlertDescription>
-                          Rich editing is unavailable because this note has malformed frontmatter or
-                          raw HTML that must remain exact.
-                        </AlertDescription>
-                      </Alert>
-                    ) : null}
-                    <MarkdownPreview
+                {mode === 'read' || mode === 'live' ? (
+                  richSupported ? (
+                    <RichMarkdownEditor
+                      ref={richEditorRef}
                       value={snapshot.draft}
-                      itemId={item.id}
-                      attachments={item.attachments}
-                      attachmentPreviews={attachmentPreviews}
-                      presentation="detail"
-                      onOpenLink={(url) => void openExternalUrlWithFeedback(url)}
-                      onOpenVaultLink={onOpenVaultLink}
+                      editable={mode === 'live'}
+                      active={mode === 'live'}
+                      options={richOptions}
+                      onChange={onDraftChange}
+                      onError={onError}
                     />
-                  </>
-                )}
+                  ) : (
+                    <>
+                      {mode === 'live' ? (
+                        <Alert className="mb-6">
+                          <AlertTitle>Open Markdown source to edit this note</AlertTitle>
+                          <AlertDescription>
+                            Rich editing is unavailable because this note has malformed frontmatter
+                            or raw HTML that must remain exact.
+                          </AlertDescription>
+                        </Alert>
+                      ) : null}
+                      <MarkdownPreview
+                        value={snapshot.draft}
+                        itemId={item.id}
+                        attachments={item.attachments}
+                        attachmentPreviews={attachmentPreviews}
+                        presentation="detail"
+                        onOpenLink={(url) => void openExternalUrlWithFeedback(url)}
+                        onOpenVaultLink={onOpenVaultLink}
+                        onChange={onDraftChange}
+                      />
+                    </>
+                  )
+                ) : null}
               </article>
             </ScrollArea>
             <ScrollArea
@@ -1196,32 +1263,36 @@ function NoteCanvas({
                   markdown={snapshot.draft}
                   showInlineTitle={showInlineTitle}
                   showProperties
+                  propertiesEditable={false}
                   className="mb-8"
                   onRenameTitle={onRenameTitle}
                   onDraftChange={onDraftChange}
                   onOpenSource={() => onModeChange('markdown')}
                   onError={onError}
                 />
-                {richSupported ? (
-                  <RichMarkdownEditor
-                    value={snapshot.draft}
-                    editable={false}
-                    active={false}
-                    options={richOptions}
-                    onChange={onDraftChange}
-                    onError={onError}
-                  />
-                ) : (
-                  <MarkdownPreview
-                    value={snapshot.draft}
-                    itemId={item.id}
-                    attachments={item.attachments}
-                    attachmentPreviews={attachmentPreviews}
-                    presentation="detail"
-                    onOpenLink={(url) => void openExternalUrlWithFeedback(url)}
-                    onOpenVaultLink={onOpenVaultLink}
-                  />
-                )}
+                {mode === 'split' ? (
+                  richSupported ? (
+                    <RichMarkdownEditor
+                      value={snapshot.draft}
+                      editable={false}
+                      active={false}
+                      options={richOptions}
+                      onChange={onDraftChange}
+                      onError={onError}
+                    />
+                  ) : (
+                    <MarkdownPreview
+                      value={snapshot.draft}
+                      itemId={item.id}
+                      attachments={item.attachments}
+                      attachmentPreviews={attachmentPreviews}
+                      presentation="detail"
+                      onOpenLink={(url) => void openExternalUrlWithFeedback(url)}
+                      onOpenVaultLink={onOpenVaultLink}
+                      onChange={onDraftChange}
+                    />
+                  )
+                ) : null}
               </article>
             </ScrollArea>
           </div>
@@ -1588,6 +1659,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
     ref
   ): React.JSX.Element {
     const [openedNote] = useState(() => (item?.type === 'note' ? item : null))
+    const [noteHistoryRevision, setNoteHistoryRevision] = useState(0)
     const coordinator = useMemo(
       () =>
         openedNote
@@ -1597,7 +1669,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
               initialUpdatedAt: openedNote.updatedAt,
               save: (input) => window.kuskus.updateNote(input),
               onSaved: onItemUpdated,
-              onDraftReplaced: () => undefined
+              onDraftReplaced: () => setNoteHistoryRevision((current) => current + 1)
             })
           : null,
       [onItemUpdated, openedNote]
@@ -1615,6 +1687,8 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       coordinator?.getSnapshot ?? (() => fallbackSnapshot.current)
     )
     const [mode, setMode] = useState<NoteMode>(initialNoteMode)
+    const [modeHudVisible, setModeHudVisible] = useState(false)
+    const modeHudTimeoutRef = useRef<number | null>(null)
     const previousSingleModeRef = useRef<SinglePaneNoteMode>(
       initialNoteMode === 'split' ? 'read' : initialNoteMode
     )
@@ -1650,6 +1724,12 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
     useEffect(() => {
       if (mode !== 'split') previousSingleModeRef.current = mode
     }, [mode])
+    useEffect(
+      () => () => {
+        if (modeHudTimeoutRef.current !== null) window.clearTimeout(modeHudTimeoutRef.current)
+      },
+      []
+    )
     useEffect(() => {
       if (item?.type !== 'note' || !coordinator) return
       const current = coordinator.getSnapshot()
@@ -1665,12 +1745,44 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
         })
       }
     }, [coordinator, item, onItemUpdated])
-    const changeMode = (nextMode: NoteMode): void => {
-      if (nextMode !== mode) setMode(nextMode)
-    }
-    const toggleReadLiveMode = (): void => {
-      setMode(toggleReadLive)
-    }
+    const changeMode = useCallback(
+      (nextMode: NoteMode): void => {
+        if (nextMode === mode) return
+        setMode(nextMode)
+        setModeHudVisible(true)
+        if (modeHudTimeoutRef.current !== null) window.clearTimeout(modeHudTimeoutRef.current)
+        modeHudTimeoutRef.current = window.setTimeout(() => setModeHudVisible(false), 900)
+      },
+      [mode]
+    )
+    useEffect(() => {
+      if (item?.type !== 'note') return
+
+      const handleNoteModeShortcut = (event: KeyboardEvent): void => {
+        if (
+          event.key.toLocaleLowerCase() !== 'e' ||
+          !event.ctrlKey ||
+          event.metaKey ||
+          event.repeat
+        ) {
+          return
+        }
+
+        if (event.shiftKey && !event.altKey) {
+          event.preventDefault()
+          changeMode(getSplitToggleMode(mode, previousSingleModeRef.current))
+        } else if (event.altKey && !event.shiftKey) {
+          event.preventDefault()
+          changeMode(toggleSourceMode(mode))
+        } else if (!event.altKey && !event.shiftKey) {
+          event.preventDefault()
+          changeMode(toggleReadLive(mode))
+        }
+      }
+
+      window.addEventListener('keydown', handleNoteModeShortcut, true)
+      return () => window.removeEventListener('keydown', handleNoteModeShortcut, true)
+    }, [changeMode, item?.type, mode])
 
     const resolvePendingNote = useCallback(async (): Promise<'ready' | 'trashed' | 'blocked'> => {
       if (leaving) return 'blocked'
@@ -1749,43 +1861,9 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
         changeExpanded(false)
         return
       }
-      if (
-        event.key.toLocaleLowerCase() === 'e' &&
-        event.ctrlKey &&
-        !event.altKey &&
-        !event.metaKey &&
-        event.shiftKey &&
-        !event.repeat &&
-        item?.type === 'note'
-      ) {
+      if (event.key === 'Escape' && presentation === 'focus' && !isEditingTarget) {
         event.preventDefault()
-        changeMode(getSplitToggleMode(mode, previousSingleModeRef.current))
-        return
-      }
-      if (
-        event.key.toLocaleLowerCase() === 'e' &&
-        event.ctrlKey &&
-        event.altKey &&
-        !event.metaKey &&
-        !event.shiftKey &&
-        !event.repeat &&
-        item?.type === 'note'
-      ) {
-        event.preventDefault()
-        changeMode(toggleSourceMode(mode))
-        return
-      }
-      if (
-        event.key.toLocaleLowerCase() === 'e' &&
-        event.ctrlKey &&
-        !event.altKey &&
-        !event.metaKey &&
-        !event.shiftKey &&
-        !event.repeat &&
-        item?.type === 'note'
-      ) {
-        event.preventDefault()
-        toggleReadLiveMode()
+        requestGuardedAction(() => onOpenChange(false))
         return
       }
       if (
@@ -1875,12 +1953,32 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
             !expanded && 'rounded-tl-2xl border-t border-l border-border'
           )}
         >
+          {presentation === 'focus' && !expanded ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="absolute top-2 right-2 z-40 size-10 text-muted-foreground opacity-30 transition-opacity hover:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none"
+                    aria-label="Close item"
+                    onClick={() => requestGuardedAction(() => onOpenChange(false))}
+                  />
+                }
+              >
+                <X aria-hidden="true" />
+              </TooltipTrigger>
+              <TooltipContent>Close item</TooltipContent>
+            </Tooltip>
+          ) : null}
           {item.type === 'note' ? (
             <div className="relative flex min-h-0 min-w-0 flex-1">
               <NoteCanvas
                 item={item}
                 mode={mode}
                 snapshot={snapshot}
+                historyRevision={noteHistoryRevision}
                 showInlineTitle={showInlineTitle}
                 onRenameTitle={renameCurrentItem}
                 onDraftChange={(value) => {
@@ -1896,6 +1994,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
                 onOpenVaultLink={(target) => requestGuardedAction(() => onOpenVaultLink(target))}
                 onMoveToTrash={(itemId) => requestGuardedAction(() => onMoveToTrash(itemId))}
               />
+              <NoteModeHud mode={mode} visible={modeHudVisible} />
               {noteDetailsOpen ? (
                 <NoteDetailsDialog
                   item={item}

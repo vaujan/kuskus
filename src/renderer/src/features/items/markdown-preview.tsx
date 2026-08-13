@@ -6,13 +6,17 @@ import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 
+import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import { useNoteAttachmentPreviews } from '@/features/items/use-note-attachment-previews'
 import type { NoteAttachmentDto } from '../../../../shared/library-contract'
 import { markdownImageTargetKey } from '../../../../shared/markdown-image-references'
 import { prepareObsidianMarkdown } from '@/features/items/obsidian-markdown'
 import { MarkdownCodeBlock } from '@/features/items/markdown-code-block'
-import { decodeMarkdownLinkTarget } from '@/features/items/markdown-formatting'
+import {
+  decodeMarkdownLinkTarget,
+  setMarkdownTaskChecked
+} from '@/features/items/markdown-formatting'
 
 const REMARK_PLUGINS = [remarkGfm, remarkBreaks, remarkMath]
 const REHYPE_PLUGINS = [rehypeKatex]
@@ -35,6 +39,7 @@ export const MarkdownPreview = memo(function MarkdownPreview({
   attachmentPreviews,
   onOpenLink,
   onOpenVaultLink,
+  onChange,
   presentation = 'card'
 }: {
   value: string
@@ -43,6 +48,7 @@ export const MarkdownPreview = memo(function MarkdownPreview({
   attachmentPreviews?: Record<string, string>
   onOpenLink?: (url: string) => void
   onOpenVaultLink?: (target: string) => void
+  onChange?: (value: string) => void
   presentation?: 'card' | 'compact' | 'detail'
 }): React.JSX.Element {
   const previewRef = useRef<HTMLDivElement>(null)
@@ -82,7 +88,23 @@ export const MarkdownPreview = memo(function MarkdownPreview({
     }
   }, [presentation, value])
 
+  let taskIndex = 0
   const components: Components = {
+    input: ({ checked }) => {
+      const index = taskIndex++
+      return (
+        <Checkbox
+          checked={Boolean(checked)}
+          readOnly={!onChange}
+          className="mt-1.5 inline-flex"
+          aria-label={checked ? 'Completed task' : 'Open task'}
+          onClick={(event) => event.stopPropagation()}
+          onCheckedChange={(nextChecked) =>
+            onChange?.(setMarkdownTaskChecked(value, index, nextChecked))
+          }
+        />
+      )
+    },
     a: ({ href, children, ...props }) => {
       if (href?.startsWith('kuskus-note:')) {
         const target = decodeMarkdownLinkTarget(href.slice('kuskus-note:'.length))

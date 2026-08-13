@@ -83,6 +83,7 @@ const {
 } = require('../src/renderer/src/features/items/rich-markdown-syntax.ts')
 const {
   decodeMarkdownLinkTarget,
+  setMarkdownTaskChecked,
   toggleMarkdownMarker
 } = require('../src/renderer/src/features/items/markdown-formatting.ts')
 const {
@@ -1278,6 +1279,18 @@ test('safely decodes Markdown vault-link targets', () => {
   assert.equal(decodeMarkdownLinkTarget('broken%link'), null)
 })
 
+test('toggles the selected Markdown task without changing sibling tasks', () => {
+  const markdown = '- [ ] First\n  - [x] Nested\n1. [ ] Ordered'
+  assert.equal(
+    setMarkdownTaskChecked(markdown, 1, false),
+    '- [ ] First\n  - [ ] Nested\n1. [ ] Ordered'
+  )
+  assert.equal(
+    setMarkdownTaskChecked(markdown, 2, true),
+    '- [ ] First\n  - [x] Nested\n1. [x] Ordered'
+  )
+})
+
 test('toggles Markdown emphasis markers while preserving the intended selection', () => {
   assert.deepEqual(toggleMarkdownMarker('Hello world', 6, 11, '**'), {
     value: 'Hello **world**',
@@ -1339,6 +1352,11 @@ test('preserves Kuskus wikilinks through the rich Markdown interchange format', 
   assert.equal(supportsRichMarkdown('line<br />next'), true)
   assert.equal(prepareRichMarkdown('line<br />next'), 'line  \nnext')
   assert.equal(supportsRichMarkdown('<details>exact HTML</details>'), false)
+  assert.equal(
+    prepareRichMarkdown('`[[literal]] <br>`\n```md\n[[fenced]] <br>\n```\n[[Real]]'),
+    '`[[literal]] <br>`\n```md\n[[fenced]] <br>\n```\n[Real](kuskus-wiki:Real)'
+  )
+  assert.equal(supportsRichMarkdown('`<details>`\n```html\n<section>\n```'), true)
 })
 
 test('keeps frontmatter outside rich editing and rejects malformed frontmatter', () => {

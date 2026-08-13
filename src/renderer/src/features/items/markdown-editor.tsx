@@ -1,4 +1,4 @@
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
+import { defaultKeymap, history, historyKeymap, redo, undo } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { bracketMatching, syntaxHighlighting } from '@codemirror/language'
 import { EditorSelection, EditorState, Transaction } from '@codemirror/state'
@@ -18,6 +18,8 @@ export interface MarkdownEditorHandle {
   focus: () => void
   getScroller: () => HTMLElement | null
   requestMeasure: () => void
+  redo: () => boolean
+  undo: () => boolean
 }
 
 interface MarkdownEditorProps {
@@ -63,8 +65,8 @@ const editorTheme = EditorView.theme({
     caretColor: 'currentColor'
   },
   '.cm-line': { padding: '0' },
-  '&.cm-kuskus-detail-editor .cm-activeLine': {
-    backgroundColor: 'color-mix(in oklab, var(--foreground) 6%, transparent)',
+  '&.cm-kuskus-detail-editor.cm-focused .cm-activeLine': {
+    backgroundColor: 'color-mix(in oklab, var(--foreground) 7%, transparent)',
     borderRadius: '0.25rem'
   }
 })
@@ -107,7 +109,9 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       () => ({
         focus: () => viewRef.current?.focus(),
         getScroller: () => viewRef.current?.scrollDOM ?? null,
-        requestMeasure: () => viewRef.current?.requestMeasure()
+        requestMeasure: () => viewRef.current?.requestMeasure(),
+        redo: () => (viewRef.current ? redo(viewRef.current) : false),
+        undo: () => (viewRef.current ? undo(viewRef.current) : false)
       }),
       []
     )
@@ -177,7 +181,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
           Math.min(anchor, value.length),
           Math.min(head, value.length)
         ),
-        annotations: Transaction.addToHistory.of(false)
+        annotations: Transaction.addToHistory.of(true)
       })
     }, [value])
 

@@ -62,19 +62,21 @@ const TYPE_ICONS: Record<NotePropertyType, ComponentType<{ 'aria-hidden'?: boole
 }
 
 const EDITOR_CLASS =
-  'rounded-none border-transparent bg-transparent px-0 shadow-none hover:bg-transparent focus-visible:border-transparent focus-visible:ring-0'
+  'rounded-none border-transparent bg-transparent px-0 shadow-none hover:bg-transparent focus-visible:border-transparent focus-visible:ring-0 dark:bg-transparent dark:hover:bg-transparent'
 
 function EditableText({
   value,
   multiline = false,
   ariaLabel,
   className,
+  readOnly = false,
   onCommit
 }: {
   value: string
   multiline?: boolean
   ariaLabel: string
   className?: string
+  readOnly?: boolean
   onCommit: (value: string) => void
 }): React.JSX.Element {
   const [draft, setDraft] = useState(value)
@@ -85,41 +87,54 @@ function EditableText({
     <Textarea
       value={draft}
       aria-label={ariaLabel}
+      readOnly={readOnly}
       className={cn(EDITOR_CLASS, 'min-h-8 resize-none overflow-hidden py-1', className)}
       onChange={(event) => setDraft(event.target.value)}
-      onBlur={commit}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) event.currentTarget.blur()
-        if (event.key === 'Escape') {
-          setDraft(value)
-          event.currentTarget.blur()
-        }
-      }}
+      onBlur={readOnly ? undefined : commit}
+      onKeyDown={
+        readOnly
+          ? undefined
+          : (event) => {
+              if (event.key === 'Enter' && (event.ctrlKey || event.metaKey))
+                event.currentTarget.blur()
+              if (event.key === 'Escape') {
+                setDraft(value)
+                event.currentTarget.blur()
+              }
+            }
+      }
     />
   ) : (
     <Input
       value={draft}
       aria-label={ariaLabel}
+      readOnly={readOnly}
       className={cn(EDITOR_CLASS, className)}
       onChange={(event) => setDraft(event.target.value)}
-      onBlur={commit}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') event.currentTarget.blur()
-        if (event.key === 'Escape') {
-          setDraft(value)
-          event.currentTarget.blur()
-        }
-      }}
+      onBlur={readOnly ? undefined : commit}
+      onKeyDown={
+        readOnly
+          ? undefined
+          : (event) => {
+              if (event.key === 'Enter') event.currentTarget.blur()
+              if (event.key === 'Escape') {
+                setDraft(value)
+                event.currentTarget.blur()
+              }
+            }
+      }
     />
   )
 }
 
 function PropertyValueEditor({
   property,
+  editable,
   onChange,
   onOpenSource
 }: {
   property: NoteProperty
+  editable: boolean
   onChange: (value: unknown) => void
   onOpenSource: () => void
 }): React.JSX.Element {
@@ -129,6 +144,7 @@ function PropertyValueEditor({
         <Switch
           checked={Boolean(property.value)}
           aria-label={`Toggle ${property.key}`}
+          disabled={!editable}
           onCheckedChange={onChange}
         />
       </div>
@@ -139,6 +155,7 @@ function PropertyValueEditor({
       <EditableText
         value={String(property.value)}
         ariaLabel={`Value for ${property.key}`}
+        readOnly={!editable}
         onCommit={(value) => {
           const number = Number(value)
           if (Number.isFinite(number)) onChange(number)
@@ -175,6 +192,7 @@ function PropertyValueEditor({
         type={includesTime ? 'datetime-local' : 'date'}
         value={value}
         aria-label={`Date for ${property.key}`}
+        readOnly={!editable}
         className={cn(EDITOR_CLASS, 'tabular-nums')}
         onChange={(event) => {
           const next = event.target.value
@@ -189,6 +207,7 @@ function PropertyValueEditor({
         value={(property.value as unknown[]).map(String).join('\n')}
         multiline
         ariaLabel={`List values for ${property.key}`}
+        readOnly={!editable}
         onCommit={(value) =>
           onChange(
             value
@@ -222,6 +241,7 @@ function PropertyValueEditor({
       value={text}
       multiline={text.includes('\n') || text.length > 100}
       ariaLabel={`Value for ${property.key}`}
+      readOnly={!editable}
       onCommit={onChange}
     />
   )
@@ -229,11 +249,13 @@ function PropertyValueEditor({
 
 function PropertyRow({
   property,
+  editable,
   onEdit,
   onOpenSource,
   onError
 }: {
   property: NoteProperty
+  editable: boolean
   onEdit: (edit: NotePropertyEdit) => void
   onOpenSource: () => void
   onError: (message: string) => void
@@ -242,40 +264,48 @@ function PropertyRow({
   return (
     <div className="group/property relative grid min-w-0 grid-cols-[10rem_minmax(0,1fr)] items-start gap-3 rounded-xl px-2 py-0.5 transition-[background-color,box-shadow] duration-150 hover:bg-background/70 hover:shadow-sm focus-within:bg-background/70 focus-within:shadow-sm">
       <div className="flex min-w-0 items-center gap-1">
-        <Select
-          value={property.type}
-          onValueChange={(value) => {
-            const type = value as NotePropertyType
-            if (type === 'unsupported') return
-            onEdit({
-              type: 'set',
-              key: property.key,
-              value: valueForNotePropertyType(type, property.value)
-            })
-          }}
-        >
-          <SelectTrigger
-            size="sm"
-            aria-label={`Type for ${property.key}`}
-            className="size-8 shrink-0 justify-center rounded-none border-transparent bg-transparent px-0 text-muted-foreground shadow-none focus-visible:border-transparent focus-visible:ring-0 [&>span:last-child]:hidden"
+        {editable ? (
+          <Select
+            value={property.type}
+            onValueChange={(value) => {
+              const type = value as NotePropertyType
+              if (type === 'unsupported') return
+              onEdit({
+                type: 'set',
+                key: property.key,
+                value: valueForNotePropertyType(type, property.value)
+              })
+            }}
           >
+            <SelectTrigger
+              size="sm"
+              showIcon={false}
+              aria-label={`Type for ${property.key}`}
+              className="size-8 shrink-0 justify-center rounded-none border-transparent bg-transparent px-0 text-muted-foreground shadow-none focus-visible:border-transparent focus-visible:ring-0"
+            >
+              <TypeIcon aria-hidden />
+            </SelectTrigger>
+            <SelectContent align="start">
+              <SelectGroup>
+                {PROPERTY_TYPES.map(({ value, label, icon: Icon }) => (
+                  <SelectItem key={value} value={value}>
+                    <Icon aria-hidden />
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        ) : (
+          <span className="flex size-8 shrink-0 items-center justify-center text-muted-foreground">
             <TypeIcon aria-hidden />
-          </SelectTrigger>
-          <SelectContent align="start">
-            <SelectGroup>
-              {PROPERTY_TYPES.map(({ value, label, icon: Icon }) => (
-                <SelectItem key={value} value={value}>
-                  <Icon aria-hidden />
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+          </span>
+        )}
         <EditableText
           value={property.key}
           ariaLabel={`Property name ${property.key}`}
           className="text-muted-foreground"
+          readOnly={!editable}
           onCommit={(nextKey) => {
             const trimmed = nextKey.trim()
             if (!trimmed) {
@@ -289,31 +319,36 @@ function PropertyRow({
       <PropertyValueEditor
         key={`${property.key}:${JSON.stringify(property.value)}`}
         property={property}
+        editable={editable}
         onChange={(value) => onEdit({ type: 'set', key: property.key, value })}
         onOpenSource={onOpenSource}
       />
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="absolute top-0 right-1 size-8 bg-background/90 opacity-0 transition-[opacity,scale] group-hover/property:opacity-100 focus-visible:opacity-100 active:scale-[0.96]"
-        aria-label={`Delete ${property.key}`}
-        onClick={() => onEdit({ type: 'delete', key: property.key })}
-      >
-        <IconTrash aria-hidden />
-      </Button>
+      {editable ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="absolute top-0 right-1 size-8 bg-background/90 opacity-0 transition-[opacity,scale] group-hover/property:opacity-100 focus-visible:opacity-100 active:scale-[0.96]"
+          aria-label={`Delete ${property.key}`}
+          onClick={() => onEdit({ type: 'delete', key: property.key })}
+        >
+          <IconTrash aria-hidden />
+        </Button>
+      ) : null}
     </div>
   )
 }
 
 export function NoteProperties({
   value,
+  editable,
   className,
   onChange,
   onOpenSource,
   onError
 }: {
   value: string
+  editable: boolean
   className?: string
   onChange: (value: string) => void
   onOpenSource: () => void
@@ -356,27 +391,30 @@ export function NoteProperties({
       </h2>
       {expanded ? (
         <>
-          <div className="flex min-w-0 flex-col gap-0.5 rounded-2xl bg-muted/25 p-1">
+          <div className="flex min-w-0 flex-col gap-0.5">
             {frontmatter.properties.map((property) => (
               <PropertyRow
                 key={property.key}
                 property={property}
+                editable={editable}
                 onEdit={edit}
                 onOpenSource={onOpenSource}
                 onError={onError}
               />
             ))}
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="default"
-            className="w-fit justify-start text-muted-foreground"
-            onClick={() => edit({ type: 'add' })}
-          >
-            <IconPlus data-icon="inline-start" aria-hidden />
-            Add property
-          </Button>
+          {editable ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="default"
+              className="w-fit justify-start text-muted-foreground"
+              onClick={() => edit({ type: 'add' })}
+            >
+              <IconPlus data-icon="inline-start" aria-hidden />
+              Add property
+            </Button>
+          ) : null}
         </>
       ) : null}
     </section>

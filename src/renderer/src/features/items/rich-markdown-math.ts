@@ -1,5 +1,4 @@
 import { Fragment } from '@milkdown/prose/model'
-import { InputRule } from '@milkdown/prose/inputrules'
 import { nodeRule } from '@milkdown/prose'
 import { $ctx, $inputRule, $nodeSchema, $remark } from '@milkdown/utils'
 import katex, { type KatexOptions } from 'katex'
@@ -86,29 +85,10 @@ const mathInlineInputRule = $inputRule((ctx) =>
   })
 )
 
-const mathBlockInputRule = $inputRule(
-  (ctx) =>
-    new InputRule(/^\$\$\s$/, (state, _match, start, end) => {
-      const resolved = state.doc.resolve(start)
-      const parent = resolved.node(-1)
-      if (
-        !parent.canReplaceWith(
-          resolved.index(-1),
-          resolved.indexAfter(-1),
-          mathBlockSchema.type(ctx)
-        )
-      ) {
-        return null
-      }
-      return state.tr.delete(start, end).setBlockType(start, start, mathBlockSchema.type(ctx))
-    })
-)
-
 export const richMarkdownMath = [
   remarkMathPlugin,
   richMarkdownKatexOptions,
   mathInlineSchema,
   mathBlockSchema,
-  mathBlockInputRule,
   mathInlineInputRule
 ].flat()

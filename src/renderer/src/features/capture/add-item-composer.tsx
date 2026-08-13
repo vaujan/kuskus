@@ -405,7 +405,8 @@ export function AddItemComposer({
       file: File,
       selectionStart?: number,
       selectionEnd?: number,
-      origin: 'clipboard' | 'file' = 'file'
+      origin: 'clipboard' | 'file' = 'file',
+      insertRichImage?: (src: string) => void
     ): Promise<void> => {
       if (fileCandidate) {
         setError('Save or remove the staged file before adding an image.')
@@ -437,7 +438,8 @@ export function AddItemComposer({
         setAttachmentName(result.data.filename.replace(/\.[^.]+$/, ''))
         void touchAssets()
         if (noteIntent) {
-          insertAtSelection(markdownImage(result.data), selectionStart, selectionEnd)
+          if (insertRichImage) insertRichImage(encodeMarkdownImageTarget(result.data.relativePath))
+          else insertAtSelection(markdownImage(result.data), selectionStart, selectionEnd)
           onStatus('Image added to the Markdown draft.')
         } else if (imageCandidate) {
           setDraft(composeMarkdownCapture([...attachments, result.data].map(markdownImage)))
@@ -788,7 +790,9 @@ export function AddItemComposer({
           }
           setDraft(after)
         }}
-        onPasteImage={(file) => void stageCaptureImage(file, undefined, undefined, 'clipboard')}
+        onPasteImage={(file, insertRichImage) =>
+          void stageCaptureImage(file, undefined, undefined, 'clipboard', insertRichImage)
+        }
         onSave={() => void save()}
         onContinueInEditor={canContinueInEditor ? () => void save(true) : undefined}
         onEscape={() => {
@@ -1056,8 +1060,7 @@ export function AddItemComposer({
             </DropdownMenuContent>
           </DropdownMenu>
           <Button
-            size="lg"
-            className=""
+            size="sm"
             disabled={effectiveKind === 'empty' || captureBlocked}
             aria-keyshortcuts="Control+Enter Meta+Enter"
             onClick={() => void save()}
