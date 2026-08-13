@@ -412,7 +412,7 @@ function DetailToolbar({
       <header
         data-detail-focus-header
         className={cn(
-          'pointer-events-none relative z-40 grid h-10 shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center',
+          'pointer-events-none relative z-40 flex h-10 shrink-0 items-center justify-between',
           expanded && '!bg-background/50'
         )}
       >
@@ -465,7 +465,7 @@ function DetailToolbar({
         </div>
         <p
           data-detail-focus-title
-          className="min-w-0 max-w-[min(32rem,42vw)] justify-self-center truncate px-4 text-center text-sm font-light max-[1080px]:hidden"
+          className="absolute left-1/2 max-w-[min(32rem,calc(100%-28rem))] -translate-x-1/2 truncate px-4 text-center text-sm font-light max-[1080px]:hidden"
           title={title}
         >
           {title}
@@ -473,7 +473,7 @@ function DetailToolbar({
         <div
           data-detail-focus-actions
           className={cn(
-            'pointer-events-auto col-start-3 flex min-w-0 items-center justify-end [&_button]:[-webkit-app-region:no-drag]',
+            'pointer-events-auto ml-auto flex min-w-0 items-center justify-end [&_button]:[-webkit-app-region:no-drag]',
             !isMac && 'pr-[8.625rem]'
           )}
         >
@@ -1170,6 +1170,7 @@ function NoteCanvas({
                   presentation="detail"
                   onOpenLink={(url) => void openExternalUrlWithFeedback(url)}
                   onOpenVaultLink={onOpenVaultLink}
+                  onTaskToggle={onDraftChange}
                 />
               </article>
             </ScrollArea>
@@ -1617,11 +1618,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       setMode(nextMode)
     }
     const toggleReadLiveMode = (): void => {
-      setMode((currentMode) => {
-        const nextMode = toggleReadLive(currentMode)
-        previousSingleModeRef.current = nextMode
-        return nextMode
-      })
+      changeMode(toggleReadLive(mode))
     }
 
     const resolvePendingNote = useCallback(async (): Promise<'ready' | 'trashed' | 'blocked'> => {

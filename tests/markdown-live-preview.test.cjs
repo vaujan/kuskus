@@ -20,7 +20,8 @@ const { markdown } = require('@codemirror/lang-markdown')
 const { EditorState } = require('@codemirror/state')
 const { GFM } = require('@lezer/markdown')
 const {
-  buildLivePreviewDecorations
+  buildLivePreviewDecorations,
+  codeBlockEntryPosition
 } = require('../src/renderer/src/features/items/markdown-live-preview.ts')
 
 test('builds live-preview block decorations outside a view plugin', () => {
@@ -49,6 +50,22 @@ test('builds live-preview block decorations outside a view plugin', () => {
   })
 
   assert.equal(blocks.length, 4)
+})
+
+test('keyboard navigation enters a rendered code block instead of skipping it', () => {
+  const state = EditorState.create({
+    doc: ['Above', '', '```ts', 'const value = 1', '```', '', 'Below'].join('\n'),
+    extensions: [markdown({ extensions: GFM })]
+  })
+
+  assert.equal(
+    codeBlockEntryPosition(state, state.doc.line(2).from, state.doc.line(6).from, true),
+    state.doc.line(3).from
+  )
+  assert.equal(
+    codeBlockEntryPosition(state, state.doc.line(6).from, state.doc.line(2).from, false),
+    state.doc.line(5).from
+  )
 })
 
 test('renders inactive task lists without duplicate bullets and replaces whole fenced blocks', () => {

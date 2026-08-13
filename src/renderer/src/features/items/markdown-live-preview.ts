@@ -6,7 +6,7 @@ import {
   type Transaction
 } from '@codemirror/state'
 import { syntaxTree } from '@codemirror/language'
-import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view'
+import { Decoration, EditorView, WidgetType, keymap, type DecorationSet } from '@codemirror/view'
 import katex from 'katex'
 
 import { codeLanguageLabel, copyMarkdownCode, renderHighlightedCode } from './markdown-code'
@@ -57,10 +57,10 @@ class CheckboxWidget extends WidgetType {
   }
 
   toDOM(): HTMLElement {
-    const element = document.createElement('span')
-    element.className = this.checked ? 'cm-kuskus-checkbox is-checked' : 'cm-kuskus-checkbox'
-    element.setAttribute('role', 'checkbox')
-    element.setAttribute('aria-checked', String(this.checked))
+    const element = document.createElement('input')
+    element.type = 'checkbox'
+    element.checked = this.checked
+    element.className = 'kuskus-task-checkbox cm-kuskus-checkbox'
     element.setAttribute('aria-label', this.checked ? 'Completed task' : 'Open task')
     element.dataset.position = String(this.position)
     return element
@@ -414,7 +414,7 @@ class LiveDecorationBuilder {
       }
       if (cursor.name === 'BulletList') break
     }
-    if (!ordered && /^ \[[ xX]\]/.test(this.state.sliceDoc(node.to, node.to + 4))) return
+    if (!ordered && node.parent?.getChild('Task')) return
     const label = ordered ? this.state.sliceDoc(node.from, node.to) : '•'
     let end = node.to
     if (this.state.sliceDoc(end, end + 1) === ' ') end += 1
@@ -438,6 +438,7 @@ class LiveDecorationBuilder {
     const endLine = this.state.doc.lineAt(Math.max(node.from, node.to - 1)).number
     for (let line = startLine; line <= endLine; line += 1) {
       const classes = [`cm-kuskus-list-item`, `cm-kuskus-list-depth-${Math.min(depth, 4)}`]
+      if (line === startLine) classes.push('cm-kuskus-list-item-line-start')
       if (line === startLine && !isFirst) classes.push('cm-kuskus-list-item-start')
       if (line === startLine && isFirst && hasEarlierTopLevelContent) {
         classes.push('cm-kuskus-list-first')
@@ -687,6 +688,9 @@ const livePreviewTheme = EditorView.theme({
     fontSize: 'var(--typeset-size)',
     lineHeight: 'var(--typeset-leading)'
   },
+  '&.cm-kuskus-live .cm-activeLine': {
+    backgroundColor: 'transparent'
+  },
   '.cm-kuskus-heading': {
     color: 'var(--foreground)',
     fontFamily: 'var(--typeset-font-heading)',
@@ -753,27 +757,31 @@ const livePreviewTheme = EditorView.theme({
     margin: 'calc(var(--typeset-flow) * 2.4) 0 0',
     width: '100%'
   },
+  '.cm-kuskus-list-item': {
+    '--cm-kuskus-list-indent': '1.5em',
+    paddingInlineStart: 'var(--cm-kuskus-list-indent)',
+    position: 'relative'
+  },
+  '.cm-kuskus-list-depth-2': { '--cm-kuskus-list-indent': '3em' },
+  '.cm-kuskus-list-depth-3': { '--cm-kuskus-list-indent': '4.5em' },
+  '.cm-kuskus-list-depth-4': { '--cm-kuskus-list-indent': '6em' },
+  '.cm-kuskus-list-item-line-start.cm-activeLine': {
+    paddingInlineStart: 'calc(var(--cm-kuskus-list-indent) - 1.5em)'
+  },
   '.cm-kuskus-bullet': {
     color: 'var(--typeset-muted)',
-    display: 'inline-block',
-    minWidth: '1.75em'
+    insetInlineStart: 'calc(var(--cm-kuskus-list-indent) - 1.5em)',
+    position: 'absolute',
+    textAlign: 'right',
+    width: '1em'
   },
   '.cm-kuskus-list-marker': {
-    color: 'var(--typeset-muted)',
-    display: 'inline-block',
-    minWidth: '1.75em'
+    color: 'var(--typeset-muted)'
   },
-  '.cm-kuskus-list-item': {
-    paddingInlineStart: '0.5em'
-  },
-  '.cm-kuskus-list-depth-2': {
-    paddingInlineStart: '2em'
-  },
-  '.cm-kuskus-list-depth-3': {
-    paddingInlineStart: '3.5em'
-  },
-  '.cm-kuskus-list-depth-4': {
-    paddingInlineStart: '5em'
+  '.cm-kuskus-checkbox': {
+    insetInlineStart: 'calc(var(--cm-kuskus-list-indent) - 1.25em)',
+    margin: '0',
+    position: 'absolute'
   },
   '.cm-kuskus-list-item-start': {
     paddingTop: '0.5em'
@@ -783,29 +791,6 @@ const livePreviewTheme = EditorView.theme({
   },
   '.cm-kuskus-list-nested-first': {
     paddingTop: '1em'
-  },
-  '.cm-kuskus-checkbox': {
-    alignItems: 'center',
-    border: '1px solid color-mix(in oklab, var(--foreground) 45%, transparent)',
-    borderRadius: '0.25rem',
-    cursor: 'pointer',
-    display: 'inline-flex',
-    height: '0.9375rem',
-    justifyContent: 'center',
-    marginRight: '0.4375rem',
-    verticalAlign: '-0.125em',
-    width: '0.9375rem'
-  },
-  '.cm-kuskus-checkbox.is-checked': {
-    backgroundColor: 'var(--foreground)',
-    borderColor: 'var(--foreground)'
-  },
-  '.cm-kuskus-checkbox.is-checked::after': {
-    color: 'var(--background)',
-    content: "'✓'",
-    fontSize: '0.625rem',
-    fontWeight: '700',
-    lineHeight: '1'
   },
   '.cm-kuskus-image-wrap': {
     display: 'block'
@@ -837,6 +822,44 @@ const livePreviewTheme = EditorView.theme({
     padding: '0.375rem 0'
   }
 })
+
+export function codeBlockEntryPosition(
+  state: EditorState,
+  from: number,
+  to: number,
+  forward: boolean
+): number | null {
+  let result: number | null = null
+  syntaxTree(state).iterate({
+    from: Math.min(from, to),
+    to: Math.max(from, to),
+    enter(node) {
+      if (node.name !== 'FencedCode') return
+      const marks = node.node.getChildren('CodeMark')
+      if (marks.length < 2) return false
+      const open = state.doc.lineAt(marks[0].from).from
+      const close = state.doc.lineAt(marks[marks.length - 1].from).from
+      const crossed = forward ? from < open && to >= open : from > close && to <= close
+      if (crossed && (result === null || (forward ? open < result : close > result))) {
+        result = forward ? open : close
+      }
+      return false
+    }
+  })
+  return result
+}
+
+function enterCodeBlock(forward: boolean): (view: EditorView) => boolean {
+  return (view) => {
+    if (view.state.selection.ranges.length !== 1 || !view.state.selection.main.empty) return false
+    const start = view.state.selection.main
+    const destination = view.moveVertically(start, forward).head
+    const position = codeBlockEntryPosition(view.state, start.head, destination, forward)
+    if (position === null) return false
+    view.dispatch({ selection: { anchor: position }, scrollIntoView: true })
+    return true
+  }
+}
 
 function followClickHandler(getOptions: () => LivePreviewOptions): Extension {
   return EditorView.domEventHandlers({
@@ -919,6 +942,10 @@ export function liveMarkdownPreview(
     }),
     decorations,
     livePreviewTheme,
+    keymap.of([
+      { key: 'ArrowDown', run: enterCodeBlock(true) },
+      { key: 'ArrowUp', run: enterCodeBlock(false) }
+    ]),
     followClickHandler(getOptions)
   ]
 }

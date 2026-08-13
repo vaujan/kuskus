@@ -74,7 +74,10 @@ const {
   getPublishedMarkdownChange
 } = require('../src/renderer/src/features/items/markdown-editor-change.ts')
 const {
-  toggleMarkdownMarker
+  decodeMarkdownLinkTarget,
+  markdownTaskMarkers,
+  toggleMarkdownMarker,
+  toggleMarkdownTask
 } = require('../src/renderer/src/features/items/markdown-formatting.ts')
 const {
   getScrollRatio,
@@ -1250,6 +1253,20 @@ test('keeps blank edits pending and produces a side-by-side Markdown diff', () =
   assert.equal(rows[1].localText, 'My line')
   assert.equal(rows[1].diskText, 'Disk line')
   assert.equal(rows[2].kind, 'same')
+})
+
+test('safely decodes Markdown vault-link targets', () => {
+  assert.equal(decodeMarkdownLinkTarget('Folder%2FNote'), 'Folder/Note')
+  assert.equal(decodeMarkdownLinkTarget('broken%link'), null)
+})
+
+test('finds and toggles GFM task markers without changing list syntax', () => {
+  const markdown = '- [ ] first\n1. [x] second'
+  const markers = markdownTaskMarkers(markdown)
+
+  assert.deepEqual(markers, [2, 15])
+  assert.equal(toggleMarkdownTask(markdown, markers[0]), '- [x] first\n1. [x] second')
+  assert.equal(toggleMarkdownTask(markdown, markers[1]), '- [ ] first\n1. [ ] second')
 })
 
 test('toggles Markdown emphasis markers while preserving the intended selection', () => {

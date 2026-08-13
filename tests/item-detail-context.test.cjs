@@ -141,11 +141,11 @@ test('detail modes share the compact toolbar and inline document flow', () => {
 
   assert.match(detailSource, /data-detail-utility-bar/)
   assert.match(focusToolbarSource, /data-detail-focus-header/)
-  assert.match(focusToolbarSource, /grid h-10 shrink-0 grid-cols-\[auto_minmax\(0,1fr\)_auto\]/)
+  assert.match(focusToolbarSource, /relative z-40 flex h-10 shrink-0 items-center justify-between/)
   assert.match(focusToolbarSource, /data-detail-focus-title/)
   assert.match(
     focusToolbarSource,
-    /min-w-0 max-w-\[min\(32rem,42vw\)\] justify-self-center truncate/
+    /absolute left-1\/2 max-w-\[min\(32rem,calc\(100%-28rem\)\)\] -translate-x-1\/2 truncate/
   )
   assert.match(focusToolbarSource, /max-\[1080px\]:hidden/)
   assert.match(focusToolbarSource, /expanded \? 'Restore item rail' : 'Expand note'/)
@@ -163,7 +163,7 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   )
   assert.doesNotMatch(focusToolbarSource, /data-detail-focus-identity|identityControls/)
   assert.match(focusToolbarSource, /data-detail-focus-actions/)
-  assert.match(focusToolbarSource, /col-start-3/)
+  assert.match(focusToolbarSource, /pointer-events-auto ml-auto flex/)
   assert.match(focusToolbarSource, /\{modeControls\}\s*\{actions\}/)
   assert.match(focusToolbarSource, /!isMac && 'pr-\[8\.625rem\]'/)
   assert.doesNotMatch(focusToolbarSource, /Previous item|Next item/)

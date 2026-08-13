@@ -122,6 +122,20 @@
     content: none;
   }
 
+  .kuskus-task-checkbox {
+    width: 0.9375rem;
+    height: 0.9375rem;
+    margin: 0 0.4375rem 0 0;
+    vertical-align: -0.125em;
+    accent-color: var(--foreground);
+    cursor: pointer;
+  }
+
+  .kuskus-task-checkbox:disabled {
+    cursor: default;
+    opacity: 1;
+  }
+
   .kuskus-code-block,
   .cm-kuskus-code-block {
     overflow: hidden;

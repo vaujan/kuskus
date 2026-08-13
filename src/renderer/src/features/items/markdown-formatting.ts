@@ -1,7 +1,34 @@
+import { GFM, parser as markdownParser } from '@lezer/markdown'
+
 export interface MarkdownSelectionEdit {
   value: string
   selectionStart: number
   selectionEnd: number
+}
+
+const gfmParser = markdownParser.configure([GFM])
+
+export function decodeMarkdownLinkTarget(value: string): string | null {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return null
+  }
+}
+
+export function markdownTaskMarkers(value: string): number[] {
+  const positions: number[] = []
+  const cursor = gfmParser.parse(value).cursor()
+  do {
+    if (cursor.name === 'TaskMarker') positions.push(cursor.from)
+  } while (cursor.next())
+  return positions
+}
+
+export function toggleMarkdownTask(value: string, position: number): string {
+  const marker = value.slice(position, position + 3)
+  if (!/^\[[ xX]\]$/.test(marker)) return value
+  return value.slice(0, position + 1) + (marker[1] === ' ' ? 'x' : ' ') + value.slice(position + 2)
 }
 
 function countAdjacentMarkers(value: string, index: number, direction: -1 | 1): number {
