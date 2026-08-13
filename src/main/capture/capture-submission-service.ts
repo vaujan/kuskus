@@ -33,28 +33,33 @@ export class CaptureSubmissionService {
   async initialize(): Promise<void> {
     if (!this.libraryService.isReadyForCapture()) return
     const records = await this.libraryService.listCaptureSubmissions()
-    for (const record of records) {
-      if (record.status === 'processing') {
-        await this.libraryService.updateCaptureSubmission({
-          ...record,
-          status: 'accepted',
-          error: null
-        })
-      } else if (record.status === 'prepared') {
-        const receipt = this.sessions.submissionForRevision(record.libraryId, record.sourceRevision)
-        if (receipt === record.id) {
-          await this.libraryService.discardActiveCaptureDraft().catch(() => undefined)
+    await Promise.all(
+      records.map(async (record) => {
+        if (record.status === 'processing') {
           await this.libraryService.updateCaptureSubmission({
             ...record,
-            status: 'accepted'
+            status: 'accepted',
+            error: null
           })
-        } else {
-          // The prepared payload was copied, not moved. Without a persisted session receipt the
-          // original draft remains authoritative and the unaccepted copy must not become a duplicate.
-          await this.libraryService.discardCaptureSubmission(record.id)
+        } else if (record.status === 'prepared') {
+          const receipt = this.sessions.submissionForRevision(
+            record.libraryId,
+            record.sourceRevision
+          )
+          if (receipt === record.id) {
+            await this.libraryService.discardActiveCaptureDraft().catch(() => undefined)
+            await this.libraryService.updateCaptureSubmission({
+              ...record,
+              status: 'accepted'
+            })
+          } else {
+            // The prepared payload was copied, not moved. Without a persisted session receipt the
+            // original draft remains authoritative and the unaccepted copy must not become a duplicate.
+            await this.libraryService.discardCaptureSubmission(record.id)
+          }
         }
-      }
-    }
+      })
+    )
     await this.broadcastQueue()
     this.scheduleDrain()
   }

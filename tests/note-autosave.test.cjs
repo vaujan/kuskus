@@ -219,3 +219,39 @@ test('stays disposed after the final unmount and ignores late updates', async (t
   await flushMicrotasks()
   assert.equal(saves.length, 0)
 })
+
+test('flush saves edits made while an earlier save is in flight in order', async () => {
+  const saves = []
+  let finishFirstSave
+  const coordinator = new NoteAutosaveCoordinator({
+    itemId: 'item-1',
+    initialMarkdown: '# Saved',
+    save: async (input) => {
+      saves.push(input)
+      if (saves.length === 1) {
+        await new Promise((resolve) => {
+          finishFirstSave = resolve
+        })
+      }
+      return { ok: true, data: makeNote(input.markdown) }
+    },
+    onSaved: () => undefined,
+    onDraftReplaced: () => undefined
+  })
+
+  coordinator.updateDraft('# First edit')
+  const flushed = coordinator.flush()
+  await flushMicrotasks()
+  coordinator.updateDraft('# Second edit')
+  finishFirstSave()
+
+  assert.equal(await flushed, true)
+  assert.deepEqual(
+    saves.map(({ markdown, expectedMarkdown }) => ({ markdown, expectedMarkdown })),
+    [
+      { markdown: '# First edit', expectedMarkdown: '# Saved' },
+      { markdown: '# Second edit', expectedMarkdown: '# First edit' }
+    ]
+  )
+  coordinator.dispose()
+})

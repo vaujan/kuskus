@@ -358,15 +358,16 @@ export class LibraryStore {
   ): Promise<void> {
     if (replacements.size === 0) return
     const records = await this.readItemRecords(libraryPath)
-    const updates: Array<{ path: string; source: string; next: string }> = []
-    for (const record of records) {
-      if (record.metadata.type !== 'note') continue
-      const path = resolveInsideVault(libraryPath, record.relativePath)
-      if (!(await this.pathExists(path))) continue
-      const source = await readFile(path, 'utf8')
-      const next = rewriteVaultReferences(source, path, path, libraryPath, replacements)
-      if (next !== source) updates.push({ path, source, next })
-    }
+    const updates = (
+      await mapWithConcurrency(records, 32, async (record) => {
+        if (record.metadata.type !== 'note') return null
+        const path = resolveInsideVault(libraryPath, record.relativePath)
+        if (!(await this.pathExists(path))) return null
+        const source = await readFile(path, 'utf8')
+        const next = rewriteVaultReferences(source, path, path, libraryPath, replacements)
+        return next === source ? null : { path, source, next }
+      })
+    ).filter((update): update is { path: string; source: string; next: string } => update !== null)
     const committed: Array<{ path: string; previous: string }> = []
     try {
       for (const update of updates) {
@@ -527,29 +528,35 @@ export class LibraryStore {
       const collectionMap = new Map<string, string>()
       const legacyCollections = join(libraryPath, 'collections')
       if (await this.pathExists(legacyCollections)) {
-        for (const entry of await readdir(legacyCollections, { withFileTypes: true })) {
-          if (!entry.isDirectory() || !ITEM_ID_PATTERN.test(entry.name)) continue
-          try {
-            const value = await readJson<Record<string, unknown>>(
-              join(legacyCollections, entry.name, 'collection.json')
-            )
-            if (typeof value.name !== 'string') continue
-            const collection: PersistedCollection = {
-              schemaVersion: 2,
-              id: entry.name,
-              name: value.name,
-              createdAt:
-                typeof value.createdAt === 'string' ? value.createdAt : new Date().toISOString(),
-              ...(typeof value.icon === 'string'
-                ? { icon: value.icon as PersistedCollection['icon'] }
-                : {})
+        const entries = await readdir(legacyCollections, { withFileTypes: true })
+        const collections = (
+          await mapWithConcurrency(entries, 32, async (entry) => {
+            if (!entry.isDirectory() || !ITEM_ID_PATTERN.test(entry.name)) return null
+            try {
+              const value = await readJson<Record<string, unknown>>(
+                join(legacyCollections, entry.name, 'collection.json')
+              )
+              if (typeof value.name !== 'string') return null
+              return {
+                schemaVersion: 2,
+                id: entry.name,
+                name: value.name,
+                createdAt:
+                  typeof value.createdAt === 'string' ? value.createdAt : new Date().toISOString(),
+                ...(typeof value.icon === 'string'
+                  ? { icon: value.icon as PersistedCollection['icon'] }
+                  : {})
+              } satisfies PersistedCollection
+            } catch {
+              // Invalid legacy collections are not guessed during migration.
+              return null
             }
-            await this.createCollection(stagingPath, collection)
-            collectionMap.set(entry.name, entry.name)
-          } catch {
-            // Invalid legacy collections are not guessed during migration.
-          }
-        }
+          })
+        ).filter((collection) => collection !== null)
+        await mapWithConcurrency(collections, 1, async (collection) => {
+          await this.createCollection(stagingPath, collection)
+          collectionMap.set(collection.id, collection.id)
+        })
       }
 
       const sources: Array<{ directory: string; location: ItemLocation }> = [
@@ -593,15 +600,18 @@ export class LibraryStore {
               filename: 'note.md',
               data: await readFile(join(itemDirectory, 'note.md'), 'utf8')
             })
-            for (const attachment of metadata.attachments ?? []) {
-              const asset = join(itemDirectory, 'assets', attachment.filename)
-              if (await this.pathExists(asset)) {
-                files.push({
-                  filename: `assets/${attachment.filename}`,
-                  data: await readFile(asset)
+            files.push(
+              ...(
+                await mapWithConcurrency(metadata.attachments ?? [], 32, async (attachment) => {
+                  const asset = join(itemDirectory, 'assets', attachment.filename)
+                  if (!(await this.pathExists(asset))) return null
+                  return {
+                    filename: `assets/${attachment.filename}`,
+                    data: await readFile(asset)
+                  }
                 })
-              }
-            }
+              ).filter((file) => file !== null)
+            )
           } else if (metadata.type === 'image') {
             files.push({
               filename: metadata.contentFilename,
@@ -734,26 +744,25 @@ export class LibraryStore {
   }
 
   private async listVisibleFiles(libraryPath: string): Promise<ScannedFile[]> {
-    const files: ScannedFile[] = []
-    const walk = async (directory: string, archive: boolean): Promise<void> => {
+    const walk = async (directory: string, archive: boolean): Promise<ScannedFile[]> => {
       const entries = await readdir(directory, { withFileTypes: true })
-      for (const entry of entries) {
-        if (entry.isSymbolicLink()) continue
+      const files = await mapWithConcurrency(entries, 32, async (entry): Promise<ScannedFile[]> => {
+        if (entry.isSymbolicLink()) return []
         const path = join(directory, entry.name)
         const relativePath = slash(relative(libraryPath, path))
         if (entry.isDirectory()) {
-          if (HIDDEN_DIRECTORY.test(entry.name)) continue
-          await walk(path, archive || relativePath === DEFAULT_ARCHIVE_DIRECTORY)
-          continue
+          return HIDDEN_DIRECTORY.test(entry.name)
+            ? []
+            : walk(path, archive || relativePath === DEFAULT_ARCHIVE_DIRECTORY)
         }
-        if (!entry.isFile()) continue
+        if (!entry.isFile()) return []
         if (HIDDEN_DIRECTORY.test(entry.name) || entry.name.endsWith('.kuskus-initialize-backup'))
-          continue
-        files.push({ path, relativePath, archive })
-      }
+          return []
+        return [{ path, relativePath, archive }]
+      })
+      return files.flat()
     }
-    await walk(libraryPath, false)
-    return files
+    return walk(libraryPath, false)
   }
 
   private async fingerprint(path: string): Promise<string> {
@@ -869,15 +878,14 @@ export class LibraryStore {
     const existing = await this.readCollectionRecords(libraryPath)
     const byPath = new Map(existing.map((record) => [record.relativePath.toLowerCase(), record]))
     const folderPaths = new Set<string>()
-    for (const record of existing) {
-      if (
-        record.relativePath !== DEFAULT_ARCHIVE_DIRECTORY &&
-        !HIDDEN_DIRECTORY.test(record.relativePath) &&
-        (await this.pathExists(resolveInsideVault(libraryPath, record.relativePath)))
-      ) {
-        folderPaths.add(record.relativePath)
-      }
-    }
+    const existingPaths = await mapWithConcurrency(existing, 32, async (record) =>
+      record.relativePath !== DEFAULT_ARCHIVE_DIRECTORY &&
+      !HIDDEN_DIRECTORY.test(record.relativePath) &&
+      (await this.pathExists(resolveInsideVault(libraryPath, record.relativePath)))
+        ? record.relativePath
+        : null
+    )
+    for (const relativePath of existingPaths) if (relativePath) folderPaths.add(relativePath)
     for (const file of files) {
       if (file.archive) continue
       let current = slash(dirname(file.relativePath))
@@ -1336,11 +1344,14 @@ export class LibraryStore {
     const trashRecords = allRecords.filter((record) =>
       record.relativePath.startsWith(`${KUSKUS_DIRECTORY}/${TRASH_DIRECTORY}/`)
     )
-    for (const record of trashRecords) {
-      if (!items.some((item) => item.id === record.id)) {
-        items.push(await this.recordToDto(libraryPath, record, collections, context))
-      }
-    }
+    const itemIds = new Set(items.map((item) => item.id))
+    items.push(
+      ...(await mapWithConcurrency(
+        trashRecords.filter((record) => !itemIds.has(record.id)),
+        32,
+        (record) => this.recordToDto(libraryPath, record, collections, context)
+      ))
+    )
     const dto: LibraryDto = {
       ...library,
       schemaVersion: 2,
@@ -1691,18 +1702,24 @@ export class LibraryStore {
       )
       await rename(source, destination)
       relativePath = slash(relative(libraryPath, destination))
-      for (const item of await this.readItemRecords(libraryPath)) {
-        if (!item.relativePath.startsWith(`${current.relativePath}/`)) continue
-        item.relativePath = `${relativePath}${item.relativePath.slice(current.relativePath.length)}`
-        item.metadata = { ...item.metadata, relativePath: item.relativePath }
-        await this.writeItemRecord(libraryPath, item)
-      }
-      for (const child of records) {
-        if (!child.relativePath.startsWith(`${current.relativePath}/`)) continue
-        child.relativePath = `${relativePath}${child.relativePath.slice(current.relativePath.length)}`
-        child.name = basename(child.relativePath)
-        await this.writeCollectionRecord(libraryPath, child)
-      }
+      const items = (await this.readItemRecords(libraryPath))
+        .filter((item) => item.relativePath.startsWith(`${current.relativePath}/`))
+        .map((item) => {
+          item.relativePath = `${relativePath}${item.relativePath.slice(current.relativePath.length)}`
+          item.metadata = { ...item.metadata, relativePath: item.relativePath }
+          return item
+        })
+      const children = records
+        .filter((child) => child.relativePath.startsWith(`${current.relativePath}/`))
+        .map((child) => {
+          child.relativePath = `${relativePath}${child.relativePath.slice(current.relativePath.length)}`
+          child.name = basename(child.relativePath)
+          return child
+        })
+      await Promise.all([
+        ...items.map((item) => this.writeItemRecord(libraryPath, item)),
+        ...children.map((child) => this.writeCollectionRecord(libraryPath, child))
+      ])
     }
     await this.writeCollectionRecord(libraryPath, {
       ...current,
@@ -1746,23 +1763,27 @@ export class LibraryStore {
 
     await rename(source, destination)
     try {
-      for (const item of affectedItems) {
-        const relativePath = `${nextRoot}${item.relativePath.slice(current.relativePath.length)}`
-        await this.writeItemRecord(libraryPath, {
-          ...item,
-          relativePath,
-          metadata: { ...item.metadata, relativePath }
+      const writes = await Promise.allSettled([
+        ...affectedItems.map((item) => {
+          const relativePath = `${nextRoot}${item.relativePath.slice(current.relativePath.length)}`
+          return this.writeItemRecord(libraryPath, {
+            ...item,
+            relativePath,
+            metadata: { ...item.metadata, relativePath }
+          })
+        }),
+        ...affectedCollections.map((collection) => {
+          const relativePath = `${nextRoot}${collection.relativePath.slice(current.relativePath.length)}`
+          return this.writeCollectionRecord(libraryPath, {
+            ...collection,
+            name: basename(relativePath),
+            relativePath,
+            parentId: collection.id === current.id ? parentId : collection.parentId
+          })
         })
-      }
-      for (const collection of affectedCollections) {
-        const relativePath = `${nextRoot}${collection.relativePath.slice(current.relativePath.length)}`
-        await this.writeCollectionRecord(libraryPath, {
-          ...collection,
-          name: basename(relativePath),
-          relativePath,
-          parentId: collection.id === current.id ? parentId : collection.parentId
-        })
-      }
+      ])
+      const failure = writes.find((result) => result.status === 'rejected')
+      if (failure) throw failure.reason
     } catch (error) {
       if ((await this.pathExists(destination)) && !(await this.pathExists(source))) {
         await rename(destination, source)
@@ -1864,19 +1885,20 @@ export class LibraryStore {
     } catch {
       return []
     }
-    const records: CaptureSubmissionRecord[] = []
-    for (const entry of entries) {
-      if (!ITEM_ID_PATTERN.test(entry)) continue
-      try {
-        const value = await readJson<unknown>(
-          join(this.captureSubmissionDirectory(libraryPath, entry), CAPTURE_SUBMISSION_MANIFEST)
-        )
-        if (isCaptureSubmissionRecord(value)) records.push(normalizeCaptureSubmissionRecord(value))
-      } catch {
-        // Malformed recovery data stays on disk for manual inspection.
-      }
-    }
-    return records
+    return (
+      await mapWithConcurrency(entries, 32, async (entry) => {
+        if (!ITEM_ID_PATTERN.test(entry)) return null
+        try {
+          const value = await readJson<unknown>(
+            join(this.captureSubmissionDirectory(libraryPath, entry), CAPTURE_SUBMISSION_MANIFEST)
+          )
+          return isCaptureSubmissionRecord(value) ? normalizeCaptureSubmissionRecord(value) : null
+        } catch {
+          // Malformed recovery data stays on disk for manual inspection.
+          return null
+        }
+      })
+    ).filter((record): record is CaptureSubmissionRecord => record !== null)
   }
 
   async readCaptureSubmission(
@@ -2145,18 +2167,22 @@ export class LibraryStore {
       await mkdir(directory, { recursive: true })
       destination = await this.uniquePath(directory, filename)
       if (metadata.type === 'note') {
-        for (const attachment of metadata.attachments ?? []) {
-          const placement = resolveAttachmentPlacement({
-            libraryPath,
-            notePath: destination,
-            filename: attachment.filename
-          })
-          const attachmentPath = await this.uniquePath(placement.directory, attachment.filename)
-          recoveredAttachmentPaths.push({
-            id: attachment.id,
-            relativePath: slash(relative(libraryPath, attachmentPath))
-          })
-        }
+        recoveredAttachmentPaths = await mapWithConcurrency(
+          metadata.attachments ?? [],
+          1,
+          async (attachment) => {
+            const placement = resolveAttachmentPlacement({
+              libraryPath,
+              notePath: destination,
+              filename: attachment.filename
+            })
+            const attachmentPath = await this.uniquePath(placement.directory, attachment.filename)
+            return {
+              id: attachment.id,
+              relativePath: slash(relative(libraryPath, attachmentPath))
+            }
+          }
+        )
       }
       await writeJsonAtomic(recoveryMarker, {
         schemaVersion: 2,
@@ -2170,19 +2196,22 @@ export class LibraryStore {
         (attachment) => !recoveredAttachmentPaths.some((entry) => entry.id === attachment.id)
       )
     ) {
-      recoveredAttachmentPaths = []
-      for (const attachment of metadata.attachments ?? []) {
-        const placement = resolveAttachmentPlacement({
-          libraryPath,
-          notePath: destination,
-          filename: attachment.filename
-        })
-        const attachmentPath = await this.uniquePath(placement.directory, attachment.filename)
-        recoveredAttachmentPaths.push({
-          id: attachment.id,
-          relativePath: slash(relative(libraryPath, attachmentPath))
-        })
-      }
+      recoveredAttachmentPaths = await mapWithConcurrency(
+        metadata.attachments ?? [],
+        1,
+        async (attachment) => {
+          const placement = resolveAttachmentPlacement({
+            libraryPath,
+            notePath: destination,
+            filename: attachment.filename
+          })
+          const attachmentPath = await this.uniquePath(placement.directory, attachment.filename)
+          return {
+            id: attachment.id,
+            relativePath: slash(relative(libraryPath, attachmentPath))
+          }
+        }
+      )
       await writeJsonAtomic(recoveryMarker, {
         schemaVersion: 2,
         relativePath: slash(relative(libraryPath, destination)),

@@ -179,14 +179,13 @@ export class NoteAutosaveCoordinator {
       if (!drain) return this.snapshot.status !== 'error' && this.snapshot.status !== 'conflict'
     }
 
-    while (this.snapshot.draft !== this.snapshot.savedMarkdown) {
-      if (this.snapshot.conflict || !this.snapshot.draft.trim()) return false
-      await this.startSave()
-      if (this.snapshot.status === 'error' || this.snapshot.status === 'conflict') return false
-      if (!drain && this.snapshot.draft !== this.snapshot.savedMarkdown) {
-        this.schedule()
-        return true
-      }
+    if (this.snapshot.draft === this.snapshot.savedMarkdown) return true
+    if (this.snapshot.conflict || !this.snapshot.draft.trim()) return false
+    await this.startSave()
+    if (this.snapshot.status === 'error' || this.snapshot.status === 'conflict') return false
+    if (this.snapshot.draft !== this.snapshot.savedMarkdown) {
+      if (drain) return this.savePending(true)
+      this.schedule()
     }
     return true
   }
