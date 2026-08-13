@@ -3,7 +3,7 @@
 Status: Living record  
 Last updated: 2026-07-14
 
-This file records decisions that constrain implementation. New entries are append-only; superseded decisions remain for context and link to their replacements.
+This file records decisions that constrain implementation. New entries are append-only; superseded decisions remain for context and link to their replacements. See `10-current-architecture.md` for the current system map.
 
 ## Current foundation
 
