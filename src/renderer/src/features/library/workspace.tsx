@@ -4,7 +4,6 @@ import {
   lazy,
   Suspense,
   useCallback,
-  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -56,7 +55,6 @@ import type { ImportRequest } from '@/features/capture/add-item-composer'
 import { shouldYieldMainComposer } from '@/features/capture/capture-draft-tracker'
 import { ExternalDropShadow } from '@/features/capture/external-drop-shadow'
 import { CaptureRecoveryDialog } from '@/features/capture/capture-recovery-dialog'
-import { getFolderSubtreeIds } from '@/features/collections/folder-tree'
 import { SavedItemCard } from '@/features/items/saved-item-card'
 import { FocusItemList } from '@/features/items/focus-item-list'
 import { FocusListHeader } from '@/features/items/focus-list-header'
@@ -81,6 +79,8 @@ import { BulkActionToolbar } from '@/features/library/bulk-action-toolbar'
 import { FocusWorkspace } from '@/features/library/focus-workspace'
 import { OrderedMasonry } from '@/features/library/ordered-masonry'
 import { expandLibraryOverview } from '@/features/library/library-overview'
+import { useLibraryRetrieval } from '@/features/library/use-library-retrieval'
+import { useLibrarySelection } from '@/features/library/use-library-selection'
 import {
   ItemActionMenu,
   ItemContextMenu,
@@ -138,42 +138,6 @@ const MIN_SIDEBAR_WIDTH = 208
 const MAX_SIDEBAR_WIDTH = 384
 const ITEM_PAGE_SIZE = 100
 
-function itemMatchesRetrieval(
-  item: LibraryItemDto,
-  query: string,
-  typeFilters: ItemTypeFilter[]
-): boolean {
-  if (typeFilters.length > 0 && !typeFilters.includes(item.type)) return false
-  if (!query) return true
-  const searchableText = [
-    item.title,
-    item.type === 'note' ? item.body : '',
-    item.type === 'image' ? (item.sourceFilename ?? item.contentFilename) : '',
-    item.type === 'file' ? `${item.sourceFilename} ${item.contentFilename}` : '',
-    item.type === 'url' ? `${item.domain} ${item.sourceUrl} ${item.description ?? ''}` : ''
-  ]
-    .join(' ')
-    .toLocaleLowerCase()
-  return searchableText.includes(query)
-}
-
-function itemMatchesDestination(
-  item: LibraryItemDto,
-  destination: LibraryDestination,
-  collectionSubtreeIds?: ReadonlySet<string> | null
-): boolean {
-  if (destination.type === 'all') {
-    return item.location.type === 'inbox' || item.location.type === 'collection'
-  }
-  if (destination.type === 'collection') {
-    if (item.location.type !== 'collection') return false
-    return collectionSubtreeIds
-      ? collectionSubtreeIds.has(item.location.collectionId)
-      : item.location.collectionId === destination.collectionId
-  }
-  return item.location.type === destination.type
-}
-
 function destinationLabel(destination: LibraryDestination, library: LibraryDto): string {
   if (destination.type === 'inbox') return 'Inbox'
   if (destination.type === 'all') return 'All Items'
@@ -229,9 +193,6 @@ export function Workspace({
   const [isDragging, setIsDragging] = useState(false)
   const [draggedItemIds, setDraggedItemIds] = useState<ReadonlySet<string>>(() => new Set())
   const [search, setSearch] = useState('')
-  const [searchMatches, setSearchMatches] = useState<{ query: string; ids: Set<string> } | null>(
-    null
-  )
   const [typeFilters, setTypeFilters] = useState<ItemTypeFilter[]>([])
   const [sort, setSort] = useState<ItemSort>(() =>
     parseItemSort(localStorage.getItem(ITEM_SORT_STORAGE_KEY))
@@ -256,8 +217,6 @@ export function Workspace({
   const [statusMessage, setStatusMessage] = useState('')
   const [itemDetails, setItemDetails] = useState<Map<string, LibraryItemDto>>(() => new Map())
   const [destination, setDestination] = useState<LibraryDestination>({ type: 'inbox' })
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
-  const [selectionAnchorId, setSelectionAnchorId] = useState<string | null>(null)
   const [renameTarget, setRenameTarget] = useState<LibraryItemDto | null>(null)
   const [renameTitle, setRenameTitle] = useState('')
   const [deleteTargets, setDeleteTargets] = useState<string[]>([])
@@ -281,9 +240,7 @@ export function Workspace({
   }, [])
   const [itemOperationBusy, setItemOperationBusy] = useState(false)
   const [theme, setTheme] = useTheme()
-  const deferredSearch = useDeferredValue(search)
   const importRequestId = useRef(0)
-  const searchRequestId = useRef(0)
   const dragDepth = useRef(0)
   const enrichingUrlIds = useRef(new Set<string>())
   const pendingRevealItemId = useRef<string | null>(null)
@@ -301,11 +258,15 @@ export function Workspace({
     window.requestAnimationFrame(() => setStatusMessage(message))
   }, [])
 
-  const clearSelection = useCallback((): void => {
-    setSelectedIds(new Set())
-    setSelectionAnchorId(null)
-    announceStatus('Selection cleared')
-  }, [announceStatus])
+  const {
+    selectedIds,
+    clearSelection,
+    clearSelectionSilently,
+    prepareItem: prepareItemMenu,
+    pruneSelection: pruneSelectionToItemIds,
+    selectAll: selectAllVisibleItems,
+    selectItem
+  } = useLibrarySelection(announceStatus)
 
   const requestFocusTransition = useCallback((action: () => void): void => {
     const detail = focusDetailRef.current
@@ -396,50 +357,17 @@ export function Workspace({
     }
   }, [refreshVault])
 
-  const collectionSubtreeIds = useMemo(
-    () =>
-      destination.type === 'collection'
-        ? getFolderSubtreeIds(library.collections, destination.collectionId)
-        : null,
-    [destination, library.collections]
-  )
-  useEffect(() => {
-    const query = deferredSearch.trim().toLocaleLowerCase()
-    if (!query) return
-    const requestId = searchRequestId.current + 1
-    searchRequestId.current = requestId
-    let active = true
-    void window.kuskus.queryItems({ query }).then((result) => {
-      if (!active || requestId !== searchRequestId.current || !result.ok) return
-      startTransition(() => setSearchMatches({ query, ids: new Set(result.data.itemIds) }))
+  const { deferredSearch, destinationItems, matchesCurrentRetrieval, searchPending, visibleItems } =
+    useLibraryRetrieval({
+      library,
+      destination,
+      search,
+      typeFilters,
+      sort,
+      showReferencedAttachments,
+      excludedItemId: composerOwnedItemId,
+      onSearchResolved: pruneSelectionToItemIds
     })
-    return () => {
-      active = false
-    }
-  }, [deferredSearch, library])
-  const visibleItems = useMemo(() => {
-    const query = deferredSearch.trim().toLocaleLowerCase()
-    const indexedMatches = searchMatches?.query === query ? searchMatches.ids : null
-    const filtered = library.items.filter(
-      (item) =>
-        item.id !== composerOwnedItemId &&
-        (showReferencedAttachments || !item.referencedAttachment) &&
-        itemMatchesDestination(item, destination, collectionSubtreeIds) &&
-        itemMatchesRetrieval(item, indexedMatches ? '' : query, typeFilters) &&
-        (!indexedMatches || indexedMatches.has(item.id))
-    )
-    return sortItems(filtered, sort)
-  }, [
-    collectionSubtreeIds,
-    composerOwnedItemId,
-    deferredSearch,
-    destination,
-    library.items,
-    showReferencedAttachments,
-    searchMatches,
-    sort,
-    typeFilters
-  ])
   const visibleItemIds = useMemo(() => new Set(visibleItems.map((item) => item.id)), [visibleItems])
   const visibleItemIdList = useMemo(() => visibleItems.map((item) => item.id), [visibleItems])
   const retrievalPageKey = `${destination.type}:${destination.type === 'collection' ? destination.collectionId : ''}:${deferredSearch}:${typeFilters.join(',')}:${sort}:${showReferencedAttachments}`
@@ -482,13 +410,6 @@ export function Workspace({
     observer.observe(target)
     return () => observer.disconnect()
   }, [focusItemId, renderedItems.length, retrievalPageKey, visibleItems.length])
-  const destinationItems = useMemo(
-    () =>
-      library.items.filter((item) =>
-        itemMatchesDestination(item, destination, collectionSubtreeIds)
-      ),
-    [collectionSubtreeIds, destination, library.items]
-  )
   const openVaultLink = useCallback(
     (target: string): void => {
       const normalized = target.replace(/\\/g, '/').replace(/\.md$/i, '').toLocaleLowerCase()
@@ -509,14 +430,6 @@ export function Workspace({
     },
     [library.items, openDetail]
   )
-  const selectAllVisibleItems = useCallback((): void => {
-    setSelectedIds(new Set(visibleItems.map((item) => item.id)))
-    setSelectionAnchorId(null)
-    announceStatus(
-      `${visibleItems.length} ${visibleItems.length === 1 ? 'item' : 'items'} selected`
-    )
-  }, [announceStatus, visibleItems])
-
   // A newly saved item joins the active sorted position rather than always landing first;
   // once it renders, scroll it into view and announce the save.
   useEffect(() => {
@@ -610,8 +523,7 @@ export function Workspace({
     (next: LibraryDestination): void => {
       const apply = (): void => {
         setDestination(next)
-        setSelectedIds(new Set())
-        setSelectionAnchorId(null)
+        clearSelectionSilently()
         setFocusNoteExpanded(false)
         setFocusItemId(null)
         setFocusDetailOpen(false)
@@ -620,7 +532,7 @@ export function Workspace({
       if (focusItemId) requestFocusTransition(apply)
       else apply()
     },
-    [focusItemId, requestFocusTransition]
+    [clearSelectionSilently, focusItemId, requestFocusTransition]
   )
 
   const changeView = useCallback((next: LibraryView): void => setView(next), [])
@@ -637,33 +549,7 @@ export function Workspace({
     [announceStatus]
   )
 
-  const pruneSelectionForRetrieval = useCallback(
-    (query: string, filters: ItemTypeFilter[]): void => {
-      const matchingIds = new Set(
-        library.items
-          .filter(
-            (item) =>
-              itemMatchesDestination(item, destination, collectionSubtreeIds) &&
-              itemMatchesRetrieval(item, query.trim().toLocaleLowerCase(), filters)
-          )
-          .map((item) => item.id)
-      )
-      setSelectedIds((current) => {
-        const next = new Set([...current].filter((itemId) => matchingIds.has(itemId)))
-        return next.size === current.size ? current : next
-      })
-      setSelectionAnchorId((current) => (current && matchingIds.has(current) ? current : null))
-    },
-    [collectionSubtreeIds, destination, library.items]
-  )
-
-  const changeSearch = useCallback(
-    (next: string): void => {
-      setSearch(next)
-      pruneSelectionForRetrieval(next, typeFilters)
-    },
-    [pruneSelectionForRetrieval, typeFilters]
-  )
+  const changeSearch = useCallback((next: string): void => setSearch(next), [])
 
   const changeTypeFilter = useCallback(
     (type: ItemTypeFilter, selected: boolean): void => {
@@ -673,9 +559,15 @@ export function Workspace({
           : [...typeFilters, type]
         : typeFilters.filter((entry) => entry !== type)
       setTypeFilters(next)
-      pruneSelectionForRetrieval(search, next)
+      pruneSelectionToItemIds(
+        new Set(
+          library.items
+            .filter((item) => next.length === 0 || next.includes(item.type))
+            .map((item) => item.id)
+        )
+      )
     },
-    [pruneSelectionForRetrieval, search, typeFilters]
+    [library.items, pruneSelectionToItemIds, typeFilters]
   )
 
   const addCreatedItem = useCallback(
@@ -687,14 +579,12 @@ export function Workspace({
       if (nextLibrary) setLibrary(nextLibrary)
       else setLibrary((current) => ({ ...current, items: [item, ...current.items] }))
       setMessage('')
-      const remainsVisible =
-        itemMatchesDestination(nextItem, destination, collectionSubtreeIds) &&
-        itemMatchesRetrieval(nextItem, search.trim().toLocaleLowerCase(), typeFilters)
+      const remainsVisible = matchesCurrentRetrieval(nextItem)
       if (remainsVisible) pendingRevealItemId.current = nextItem.id
       if (openInEditor && nextItem.type === 'note') openDetail(nextItem.id, true)
       return remainsVisible
     },
-    [collectionSubtreeIds, destination, openDetail, search, typeFilters]
+    [matchesCurrentRetrieval, openDetail]
   )
 
   const commitLinkItem = useCallback(
@@ -710,12 +600,10 @@ export function Workspace({
       setMessage('')
       return {
         item: nextItem,
-        remainsVisible:
-          itemMatchesDestination(nextItem, destination, collectionSubtreeIds) &&
-          itemMatchesRetrieval(nextItem, search.trim().toLocaleLowerCase(), typeFilters)
+        remainsVisible: matchesCurrentRetrieval(nextItem)
       }
     },
-    [collectionSubtreeIds, destination, search, typeFilters]
+    [matchesCurrentRetrieval]
   )
 
   const updateItem = useCallback((item: LibraryItemDto): void => {
@@ -736,30 +624,16 @@ export function Workspace({
       setFocusItemId((current) => {
         if (!current) return current
         const nextVisibleIds = sortItems(
-          result.data.items.filter(
-            (item) =>
-              (showReferencedAttachments || !item.referencedAttachment) &&
-              itemMatchesDestination(item, destination, collectionSubtreeIds) &&
-              itemMatchesRetrieval(item, search.trim().toLocaleLowerCase(), typeFilters)
-          ),
+          result.data.items.filter(matchesCurrentRetrieval),
           sort
         ).map((item) => item.id)
         return resolveFocusAfterRemoval(visibleItemIdList, nextVisibleIds, current)
       })
       setMessage('')
-      setSelectedIds(new Set())
-      setSelectionAnchorId(null)
+      clearSelectionSilently()
       return result.data
     },
-    [
-      collectionSubtreeIds,
-      destination,
-      search,
-      showReferencedAttachments,
-      sort,
-      typeFilters,
-      visibleItemIdList
-    ]
+    [clearSelectionSilently, matchesCurrentRetrieval, sort, visibleItemIdList]
   )
 
   const moveItemIds = useCallback(
@@ -822,10 +696,7 @@ export function Workspace({
   const beginItemDrag = useCallback(
     (itemId: string, event: React.DragEvent<HTMLElement>): void => {
       const itemIds = selectedIds.has(itemId) ? [...selectedIds] : [itemId]
-      if (!selectedIds.has(itemId)) {
-        setSelectedIds(new Set([itemId]))
-        setSelectionAnchorId(itemId)
-      }
+      if (!selectedIds.has(itemId)) prepareItemMenu(itemId)
       event.dataTransfer.effectAllowed = 'move'
       event.dataTransfer.setData(KUSKUS_ITEM_DRAG_TYPE, JSON.stringify(itemIds))
       event.dataTransfer.setData(
@@ -841,7 +712,7 @@ export function Workspace({
       })
       setDraggedItemIds(new Set(itemIds))
     },
-    [selectedIds]
+    [prepareItemMenu, selectedIds]
   )
 
   const endItemDrag = useCallback((): void => {
@@ -1080,58 +951,28 @@ export function Workspace({
     await openExternalUrlWithFeedback(item.sourceUrl)
   }, [])
 
-  const selectItem = useCallback(
-    (itemId: string, event: Pick<React.MouseEvent, 'shiftKey' | 'ctrlKey' | 'metaKey'>): void => {
-      if (event.shiftKey && selectionAnchorId) {
-        const anchorIndex = visibleItems.findIndex((item) => item.id === selectionAnchorId)
-        const itemIndex = visibleItems.findIndex((item) => item.id === itemId)
-        if (anchorIndex >= 0 && itemIndex >= 0) {
-          const start = Math.min(anchorIndex, itemIndex)
-          const end = Math.max(anchorIndex, itemIndex)
-          setSelectedIds(new Set(visibleItems.slice(start, end + 1).map((item) => item.id)))
-          return
-        }
-      }
-      if (event.ctrlKey || event.metaKey) {
-        setSelectedIds((current) => {
-          const next = new Set(current)
-          if (next.has(itemId)) next.delete(itemId)
-          else next.add(itemId)
-          return next
-        })
-      } else {
-        setSelectedIds(new Set([itemId]))
-      }
-      setSelectionAnchorId(itemId)
-    },
-    [selectionAnchorId, visibleItems]
-  )
-
-  const prepareItemMenu = useCallback(
-    (itemId: string): void => {
-      if (selectedIds.has(itemId)) return
-      setSelectedIds(new Set([itemId]))
-      setSelectionAnchorId(itemId)
-    },
-    [selectedIds]
-  )
-
   const activateItem = useCallback(
     (itemId: string, event: Pick<React.MouseEvent, 'shiftKey' | 'ctrlKey' | 'metaKey'>): void => {
       if (event.shiftKey || event.ctrlKey || event.metaKey) {
-        selectItem(itemId, event)
+        selectItem(itemId, visibleItemIdList, event)
         return
       }
 
-      setSelectedIds(new Set())
-      setSelectionAnchorId(null)
+      clearSelectionSilently()
       if (composerHasTransientWork) {
         announceStatus('Finish the current capture before opening another item.')
         return
       }
       openDetail(itemId)
     },
-    [announceStatus, composerHasTransientWork, openDetail, selectItem]
+    [
+      announceStatus,
+      clearSelectionSilently,
+      composerHasTransientWork,
+      openDetail,
+      selectItem,
+      visibleItemIdList
+    ]
   )
 
   const itemActions = useCallback(
@@ -1291,11 +1132,17 @@ export function Workspace({
         return
       }
       event.preventDefault()
-      selectAllVisibleItems()
+      selectAllVisibleItems(visibleItemIdList)
     }
     window.addEventListener('keydown', selectAllItems)
     return () => window.removeEventListener('keydown', selectAllItems)
-  }, [deleteTargets.length, renameTarget, selectAllVisibleItems, visibleItems.length])
+  }, [
+    deleteTargets.length,
+    renameTarget,
+    selectAllVisibleItems,
+    visibleItemIdList,
+    visibleItems.length
+  ])
 
   const openComposer = useCallback((): void => {
     const open = (): void => {
@@ -1314,14 +1161,13 @@ export function Workspace({
     setDestination({ type: 'inbox' })
     setSearch('')
     setTypeFilters([])
-    setSelectedIds(new Set())
-    setSelectionAnchorId(null)
+    clearSelectionSilently()
     setComposerOpen(true)
     setFocusNoteExpanded(false)
     if (!modalOpen) setComposerFocusRequest((request) => request + 1)
     announceStatus('Global capture ready in Inbox.')
     if (modalOpen) notifyGlobalCapturePrepared()
-  }, [announceStatus])
+  }, [announceStatus, clearSelectionSilently])
 
   useEffect(() => {
     let active = true
@@ -1378,14 +1224,13 @@ export function Workspace({
           const open = (): void => {
             setLibrary(nextLibrary)
             setMessage('')
-            setSelectedIds(new Set())
-            setSelectionAnchorId(null)
+            clearSelectionSilently()
             openDetail(item.id, item.type === 'note')
           }
           open()
         })
       }),
-    [openDetail]
+    [clearSelectionSilently, openDetail]
   )
 
   const changeComposerOpen = useCallback((open: boolean, returnFocus = true): void => {
@@ -1630,11 +1475,7 @@ export function Workspace({
       onLinkReleased={(itemId) => {
         setComposerOwnedItemId((current) => (current === itemId ? null : current))
         const released = library.items.find((entry) => entry.id === itemId)
-        if (
-          released &&
-          itemMatchesDestination(released, destination, collectionSubtreeIds) &&
-          itemMatchesRetrieval(released, search.trim().toLocaleLowerCase(), typeFilters)
-        ) {
+        if (released && matchesCurrentRetrieval(released)) {
           pendingRevealItemId.current = itemId
         }
       }}
@@ -1726,7 +1567,7 @@ export function Workspace({
         onNewItem={openComposer}
         search={search}
         onSearchChange={changeSearch}
-        searchPending={search !== deferredSearch}
+        searchPending={searchPending}
         resultCount={visibleItems.length}
         totalCount={destinationItems.length}
         typeFilters={typeFilters}
@@ -1899,7 +1740,7 @@ export function Workspace({
             search={search}
             searchScope={destinationLabel(destination, library)}
             onSearchChange={changeSearch}
-            searchPending={search !== deferredSearch}
+            searchPending={searchPending}
             resultCount={visibleItems.length}
             totalCount={destinationItems.length}
             typeFilters={typeFilters}
@@ -2072,8 +1913,7 @@ export function Workspace({
                           size="sm"
                           onClick={() => {
                             changeSearch('')
-                            setSelectedIds(new Set())
-                            setSelectionAnchorId(null)
+                            clearSelectionSilently()
                           }}
                         >
                           Clear search
@@ -2085,8 +1925,7 @@ export function Workspace({
                           size="sm"
                           onClick={() => {
                             setTypeFilters([])
-                            setSelectedIds(new Set())
-                            setSelectionAnchorId(null)
+                            clearSelectionSilently()
                           }}
                         >
                           Remove type filters
