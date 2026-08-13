@@ -245,6 +245,7 @@ class LiveDecorationBuilder {
   private readonly marks: MarkEntry[] = []
   private readonly lines: LineEntry[] = []
   private readonly consumedLines = new Set<number>()
+  private readonly hiddenListIndentLines = new Set<number>()
 
   constructor(
     private readonly state: EditorState,
@@ -446,7 +447,19 @@ class LiveDecorationBuilder {
       if (line === startLine && isFirst && !isTopLevel) {
         classes.push('cm-kuskus-list-nested-first')
       }
-      this.addLine(this.state.doc.line(line).from, Decoration.line({ class: classes.join(' ') }))
+      const documentLine = this.state.doc.line(line)
+      this.addLine(documentLine.from, Decoration.line({ class: classes.join(' ') }))
+      if (!this.isLineActive(line) && !this.hiddenListIndentLines.has(line)) {
+        const indent = /^\s+/.exec(documentLine.text)?.[0].length ?? 0
+        if (indent > 0) {
+          this.addMark(
+            documentLine.from,
+            documentLine.from + indent,
+            Decoration.mark({ class: 'cm-kuskus-list-source-indent' })
+          )
+          this.hiddenListIndentLines.add(line)
+        }
+      }
     }
   }
 
@@ -777,6 +790,9 @@ const livePreviewTheme = EditorView.theme({
   },
   '.cm-kuskus-list-marker': {
     color: 'var(--typeset-muted)'
+  },
+  '.cm-kuskus-list-source-indent': {
+    fontSize: '0'
   },
   '.cm-kuskus-checkbox': {
     insetInlineStart: 'calc(var(--cm-kuskus-list-indent) - 1.25em)',

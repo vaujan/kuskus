@@ -68,6 +68,37 @@ test('keyboard navigation enters a rendered code block instead of skipping it', 
   )
 })
 
+test('uses one list marker column and hides source indentation on inactive lines', () => {
+  const state = EditorState.create({
+    doc: ['Cursor', '- first', '  continuation', '  - nested'].join('\n'),
+    extensions: [markdown({ extensions: GFM })]
+  })
+  const decorations = []
+  buildLivePreviewDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
+    decorations.push({ from, to, className: value.spec.class })
+  })
+
+  assert.equal(
+    decorations.some((entry) => entry.className?.includes('cm-kuskus-list-depth-2')),
+    true
+  )
+  assert.deepEqual(
+    decorations.filter((entry) => entry.className === 'cm-kuskus-list-source-indent'),
+    [
+      {
+        from: state.doc.line(3).from,
+        to: state.doc.line(3).from + 2,
+        className: 'cm-kuskus-list-source-indent'
+      },
+      {
+        from: state.doc.line(4).from,
+        to: state.doc.line(4).from + 2,
+        className: 'cm-kuskus-list-source-indent'
+      }
+    ]
+  )
+})
+
 test('renders inactive task lists without duplicate bullets and replaces whole fenced blocks', () => {
   const state = EditorState.create({
     doc: ['Cursor', '', '- [ ] Task', '', '```ts', 'const value = 1', '```'].join('\n'),

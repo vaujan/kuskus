@@ -1598,6 +1598,9 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       localStorage.setItem(NOTE_INLINE_TITLE_STORAGE_KEY, String(showInlineTitle))
     }, [showInlineTitle])
     useEffect(() => {
+      if (mode !== 'split') previousSingleModeRef.current = mode
+    }, [mode])
+    useEffect(() => {
       if (item?.type !== 'note' || !coordinator) return
       const current = coordinator.getSnapshot()
       if (item.body === current.draft) {
@@ -1613,12 +1616,10 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       }
     }, [coordinator, item, onItemUpdated])
     const changeMode = (nextMode: NoteMode): void => {
-      if (nextMode === mode) return
-      if (nextMode !== 'split') previousSingleModeRef.current = nextMode
-      setMode(nextMode)
+      if (nextMode !== mode) setMode(nextMode)
     }
     const toggleReadLiveMode = (): void => {
-      changeMode(toggleReadLive(mode))
+      setMode(toggleReadLive)
     }
 
     const resolvePendingNote = useCallback(async (): Promise<'ready' | 'trashed' | 'blocked'> => {
