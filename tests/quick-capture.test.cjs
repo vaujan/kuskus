@@ -441,7 +441,6 @@ test('isolates and commits rapid mixed note, URL, image, and file submissions', 
   context.after(() => rm(root, { recursive: true, force: true }))
   const library = new LibraryService(join(root, 'settings.json'))
   const state = await library.createIn(root, 'Vault')
-  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   library.enrichUrl = () => Promise.reject(new Error('Offline test'))
   assert.equal(state.status, 'ready')
   const libraryId = state.library.id
