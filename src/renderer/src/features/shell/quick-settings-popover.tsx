@@ -93,8 +93,6 @@ export function QuickSettingsPopover({
         side="right"
         align="end"
         sideOffset={8}
-        collisionPadding={8}
-        collisionAvoidance={{ side: 'flip', align: 'shift', fallbackAxisSide: 'end' }}
         className="max-h-[calc(100vh-1rem)] w-[min(20rem,calc(100vw-1rem))] gap-5 overflow-y-auto p-4"
       >
         <PopoverHeader className="gap-0">

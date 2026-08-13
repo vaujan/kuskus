@@ -1,18 +1,8 @@
 import { ScrollArea as ScrollAreaPrimitive } from '@base-ui/react/scroll-area'
-import type { Ref } from 'react'
 
 import { cn } from '@/lib/utils'
 
-function ScrollArea({
-  className,
-  viewportClassName,
-  viewportRef,
-  children,
-  ...props
-}: ScrollAreaPrimitive.Root.Props & {
-  viewportClassName?: string
-  viewportRef?: Ref<HTMLDivElement>
-}) {
+function ScrollArea({ className, children, ...props }: ScrollAreaPrimitive.Root.Props) {
   return (
     <ScrollAreaPrimitive.Root
       data-slot="scroll-area"
@@ -20,12 +10,8 @@ function ScrollArea({
       {...props}
     >
       <ScrollAreaPrimitive.Viewport
-        ref={viewportRef}
         data-slot="scroll-area-viewport"
-        className={cn(
-          'size-full rounded-[inherit] transition-[color,box-shadow] [transition-duration:var(--motion-duration-ui)] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1',
-          viewportClassName
-        )}
+        className="size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1"
       >
         {children}
       </ScrollAreaPrimitive.Viewport>
@@ -46,7 +32,7 @@ function ScrollBar({
       data-orientation={orientation}
       orientation={orientation}
       className={cn(
-        'flex touch-none p-px transition-colors [transition-duration:var(--motion-duration-ui)] select-none data-horizontal:h-2.5 data-horizontal:flex-col data-horizontal:border-t data-horizontal:border-t-transparent data-vertical:h-full data-vertical:w-2.5 data-vertical:border-l data-vertical:border-l-transparent',
+        'flex touch-none p-px transition-colors select-none data-horizontal:h-2.5 data-horizontal:flex-col data-horizontal:border-t data-horizontal:border-t-transparent data-vertical:h-full data-vertical:w-2.5 data-vertical:border-l data-vertical:border-l-transparent',
         className
       )}
       {...props}

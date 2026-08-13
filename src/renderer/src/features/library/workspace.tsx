@@ -50,7 +50,7 @@ import {
 } from '@/components/ui/empty'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Switch } from '@/components/ui/switch'
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { SidebarInset, SidebarProvider } from '@/features/shell/app-sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ImportRequest } from '@/features/capture/add-item-composer'
 import { shouldYieldMainComposer } from '@/features/capture/capture-draft-tracker'
@@ -1975,10 +1975,7 @@ export function Workspace({
           </main>
         ) : null}
         <Activity mode={focusItemId ? 'hidden' : 'visible'}>
-          <ScrollArea
-            className="window-canvas min-h-0 min-w-0 flex-1"
-            viewportClassName="dark:library-scroll-viewport focus-visible:ring-0 focus-visible:outline-none"
-          >
+          <ScrollArea className="library-scroll-container window-canvas min-h-0 min-w-0 flex-1 [&_[data-slot=scroll-area-viewport]]:focus-visible:ring-0 [&_[data-slot=scroll-area-viewport]]:focus-visible:outline-none">
             <main
               className="relative min-h-full"
               onDragEnter={(event) => {

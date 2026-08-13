@@ -1,3 +1,11 @@
+:root {
+  --control-height-xs: calc(var(--spacing) * 6);
+  --control-height-sm: calc(var(--spacing) * 7);
+  --control-height-md: calc(var(--spacing) * 8);
+  --control-height-lg: calc(var(--spacing) * 9);
+  --control-height-xl: calc(var(--spacing) * 10);
+}
+
 @layer components {
   .windows-caption-glyph {
     font-family: 'Segoe Fluent Icons', 'Segoe MDL2 Assets', sans-serif;
@@ -8,7 +16,8 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  .library-scroll-viewport {
+  .library-scroll-viewport,
+  .dark .library-scroll-container [data-slot='scroll-area-viewport'] {
     --library-scroll-fade-size: min(var(--scroll-area-overflow-y-start, 0px), 2rem);
 
     -webkit-mask-image: linear-gradient(

@@ -1,4 +1,4 @@
-import { SidebarTrigger, useSidebar } from '@/components/ui/sidebar'
+import { SidebarTrigger, useSidebar } from '@/features/shell/app-sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 export function ShellSidebarTrigger(): React.JSX.Element {
@@ -9,11 +9,7 @@ export function ShellSidebarTrigger(): React.JSX.Element {
   return (
     <div className="[-webkit-app-region:no-drag]">
       <Tooltip>
-        <TooltipTrigger
-          render={
-            <SidebarTrigger size="icon-sm" aria-label={label} />
-          }
-        />
+        <TooltipTrigger render={<SidebarTrigger size="icon-sm" aria-label={label} />} />
         <TooltipContent>{label}</TooltipContent>
       </Tooltip>
     </div>

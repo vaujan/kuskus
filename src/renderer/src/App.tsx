@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { Toaster } from '@/components/ui/sonner'
+import { Toaster } from '@/features/shell/app-toaster'
 import { LoadingScreen } from '@/app/loading-screen'
 import { SetupScreen } from '@/features/library/setup-screen'
 import { Workspace } from '@/features/library/workspace'

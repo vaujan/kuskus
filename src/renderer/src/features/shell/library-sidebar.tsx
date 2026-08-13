@@ -68,7 +68,7 @@ import {
   SidebarRail,
   SidebarSeparator,
   useSidebar
-} from '@/components/ui/sidebar'
+} from '@/features/shell/app-sidebar'
 import { Spinner } from '@/components/ui/spinner'
 import { CollectionIcon } from '@/features/collections/collection-icons'
 import { FolderIconPickerDialog } from '@/features/collections/folder-icon-picker-dialog'

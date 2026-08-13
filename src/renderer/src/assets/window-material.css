@@ -1,27 +1,50 @@
+@theme inline {
+  --color-sidebar-selection: var(--sidebar-selection);
+}
+
 :root {
+  --sidebar-selection: var(--sidebar-primary);
+  --backdrop: color-mix(in oklch, var(--foreground) 30%, transparent);
+  --backdrop-strong: color-mix(in oklch, var(--foreground) 55%, transparent);
+  --editor-control-ring: var(--primary);
   --window-canvas: var(--background);
   --window-sidebar: var(--sidebar);
   --window-toolbar: var(--background);
 }
 
+:root.dark {
+  --backdrop: color-mix(in oklch, var(--background) 62%, transparent);
+  --backdrop-strong: color-mix(in oklch, var(--background) 68%, transparent);
+  --editor-control-ring: var(--sidebar-primary);
+}
+
 :root[data-window-material='acrylic'] {
-  --card: oklch(1 0 0 / 78%);
-  --border: oklch(0.3 0.008 220 / 16%);
-  --sidebar-accent: oklch(1 0 0 / 52%);
-  --sidebar-selection: oklch(0.61 0.14 246 / 92%);
-  --window-canvas: oklch(0.995 0 0 / 74%);
-  --window-sidebar: oklch(0.985 0.003 210 / 68%);
+  --material-card: color-mix(in oklch, var(--popover) 76%, transparent);
+  --material-border: color-mix(in oklch, var(--input) 72%, transparent);
+  --material-sidebar-accent: color-mix(in oklch, var(--accent) 52%, transparent);
+  --material-sidebar-selection: color-mix(in oklch, var(--sidebar-primary) 92%, transparent);
+  --window-canvas: color-mix(in oklch, var(--background) 74%, transparent);
+  --window-sidebar: color-mix(in oklch, var(--sidebar) 68%, transparent);
   --window-toolbar: var(--window-canvas);
 }
 
 :root.dark[data-window-material='acrylic'] {
-  --card: oklch(0.2 0.008 223.9 / 70%);
-  --border: oklch(1 0 0 / 13%);
-  --sidebar-accent: oklch(1 0 0 / 9%);
-  --sidebar-selection: oklch(0.68 0.14 246 / 94%);
-  --window-canvas: oklch(0.16 0.008 223.9 / 34%);
-  --window-sidebar: oklch(0.19 0.009 223.9 / 52%);
-  --window-toolbar: var(--window-canvas);
+  --material-card: color-mix(in oklch, var(--popover) 70%, transparent);
+  --material-border: color-mix(in oklch, var(--input) 87%, transparent);
+  --material-sidebar-accent: color-mix(in oklch, var(--accent) 9%, transparent);
+  --material-sidebar-selection: color-mix(in oklch, var(--sidebar-primary) 94%, transparent);
+  --window-canvas: color-mix(in oklch, var(--background) 34%, transparent);
+  --window-sidebar: color-mix(in oklch, var(--sidebar) 52%, transparent);
+}
+
+:root[data-window-material='acrylic'] .window-root {
+  --card: var(--material-card);
+  --border: var(--material-border);
+}
+
+:root[data-window-material='acrylic'] [data-slot='sidebar-inner'] {
+  --sidebar-accent: var(--material-sidebar-accent);
+  --sidebar-selection: var(--material-sidebar-selection);
 }
 
 .window-root,
@@ -70,6 +93,9 @@ html[data-window-material='acrylic'] [data-slot='sidebar-inner'] {
   background-color: var(--window-sidebar);
 }
 
+html[data-window-material='acrylic'],
+html[data-window-material='acrylic'] body,
+html[data-window-material='acrylic'] #root,
 html[data-window-material='acrylic'] .window-root,
 html[data-window-material='acrylic'] [data-slot='sidebar-inset'] {
   background-color: transparent;
@@ -77,25 +103,37 @@ html[data-window-material='acrylic'] [data-slot='sidebar-inset'] {
 
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
   :root[data-window-material='acrylic'] {
-    --card: var(--opaque-card);
-    --border: var(--opaque-border);
-    --sidebar-accent: var(--opaque-sidebar-accent);
-    --sidebar-selection: var(--opaque-sidebar-selection);
     --window-canvas: var(--background);
     --window-sidebar: var(--sidebar);
     --window-toolbar: var(--background);
+  }
+
+  :root[data-window-material='acrylic'] .window-root {
+    --card: var(--popover);
+    --border: var(--input);
+  }
+
+  :root[data-window-material='acrylic'] [data-slot='sidebar-inner'] {
+    --sidebar-accent: var(--accent);
+    --sidebar-selection: var(--sidebar-primary);
   }
 }
 
 @media (forced-colors: active) {
   :root[data-window-material='acrylic'] {
-    --card: Canvas;
-    --border: CanvasText;
-    --sidebar-accent: Highlight;
-    --sidebar-accent-foreground: HighlightText;
-    --sidebar-selection: Highlight;
     --window-canvas: Canvas;
     --window-sidebar: Canvas;
     --window-toolbar: Canvas;
+  }
+
+  :root[data-window-material='acrylic'] .window-root {
+    --card: Canvas;
+    --border: CanvasText;
+  }
+
+  :root[data-window-material='acrylic'] [data-slot='sidebar-inner'] {
+    --sidebar-accent: Highlight;
+    --sidebar-accent-foreground: HighlightText;
+    --sidebar-selection: Highlight;
   }
 }

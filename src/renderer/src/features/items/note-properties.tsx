@@ -256,9 +256,8 @@ function PropertyRow({
         >
           <SelectTrigger
             size="sm"
-            showIndicator={false}
             aria-label={`Type for ${property.key}`}
-            className="size-8 shrink-0 justify-center rounded-none border-transparent bg-transparent px-0 text-muted-foreground shadow-none focus-visible:border-transparent focus-visible:ring-0"
+            className="size-8 shrink-0 justify-center rounded-none border-transparent bg-transparent px-0 text-muted-foreground shadow-none focus-visible:border-transparent focus-visible:ring-0 [&>span:last-child]:hidden"
           >
             <TypeIcon aria-hidden />
           </SelectTrigger>

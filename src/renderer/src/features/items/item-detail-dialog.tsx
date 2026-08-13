@@ -412,7 +412,7 @@ function DetailToolbar({
       <header
         data-detail-focus-header
         className={cn(
-          'pointer-events-none relative z-40 grid h-10 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center',
+          'pointer-events-none relative z-40 grid h-10 shrink-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center',
           expanded && '!bg-background/50'
         )}
       >
@@ -465,7 +465,7 @@ function DetailToolbar({
         </div>
         <p
           data-detail-focus-title
-          className="max-w-[min(32rem,42vw)] truncate px-4 text-center text-sm font-light max-[1080px]:hidden"
+          className="min-w-0 max-w-[min(32rem,42vw)] justify-self-center truncate px-4 text-center text-sm font-light max-[1080px]:hidden"
           title={title}
         >
           {title}
@@ -1138,15 +1138,17 @@ function NoteCanvas({
               />
             </div>
             <ScrollArea
+              ref={(root) => {
+                previewViewportRef.current =
+                  root?.querySelector<HTMLDivElement>('[data-slot="scroll-area-viewport"]') ?? null
+              }}
               className={cn(
-                'min-h-0 min-w-0',
+                'min-h-0 min-w-0 [&_[data-slot=scroll-area-viewport]]:focus-visible:ring-0 [&_[data-slot=scroll-area-viewport]]:focus-visible:outline-none',
                 mode === 'read' && 'flex',
                 mode === 'live' && 'hidden',
                 mode === 'markdown' && 'hidden',
                 mode === 'split' && 'hidden @min-[860px]/detail:flex'
               )}
-              viewportClassName="focus-visible:ring-0 focus-visible:outline-none"
-              viewportRef={previewViewportRef}
             >
               <article className="kuskus-detail-document-frame min-h-full w-full py-8">
                 <NoteDocumentBlocks
@@ -1864,10 +1866,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
               ) : null}
             </div>
           ) : (
-            <ScrollArea
-              className="min-h-0 min-w-0 flex-1"
-              viewportClassName="focus-visible:ring-0 focus-visible:outline-none"
-            >
+            <ScrollArea className="min-h-0 min-w-0 flex-1 [&_[data-slot=scroll-area-viewport]]:focus-visible:ring-0 [&_[data-slot=scroll-area-viewport]]:focus-visible:outline-none">
               <div className="min-h-full min-w-0 @min-[860px]/detail:grid @min-[860px]/detail:grid-cols-[minmax(0,1fr)_20rem]">
                 {item.type === 'image' ? (
                   <>

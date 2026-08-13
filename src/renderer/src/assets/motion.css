@@ -1,3 +1,13 @@
+:root {
+  --motion-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --motion-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --motion-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --motion-duration-tooltip: 125ms;
+  --motion-duration-press: 150ms;
+  --motion-duration-ui: 180ms;
+  --motion-duration-dialog: 200ms;
+}
+
 [data-sonner-toaster] {
   transition: transform var(--motion-duration-dialog) var(--motion-ease-out) !important;
 }
@@ -25,9 +35,7 @@
    otherwise reset background-image. Sonner pauses its dismiss timer while the
    toaster is hovered, so the bar pauses on the same condition to stay in sync. */
 [data-sonner-toaster] [data-sonner-toast].notify-undo {
-  background-image: linear-gradient(
-    color-mix(in oklch, var(--foreground) 18%, transparent) 0 0
-  );
+  background-image: linear-gradient(color-mix(in oklch, var(--foreground) 18%, transparent) 0 0);
   background-repeat: no-repeat;
   background-position: 12px calc(100% - 4px);
   background-size: calc(100% - 24px) 2px;

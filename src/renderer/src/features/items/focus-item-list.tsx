@@ -42,10 +42,7 @@ export function FocusItemList({
   const itemIds = items.map((item) => item.id)
 
   return (
-    <ScrollArea
-      className="min-h-0 min-w-0 flex-1"
-      viewportClassName="dark:library-scroll-viewport focus-visible:ring-0 focus-visible:outline-none"
-    >
+    <ScrollArea className="library-scroll-container min-h-0 min-w-0 flex-1 [&_[data-slot=scroll-area-viewport]]:focus-visible:ring-0 [&_[data-slot=scroll-area-viewport]]:focus-visible:outline-none">
       {density === 'index' ? (
         <div className="min-h-full pt-2" role="group" aria-label="Items">
           {composer ? <div className="p-2">{composer}</div> : null}

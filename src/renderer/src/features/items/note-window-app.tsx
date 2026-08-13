@@ -19,7 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { Toaster } from '@/components/ui/sonner'
+import { Toaster } from '@/features/shell/app-toaster'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import {
   ItemDetailDialog,

@@ -29,7 +29,11 @@ export default defineConfig(
     }
   },
   {
-    files: ['src/renderer/src/components/ui/**/*.tsx'],
+    files: [
+      'src/renderer/src/components/ui/**/*.tsx',
+      'src/renderer/src/features/shell/app-sidebar.tsx',
+      'src/renderer/src/features/shell/app-toaster.tsx'
+    ],
     rules: {
       '@typescript-eslint/explicit-function-return-type': 'off',
       'react-refresh/only-export-components': 'off'

@@ -1,7 +1,9 @@
+'use client'
+
 import * as React from 'react'
-import { IconCheck, IconSearch } from '@tabler/icons-react'
 import { Command as CommandPrimitive } from 'cmdk'
 
+import { cn } from '@/lib/utils'
 import {
   Dialog,
   DialogContent,
@@ -10,17 +12,14 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import { InputGroup, InputGroupAddon } from '@/components/ui/input-group'
-import { cn } from '@/lib/utils'
+import { IconSearch, IconCheck } from '@tabler/icons-react'
 
-function Command({
-  className,
-  ...props
-}: React.ComponentProps<typeof CommandPrimitive>): React.JSX.Element {
+function Command({ className, ...props }: React.ComponentProps<typeof CommandPrimitive>) {
   return (
     <CommandPrimitive
       data-slot="command"
       className={cn(
-        'flex size-full flex-col overflow-hidden rounded-3xl bg-popover p-1 text-popover-foreground',
+        'flex size-full flex-col overflow-hidden rounded-xl! bg-popover p-1 text-popover-foreground',
         className
       )}
       {...props}
@@ -41,7 +40,7 @@ function CommandDialog({
   className?: string
   showCloseButton?: boolean
   children: React.ReactNode
-}): React.JSX.Element {
+}) {
   return (
     <Dialog {...props}>
       <DialogHeader className="sr-only">
@@ -49,7 +48,7 @@ function CommandDialog({
         <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
       <DialogContent
-        className={cn('top-1/3 translate-y-0 overflow-hidden rounded-3xl! p-0', className)}
+        className={cn('top-1/3 translate-y-0 overflow-hidden rounded-xl! p-0', className)}
         showCloseButton={showCloseButton}
       >
         {children}
@@ -61,10 +60,10 @@ function CommandDialog({
 function CommandInput({
   className,
   ...props
-}: React.ComponentProps<typeof CommandPrimitive.Input>): React.JSX.Element {
+}: React.ComponentProps<typeof CommandPrimitive.Input>) {
   return (
     <div data-slot="command-input-wrapper" className="p-1 pb-0">
-      <InputGroup className="h-8! bg-input/50">
+      <InputGroup className="h-8! rounded-lg! border-input/30 bg-input/30 shadow-none! *:data-[slot=input-group-addon]:pl-2!">
         <CommandPrimitive.Input
           data-slot="command-input"
           className={cn(
@@ -81,10 +80,7 @@ function CommandInput({
   )
 }
 
-function CommandList({
-  className,
-  ...props
-}: React.ComponentProps<typeof CommandPrimitive.List>): React.JSX.Element {
+function CommandList({ className, ...props }: React.ComponentProps<typeof CommandPrimitive.List>) {
   return (
     <CommandPrimitive.List
       data-slot="command-list"
@@ -100,7 +96,7 @@ function CommandList({
 function CommandEmpty({
   className,
   ...props
-}: React.ComponentProps<typeof CommandPrimitive.Empty>): React.JSX.Element {
+}: React.ComponentProps<typeof CommandPrimitive.Empty>) {
   return (
     <CommandPrimitive.Empty
       data-slot="command-empty"
@@ -113,7 +109,7 @@ function CommandEmpty({
 function CommandGroup({
   className,
   ...props
-}: React.ComponentProps<typeof CommandPrimitive.Group>): React.JSX.Element {
+}: React.ComponentProps<typeof CommandPrimitive.Group>) {
   return (
     <CommandPrimitive.Group
       data-slot="command-group"
@@ -129,11 +125,11 @@ function CommandGroup({
 function CommandSeparator({
   className,
   ...props
-}: React.ComponentProps<typeof CommandPrimitive.Separator>): React.JSX.Element {
+}: React.ComponentProps<typeof CommandPrimitive.Separator>) {
   return (
     <CommandPrimitive.Separator
       data-slot="command-separator"
-      className={cn('my-1 h-px bg-border/50', className)}
+      className={cn('-mx-1 h-px w-auto bg-border', className)}
       {...props}
     />
   )
@@ -143,12 +139,12 @@ function CommandItem({
   className,
   children,
   ...props
-}: React.ComponentProps<typeof CommandPrimitive.Item>): React.JSX.Element {
+}: React.ComponentProps<typeof CommandPrimitive.Item>) {
   return (
     <CommandPrimitive.Item
       data-slot="command-item"
       className={cn(
-        "group/command-item relative flex min-h-7 cursor-default items-center gap-2 rounded-xl px-2 py-1.5 text-sm outline-hidden select-none in-data-[slot=dialog-content]:rounded-2xl data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-selected:bg-muted data-selected:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-selected:*:[svg]:text-foreground",
+        "group/command-item relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none in-data-[slot=dialog-content]:rounded-lg! data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-selected:bg-muted data-selected:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-selected:**:[svg]:text-foreground",
         className
       )}
       {...props}
@@ -159,7 +155,7 @@ function CommandItem({
   )
 }
 
-function CommandShortcut({ className, ...props }: React.ComponentProps<'span'>): React.JSX.Element {
+function CommandShortcut({ className, ...props }: React.ComponentProps<'span'>) {
   return (
     <span
       data-slot="command-shortcut"
@@ -175,11 +171,11 @@ function CommandShortcut({ className, ...props }: React.ComponentProps<'span'>):
 export {
   Command,
   CommandDialog,
+  CommandInput,
+  CommandList,
   CommandEmpty,
   CommandGroup,
-  CommandInput,
   CommandItem,
-  CommandList,
-  CommandSeparator,
-  CommandShortcut
+  CommandShortcut,
+  CommandSeparator
 }

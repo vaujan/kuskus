@@ -141,9 +141,12 @@ test('detail modes share the compact toolbar and inline document flow', () => {
 
   assert.match(detailSource, /data-detail-utility-bar/)
   assert.match(focusToolbarSource, /data-detail-focus-header/)
-  assert.match(focusToolbarSource, /grid h-10 shrink-0 grid-cols-/)
+  assert.match(focusToolbarSource, /grid h-10 shrink-0 grid-cols-\[auto_minmax\(0,1fr\)_auto\]/)
   assert.match(focusToolbarSource, /data-detail-focus-title/)
-  assert.match(focusToolbarSource, /max-w-\[min\(32rem,42vw\)\] truncate/)
+  assert.match(
+    focusToolbarSource,
+    /min-w-0 max-w-\[min\(32rem,42vw\)\] justify-self-center truncate/
+  )
   assert.match(focusToolbarSource, /max-\[1080px\]:hidden/)
   assert.match(focusToolbarSource, /expanded \? 'Restore item rail' : 'Expand note'/)
   assert.match(focusToolbarSource, /aria-pressed=\{expanded\}/)
