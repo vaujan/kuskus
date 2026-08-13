@@ -311,7 +311,7 @@ function FolderTreeItem({
   const expanded = hasChildren && !collapsedIds.has(folder.id)
   const childListId = `folder-children-${folder.id}`
   const contentLeft = depth * 18
-  const labelLeft = contentLeft + 20
+  const labelLeft = contentLeft + (hasChildren ? 20 : 8)
   const trunkX = contentLeft + 6
   const dropTarget = { type: 'folder', id: folder.id } as const
   const dropActive = activeDropTarget?.type === 'folder' && activeDropTarget.id === folder.id
@@ -345,7 +345,7 @@ function FolderTreeItem({
             <div
               draggable
               className={cn(
-                'group/folder-row relative flex h-(--control-height-md) w-full min-w-0 items-center overflow-hidden rounded-md text-sidebar-foreground/70 ring-inset ring-sidebar-ring outline-hidden transition-[background-color,color,box-shadow,scale] [transition-duration:var(--motion-duration-tooltip)] [transition-timing-function:var(--motion-ease-out)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground has-[:focus-visible]:ring-3 motion-reduce:scale-100 motion-reduce:transition-none',
+                'group/folder-row relative flex h-(--control-height-md) w-full min-w-0 items-center overflow-hidden rounded-md text-sidebar-foreground ring-inset ring-sidebar-ring outline-hidden transition-[background-color,color,box-shadow,scale] [transition-duration:var(--motion-duration-tooltip)] [transition-timing-function:var(--motion-ease-out)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground has-[:focus-visible]:ring-3 motion-reduce:scale-100 motion-reduce:transition-none',
                 selectedId === folder.id &&
                   'bg-sidebar-accent font-medium text-sidebar-accent-foreground',
                 dropActive &&
@@ -460,7 +460,7 @@ function FolderTreeItem({
             <CollectionIcon icon={folder.icon} aria-hidden="true" />
             <span>{folder.name}</span>
           </SidebarMenuButton>
-          <SidebarMenuBadge className="right-4 font-mono font-normal text-sidebar-foreground/60 opacity-100 transition-opacity [transition-duration:var(--motion-duration-tooltip)] [transition-timing-function:var(--motion-ease-out)] group-hover/folder-row:opacity-0 group-has-[:focus-visible]/folder-row:opacity-0 motion-reduce:transition-none">
+          <SidebarMenuBadge className="font-mono font-normal text-sidebar-foreground/60 opacity-100 transition-opacity [transition-duration:var(--motion-duration-tooltip)] [transition-timing-function:var(--motion-ease-out)] group-hover/folder-row:opacity-0 group-has-[:focus-visible]/folder-row:opacity-0 motion-reduce:transition-none">
             {counts.get(folder.id) ?? 0}
           </SidebarMenuBadge>
           <DropdownMenu>
@@ -854,10 +854,10 @@ export function LibrarySidebar({
                   >
                     <IconInbox aria-hidden="true" />
                     <span>Inbox</span>
-                    <span className="ml-auto font-mono text-xs tabular-nums text-sidebar-foreground/60">
-                      {locationCounts.inbox}
-                    </span>
                   </SidebarMenuButton>
+                  <SidebarMenuBadge className="font-mono font-normal text-sidebar-foreground/60">
+                    {locationCounts.inbox}
+                  </SidebarMenuBadge>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton
@@ -866,10 +866,10 @@ export function LibrarySidebar({
                   >
                     <IconLibrary aria-hidden="true" />
                     <span>All Items</span>
-                    <span className="ml-auto font-mono text-xs tabular-nums text-sidebar-foreground/60">
-                      {locationCounts.active}
-                    </span>
                   </SidebarMenuButton>
+                  <SidebarMenuBadge className="font-mono font-normal text-sidebar-foreground/60">
+                    {locationCounts.active}
+                  </SidebarMenuBadge>
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
@@ -954,10 +954,10 @@ export function LibrarySidebar({
                   >
                     <IconArchive aria-hidden="true" />
                     <span>Archive</span>
-                    <span className="ml-auto font-mono text-xs tabular-nums text-sidebar-foreground/60">
-                      {locationCounts.archive}
-                    </span>
                   </SidebarMenuButton>
+                  <SidebarMenuBadge className="font-mono font-normal text-sidebar-foreground/60">
+                    {locationCounts.archive}
+                  </SidebarMenuBadge>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton
@@ -966,10 +966,10 @@ export function LibrarySidebar({
                   >
                     <IconTrash aria-hidden="true" />
                     <span>Trash</span>
-                    <span className="ml-auto font-mono text-xs tabular-nums text-sidebar-foreground/60">
-                      {locationCounts.trash}
-                    </span>
                   </SidebarMenuButton>
+                  <SidebarMenuBadge className="font-mono font-normal text-sidebar-foreground/60">
+                    {locationCounts.trash}
+                  </SidebarMenuBadge>
                 </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>

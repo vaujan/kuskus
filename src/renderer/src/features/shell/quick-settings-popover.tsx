@@ -77,6 +77,8 @@ export function QuickSettingsPopover({
         ? 'Available from any app while Kuskus is running.'
         : 'The system-wide shortcut could not be registered.'
 
+  const themeMode = theme.endsWith('dark') ? 'dark' : 'light'
+  const themePalette = theme.startsWith('solarized') ? 'solarized' : 'default'
   const translucencyDisabled =
     translucentBackgroundSupported !== true || translucentBackgroundReduced
   const translucencyDescription =
@@ -145,15 +147,42 @@ export function QuickSettingsPopover({
           <Field orientation="horizontal" className="min-h-10 items-center gap-4">
             <FieldTitle>Theme</FieldTitle>
             <ToggleGroup
-              value={[theme]}
+              value={[themePalette]}
               onValueChange={(values) => {
-                const nextTheme = values[0]
-                if (nextTheme) onThemeChange(nextTheme as Theme)
+                const palette = values[0]
+                if (palette)
+                  onThemeChange(
+                    (palette === 'solarized' ? `solarized-${themeMode}` : themeMode) as Theme
+                  )
               }}
               variant="outline"
               spacing={0}
               aria-label="Theme"
-              className="w-40 shrink-0"
+              className="w-44 shrink-0"
+            >
+              <ToggleGroupItem value="default" className="min-h-10 min-w-0 flex-1">
+                Default
+              </ToggleGroupItem>
+              <ToggleGroupItem value="solarized" className="min-h-10 min-w-0 flex-1">
+                Solarized
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </Field>
+          <Field orientation="horizontal" className="min-h-10 items-center gap-4">
+            <FieldTitle>Mode</FieldTitle>
+            <ToggleGroup
+              value={[themeMode]}
+              onValueChange={(values) => {
+                const mode = values[0]
+                if (mode)
+                  onThemeChange(
+                    (themePalette === 'solarized' ? `solarized-${mode}` : mode) as Theme
+                  )
+              }}
+              variant="outline"
+              spacing={0}
+              aria-label="Color mode"
+              className="w-44 shrink-0"
             >
               <ToggleGroupItem value="light" className="min-h-10 min-w-0 flex-1">
                 <IconSun aria-hidden="true" />

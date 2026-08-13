@@ -2,17 +2,12 @@ import './assets/main.css'
 
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { applyTheme, resolveTheme } from './hooks/use-theme'
 import { initializeTranslucentBackground } from './hooks/use-translucent-background'
 
 performance.mark('kuskus:renderer-entry')
 
-const savedTheme = localStorage.getItem('kuskus-theme')
-const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-const useDarkTheme =
-  savedTheme === 'dark' || (savedTheme === 'system' && prefersDark) || !savedTheme
-
-document.documentElement.classList.toggle('dark', useDarkTheme)
-document.documentElement.style.colorScheme = useDarkTheme ? 'dark' : 'light'
+applyTheme(resolveTheme(localStorage.getItem('kuskus-theme')))
 const searchParams = new URLSearchParams(window.location.search)
 const surface = searchParams.get('surface')
 const isQuickCapture = surface === 'quick-capture'
