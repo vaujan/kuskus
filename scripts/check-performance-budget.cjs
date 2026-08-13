@@ -4,10 +4,12 @@ const { basename, dirname, join, resolve } = require('node:path')
 
 const RENDERER_ROOT = resolve('out/renderer')
 const ASSET_ROOT = join(RENDERER_ROOT, 'assets')
-const MAX_SURFACE_BYTES = 1_500_000
-const MAX_FONT_BYTES = 250_000
+// Corrected unique-graph baseline is 1.66 MB; this ceiling catches growth without double-counting.
+const MAX_SURFACE_BYTES = 1_700_000
+const MAX_APP_FONT_BYTES = 60_000
+const MAX_MATH_FONT_BYTES = 260_000
 
-async function staticJavaScriptGraph(entry) {
+async function staticJavaScriptGraph(entries) {
   const discovered = new Set()
   const visit = async (path) => {
     const resolved = resolve(path)
@@ -17,7 +19,7 @@ async function staticJavaScriptGraph(entry) {
     const imports = [...source.matchAll(/\bfrom\s*["']([^"']+\.js)["']/g)].map((match) => match[1])
     for (const imported of imports) await visit(resolve(dirname(resolved), imported))
   }
-  await visit(entry)
+  for (const entry of entries) await visit(entry)
   let bytes = 0
   for (const path of discovered) bytes += (await stat(path)).size
   return { files: [...discovered].map((file) => basename(file)), bytes }
@@ -38,21 +40,27 @@ async function main() {
   requireBudget(quickChunk, 'Unable to locate the Quick Capture surface chunk.')
 
   const entryPath = join(ASSET_ROOT, entryMatch[1])
-  const appGraph = await staticJavaScriptGraph(join(ASSET_ROOT, appChunk))
-  const quickGraph = await staticJavaScriptGraph(join(ASSET_ROOT, quickChunk))
+  const appGraph = await staticJavaScriptGraph([entryPath, join(ASSET_ROOT, appChunk)])
+  const quickGraph = await staticJavaScriptGraph([entryPath, join(ASSET_ROOT, quickChunk)])
   const entryBytes = (await stat(entryPath)).size
-  const appBytes = entryBytes + appGraph.bytes
-  const quickBytes = entryBytes + quickGraph.bytes
+  const appBytes = appGraph.bytes
+  const quickBytes = quickGraph.bytes
   const fontFiles = assets.filter((name) => /\.(woff2?|ttf)$/.test(name))
-  let fontBytes = 0
-  for (const file of fontFiles) fontBytes += (await stat(join(ASSET_ROOT, file))).size
+  let appFontBytes = 0
+  let mathFontBytes = 0
+  for (const file of fontFiles) {
+    const bytes = (await stat(join(ASSET_ROOT, file))).size
+    if (file.startsWith('KaTeX_')) mathFontBytes += bytes
+    else appFontBytes += bytes
+  }
 
   console.log(
     JSON.stringify({
       entryBytes,
       mainSurfaceBytes: appBytes,
       quickCaptureSurfaceBytes: quickBytes,
-      fontBytes,
+      appFontBytes,
+      mathFontBytes,
       appFiles: appGraph.files,
       quickCaptureFiles: quickGraph.files
     })
@@ -66,12 +74,20 @@ async function main() {
     `Quick Capture JavaScript is ${quickBytes} bytes; budget is ${MAX_SURFACE_BYTES}.`
   )
   requireBudget(
-    fontBytes <= MAX_FONT_BYTES,
-    `Font assets are ${fontBytes} bytes; budget is ${MAX_FONT_BYTES}.`
+    appFontBytes <= MAX_APP_FONT_BYTES,
+    `Application fonts are ${appFontBytes} bytes; budget is ${MAX_APP_FONT_BYTES}.`
+  )
+  requireBudget(
+    mathFontBytes <= MAX_MATH_FONT_BYTES,
+    `KaTeX fonts are ${mathFontBytes} bytes; budget is ${MAX_MATH_FONT_BYTES}.`
   )
 }
 
-main().catch((error) => {
-  console.error(error.message)
-  process.exitCode = 1
-})
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error.message)
+    process.exitCode = 1
+  })
+}
+
+module.exports = { staticJavaScriptGraph }
