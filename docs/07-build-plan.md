@@ -203,3 +203,9 @@ date added, title, and item type (Milestone 5 retrieval work) was completed on 2
   the main-process snapshot.
 - Added 100-card progressive visual rendering, persistent Masonry observers, shared preview request
   concurrency and LRU caching, separate dynamic surface entries, and a Latin-only base font asset.
+
+## Performance improvement pass (planned)
+
+The next measured pass is defined in `docs/11-performance-improvement-plan.md`. It prioritizes
+bounded card thumbnails, viewport-driven and byte-bounded preview caching, idle Quick Capture
+renderer destruction, and narrower editor lazy-loading before lower-impact React micro-optimizations.
