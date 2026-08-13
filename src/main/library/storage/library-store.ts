@@ -65,6 +65,7 @@ import {
 } from '../vault-frontmatter'
 import { URL_PREVIEW_EXTENSIONS } from '../url-preview'
 import { readJson, writeJsonAtomic } from './json-file'
+import { kuskusPath, resolveInsideVault } from './vault-paths'
 
 const KUSKUS_DIRECTORY = '.kuskus'
 const LIBRARY_FILENAME = 'library.json'
@@ -304,15 +305,11 @@ export class LibraryStore {
     }
   }
 
-  private kuskusPath(libraryPath: string, ...parts: string[]): string {
-    return join(libraryPath, KUSKUS_DIRECTORY, ...parts)
-  }
-
   async readCachedLibraryDto(libraryPath: string): Promise<LibraryDto | null> {
     try {
       const library = await this.readPersistedLibrary(libraryPath)
       const cached = await readJson<unknown>(
-        this.kuskusPath(libraryPath, INDEX_DIRECTORY, LIBRARY_INDEX_FILENAME)
+        kuskusPath(libraryPath, INDEX_DIRECTORY, LIBRARY_INDEX_FILENAME)
       )
       if (!cached || typeof cached !== 'object') return null
       const value = cached as Partial<LibraryIndexCache>
@@ -335,21 +332,12 @@ export class LibraryStore {
   }
 
   private async writeCachedLibraryDto(libraryPath: string, library: LibraryDto): Promise<void> {
-    await writeJsonAtomic(this.kuskusPath(libraryPath, INDEX_DIRECTORY, LIBRARY_INDEX_FILENAME), {
+    await writeJsonAtomic(kuskusPath(libraryPath, INDEX_DIRECTORY, LIBRARY_INDEX_FILENAME), {
       schemaVersion: 1,
       libraryId: library.id,
       writtenAt: new Date().toISOString(),
       library
     } satisfies LibraryIndexCache)
-  }
-
-  private resolveInside(libraryPath: string, relativePath: string): string {
-    const root = resolve(libraryPath)
-    const candidate = resolve(root, relativePath)
-    if (candidate !== root && !candidate.startsWith(`${root}${sep}`)) {
-      throw new Error('A library path points outside the selected vault.')
-    }
-    return candidate
   }
 
   private async uniquePath(directory: string, filename: string): Promise<string> {
@@ -373,7 +361,7 @@ export class LibraryStore {
     const updates: Array<{ path: string; source: string; next: string }> = []
     for (const record of records) {
       if (record.metadata.type !== 'note') continue
-      const path = this.resolveInside(libraryPath, record.relativePath)
+      const path = resolveInsideVault(libraryPath, record.relativePath)
       if (!(await this.pathExists(path))) continue
       const source = await readFile(path, 'utf8')
       const next = rewriteVaultReferences(source, path, path, libraryPath, replacements)
@@ -420,7 +408,7 @@ export class LibraryStore {
     }
     await this.ensureLibraryDirectories(libraryPath)
     await mkdir(join(libraryPath, DEFAULT_ARCHIVE_DIRECTORY), { recursive: true })
-    await writeJsonAtomic(this.kuskusPath(libraryPath, LIBRARY_FILENAME), {
+    await writeJsonAtomic(kuskusPath(libraryPath, LIBRARY_FILENAME), {
       ...library,
       schemaVersion: 2
     })
@@ -441,7 +429,7 @@ export class LibraryStore {
       name: basename(libraryPath),
       createdAt
     }
-    await writeJsonAtomic(this.kuskusPath(libraryPath, LIBRARY_FILENAME), {
+    await writeJsonAtomic(kuskusPath(libraryPath, LIBRARY_FILENAME), {
       ...library,
       archiveDirectory: archiveName
     })
@@ -452,7 +440,7 @@ export class LibraryStore {
   async readPersistedLibrary(libraryPath: string): Promise<PersistedLibrary> {
     const targetStat = await stat(libraryPath)
     if (!targetStat.isDirectory()) throw new Error('The library path is not a folder.')
-    const v2Path = this.kuskusPath(libraryPath, LIBRARY_FILENAME)
+    const v2Path = kuskusPath(libraryPath, LIBRARY_FILENAME)
     if (await this.pathExists(v2Path)) {
       const library = await readJson<unknown>(v2Path)
       if (!isPersistedLibrary(library) || library.schemaVersion !== 2) {
@@ -483,8 +471,7 @@ export class LibraryStore {
     try {
       const value = await stat(libraryPath)
       return (
-        value.isDirectory() &&
-        !(await this.pathExists(this.kuskusPath(libraryPath, LIBRARY_FILENAME)))
+        value.isDirectory() && !(await this.pathExists(kuskusPath(libraryPath, LIBRARY_FILENAME)))
       )
     } catch {
       return false
@@ -662,24 +649,24 @@ export class LibraryStore {
 
   async ensureLibraryDirectories(libraryPath: string): Promise<void> {
     await Promise.all([
-      mkdir(this.kuskusPath(libraryPath, RECORDS_DIRECTORY), { recursive: true }),
-      mkdir(this.kuskusPath(libraryPath, COLLECTION_RECORDS_DIRECTORY), { recursive: true }),
-      mkdir(this.kuskusPath(libraryPath, TRASH_DIRECTORY), { recursive: true }),
-      mkdir(this.kuskusPath(libraryPath, 'temp'), { recursive: true }),
-      mkdir(this.kuskusPath(libraryPath, URL_PREVIEW_DIRECTORY), { recursive: true })
+      mkdir(kuskusPath(libraryPath, RECORDS_DIRECTORY), { recursive: true }),
+      mkdir(kuskusPath(libraryPath, COLLECTION_RECORDS_DIRECTORY), { recursive: true }),
+      mkdir(kuskusPath(libraryPath, TRASH_DIRECTORY), { recursive: true }),
+      mkdir(kuskusPath(libraryPath, 'temp'), { recursive: true }),
+      mkdir(kuskusPath(libraryPath, URL_PREVIEW_DIRECTORY), { recursive: true })
     ])
   }
 
   private itemRecordPath(libraryPath: string, id: string): string {
-    return this.kuskusPath(libraryPath, RECORDS_DIRECTORY, `${id}.json`)
+    return kuskusPath(libraryPath, RECORDS_DIRECTORY, `${id}.json`)
   }
 
   private collectionRecordPath(libraryPath: string, id: string): string {
-    return this.kuskusPath(libraryPath, COLLECTION_RECORDS_DIRECTORY, `${id}.json`)
+    return kuskusPath(libraryPath, COLLECTION_RECORDS_DIRECTORY, `${id}.json`)
   }
 
   private async readItemRecords(libraryPath: string): Promise<VaultItemRecord[]> {
-    const directory = this.kuskusPath(libraryPath, RECORDS_DIRECTORY)
+    const directory = kuskusPath(libraryPath, RECORDS_DIRECTORY)
     await mkdir(directory, { recursive: true })
     const entries = (await readdir(directory, { withFileTypes: true })).filter(
       (entry) => entry.isFile() && entry.name.endsWith('.json')
@@ -706,7 +693,7 @@ export class LibraryStore {
   }
 
   private async readCollectionRecords(libraryPath: string): Promise<VaultCollectionRecord[]> {
-    const directory = this.kuskusPath(libraryPath, COLLECTION_RECORDS_DIRECTORY)
+    const directory = kuskusPath(libraryPath, COLLECTION_RECORDS_DIRECTORY)
     await mkdir(directory, { recursive: true })
     const entries = (await readdir(directory, { withFileTypes: true })).filter(
       (entry) => entry.isFile() && entry.name.endsWith('.json')
@@ -886,7 +873,7 @@ export class LibraryStore {
       if (
         record.relativePath !== DEFAULT_ARCHIVE_DIRECTORY &&
         !HIDDEN_DIRECTORY.test(record.relativePath) &&
-        (await this.pathExists(this.resolveInside(libraryPath, record.relativePath)))
+        (await this.pathExists(resolveInsideVault(libraryPath, record.relativePath)))
       ) {
         folderPaths.add(record.relativePath)
       }
@@ -1055,11 +1042,11 @@ export class LibraryStore {
 
     const references = new Set<string>()
     const availablePaths = records.map((record) =>
-      this.resolveInside(libraryPath, record.relativePath)
+      resolveInsideVault(libraryPath, record.relativePath)
     )
     const noteRecords = records.filter((record) => record.metadata.type === 'note')
     const noteReferences = await mapWithConcurrency(noteRecords, 32, async (record) => {
-      const notePath = this.resolveInside(libraryPath, record.relativePath)
+      const notePath = resolveInsideVault(libraryPath, record.relativePath)
       const source = await readFile(notePath, 'utf8')
       return extractVaultReferenceTargets(source).map((reference) => {
         const target = resolveVaultReferencePath(reference, notePath, libraryPath, availablePaths)
@@ -1121,7 +1108,7 @@ export class LibraryStore {
   private async cleanupVisibleMetadata(
     libraryPath: string
   ): Promise<{ cleanup: VaultCleanupDto; conflicts: VaultRepairConflictDto[] }> {
-    const migrationDirectory = this.kuskusPath(libraryPath, 'migrations')
+    const migrationDirectory = kuskusPath(libraryPath, 'migrations')
     const markerPath = join(migrationDirectory, CLEANUP_MARKER)
     await mkdir(migrationDirectory, { recursive: true })
     if (await this.pathExists(markerPath)) {
@@ -1230,7 +1217,7 @@ export class LibraryStore {
     const stamp = new Date().toISOString().replace(/[:.]/g, '-')
     const recoveryDirectory = join(migrationDirectory, `visible-metadata-${stamp}`)
     const originalsDirectory = join(recoveryDirectory, 'originals')
-    const transactionDirectory = this.kuskusPath(
+    const transactionDirectory = kuskusPath(
       libraryPath,
       'temp',
       `${randomUUID()}.visible-metadata-cleanup`
@@ -1387,7 +1374,7 @@ export class LibraryStore {
       const current = recordByPath.get(normalizedPath.toLocaleLowerCase())
       const item = current ? itemById.get(current.id) : null
       if (!current || !item || current.recovery?.missingSince) return null
-      const path = this.resolveInside(libraryPath, normalizedPath)
+      const path = resolveInsideVault(libraryPath, normalizedPath)
       let fileStats: Stats
       try {
         fileStats = await stat(path)
@@ -1468,9 +1455,9 @@ export class LibraryStore {
       attachmentRecords,
       attachmentRecordIds: new Set(attachmentRecords.map((item) => item.id)),
       availablePaths: itemRecords.flatMap((item) => [
-        this.resolveInside(libraryPath, item.relativePath),
+        resolveInsideVault(libraryPath, item.relativePath),
         ...(item.metadata.trashedFromRelativePath
-          ? [this.resolveInside(libraryPath, item.metadata.trashedFromRelativePath)]
+          ? [resolveInsideVault(libraryPath, item.metadata.trashedFromRelativePath)]
           : [])
       ]),
       imageDetection: new Map()
@@ -1485,7 +1472,7 @@ export class LibraryStore {
   ): Promise<LibraryItemDto> {
     const metadata = { ...record.metadata, relativePath: record.relativePath }
     const location = this.locationForPath(record.relativePath, collections, metadata)
-    const path = this.resolveInside(libraryPath, record.relativePath)
+    const path = resolveInsideVault(libraryPath, record.relativePath)
     if (metadata.type === 'url') return toUrlDto(metadata, location)
     if (metadata.type === 'image') {
       return { ...toImageDto(metadata, location), missingContent: !(await this.pathExists(path)) }
@@ -1533,7 +1520,7 @@ export class LibraryStore {
     if (record.metadata.type !== 'note') return []
     const buildContext = context ?? (await this.createDtoBuildContext(libraryPath))
 
-    const notePath = this.resolveInside(libraryPath, record.relativePath)
+    const notePath = resolveInsideVault(libraryPath, record.relativePath)
     const attachments: NoteAttachmentDto[] = []
     const seenTargets = new Set<string>()
     for (const reference of extractVaultReferenceTargets(source)) {
@@ -1663,7 +1650,7 @@ export class LibraryStore {
         (record) => record.id === parentId
       )
       if (!parent) throw new Error('The parent folder no longer exists.')
-      directory = this.resolveInside(libraryPath, parent.relativePath ?? parent.name)
+      directory = resolveInsideVault(libraryPath, parent.relativePath ?? parent.name)
       const parentStat = await stat(directory)
       if (!parentStat.isDirectory()) throw new Error('The parent folder is unavailable.')
     }
@@ -1697,7 +1684,7 @@ export class LibraryStore {
     if (!current) throw new Error('This folder no longer exists.')
     let relativePath = current.relativePath
     if (collection.name !== current.name) {
-      const source = this.resolveInside(libraryPath, current.relativePath)
+      const source = resolveInsideVault(libraryPath, current.relativePath)
       const destination = await this.uniquePath(
         dirname(source),
         safeStem(collection.name, current.name)
@@ -1741,10 +1728,10 @@ export class LibraryStore {
       if (parent.id === current.id || parent.relativePath.startsWith(`${current.relativePath}/`)) {
         throw new Error('A folder cannot be moved inside itself or one of its subfolders.')
       }
-      destinationDirectory = this.resolveInside(libraryPath, parent.relativePath)
+      destinationDirectory = resolveInsideVault(libraryPath, parent.relativePath)
     }
 
-    const source = this.resolveInside(libraryPath, current.relativePath)
+    const source = resolveInsideVault(libraryPath, current.relativePath)
     const destination = await this.uniquePath(destinationDirectory, basename(source))
     const nextRoot = slash(relative(libraryPath, destination))
     const itemRecords = await this.readItemRecords(libraryPath)
@@ -1799,7 +1786,7 @@ export class LibraryStore {
       (entry) => entry.id === collectionId
     )
     if (!current) throw new Error('This folder no longer exists.')
-    const path = this.resolveInside(libraryPath, current.relativePath)
+    const path = resolveInsideVault(libraryPath, current.relativePath)
     const retained = new Set(retainedEntries.map((entry) => entry.toLowerCase()))
     const remaining = (await readdir(path, { withFileTypes: true })).filter(
       (entry) => !retained.has(entry.name.toLowerCase())
@@ -1819,7 +1806,7 @@ export class LibraryStore {
       (entry) => entry.id === collectionId
     )
     if (!current) return
-    const path = this.resolveInside(libraryPath, current.relativePath)
+    const path = resolveInsideVault(libraryPath, current.relativePath)
     if ((await readdir(path)).length > 0)
       throw new Error('Move or remove its subfolders before deleting this folder.')
     await rm(path, { recursive: true })
@@ -1827,15 +1814,15 @@ export class LibraryStore {
   }
 
   private captureDraftDirectory(libraryPath: string): string {
-    return this.kuskusPath(libraryPath, 'temp', NOTE_DRAFT_DIRECTORY)
+    return kuskusPath(libraryPath, 'temp', NOTE_DRAFT_DIRECTORY)
   }
 
   private captureDraftFileDirectory(libraryPath: string): string {
-    return this.kuskusPath(libraryPath, 'temp', FILE_DRAFT_DIRECTORY)
+    return kuskusPath(libraryPath, 'temp', FILE_DRAFT_DIRECTORY)
   }
 
   private captureQueueDirectory(libraryPath: string): string {
-    return this.kuskusPath(libraryPath, 'temp', CAPTURE_QUEUE_DIRECTORY)
+    return kuskusPath(libraryPath, 'temp', CAPTURE_QUEUE_DIRECTORY)
   }
 
   private captureSubmissionDirectory(libraryPath: string, submissionId: string): string {
@@ -2132,11 +2119,7 @@ export class LibraryStore {
         'General files are indexed from the vault but are not captured through this operation.'
       )
     }
-    const recoveryMarker = this.kuskusPath(
-      libraryPath,
-      'temp',
-      `${metadata.id}.capture-recovery.json`
-    )
+    const recoveryMarker = kuskusPath(libraryPath, 'temp', `${metadata.id}.capture-recovery.json`)
     let destination: string
     let recoveredAttachmentPaths: Array<{ id: string; relativePath: string }> = []
     try {
@@ -2146,7 +2129,7 @@ export class LibraryStore {
           ? (marker as Record<string, unknown>).relativePath
           : null
       if (typeof relativePath !== 'string') throw new Error('Invalid capture recovery marker.')
-      destination = this.resolveInside(libraryPath, relativePath)
+      destination = resolveInsideVault(libraryPath, relativePath)
       const attachmentPaths = (marker as Record<string, unknown>).attachmentPaths
       if (Array.isArray(attachmentPaths)) {
         recoveredAttachmentPaths = attachmentPaths.flatMap((entry) => {
@@ -2206,7 +2189,7 @@ export class LibraryStore {
         attachmentPaths: recoveredAttachmentPaths
       })
     }
-    const temporary = this.kuskusPath(libraryPath, 'temp', `${metadata.id}.capture`)
+    const temporary = kuskusPath(libraryPath, 'temp', `${metadata.id}.capture`)
     const stagedContent = join(temporary, basename(destination))
     const destinationAlreadyFinalized = await this.pathExists(destination)
     if (!destinationAlreadyFinalized) {
@@ -2221,7 +2204,7 @@ export class LibraryStore {
         if (!file) throw new Error(`The attachment ${attachment.filename} is missing.`)
         const reserved = recoveredAttachmentPaths.find((entry) => entry.id === attachment.id)
         if (!reserved) throw new Error(`The attachment ${attachment.filename} has no destination.`)
-        const attachmentPath = this.resolveInside(libraryPath, reserved.relativePath)
+        const attachmentPath = resolveInsideVault(libraryPath, reserved.relativePath)
         const relativePath = markdownPathForAttachment(destination, attachmentPath)
         attachments.push({ ...attachment, filename: basename(attachmentPath), relativePath })
         if (!(await this.pathExists(attachmentPath))) {
@@ -2305,11 +2288,7 @@ export class LibraryStore {
     await this.readPersistedLibrary(libraryPath)
     const extension = extname(input.filename)
     const safeFilename = `${safeStem(basename(input.filename, extension), 'Imported file')}${extension}`
-    const recoveryMarker = this.kuskusPath(
-      libraryPath,
-      'temp',
-      `${input.id}.file-import-recovery.json`
-    )
+    const recoveryMarker = kuskusPath(libraryPath, 'temp', `${input.id}.file-import-recovery.json`)
     let destination: string
     try {
       const marker = await readJson<unknown>(recoveryMarker)
@@ -2320,7 +2299,7 @@ export class LibraryStore {
       if (typeof markedRelativePath !== 'string') {
         throw new Error('Invalid file recovery marker.')
       }
-      destination = this.resolveInside(libraryPath, markedRelativePath)
+      destination = resolveInsideVault(libraryPath, markedRelativePath)
     } catch {
       const directory = await this.destinationDirectory(libraryPath, location, input.id)
       await mkdir(directory, { recursive: true })
@@ -2330,7 +2309,7 @@ export class LibraryStore {
         relativePath: slash(relative(libraryPath, destination))
       })
     }
-    const temporary = this.kuskusPath(libraryPath, 'temp', `${input.id}.file-import`)
+    const temporary = kuskusPath(libraryPath, 'temp', `${input.id}.file-import`)
     if (!(await this.pathExists(destination))) {
       await writeFile(temporary, input.bytes)
       await rename(temporary, destination)
@@ -2377,7 +2356,7 @@ export class LibraryStore {
     const record = (await this.readItemRecords(libraryPath)).find((entry) => entry.id === itemId)
     if (!record) throw new Error('The saved item no longer exists.')
     const collections = await this.readCollectionRecords(libraryPath)
-    const path = this.resolveInside(libraryPath, record.relativePath)
+    const path = resolveInsideVault(libraryPath, record.relativePath)
     return {
       directory: dirname(path),
       path,
@@ -2415,9 +2394,9 @@ export class LibraryStore {
         const source = await readFile(destination, 'utf8')
         const replacements = new Map<string, string>()
         const availablePaths = (await this.readItemRecords(libraryPath)).flatMap((record) => [
-          this.resolveInside(libraryPath, record.relativePath),
+          resolveInsideVault(libraryPath, record.relativePath),
           ...(record.metadata.trashedFromRelativePath
-            ? [this.resolveInside(libraryPath, record.metadata.trashedFromRelativePath)]
+            ? [resolveInsideVault(libraryPath, record.metadata.trashedFromRelativePath)]
             : [])
         ])
         for (const reference of extractVaultReferenceTargets(source)) {
@@ -2474,7 +2453,7 @@ export class LibraryStore {
   ): Promise<void> {
     const resolved = await this.resolveItem(libraryPath, metadata.id)
     if (resolved.metadata.type !== 'note') throw new Error('The saved item is not a note.')
-    const temporary = this.kuskusPath(libraryPath, 'temp', `${metadata.id}.note-update`)
+    const temporary = kuskusPath(libraryPath, 'temp', `${metadata.id}.note-update`)
     await writeFile(temporary, markdown, 'utf8')
     const current = `${resolved.path}.${randomUUID()}.previous`
     await rename(resolved.path, current)
@@ -2530,7 +2509,7 @@ export class LibraryStore {
   }
 
   private urlPreviewDirectory(libraryPath: string, itemId: string): string {
-    return this.kuskusPath(libraryPath, URL_PREVIEW_DIRECTORY, itemId)
+    return kuskusPath(libraryPath, URL_PREVIEW_DIRECTORY, itemId)
   }
 
   async readUrlPreviewCache(
@@ -2588,17 +2567,17 @@ export class LibraryStore {
   ): Promise<string> {
     if (location.type === 'inbox') return libraryPath
     if (location.type === 'archive') return join(libraryPath, DEFAULT_ARCHIVE_DIRECTORY)
-    if (location.type === 'trash') return this.kuskusPath(libraryPath, TRASH_DIRECTORY, itemId)
+    if (location.type === 'trash') return kuskusPath(libraryPath, TRASH_DIRECTORY, itemId)
     const collection = (await this.readCollectionRecords(libraryPath)).find(
       (entry) => entry.id === location.collectionId
     )
     if (!collection) throw new Error('The destination folder no longer exists.')
-    return this.resolveInside(libraryPath, collection.relativePath)
+    return resolveInsideVault(libraryPath, collection.relativePath)
   }
 
   async moveItems(libraryPath: string, requests: ItemMoveRequest[]): Promise<void> {
     if (requests.length === 0) return
-    const transaction = this.kuskusPath(libraryPath, 'temp', `${randomUUID()}.item-move`)
+    const transaction = kuskusPath(libraryPath, 'temp', `${randomUUID()}.item-move`)
     await mkdir(transaction, { recursive: true })
     const staged: Array<{
       request: ItemMoveRequest
@@ -2675,9 +2654,9 @@ export class LibraryStore {
           const source = await readFile(destination, 'utf8')
           const replacements = new Map<string, string>()
           const availablePaths = (await this.readItemRecords(libraryPath)).flatMap((record) => [
-            this.resolveInside(libraryPath, record.relativePath),
+            resolveInsideVault(libraryPath, record.relativePath),
             ...(record.metadata.trashedFromRelativePath
-              ? [this.resolveInside(libraryPath, record.metadata.trashedFromRelativePath)]
+              ? [resolveInsideVault(libraryPath, record.metadata.trashedFromRelativePath)]
               : [])
           ])
           for (const reference of extractVaultReferenceTargets(source)) {
@@ -2724,7 +2703,7 @@ export class LibraryStore {
             entry.request.item.metadata.type === 'file')
         ) {
           const previousPath = entry.request.item.metadata.trashedFromRelativePath
-            ? this.resolveInside(libraryPath, entry.request.item.metadata.trashedFromRelativePath)
+            ? resolveInsideVault(libraryPath, entry.request.item.metadata.trashedFromRelativePath)
             : entry.original
           entry.referenceReplacements = new Map([[previousPath, destination]])
           await this.rewriteInboundReferences(libraryPath, entry.referenceReplacements)
@@ -2815,7 +2794,7 @@ export class LibraryStore {
       const item = await this.resolveItem(libraryPath, itemId)
       if (item.location.type !== 'trash')
         throw new Error('Only items in Trash can be deleted forever.')
-      const trashRoot = this.kuskusPath(libraryPath, TRASH_DIRECTORY, itemId)
+      const trashRoot = kuskusPath(libraryPath, TRASH_DIRECTORY, itemId)
       await rm(trashRoot, { recursive: true, force: true })
       await rm(this.itemRecordPath(libraryPath, itemId), { force: true })
     }
