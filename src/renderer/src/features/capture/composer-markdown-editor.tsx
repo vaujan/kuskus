@@ -107,10 +107,12 @@ export const ComposerMarkdownEditor = forwardRef<
   const actionsRef = useRef({ onPasteImage, onSave, onContinueInEditor, onEscape })
   const editableCompartmentRef = useRef(new Compartment())
 
-  onChangeRef.current = onChange
-  transformRef.current = transformInput
-  liveOptionsRef.current = liveOptions ?? {}
-  actionsRef.current = { onPasteImage, onSave, onContinueInEditor, onEscape }
+  useLayoutEffect(() => {
+    onChangeRef.current = onChange
+    transformRef.current = transformInput
+    liveOptionsRef.current = liveOptions ?? {}
+    actionsRef.current = { onPasteImage, onSave, onContinueInEditor, onEscape }
+  })
 
   useImperativeHandle(
     forwardedRef,

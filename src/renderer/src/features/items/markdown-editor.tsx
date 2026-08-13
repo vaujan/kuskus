@@ -153,10 +153,12 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     const blocksCompartmentRef = useRef(new Compartment())
     const liveMountedRef = useRef(false)
 
-    onChangeRef.current = onChange
-    onScrollRef.current = onScroll
-    liveOptionsRef.current = liveOptions ?? {}
-    blocksOptionsRef.current = { content: topContent, hiddenRange }
+    useLayoutEffect(() => {
+      onChangeRef.current = onChange
+      onScrollRef.current = onScroll
+      liveOptionsRef.current = liveOptions ?? {}
+      blocksOptionsRef.current = { content: topContent, hiddenRange }
+    })
 
     useImperativeHandle(
       forwardedRef,

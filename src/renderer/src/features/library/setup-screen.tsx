@@ -42,20 +42,26 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
 
     setBusy(true)
     setError('')
-    const result = await window.kuskus.create(name)
-    setBusy(false)
-    if (!result.ok && result.code !== 'cancelled') setError(result.error)
-    if (result.ok) window.location.reload()
+    try {
+      const result = await window.kuskus.create(name)
+      if (!result.ok && result.code !== 'cancelled') setError(result.error)
+      if (result.ok) window.location.reload()
+    } finally {
+      setBusy(false)
+    }
   }
 
   const openLibrary = async (): Promise<void> => {
     if (busy) return
     setBusy(true)
     setError('')
-    const result = await window.kuskus.open()
-    setBusy(false)
-    if (!result.ok && result.code !== 'cancelled') setError(result.error)
-    if (result.ok) window.location.reload()
+    try {
+      const result = await window.kuskus.open()
+      if (!result.ok && result.code !== 'cancelled') setError(result.error)
+      if (result.ok) window.location.reload()
+    } finally {
+      setBusy(false)
+    }
   }
 
   const prepareSelectedVault = async (): Promise<void> => {
@@ -67,13 +73,16 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
     }
     setBusy(true)
     setError('')
-    const result =
-      initialState.status === 'needs-initialization'
-        ? await window.kuskus.initializeVault()
-        : await window.kuskus.migrateLibrary()
-    setBusy(false)
-    if (!result.ok) setError(result.error)
-    if (result.ok) window.location.reload()
+    try {
+      const result =
+        initialState.status === 'needs-initialization'
+          ? await window.kuskus.initializeVault()
+          : await window.kuskus.migrateLibrary()
+      if (!result.ok) setError(result.error)
+      if (result.ok) window.location.reload()
+    } finally {
+      setBusy(false)
+    }
   }
 
   const needsPreparation =

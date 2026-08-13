@@ -258,6 +258,12 @@ export function AddItemComposer({
   const { queue } = useCaptureQueue(libraryId)
   const draft = captureSession.markdown
   const setDraft = captureSession.setMarkdown
+  const {
+    clear: clearCaptureSession,
+    flush: flushCaptureSession,
+    setBusy: setCaptureBusy,
+    touchAssets
+  } = captureSession
   const [attachments, setAttachments] = useState<CaptureDraftImageDto[]>([])
   const [editingAttachmentId, setEditingAttachmentId] = useState<string | null>(null)
   const [attachmentName, setAttachmentName] = useState('')
@@ -367,8 +373,8 @@ export function AddItemComposer({
   }, [captureSession.busy, hasTransientWork, onTransientWorkChange, queue.pendingCount])
 
   useEffect(() => {
-    if (surfaceActive) void captureSession.setBusy(hasTransientWork)
-  }, [captureSession.setBusy, hasTransientWork, surfaceActive])
+    if (surfaceActive) void setCaptureBusy(hasTransientWork)
+  }, [hasTransientWork, setCaptureBusy, surfaceActive])
 
   useEffect(() => {
     if (!open || !surfaceActive) return
@@ -392,7 +398,7 @@ export function AddItemComposer({
       })
       window.requestAnimationFrame(() => editorRef.current?.focus())
     },
-    [draft.length]
+    [draft.length, setDraft]
   )
 
   const stageCaptureImage = useCallback(
@@ -430,7 +436,7 @@ export function AddItemComposer({
         setAttachments((current) => [...current, result.data])
         setEditingAttachmentId(result.data.id)
         setAttachmentName(result.data.filename.replace(/\.[^.]+$/, ''))
-        void captureSession.touchAssets()
+        void touchAssets()
         if (noteIntent) {
           insertAtSelection(markdownImage(result.data), selectionStart, selectionEnd)
           onStatus('Image added to the Markdown draft.')
@@ -447,7 +453,7 @@ export function AddItemComposer({
         setStagingCount((count) => Math.max(0, count - 1))
       }
     },
-    [attachments, captureSession, draft, fileCandidate, insertAtSelection, onStatus, setDraft]
+    [attachments, draft, fileCandidate, insertAtSelection, onStatus, setDraft, touchAssets]
   )
 
   useEffect(() => {
@@ -495,10 +501,10 @@ export function AddItemComposer({
       )
       setEditingAttachmentId(null)
       setError('')
-      await captureSession.touchAssets()
+      await touchAssets()
       window.requestAnimationFrame(() => editorRef.current?.focus())
     },
-    [attachmentName, captureSession, renamingAttachment, setDraft]
+    [attachmentName, setDraft, touchAssets]
   )
 
   const stageCaptureFile = useCallback(
@@ -520,7 +526,7 @@ export function AddItemComposer({
           return
         }
         setFileCandidate(result.data)
-        void captureSession.touchAssets()
+        void touchAssets()
         onStatus('File ready to save.')
       } catch (caught) {
         setError(caught instanceof Error ? caught.message : 'The file could not be staged.')
@@ -528,7 +534,7 @@ export function AddItemComposer({
         setStagingCount((count) => Math.max(0, count - 1))
       }
     },
-    [attachments.length, captureSession, draft, onStatus]
+    [attachments.length, draft, onStatus, touchAssets]
   )
 
   const finishCreate = useCallback(
@@ -597,7 +603,7 @@ export function AddItemComposer({
       setSavingLink({ domain, phase: 'saving' })
     }
     try {
-      const revision = await captureSession.flush()
+      const revision = await flushCaptureSession()
       performance.mark('kuskus:capture-submit-start')
       const submitted = await window.capture.submit({
         libraryId,
@@ -671,14 +677,14 @@ export function AddItemComposer({
       return
     }
     setDraft('')
-    await captureSession.clear()
+    await clearCaptureSession()
     setAttachments([])
     setFailedStage(null)
     setFileCandidate(null)
     setError('')
     onOpenChange(false)
     onStatus('Draft discarded.')
-  }, [captureSession, hasTransientWork, onOpenChange, onStatus, setDraft])
+  }, [clearCaptureSession, hasTransientWork, onOpenChange, onStatus, setDraft])
 
   useEffect(() => {
     if (discardRequest === handledDiscardRequest.current) return
@@ -694,7 +700,7 @@ export function AddItemComposer({
     }
     setAttachments((current) => current.filter((entry) => entry.id !== attachment.id))
     setDraft((current) => removeStagedAttachmentMarkdown(current, attachment))
-    void captureSession.touchAssets()
+    void touchAssets()
     onStatus('Image removed from the draft.')
   }
 
@@ -726,6 +732,7 @@ export function AddItemComposer({
     insertAtSelection,
     onImportRequestHandled,
     onStatus,
+    setDraft,
     stageCaptureFile,
     stageCaptureImage
   ])
@@ -860,7 +867,7 @@ export function AddItemComposer({
                 void window.kuskus.removeCaptureDraftFile().then((result) => {
                   if (result.ok) {
                     setFileCandidate(null)
-                    void captureSession.touchAssets()
+                    void touchAssets()
                   } else setError(result.error)
                 })
               }}

@@ -735,25 +735,31 @@ export function LibrarySidebar({
   const openAnotherLibrary = async (): Promise<void> => {
     if (librarySwitchBlocked || libraryOperationBusy) return
     setLibraryOperationBusy(true)
-    const result = await window.kuskus.open()
-    setLibraryOperationBusy(false)
-    if (!result.ok) {
-      if (result.code !== 'cancelled') onError(result.error)
-      return
+    try {
+      const result = await window.kuskus.open()
+      if (!result.ok) {
+        if (result.code !== 'cancelled') onError(result.error)
+        return
+      }
+      window.location.reload()
+    } finally {
+      setLibraryOperationBusy(false)
     }
-    window.location.reload()
   }
   const createLibrary = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault()
     if (!newLibraryName.trim() || librarySwitchBlocked || libraryOperationBusy) return
     setLibraryOperationBusy(true)
-    const result = await window.kuskus.create(newLibraryName)
-    setLibraryOperationBusy(false)
-    if (!result.ok) {
-      if (result.code !== 'cancelled') onError(result.error)
-      return
+    try {
+      const result = await window.kuskus.create(newLibraryName)
+      if (!result.ok) {
+        if (result.code !== 'cancelled') onError(result.error)
+        return
+      }
+      window.location.reload()
+    } finally {
+      setLibraryOperationBusy(false)
     }
-    window.location.reload()
   }
   const copyLibraryPath = async (): Promise<void> => {
     const result = await window.kuskus.copyLibraryPath()
