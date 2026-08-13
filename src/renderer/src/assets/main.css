@@ -2,6 +2,7 @@
 
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@import '@fontsource-variable/inter/wght.css';
 @import 'shadcn/tailwind.css';
 @import './window-material.css';
 @import './typeset.css';
@@ -10,14 +11,6 @@
 @import './motion.css';
 
 @custom-variant dark (&:is(.dark *));
-
-@font-face {
-  font-family: 'Inter Variable';
-  font-style: normal;
-  font-display: swap;
-  font-weight: 100 900;
-  src: url('@fontsource-variable/inter/files/inter-latin-wght-normal.woff2') format('woff2');
-}
 
 @theme inline {
   --font-heading: var(--font-sans);

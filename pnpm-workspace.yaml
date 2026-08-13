@@ -2,3 +2,16 @@ allowBuilds:
   electron: true
   electron-winstaller: true
   esbuild: true
+minimumReleaseAge: 10080
+minimumReleaseAgeExclude:
+  - eventsource-parser@3.1.1
+  - hono@4.13.1
+  - ip-address@10.5.0
+  - postcss-selector-parser@7.1.5
+  - recast@0.23.21
+  - shadcn@4.16.2
+trustPolicy: no-downgrade
+trustPolicyExclude:
+  - semver@5.7.2
+  - semver@6.3.1
+  - undici-types@6.21.0
