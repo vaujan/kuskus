@@ -18,8 +18,11 @@ import {
 import { OPAQUE_WINDOW_BACKGROUND } from './window-material'
 import { installTextContextMenu } from './text-context-menu'
 
+const HIDDEN_WINDOW_IDLE_MS = 60_000
+
 export class QuickCaptureWindowController {
   private window: BrowserWindow | null = null
+  private destroyTimer: NodeJS.Timeout | null = null
   private requestedHeight = QUICK_CAPTURE_INITIAL_HEIGHT
   private blurSuppressed = false
   private reducedTransparency = nativeTheme.prefersReducedTransparency
@@ -59,7 +62,9 @@ export class QuickCaptureWindowController {
   }
 
   hide(): void {
-    if (this.window && !this.window.isDestroyed()) this.window.hide()
+    if (!this.window || this.window.isDestroyed()) return
+    this.window.hide()
+    this.scheduleIdleDestroy()
   }
 
   setHeight(height: number): void {
@@ -82,9 +87,25 @@ export class QuickCaptureWindowController {
   }
 
   destroy(): void {
+    this.cancelIdleDestroy()
     const window = this.window
     this.window = null
     if (window && !window.isDestroyed()) window.destroy()
+  }
+
+  private cancelIdleDestroy(): void {
+    if (!this.destroyTimer) return
+    clearTimeout(this.destroyTimer)
+    this.destroyTimer = null
+  }
+
+  private scheduleIdleDestroy(): void {
+    this.cancelIdleDestroy()
+    this.destroyTimer = setTimeout(() => {
+      this.destroyTimer = null
+      if (this.window && !this.window.isVisible()) this.destroy()
+    }, HIDDEN_WINDOW_IDLE_MS)
+    this.destroyTimer.unref()
   }
 
   private reveal(): void {
@@ -95,6 +116,7 @@ export class QuickCaptureWindowController {
 
   private showAndFocus(window: BrowserWindow): void {
     if (window.isDestroyed()) return
+    this.cancelIdleDestroy()
     this.position(window)
     window.show()
     window.focus()
@@ -169,10 +191,13 @@ export class QuickCaptureWindowController {
     installTextContextMenu(window)
 
     window.on('blur', () => {
-      if (!this.blurSuppressed) window.hide()
+      if (!this.blurSuppressed) this.hide()
     })
     window.on('closed', () => {
-      if (this.window === window) this.window = null
+      if (this.window === window) {
+        this.cancelIdleDestroy()
+        this.window = null
+      }
     })
     window.webContents.setWindowOpenHandler(({ url }) => {
       void shell.openExternal(url)
