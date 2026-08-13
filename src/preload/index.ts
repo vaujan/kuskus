@@ -150,6 +150,7 @@ const libraryApi: KuskusLibraryApi = {
   permanentlyDeleteItems: (input) =>
     ipcRenderer.invoke(KUSKUS_CHANNELS.permanentlyDeleteItems, input),
   inspectItemDeletion: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.inspectItemDeletion, input),
+  getImageThumbnail: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.getImageThumbnail, itemId),
   getImagePreview: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.getImagePreview, itemId),
   importFile: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.importFile, input),
   copyLibraryPath: () => ipcRenderer.invoke(KUSKUS_CHANNELS.copyLibraryPath),

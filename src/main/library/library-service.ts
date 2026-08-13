@@ -70,6 +70,7 @@ import {
   type UrlNetworkDependencies
 } from './url-network'
 import { toUrlPreviewDto, URL_PREVIEW_LIMITS, validateUrlPreview } from './url-preview'
+import { CARD_THUMBNAIL_EDGE, createImageThumbnail } from './image-thumbnail'
 
 export class NoteUpdateConflictError extends Error {
   constructor(readonly current: NoteItemDto) {
@@ -88,6 +89,7 @@ export class LibraryService {
   private readonly urlNetwork: UrlNetworkDependencies
   private readonly enrichmentRequests = new Map<string, Promise<UrlItemDto>>()
   private readonly previewRequests = new Map<string, Promise<UrlPreviewDto>>()
+  private readonly thumbnailRequests = new Map<string, Promise<ImagePreviewDto>>()
   private librarySnapshot: LibraryDto | null = null
   private reconciliation: Promise<LibraryDto> | null = null
   private startupReconciliationPending = false
@@ -1283,23 +1285,54 @@ export class LibraryService {
     return this.store.getItemRevealPath(this.requireCurrentLibrary(), itemId)
   }
 
+  async getImageThumbnail(itemId: string): Promise<ImagePreviewDto> {
+    const libraryPath = this.requireCurrentLibrary()
+    const metadata = await this.store.readPersistedItem(libraryPath, itemId)
+    if (metadata.type !== 'image') throw new Error('The saved image metadata is invalid.')
+    const sourceKey = `${metadata.relativePath}:${metadata.updatedAt}:${metadata.width}x${metadata.height}`
+    const requestKey = `${libraryPath}:${itemId}:${sourceKey}`
+    const active = this.thumbnailRequests.get(requestKey)
+    if (active) return active
+
+    const request = (async () => {
+      const cached = await this.store.readImageThumbnailCache(libraryPath, itemId, sourceKey)
+      if (cached) {
+        try {
+          const preview = this.toValidatedImagePreview('image/png', cached)
+          if (preview.width <= CARD_THUMBNAIL_EDGE && preview.height <= CARD_THUMBNAIL_EDGE) {
+            return preview
+          }
+        } catch {
+          // Rebuild invalid rebuildable cache bytes from the authoritative image.
+        }
+      }
+
+      const bytes = await this.store.readItemContent(libraryPath, metadata)
+      const detected = detectImage(bytes)
+      if (!detected || detected.mediaType !== metadata.mediaType) {
+        throw new Error('The saved image content is invalid.')
+      }
+      const thumbnail = createImageThumbnail(bytes, detected.width, detected.height)
+      await this.store.writeImageThumbnailCache(
+        libraryPath,
+        itemId,
+        sourceKey,
+        new Uint8Array(thumbnail.bytes)
+      )
+      return thumbnail
+    })().finally(() => this.thumbnailRequests.delete(requestKey))
+    this.thumbnailRequests.set(requestKey, request)
+    return request
+  }
+
   async getImagePreview(itemId: string): Promise<ImagePreviewDto> {
     const libraryPath = this.requireCurrentLibrary()
     const metadata = await this.store.readPersistedItem(libraryPath, itemId)
     if (metadata.type !== 'image') throw new Error('The saved image metadata is invalid.')
-
-    const bytes = await this.store.readItemContent(libraryPath, metadata)
-    const detected = detectImage(bytes)
-    if (!detected || detected.mediaType !== metadata.mediaType) {
-      throw new Error('The saved image content is invalid.')
-    }
-    return {
-      bytes: bytes.buffer.slice(
-        bytes.byteOffset,
-        bytes.byteOffset + bytes.byteLength
-      ) as ArrayBuffer,
-      mediaType: metadata.mediaType
-    }
+    return this.toValidatedImagePreview(
+      metadata.mediaType,
+      await this.store.readItemContent(libraryPath, metadata)
+    )
   }
 
   private toValidatedImagePreview(
@@ -1315,7 +1348,9 @@ export class LibraryService {
         bytes.byteOffset,
         bytes.byteOffset + bytes.byteLength
       ) as ArrayBuffer,
-      mediaType
+      mediaType,
+      width: detected.width,
+      height: detected.height
     }
   }
 

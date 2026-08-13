@@ -474,7 +474,12 @@ export function Workspace({
       if (!active) return
       setItemDetails((current) => {
         const next = new Map(current)
-        for (const detail of details) if (detail) next.set(detail.id, detail)
+        for (const detail of details) {
+          if (!detail) continue
+          next.delete(detail.id)
+          next.set(detail.id, detail)
+        }
+        while (next.size > 20) next.delete(next.keys().next().value!)
         return next
       })
     })

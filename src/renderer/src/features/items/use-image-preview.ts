@@ -3,7 +3,8 @@ import { acquirePreview } from '@/features/items/preview-cache'
 
 export function useImagePreview(
   itemId: string,
-  missingContent: boolean
+  missingContent: boolean,
+  options: { enabled?: boolean; thumbnail?: boolean } = {}
 ): { preview: string | null; previewError: string } {
   const [state, setState] = useState<{ itemId: string; preview: string | null; error: string }>({
     itemId: '',
@@ -11,12 +12,17 @@ export function useImagePreview(
     error: ''
   })
 
+  const enabled = options.enabled ?? true
+  const thumbnail = options.thumbnail ?? false
+
   useEffect(() => {
-    if (missingContent) return
+    if (missingContent || !enabled) return
     let active = true
     let release: (() => void) | null = null
-    void acquirePreview(`image:${itemId}`, async () => {
-      const result = await window.kuskus.getImagePreview(itemId)
+    void acquirePreview(`image:${thumbnail ? 'card' : 'full'}:${itemId}`, async () => {
+      const result = thumbnail
+        ? await window.kuskus.getImageThumbnail(itemId)
+        : await window.kuskus.getImagePreview(itemId)
       if (!result.ok) throw new Error(result.error)
       return result.data
     }).then(
@@ -38,7 +44,7 @@ export function useImagePreview(
       active = false
       release?.()
     }
-  }, [itemId, missingContent])
+  }, [enabled, itemId, missingContent, thumbnail])
 
   return {
     preview: state.itemId === itemId ? state.preview : null,

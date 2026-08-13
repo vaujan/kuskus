@@ -489,16 +489,27 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.getImagePreview, async (_event, itemId: unknown) => {
-    if (typeof itemId !== 'string') {
-      return errorResult(new Error('The item identifier is invalid.'), 'invalid-input')
-    }
-    try {
-      return { ok: true, data: await libraryService.getImagePreview(itemId) }
-    } catch (error) {
-      return errorResult(error, 'not-found')
-    }
-  })
+  const registerImagePreview = (
+    channel: string,
+    operation: (itemId: string) => Promise<unknown>
+  ): void => {
+    ipcMain.handle(channel, async (_event, itemId: unknown) => {
+      if (typeof itemId !== 'string') {
+        return errorResult(new Error('The item identifier is invalid.'), 'invalid-input')
+      }
+      try {
+        return { ok: true, data: await operation(itemId) }
+      } catch (error) {
+        return errorResult(error, 'not-found')
+      }
+    })
+  }
+  registerImagePreview(KUSKUS_CHANNELS.getImageThumbnail, (itemId) =>
+    libraryService.getImageThumbnail(itemId)
+  )
+  registerImagePreview(KUSKUS_CHANNELS.getImagePreview, (itemId) =>
+    libraryService.getImagePreview(itemId)
+  )
 
   ipcMain.handle(KUSKUS_CHANNELS.importFile, async (_event, input: unknown) => {
     try {

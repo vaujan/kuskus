@@ -37,6 +37,7 @@ export const KUSKUS_CHANNELS = {
   restoreItems: 'library:restore-items',
   permanentlyDeleteItems: 'library:permanently-delete-items',
   inspectItemDeletion: 'library:inspect-item-deletion',
+  getImageThumbnail: 'library:get-image-thumbnail',
   getImagePreview: 'library:get-image-preview',
   importFile: 'library:import-file',
   copyLibraryPath: 'library:copy-library-path',
@@ -261,6 +262,8 @@ export interface FileImportInput {
 export interface ImagePreviewDto {
   bytes: ArrayBuffer
   mediaType: SupportedImageMediaType
+  width: number
+  height: number
 }
 
 export type UrlPreviewKind = 'preview' | 'favicon'
@@ -435,6 +438,7 @@ export interface KuskusLibraryApi {
   trashItems: (input: TrashItemsInput) => Promise<ApiResult<LibraryDto>>
   restoreItems: (input: ItemMutationInput) => Promise<ApiResult<LibraryDto>>
   permanentlyDeleteItems: (input: PermanentlyDeleteItemsInput) => Promise<ApiResult<LibraryDto>>
+  getImageThumbnail: (itemId: string) => Promise<ApiResult<ImagePreviewDto>>
   getImagePreview: (itemId: string) => Promise<ApiResult<ImagePreviewDto>>
   importFile: (input: FileImportInput) => Promise<ApiResult<FileItemDto>>
   copyLibraryPath: () => Promise<ApiResult<null>>

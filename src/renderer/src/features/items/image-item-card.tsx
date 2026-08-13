@@ -11,6 +11,7 @@ import {
 } from '@/features/items/item-card'
 import type { LibraryView } from '@/features/items/item-view'
 import { useImagePreview } from '@/features/items/use-image-preview'
+import { useNearViewport } from '@/features/items/use-near-viewport'
 import { cn } from '@/lib/utils'
 import type { ImageItemDto } from '../../../../shared/library-contract'
 
@@ -33,12 +34,16 @@ export function ImageItemCard({
   compact?: boolean
   showSelectionVisual?: boolean
 }): React.JSX.Element {
-  const { preview, previewError } = useImagePreview(item.id, item.missingContent)
+  const { nearViewport, observe } = useNearViewport(!item.missingContent)
+  const { preview, previewError } = useImagePreview(item.id, item.missingContent, {
+    enabled: nearViewport,
+    thumbnail: true
+  })
   const [failedPreview, setFailedPreview] = useState<string | null>(null)
   const previewAvailable = preview !== null && failedPreview !== preview
 
   return (
-    <ItemCard data-selected={selected && showSelectionVisual}>
+    <ItemCard ref={observe} data-selected={selected && showSelectionVisual}>
       <ItemCardPrimaryAction
         aria-label={`Open image ${item.title}`}
         aria-haspopup={opensDialog ? 'dialog' : undefined}

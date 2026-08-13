@@ -2541,6 +2541,37 @@ export class LibraryStore {
     return kuskusPath(libraryPath, URL_PREVIEW_DIRECTORY, itemId)
   }
 
+  async readImageThumbnailCache(
+    libraryPath: string,
+    itemId: string,
+    sourceKey: string
+  ): Promise<Buffer | null> {
+    try {
+      const directory = this.urlPreviewDirectory(libraryPath, itemId)
+      const metadata = await readJson<{ sourceKey: string }>(join(directory, 'image-card.json'))
+      if (metadata.sourceKey !== sourceKey) return null
+      return await readFile(join(directory, 'image-card.png'))
+    } catch {
+      return null
+    }
+  }
+
+  async writeImageThumbnailCache(
+    libraryPath: string,
+    itemId: string,
+    sourceKey: string,
+    bytes: Uint8Array
+  ): Promise<void> {
+    const directory = this.urlPreviewDirectory(libraryPath, itemId)
+    await mkdir(directory, { recursive: true })
+    const temporary = join(directory, `image-card.${randomUUID()}.pending`)
+    const destination = join(directory, 'image-card.png')
+    await writeFile(temporary, bytes)
+    await rm(destination, { force: true })
+    await rename(temporary, destination)
+    await writeJsonAtomic(join(directory, 'image-card.json'), { sourceKey })
+  }
+
   async readUrlPreviewCache(
     libraryPath: string,
     itemId: string,
