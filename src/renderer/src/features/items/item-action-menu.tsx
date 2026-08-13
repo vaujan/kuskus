@@ -92,6 +92,7 @@ interface ItemActionMenuProps extends ItemActionHandlers {
   alwaysVisible?: boolean
   showQuickSourceAction?: boolean
   triggerSurface?: 'default' | 'caption'
+  hideOpenAction?: boolean
   detailOptions?: NoteDetailMenuOptions
 }
 
@@ -196,7 +197,7 @@ function MoveAction({
 
   return surface === 'dropdown' ? (
     <DropdownMenuSub>
-      <DropdownMenuSubTrigger>
+      <DropdownMenuSubTrigger className="gap-2.5">
         <IconFolder aria-hidden="true" />
         Move to
       </DropdownMenuSubTrigger>
@@ -206,7 +207,7 @@ function MoveAction({
     </DropdownMenuSub>
   ) : (
     <ContextMenuSub>
-      <ContextMenuSubTrigger>
+      <ContextMenuSubTrigger className="gap-2.5">
         <IconFolder aria-hidden="true" />
         Move to
       </ContextMenuSubTrigger>
@@ -262,10 +263,12 @@ function ItemActions({
       ) : null}
       <ActionGroup surface={surface}>
         {bulk ? <ActionLabel surface={surface}>This item</ActionLabel> : null}
-        <ActionItem surface={surface} onClick={props.onOpen}>
-          <IconEye aria-hidden="true" />
-          Open
-        </ActionItem>
+        {!props.hideOpenAction ? (
+          <ActionItem surface={surface} onClick={props.onOpen}>
+            <IconEye aria-hidden="true" />
+            Open
+          </ActionItem>
+        ) : null}
         {!bulk && item.type === 'note' ? (
           <ActionItem surface={surface} onClick={props.onOpenInNewWindow}>
             <IconWindowMaximize aria-hidden="true" />

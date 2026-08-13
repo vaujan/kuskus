@@ -21,7 +21,7 @@
 :root[data-window-material='acrylic'] {
   --material-card: color-mix(in oklch, var(--popover) 76%, transparent);
   --material-border: color-mix(in oklch, var(--input) 72%, transparent);
-  --material-sidebar-accent: color-mix(in oklch, var(--accent) 52%, transparent);
+  --material-sidebar-accent: color-mix(in oklch, var(--accent) 10%, transparent);
   --material-sidebar-selection: color-mix(in oklch, var(--sidebar-primary) 92%, transparent);
   --window-canvas: color-mix(in oklch, var(--background) 74%, transparent);
   --window-sidebar: color-mix(in oklch, var(--sidebar) 68%, transparent);
@@ -31,8 +31,12 @@
 :root.dark[data-window-material='acrylic'] {
   --material-card: color-mix(in oklch, var(--popover) 70%, transparent);
   --material-border: color-mix(in oklch, var(--input) 87%, transparent);
-  --material-sidebar-accent: color-mix(in oklch, var(--accent) 9%, transparent);
-  --material-sidebar-selection: color-mix(in oklch, var(--sidebar-primary) 94%, transparent);
+  --material-sidebar-accent: color-mix(in oklch, var(--accent) 24%, transparent);
+  --material-sidebar-selection: color-mix(
+    in oklch,
+    var(--sidebar-primary) 72%,
+    var(--sidebar-foreground)
+  );
   --window-canvas: color-mix(in oklch, var(--background) 34%, transparent);
   --window-sidebar: color-mix(in oklch, var(--sidebar) 52%, transparent);
 }
@@ -45,6 +49,14 @@
 :root[data-window-material='acrylic'] [data-slot='sidebar-inner'] {
   --sidebar-accent: var(--material-sidebar-accent);
   --sidebar-selection: var(--material-sidebar-selection);
+}
+
+:root[data-window-material='acrylic'] [data-slot='sidebar-container'] {
+  border-width: 0;
+}
+
+:root[data-window-material='acrylic'] [data-slot='sidebar-rail']::after {
+  background-color: color-mix(in oklch, var(--sidebar-foreground) 8%, transparent);
 }
 
 .window-root,

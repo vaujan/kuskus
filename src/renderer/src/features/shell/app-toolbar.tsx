@@ -241,6 +241,7 @@ export function AppToolbar({
           <div className="flex min-w-0 items-center justify-end gap-1">
             <Button
               ref={newItemRef}
+              size="sm"
               data-new-item-button
               aria-expanded={newItemOpen}
               aria-keyshortcuts="Control+N"

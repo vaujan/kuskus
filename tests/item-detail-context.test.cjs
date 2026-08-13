@@ -165,15 +165,29 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.match(focusToolbarSource, /data-detail-focus-actions/)
   assert.match(focusToolbarSource, /pointer-events-auto ml-auto flex/)
   assert.match(focusToolbarSource, /\{modeControls\}\s*\{actions\}/)
+  assert.doesNotMatch(focusToolbarSource, /aria-label="Close item"/)
+  assert.match(
+    detailSource,
+    /data-detail-pane[\s\S]*presentation === 'focus' && !expanded[\s\S]*aria-label="Close item"/
+  )
   assert.match(focusToolbarSource, /!isMac && 'pr-\[8\.625rem\]'/)
   assert.doesNotMatch(focusToolbarSource, /Previous item|Next item/)
   assert.doesNotMatch(focusToolbarSource, /\[-webkit-app-region:drag\]/)
   assert.match(detailSource, /className="size-10 text-muted-foreground"/)
+  assert.match(detailSource, /<span>{activeOption\.shortLabel}<\/span>/)
+  assert.doesNotMatch(detailSource, /mode === 'live' && 'bg-muted text-foreground'/)
+  assert.match(detailSource, /function NoteModeHud/)
+  assert.match(detailSource, /role="status"/)
+  assert.match(detailSource, /window\.setTimeout\(\(\) => setModeHudVisible\(false\), 900\)/)
+  assert.match(detailSource, /<NoteModeHud mode={mode} visible={modeHudVisible} \/>/)
+  assert.doesNotMatch(detailSource, /before:bg-primary\/35/)
   assert.match(detailSource, /<DropdownMenuRadioGroup/)
   assert.doesNotMatch(detailSource, /<DropdownMenuCheckboxItem/)
   assert.match(actionMenuSource, /<DropdownMenuCheckboxItem/)
   assert.doesNotMatch(detailSource, /CaptionTileButton/)
   assert.match(actionMenuSource, /triggerSurface\?: 'default' \| 'caption'/)
+  assert.match(actionMenuSource, /!props\.hideOpenAction/)
+  assert.match(workspaceSource, /triggerSurface="caption"[\s\S]*?hideOpenAction/)
   assert.match(actionMenuSource, /props\.triggerSurface === 'caption' \? 'ghost' : 'secondary'/)
   assert.doesNotMatch(actionMenuSource, /CaptionTileButton/)
   assert.match(focusWorkspaceSource, /data-focus-single-pane={!split}/)
@@ -207,6 +221,11 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.match(workspaceSource, /focusItemSummary\?\.type === 'note'/)
   assert.match(workspaceSource, /open=\{!sidebarHidden && !focusNoteExpansionActive\}/)
   assert.match(workspaceSource, /setFocusNoteExpanded\(false\)/)
+  assert.match(
+    workspaceSource,
+    /const \[focusWorkspaceOpen, setFocusWorkspaceOpen\] = useState\(false\)/
+  )
+  assert.match(workspaceSource, /Masonry overview/)
   assert.doesNotMatch(focusSplitHandlerSource, /setFocusNoteExpanded\(false\)/)
   assert.match(
     workspaceSource,
@@ -218,10 +237,18 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   )
   assert.match(detailSource, /<ButtonGroup/)
   assert.match(detailSource, /aria-pressed={mode === value}/)
+  assert.match(detailSource, /window\.addEventListener\('keydown', handleNoteModeShortcut, true\)/)
+  assert.match(
+    detailSource,
+    /window\.removeEventListener\('keydown', handleNoteModeShortcut, true\)/
+  )
   assert.doesNotMatch(detailSource, /<header className="kuskus-detail-document-frame/)
   assert.doesNotMatch(detailSource, /NoteMetadataControls|NoteIdentityControls/)
   assert.match(detailSource, /function NoteDocumentBlocks/)
   assert.match(detailSource, /showInlineTitle/)
+  assert.match(detailSource, /showInlineTitle \? \([\s\S]*?<InlineItemTitle[\s\S]*?<MarkdownEditor/)
+  assert.doesNotMatch(detailSource, /border-b border-border\/50 pt-10 pb-2/)
+  assert.doesNotMatch(detailSource, /group-hover\/title:opacity-100/)
   assert.match(
     detailSource,
     /localStorage\.setItem\(NOTE_INLINE_TITLE_STORAGE_KEY, String\(showInlineTitle\)\)/

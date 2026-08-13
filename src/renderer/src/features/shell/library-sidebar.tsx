@@ -345,9 +345,9 @@ function FolderTreeItem({
             <div
               draggable
               className={cn(
-                'group/folder-row relative -mx-2 flex h-(--control-height-md) w-[calc(100%+1rem)] min-w-0 items-center overflow-hidden text-sidebar-foreground/70 ring-inset ring-sidebar-ring outline-hidden before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-sidebar-selection before:opacity-0 transition-[background-color,color,box-shadow,scale] [transition-duration:var(--motion-duration-tooltip)] [transition-timing-function:var(--motion-ease-out)] hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground has-[:focus-visible]:ring-3 motion-reduce:scale-100 motion-reduce:transition-none',
+                'group/folder-row relative flex h-(--control-height-md) w-full min-w-0 items-center overflow-hidden rounded-md text-sidebar-foreground/70 ring-inset ring-sidebar-ring outline-hidden transition-[background-color,color,box-shadow,scale] [transition-duration:var(--motion-duration-tooltip)] [transition-timing-function:var(--motion-ease-out)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground has-[:focus-visible]:ring-3 motion-reduce:scale-100 motion-reduce:transition-none',
                 selectedId === folder.id &&
-                  'bg-sidebar-accent font-medium text-sidebar-accent-foreground before:opacity-100 hover:bg-sidebar-accent',
+                  'bg-sidebar-accent font-medium text-sidebar-accent-foreground',
                 dropActive &&
                   'scale-[1.01] bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--sidebar-ring)_45%,transparent),0_8px_18px_-14px_rgba(0,0,0,0.35)] ring-2 ring-sidebar-ring'
               )}

@@ -12,6 +12,8 @@ import {
 import {
   IconAlertTriangle,
   IconInbox as Inbox,
+  IconLayoutDashboard,
+  IconLibrary,
   IconSearch as Search,
   IconX as X
 } from '@tabler/icons-react'
@@ -206,6 +208,7 @@ export function Workspace({
   const [focusRailDensity, setFocusRailDensity] = useState<FocusRailDensity>(() =>
     parseFocusRailDensity(localStorage.getItem(FOCUS_RAIL_DENSITY_STORAGE_KEY))
   )
+  const [focusWorkspaceOpen, setFocusWorkspaceOpen] = useState(false)
   const [focusItemId, setFocusItemId] = useState<string | null>(null)
   const [focusItemEditOnOpenId, setFocusItemEditOnOpenId] = useState<string | null>(null)
   const [focusDetailOpen, setFocusDetailOpen] = useState(false)
@@ -289,6 +292,7 @@ export function Workspace({
       const apply = (): void => {
         setComposerOpen(false)
         setFocusNoteExpanded(false)
+        setFocusWorkspaceOpen(true)
         setFocusItemId(itemId)
         setFocusItemEditOnOpenId(edit ? itemId : null)
         setFocusDetailOpen(true)
@@ -524,6 +528,7 @@ export function Workspace({
       const apply = (): void => {
         setDestination(next)
         clearSelectionSilently()
+        setFocusWorkspaceOpen(false)
         setFocusNoteExpanded(false)
         setFocusItemId(null)
         setFocusDetailOpen(false)
@@ -536,6 +541,14 @@ export function Workspace({
   )
 
   const changeView = useCallback((next: LibraryView): void => setView(next), [])
+
+  const returnToMasonry = useCallback((): void => {
+    setView('visual')
+    setFocusWorkspaceOpen(false)
+    setFocusItemId(null)
+    setFocusDetailOpen(false)
+    setFocusNoteExpanded(false)
+  }, [])
 
   const handleFocusSplitChange = useCallback((split: boolean): void => {
     if (split) setFocusDetailOpen(true)
@@ -1529,17 +1542,28 @@ export function Workspace({
             onDragStart={(event) => beginItemDrag(item.id, event)}
             onDragEnd={endItemDrag}
           >
-            <div className="group/saved-item relative" data-selected={selectedIds.has(item.id)}>
+            <div
+              className={cn(
+                'group/saved-item relative',
+                view === 'visual' &&
+                  'min-w-0 rounded-sm p-1 transition-[background-color] [transition-duration:var(--motion-duration-ui)] [transition-timing-function:var(--motion-ease-out)] hover:bg-muted/45 data-[selected=true]:bg-primary/10'
+              )}
+              data-selected={selectedIds.has(item.id) || undefined}
+            >
               <SavedItemCard
                 item={item}
                 view={view === 'visual' ? 'visual' : 'grid'}
                 selected={selectedIds.has(item.id)}
+                showSelectionVisual={view !== 'visual'}
                 onActivate={(event) => activateItem(item.id, event)}
                 onOpen={() => openDetail(item.id)}
               />
               <div
                 data-drag-preview-hidden
-                className="absolute top-2 right-2 z-30"
+                className={cn(
+                  'absolute z-30',
+                  view === 'visual' ? 'top-3 right-3' : 'top-2 right-2'
+                )}
                 onClick={(event) => event.stopPropagation()}
               >
                 <ItemActionMenu
@@ -1630,7 +1654,12 @@ export function Workspace({
         hasNext={focusVisibleIndex >= 0 && focusVisibleIndex < visibleItems.length - 1}
         onPrevious={selectPreviousFocusItem}
         onNext={selectNextFocusItem}
-        onOpenChange={() => undefined}
+        onOpenChange={(open) => {
+          if (open) return
+          setFocusNoteExpanded(false)
+          setFocusItemEditOnOpenId(null)
+          setFocusItemId(null)
+        }}
         onItemUpdated={updateItem}
         onRenameItem={renameItemTitle}
         libraryItems={library.items}
@@ -1657,6 +1686,7 @@ export function Workspace({
               targetLocations={[focusItem.location]}
               alwaysVisible
               triggerSurface="caption"
+              hideOpenAction
               detailOptions={detailOptions}
               {...actions}
               onOpenInNewWindow={() => guard(actions.onOpenInNewWindow)}
@@ -1674,26 +1704,35 @@ export function Workspace({
       />
     </Suspense>
   ) : (
-    <Empty className="size-full">
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <Search aria-hidden="true" />
+    <Empty className="size-full gap-5">
+      <EmptyHeader className="max-w-sm">
+        <EmptyMedia
+          variant="icon"
+          className="size-12 rounded-2xl shadow-sm ring-1 ring-foreground/6"
+        >
+          <IconLibrary aria-hidden="true" />
         </EmptyMedia>
-        <EmptyTitle>
-          {visibleItems.length === 0 ? 'No items to focus' : 'Choose an item'}
+        <EmptyTitle className="font-heading text-xl text-balance">
+          {visibleItems.length === 0 ? 'Nothing here yet' : 'Choose your next item'}
         </EmptyTitle>
-        <EmptyDescription>
+        <EmptyDescription className="text-pretty leading-5">
           {visibleItems.length === 0
             ? 'Capture something new or adjust the current search and filters.'
-            : 'Select an item from the list to inspect it here.'}
+            : 'Open another item from the list, or return to your visual overview.'}
         </EmptyDescription>
       </EmptyHeader>
+      <EmptyContent>
+        <Button size="sm" onClick={returnToMasonry}>
+          <IconLayoutDashboard aria-hidden="true" />
+          Masonry overview
+        </Button>
+      </EmptyContent>
     </Empty>
   )
 
   return (
     <SidebarProvider
-      keyboardShortcutEnabled={focusItem === null}
+      keyboardShortcutEnabled={!focusWorkspaceOpen}
       open={!sidebarHidden && !focusNoteExpansionActive}
       onOpenChange={(open) => setSidebarHidden(!open)}
       width={sidebarWidth}
@@ -1729,7 +1768,7 @@ export function Workspace({
         onTranslucentBackgroundChange={translucentBackground.setEnabled}
       />
       <SidebarInset>
-        {focusItemId ? null : (
+        {focusWorkspaceOpen ? null : (
           <AppToolbar
             keyboardShortcutsEnabled
             newItemOpen={composerOpen}
@@ -1756,7 +1795,7 @@ export function Workspace({
             onWindowClose={window.electron.window.close}
           />
         )}
-        {focusItemId ? (
+        {focusWorkspaceOpen ? (
           <main
             className="window-canvas flex min-h-0 min-w-0 flex-1 flex-col"
             onDragEnter={(event) => {
@@ -1815,7 +1854,7 @@ export function Workspace({
             />
           </main>
         ) : null}
-        <Activity mode={focusItemId ? 'hidden' : 'visible'}>
+        <Activity mode={focusWorkspaceOpen ? 'hidden' : 'visible'}>
           <ScrollArea className="library-scroll-container window-canvas min-h-0 min-w-0 flex-1 [&_[data-slot=scroll-area-viewport]]:focus-visible:ring-0 [&_[data-slot=scroll-area-viewport]]:focus-visible:outline-none">
             <main
               className="relative min-h-full"

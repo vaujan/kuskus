@@ -163,6 +163,57 @@
   }
 }
 
+@layer components {
+  :is(
+    .kuskus-code-block pre,
+    .kuskus-rich-document pre,
+    [data-slot='dropdown-menu-content'],
+    [data-slot='context-menu-content']
+  ) {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  :is(
+    .kuskus-code-block pre,
+    .kuskus-rich-document pre,
+    [data-slot='dropdown-menu-content'],
+    [data-slot='context-menu-content']
+  )::-webkit-scrollbar {
+    width: 0.625rem;
+    height: 0.625rem;
+  }
+
+  :is(
+    .kuskus-code-block pre,
+    .kuskus-rich-document pre,
+    [data-slot='dropdown-menu-content'],
+    [data-slot='context-menu-content']
+  )::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  :is(
+    .kuskus-code-block pre,
+    .kuskus-rich-document pre,
+    [data-slot='dropdown-menu-content'],
+    [data-slot='context-menu-content']
+  )::-webkit-scrollbar-thumb {
+    border: 1px solid transparent;
+    border-radius: 9999px;
+    background: var(--border) padding-box;
+  }
+
+  :is(
+    .kuskus-code-block pre,
+    .kuskus-rich-document pre,
+    [data-slot='dropdown-menu-content'],
+    [data-slot='context-menu-content']
+  )::-webkit-scrollbar-button {
+    display: none;
+  }
+}
+
 html[data-surface='quick-capture'],
 html[data-surface='quick-capture'] body,
 html[data-surface='quick-capture'] #root {
