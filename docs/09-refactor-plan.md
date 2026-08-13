@@ -65,8 +65,10 @@ Verified actionable findings:
   one safe decode helper and a focused malformed-input test.
 - `@electron-toolkit/preload` is unused. `@fontsource-variable/inter` is not unused; it is referenced
   by `assets/main.css` and must remain.
-- The pnpm hardening suggestions are valid for the installed pnpm 11 toolchain, but must be introduced
-  with an install check because a seven-day release delay changes dependency-update behavior.
+- The pnpm hardening suggestions are valid for the installed pnpm 11 toolchain, but a frozen-install
+  trial rejected six recently published lockfile entries and three trust downgrades. Leave the
+  policies disabled until those entries are reviewed or refreshed; do not break current installs to
+  satisfy the score.
 - The giant-component warnings are directionally correct and already covered by Phases 2–4.
 
 Verified non-findings or items that need measurement before change:
