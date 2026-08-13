@@ -771,19 +771,27 @@ const livePreviewTheme = EditorView.theme({
     width: '100%'
   },
   '.cm-kuskus-list-item': {
-    '--cm-kuskus-list-indent': '1.5em',
+    '--cm-kuskus-list-indent': 'var(--typeset-list-indent)',
     paddingInlineStart: 'var(--cm-kuskus-list-indent)',
     position: 'relative'
   },
-  '.cm-kuskus-list-depth-2': { '--cm-kuskus-list-indent': '3em' },
-  '.cm-kuskus-list-depth-3': { '--cm-kuskus-list-indent': '4.5em' },
-  '.cm-kuskus-list-depth-4': { '--cm-kuskus-list-indent': '6em' },
+  '.cm-kuskus-list-depth-2': {
+    '--cm-kuskus-list-indent': 'calc(var(--typeset-list-indent) + var(--typeset-list-indent))'
+  },
+  '.cm-kuskus-list-depth-3': {
+    '--cm-kuskus-list-indent':
+      'calc(var(--typeset-list-indent) + var(--typeset-list-indent) + var(--typeset-list-indent))'
+  },
+  '.cm-kuskus-list-depth-4': {
+    '--cm-kuskus-list-indent':
+      'calc(var(--typeset-list-indent) + var(--typeset-list-indent) + var(--typeset-list-indent) + var(--typeset-list-indent))'
+  },
   '.cm-kuskus-list-item-line-start.cm-activeLine': {
-    paddingInlineStart: 'calc(var(--cm-kuskus-list-indent) - 1.5em)'
+    paddingInlineStart: 'calc(var(--cm-kuskus-list-indent) - var(--typeset-list-indent))'
   },
   '.cm-kuskus-bullet': {
     color: 'var(--typeset-muted)',
-    insetInlineStart: 'calc(var(--cm-kuskus-list-indent) - 1.5em)',
+    insetInlineStart: 'calc(var(--cm-kuskus-list-indent) - var(--typeset-list-indent))',
     position: 'absolute',
     textAlign: 'right',
     width: '1em'
@@ -795,7 +803,7 @@ const livePreviewTheme = EditorView.theme({
     fontSize: '0'
   },
   '.cm-kuskus-checkbox': {
-    insetInlineStart: 'calc(var(--cm-kuskus-list-indent) - 1.25em)',
+    insetInlineStart: 'calc(var(--cm-kuskus-list-indent) - var(--typeset-list-indent) + 0.25em)',
     margin: '0',
     position: 'absolute'
   },

@@ -6,6 +6,7 @@
     --typeset-font-mono: var(--font-mono);
     --typeset-leading: 1.75;
     --typeset-flow: 1.25em;
+    --typeset-list-indent: 1.5em;
     --typeset-muted: var(--muted-foreground);
     --typeset-rule: color-mix(in oklch, var(--foreground) 30%, transparent);
     --typeset-body-color: color-mix(in oklch, var(--foreground) 85%, transparent);
