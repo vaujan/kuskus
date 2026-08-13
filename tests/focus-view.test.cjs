@@ -153,7 +153,7 @@ test('Detail capture stays in the rail and can promote notes into the editor', (
     'utf8'
   )
   const composerEditorSource = readFileSync(
-    require.resolve('../src/renderer/src/features/capture/composer-markdown-editor.tsx'),
+    require.resolve('../src/renderer/src/features/capture/composer-rich-markdown-editor.tsx'),
     'utf8'
   )
 
@@ -175,8 +175,8 @@ test('Detail capture stays in the rail and can promote notes into the editor', (
   assert.match(composerSource, /onOpenChange\(false, !openInEditor\)/)
   assert.match(composerSource, /return \(\) => onTransientWorkChange\(false\)/)
   assert.match(composerSource, /Control\+Shift\+Enter Meta\+Shift\+Enter/)
-  assert.match(composerEditorSource, /key: 'Mod-Shift-Enter'/)
-  assert.match(composerEditorSource, /if \(!action\) return false/)
+  assert.match(composerEditorSource, /event\.shiftKey && onContinueInEditor/)
+  assert.match(composerEditorSource, /event\.key === 'Enter'/)
   assert.match(listSource, /min-h-full pt-2/)
   assert.match(listSource, /<OrderedMasonry gap=\{8\}>/)
 })

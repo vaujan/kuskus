@@ -118,19 +118,12 @@ test('note detail uses inline document blocks and detail-only view settings', ()
     require.resolve('../src/renderer/src/features/items/item-action-menu.tsx'),
     'utf8'
   )
-  const editorBlocks = readFileSync(
-    require.resolve('../src/renderer/src/features/items/markdown-editor-blocks.tsx'),
-    'utf8'
-  )
   assert.doesNotMatch(detail, /NoteIdentityControls|NoteMetadataControls/)
   assert.doesNotMatch(detail, /Wide reading width/)
   assert.match(detail, /<NoteDocumentBlocks/)
-  assert.match(detail, /topContent=\{editorTopContent\}/)
+  assert.match(detail, /<RichMarkdownEditor/)
   assert.match(detail, /NOTE_INLINE_TITLE_STORAGE_KEY/)
   assert.match(menu, /Readable line length/)
   assert.match(menu, /Inline title/)
   assert.match(menu, /surface === 'dropdown' && props\.detailOptions/)
-  assert.match(editorBlocks, /StateField\.define<DecorationSet>/)
-  assert.match(editorBlocks, /EditorView\.decorations\.from\(field\)/)
-  assert.doesNotMatch(editorBlocks, /ViewPlugin\.fromClass/)
 })

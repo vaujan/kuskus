@@ -74,10 +74,16 @@ const {
   getPublishedMarkdownChange
 } = require('../src/renderer/src/features/items/markdown-editor-change.ts')
 const {
+  partitionRichMarkdownSource
+} = require('../src/renderer/src/features/items/rich-markdown-source.ts')
+const {
+  prepareRichMarkdown,
+  restoreRichMarkdown,
+  supportsRichMarkdown
+} = require('../src/renderer/src/features/items/rich-markdown-syntax.ts')
+const {
   decodeMarkdownLinkTarget,
-  markdownTaskMarkers,
-  toggleMarkdownMarker,
-  toggleMarkdownTask
+  toggleMarkdownMarker
 } = require('../src/renderer/src/features/items/markdown-formatting.ts')
 const {
   getScrollRatio,
@@ -1272,15 +1278,6 @@ test('safely decodes Markdown vault-link targets', () => {
   assert.equal(decodeMarkdownLinkTarget('broken%link'), null)
 })
 
-test('finds and toggles GFM task markers without changing list syntax', () => {
-  const markdown = '- [ ] first\n1. [x] second'
-  const markers = markdownTaskMarkers(markdown)
-
-  assert.deepEqual(markers, [2, 15])
-  assert.equal(toggleMarkdownTask(markdown, markers[0]), '- [x] first\n1. [x] second')
-  assert.equal(toggleMarkdownTask(markdown, markers[1]), '- [ ] first\n1. [ ] second')
-})
-
 test('toggles Markdown emphasis markers while preserving the intended selection', () => {
   assert.deepEqual(toggleMarkdownMarker('Hello world', 6, 11, '**'), {
     value: 'Hello **world**',
@@ -1327,6 +1324,31 @@ test('uses predictable note-mode keyboard transitions', () => {
   assert.equal(getSplitToggleMode('split', 'live'), 'live')
   assert.equal(getSplitToggleMode('markdown', 'markdown'), 'split')
   assert.equal(getSplitToggleMode('split', 'markdown'), 'markdown')
+})
+
+test('preserves Kuskus wikilinks through the rich Markdown interchange format', () => {
+  const markdown = [
+    '[[Plain note]]',
+    '[[Target#Heading|Visible alias]]',
+    '![[Image file (wide).png|Image alias]]'
+  ].join('\n')
+
+  assert.equal(restoreRichMarkdown(prepareRichMarkdown(markdown)), markdown)
+  assert.equal(restoreRichMarkdown('<https://example.com>'), 'https://example.com')
+  assert.equal(supportsRichMarkdown(markdown), true)
+  assert.equal(supportsRichMarkdown('line<br />next'), true)
+  assert.equal(prepareRichMarkdown('line<br />next'), 'line  \nnext')
+  assert.equal(supportsRichMarkdown('<details>exact HTML</details>'), false)
+})
+
+test('keeps frontmatter outside rich editing and rejects malformed frontmatter', () => {
+  const frontmatter = '---\r\ntags: [design]\r\n---\r\n'
+  assert.deepEqual(partitionRichMarkdownSource(`${frontmatter}# Body\r\n`), {
+    prefix: frontmatter,
+    body: '# Body\r\n'
+  })
+  assert.deepEqual(partitionRichMarkdownSource('# Body'), { prefix: '', body: '# Body' })
+  assert.equal(partitionRichMarkdownSource('---\ntags: [broken]\n# Body'), null)
 })
 
 test('publishes every CodeMirror document change, including empty Markdown', () => {

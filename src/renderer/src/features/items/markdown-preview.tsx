@@ -12,11 +12,7 @@ import type { NoteAttachmentDto } from '../../../../shared/library-contract'
 import { markdownImageTargetKey } from '../../../../shared/markdown-image-references'
 import { prepareObsidianMarkdown } from '@/features/items/obsidian-markdown'
 import { MarkdownCodeBlock } from '@/features/items/markdown-code-block'
-import {
-  decodeMarkdownLinkTarget,
-  markdownTaskMarkers,
-  toggleMarkdownTask
-} from '@/features/items/markdown-formatting'
+import { decodeMarkdownLinkTarget } from '@/features/items/markdown-formatting'
 
 const REMARK_PLUGINS = [remarkGfm, remarkBreaks, remarkMath]
 const REHYPE_PLUGINS = [rehypeKatex]
@@ -39,7 +35,6 @@ export const MarkdownPreview = memo(function MarkdownPreview({
   attachmentPreviews,
   onOpenLink,
   onOpenVaultLink,
-  onTaskToggle,
   presentation = 'card'
 }: {
   value: string
@@ -48,7 +43,6 @@ export const MarkdownPreview = memo(function MarkdownPreview({
   attachmentPreviews?: Record<string, string>
   onOpenLink?: (url: string) => void
   onOpenVaultLink?: (target: string) => void
-  onTaskToggle?: (value: string) => void
   presentation?: 'card' | 'compact' | 'detail'
 }): React.JSX.Element {
   const previewRef = useRef<HTMLDivElement>(null)
@@ -88,8 +82,6 @@ export const MarkdownPreview = memo(function MarkdownPreview({
     }
   }, [presentation, value])
 
-  const taskMarkers = onTaskToggle ? markdownTaskMarkers(value) : []
-  let taskIndex = 0
   const components: Components = {
     a: ({ href, children, ...props }) => {
       if (href?.startsWith('kuskus-note:')) {
@@ -122,24 +114,6 @@ export const MarkdownPreview = memo(function MarkdownPreview({
         >
           {children}
         </a>
-      )
-    },
-    input: ({ checked, type }) => {
-      if (type !== 'checkbox') return null
-      const position = taskMarkers[taskIndex++]
-      const interactive = onTaskToggle !== undefined && position !== undefined
-      return (
-        <input
-          type="checkbox"
-          className="kuskus-task-checkbox"
-          checked={checked}
-          disabled={!interactive}
-          aria-label={checked ? 'Completed task' : 'Open task'}
-          onClick={(event) => event.stopPropagation()}
-          onChange={() => {
-            if (interactive) onTaskToggle(toggleMarkdownTask(value, position))
-          }}
-        />
       )
     },
     img: ({ src, alt }) => {

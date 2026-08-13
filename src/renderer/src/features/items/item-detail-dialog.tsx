@@ -81,8 +81,14 @@ import {
   resolveInlineTitleSubmission
 } from '@/features/items/item-title-edit'
 import { MarkdownEditor, type MarkdownEditorHandle } from '@/features/items/markdown-editor'
-import { type LivePreviewOptions } from '@/features/items/markdown-live-preview'
 import { MarkdownPreview } from '@/features/items/markdown-preview'
+import {
+  RichMarkdownEditor,
+  type RichMarkdownEditorHandle,
+  type RichMarkdownEditorOptions
+} from '@/features/items/rich-markdown-editor'
+import { partitionRichMarkdownSource } from '@/features/items/rich-markdown-source'
+import { supportsRichMarkdown } from '@/features/items/rich-markdown-syntax'
 import { NoteProperties } from '@/features/items/note-properties'
 import {
   getScrollRatio,
@@ -903,6 +909,7 @@ function NoteCanvas({
   onError: (message: string) => void
 }): React.JSX.Element {
   const editorRef = useRef<MarkdownEditorHandle>(null)
+  const richEditorRef = useRef<RichMarkdownEditorHandle>(null)
   const previewViewportRef = useRef<HTMLDivElement>(null)
   const previousModeRef = useRef<NoteMode>(mode)
   const activeScrollDriverRef = useRef<'source' | 'preview'>(mode === 'read' ? 'preview' : 'source')
@@ -911,33 +918,14 @@ function NoteCanvas({
   const syncFrameRef = useRef<number | null>(null)
   const releaseSyncFrameRef = useRef<number | null>(null)
   const attachmentPreviews = useNoteAttachmentPreviews(item.id, item.attachments)
-  const frontmatter = useMemo(() => parseNoteFrontmatter(snapshot.draft), [snapshot.draft])
-  const hasProperties = frontmatter.status === 'valid' && frontmatter.properties.length > 0
-  const liveHiddenRange = useMemo(
-    () => (frontmatter.status === 'valid' ? { from: 0, to: frontmatter.endOffset } : undefined),
-    [frontmatter]
-  )
-  const editorTopContent =
-    showInlineTitle || (mode === 'live' && hasProperties) ? (
-      <NoteDocumentBlocks
-        item={item}
-        markdown={snapshot.draft}
-        showInlineTitle={showInlineTitle}
-        showProperties={mode === 'live'}
-        className="pb-8"
-        onRenameTitle={onRenameTitle}
-        onDraftChange={onDraftChange}
-        onOpenSource={() => onModeChange('markdown')}
-        onError={onError}
-      />
-    ) : undefined
-
+  const richSource = partitionRichMarkdownSource(snapshot.draft)
+  const richSupported = richSource !== null && supportsRichMarkdown(richSource.body)
   const noteAttachments = item.attachments
   const onOpenVaultLinkRef = useRef(onOpenVaultLink)
   useEffect(() => {
     onOpenVaultLinkRef.current = onOpenVaultLink
   }, [onOpenVaultLink])
-  const liveOptions = useMemo<LivePreviewOptions>(() => {
+  const richOptions = useMemo<RichMarkdownEditorOptions>(() => {
     const images = new Map<
       string,
       { attachment: (typeof noteAttachments)[number]; preview: string | null }
@@ -958,10 +946,9 @@ function NoteCanvas({
         }
       },
       onOpenLink: (url) => void openExternalUrlWithFeedback(url),
-      onOpenVaultLink: (target) => onOpenVaultLinkRef.current(target),
-      hiddenRange: liveHiddenRange
+      onOpenVaultLink: (target) => onOpenVaultLinkRef.current(target)
     }
-  }, [attachmentPreviews, liveHiddenRange, noteAttachments])
+  }, [attachmentPreviews, noteAttachments])
 
   const scheduleScrollSynchronization = useCallback(
     (driver: 'source' | 'preview', recordDriver = true): void => {
@@ -1030,7 +1017,9 @@ function NoteCanvas({
         preview.tabIndex = 0
         preview.focus({ preventScroll: true })
       }
-    } else if (mode === 'live' || mode === 'markdown') {
+    } else if (mode === 'live') {
+      richEditorRef.current?.focus()
+    } else if (mode === 'markdown') {
       editorRef.current?.focus()
     }
   }, [mode])
@@ -1121,15 +1110,16 @@ function NoteCanvas({
               mode === 'split' && '@min-[860px]/detail:grid-cols-2'
             )}
           >
-            <div className={cn('min-h-0 min-w-0', mode === 'read' ? 'hidden' : 'flex')}>
+            <div
+              className={cn(
+                'min-h-0 min-w-0',
+                mode === 'markdown' || mode === 'split' ? 'flex' : 'hidden'
+              )}
+            >
               <MarkdownEditor
                 ref={editorRef}
                 value={snapshot.draft}
-                active={mode !== 'read'}
-                live={mode === 'live'}
-                liveOptions={liveOptions}
-                topContent={editorTopContent}
-                hiddenRange={mode === 'live' ? liveHiddenRange : undefined}
+                active={mode === 'markdown' || mode === 'split'}
                 onChange={(value) => {
                   activeScrollDriverRef.current = 'source'
                   onDraftChange(value)
@@ -1138,15 +1128,65 @@ function NoteCanvas({
               />
             </div>
             <ScrollArea
+              className={cn(
+                'min-h-0 min-w-0',
+                mode === 'read' || mode === 'live' ? 'flex' : 'hidden'
+              )}
+            >
+              <article className="kuskus-detail-document-frame min-h-full w-full py-8">
+                <NoteDocumentBlocks
+                  item={item}
+                  markdown={snapshot.draft}
+                  showInlineTitle={showInlineTitle}
+                  showProperties
+                  className="mb-8"
+                  onRenameTitle={onRenameTitle}
+                  onDraftChange={onDraftChange}
+                  onOpenSource={() => onModeChange('markdown')}
+                  onError={onError}
+                />
+                {richSupported ? (
+                  <RichMarkdownEditor
+                    ref={richEditorRef}
+                    value={snapshot.draft}
+                    editable={mode === 'live'}
+                    active={mode === 'live'}
+                    options={richOptions}
+                    onChange={onDraftChange}
+                    onError={onError}
+                  />
+                ) : (
+                  <>
+                    {mode === 'live' ? (
+                      <Alert className="mb-6">
+                        <AlertTitle>Open Markdown source to edit this note</AlertTitle>
+                        <AlertDescription>
+                          Rich editing is unavailable because this note has malformed frontmatter or
+                          raw HTML that must remain exact.
+                        </AlertDescription>
+                      </Alert>
+                    ) : null}
+                    <MarkdownPreview
+                      value={snapshot.draft}
+                      itemId={item.id}
+                      attachments={item.attachments}
+                      attachmentPreviews={attachmentPreviews}
+                      presentation="detail"
+                      onOpenLink={(url) => void openExternalUrlWithFeedback(url)}
+                      onOpenVaultLink={onOpenVaultLink}
+                    />
+                  </>
+                )}
+              </article>
+            </ScrollArea>
+            <ScrollArea
               ref={(root) => {
                 previewViewportRef.current =
                   root?.querySelector<HTMLDivElement>('[data-slot="scroll-area-viewport"]') ?? null
               }}
               className={cn(
                 'min-h-0 min-w-0 [&_[data-slot=scroll-area-viewport]]:focus-visible:ring-0 [&_[data-slot=scroll-area-viewport]]:focus-visible:outline-none',
-                mode === 'read' && 'flex',
-                mode === 'live' && 'hidden',
-                mode === 'markdown' && 'hidden',
+                mode !== 'split' && 'hidden',
                 mode === 'split' && 'hidden @min-[860px]/detail:flex'
               )}
             >
@@ -1162,16 +1202,26 @@ function NoteCanvas({
                   onOpenSource={() => onModeChange('markdown')}
                   onError={onError}
                 />
-                <MarkdownPreview
-                  value={snapshot.draft}
-                  itemId={item.id}
-                  attachments={item.attachments}
-                  attachmentPreviews={attachmentPreviews}
-                  presentation="detail"
-                  onOpenLink={(url) => void openExternalUrlWithFeedback(url)}
-                  onOpenVaultLink={onOpenVaultLink}
-                  onTaskToggle={onDraftChange}
-                />
+                {richSupported ? (
+                  <RichMarkdownEditor
+                    value={snapshot.draft}
+                    editable={false}
+                    active={false}
+                    options={richOptions}
+                    onChange={onDraftChange}
+                    onError={onError}
+                  />
+                ) : (
+                  <MarkdownPreview
+                    value={snapshot.draft}
+                    itemId={item.id}
+                    attachments={item.attachments}
+                    attachmentPreviews={attachmentPreviews}
+                    presentation="detail"
+                    onOpenLink={(url) => void openExternalUrlWithFeedback(url)}
+                    onOpenVaultLink={onOpenVaultLink}
+                  />
+                )}
               </article>
             </ScrollArea>
           </div>

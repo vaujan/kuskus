@@ -1,40 +1,15 @@
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { bracketMatching, syntaxHighlighting } from '@codemirror/language'
-import {
-  Compartment,
-  EditorSelection,
-  EditorState,
-  Transaction,
-  type Extension
-} from '@codemirror/state'
+import { EditorSelection, EditorState, Transaction } from '@codemirror/state'
 import { EditorView, highlightActiveLine, highlightSpecialChars, keymap } from '@codemirror/view'
 import { GFM } from '@lezer/markdown'
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search'
-import {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useLayoutEffect,
-  useRef,
-  type ReactNode
-} from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef } from 'react'
 
 import { getPublishedMarkdownChange } from '@/features/items/markdown-editor-change'
-import {
-  markdownEditorBlocks,
-  type MarkdownEditorBlocksOptions
-} from '@/features/items/markdown-editor-blocks'
 import { toggleMarkdownMarker } from '@/features/items/markdown-formatting'
-import {
-  markdownHighlightStyle,
-  markdownLiveHighlightStyle
-} from '@/features/items/markdown-highlight-style'
-import {
-  liveMarkdownPreview,
-  livePreviewInvalidation,
-  type LivePreviewOptions
-} from '@/features/items/markdown-live-preview'
+import { markdownHighlightStyle } from '@/features/items/markdown-highlight-style'
 import { cn } from '@/lib/utils'
 import { markdownCodeLanguage } from '@/features/items/markdown-code'
 import { markdownSearchTheme } from '@/features/items/markdown-search-theme'
@@ -48,10 +23,6 @@ export interface MarkdownEditorHandle {
 interface MarkdownEditorProps {
   value: string
   active: boolean
-  live?: boolean
-  liveOptions?: LivePreviewOptions
-  topContent?: ReactNode
-  hiddenRange?: { from: number; to: number }
   className?: string
   onChange: (value: string) => void
   onScroll?: (scroller: HTMLElement) => void
@@ -98,13 +69,6 @@ const editorTheme = EditorView.theme({
   }
 })
 
-function markdownPresentation(live: boolean, getLiveOptions: () => LivePreviewOptions): Extension {
-  return [
-    syntaxHighlighting(live ? markdownLiveHighlightStyle : markdownHighlightStyle),
-    live ? liveMarkdownPreview(getLiveOptions, 'detail') : []
-  ]
-}
-
 function markerCommand(marker: '*' | '**'): (view: EditorView) => boolean {
   return (view) => {
     const selection = view.state.selection.main
@@ -125,39 +89,17 @@ function markerCommand(marker: '*' | '**'): (view: EditorView) => boolean {
 
 export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
   function MarkdownEditor(
-    {
-      value,
-      active,
-      live = false,
-      liveOptions,
-      topContent,
-      hiddenRange,
-      className,
-      onChange,
-      onScroll
-    },
+    { value, active, className, onChange, onScroll },
     forwardedRef
   ): React.JSX.Element {
     const hostRef = useRef<HTMLDivElement>(null)
     const viewRef = useRef<EditorView | null>(null)
     const initialValueRef = useRef(value)
-    const initialLiveRef = useRef(live)
     const onChangeRef = useRef(onChange)
     const onScrollRef = useRef(onScroll)
-    const liveOptionsRef = useRef<LivePreviewOptions>(liveOptions ?? {})
-    const blocksOptionsRef = useRef<MarkdownEditorBlocksOptions>({
-      content: topContent,
-      hiddenRange
-    })
-    const liveCompartmentRef = useRef(new Compartment())
-    const blocksCompartmentRef = useRef(new Compartment())
-    const liveMountedRef = useRef(false)
-
     useLayoutEffect(() => {
       onChangeRef.current = onChange
       onScrollRef.current = onScroll
-      liveOptionsRef.current = liveOptions ?? {}
-      blocksOptionsRef.current = { content: topContent, hiddenRange }
     })
 
     useImperativeHandle(
@@ -189,10 +131,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
             EditorView.editorAttributes.of({ class: 'cm-kuskus-detail-editor' }),
             editorTheme,
             markdownSearchTheme,
-            liveCompartmentRef.current.of(
-              markdownPresentation(initialLiveRef.current, () => liveOptionsRef.current)
-            ),
-            blocksCompartmentRef.current.of(markdownEditorBlocks(() => blocksOptionsRef.current)),
+            syntaxHighlighting(markdownHighlightStyle),
             keymap.of([
               { key: 'Mod-b', preventDefault: true, run: markerCommand('**') },
               { key: 'Mod-i', preventDefault: true, run: markerCommand('*') },
@@ -248,36 +187,6 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       view.requestMeasure()
       view.focus()
     }, [active])
-
-    useEffect(() => {
-      if (!liveMountedRef.current) {
-        liveMountedRef.current = true
-        return
-      }
-      const view = viewRef.current
-      if (!view) return
-      view.dispatch({
-        effects: liveCompartmentRef.current.reconfigure(
-          markdownPresentation(live, () => liveOptionsRef.current)
-        )
-      })
-    }, [live])
-
-    useEffect(() => {
-      const view = viewRef.current
-      if (!view || !live) return
-      view.dispatch({ effects: livePreviewInvalidation.of(null) })
-    }, [live, liveOptions])
-
-    useEffect(() => {
-      const view = viewRef.current
-      if (!view) return
-      view.dispatch({
-        effects: blocksCompartmentRef.current.reconfigure(
-          markdownEditorBlocks(() => blocksOptionsRef.current)
-        )
-      })
-    }, [hiddenRange, topContent])
 
     return <div ref={hostRef} className={cn('size-full min-h-0', className)} />
   }

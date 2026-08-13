@@ -1622,3 +1622,51 @@ denser master list without removing the existing visual option or weakening mixe
 - Focus Index supports recognition from titles and excerpts while Visual remains one menu choice away.
 - The rail can represent large libraries without acquiring media previews for Index rows.
 - No library migration, shared contract change, preload expansion, or new dependency is required.
+
+## DEC-052: Replace structural CodeMirror live preview with a ProseMirror editor
+
+Date: 2026-08-10
+Status: Accepted
+
+### Context
+
+DEC-042 kept exact Markdown in CodeMirror and recreated rendered blocks with decorations. Lists,
+tasks, wrapped lines, and active-line source reveal then required overlapping marker widgets and
+layout exceptions. Dogfooding showed that fixing each combination moved another because CodeMirror's
+flat editable lines do not provide the semantic list layout used by Read mode.
+
+Gravity UI Markdown Editor was evaluated as the first packaged dual-mode candidate. Version 15.46.0
+ships a 10.1 MB unpacked package, 48 direct dependencies, and mandatory Gravity UI, Diplodoc, and
+Markdown-it peer stacks. Adopting a second UI system and document dialect to reuse its mode switch is
+more coupling than implementing the application boundary with the underlying established engines.
+
+A Milkdown 7.22.0 GFM round-trip against Markdown Lab confirmed the expected rich-editor trade-off:
+lists and tables receive canonical formatting, reference links expand, and Kuskus wikilinks and math
+need explicit schema support. Those transformations are acceptable only after a real rich edit;
+unsupported syntax must never be silently serialized.
+
+### Decision
+
+- Use Milkdown's ProseMirror core for structured Read and Live surfaces. Integrate its core directly
+  rather than `@milkdown/react`, whose current package also brings Crepe and the full kit.
+- Keep the existing CodeMirror editor for exact Markdown and Split source.
+- Keep Markdown as persisted authority. Opening, reading, and switching modes never serialize or
+  save. A user-authored rich transaction may canonically format the editable Markdown body.
+- Keep valid frontmatter byte-for-byte outside the rich document. Malformed frontmatter refuses rich
+  editing and remains available in Markdown source.
+- Add explicit Kuskus schema support for wikilinks, embeds, attachment targets, and math before those
+  fixtures can enter rich editing.
+- Retain `react-markdown` for note cards until measurements justify changing that lazy preview path.
+- Remove the custom CodeMirror live decorations and their CSS after saved notes and capture complete
+  the rich-editor acceptance fixtures. Do not preserve a fallback live renderer.
+
+### Consequences
+
+- Read and Live can share one semantic document tree and browser list layout instead of duplicating a
+  renderer with line decorations.
+- Rich and source modes keep separate selection, scroll, and undo histories and synchronize through
+  Markdown only when ownership changes.
+- Existing autosave, conflict detection, storage, IPC, attachment safety, and exact-source escape
+  hatch remain unchanged.
+- Rich editing is unavailable for malformed or not-yet-supported Markdown rather than risking data
+  loss.

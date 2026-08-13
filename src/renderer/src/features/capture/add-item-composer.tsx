@@ -37,8 +37,8 @@ import { Spinner } from '@/components/ui/spinner'
 import { ItemCard, ItemCardCaption, ItemCardSurface } from '@/features/items/item-card'
 import { SavedItemCard } from '@/features/items/saved-item-card'
 import type { LibraryView } from '@/features/items/item-view'
-import type { LivePreviewOptions } from '@/features/items/markdown-live-preview'
-import type { ComposerMarkdownEditorHandle } from '@/features/capture/composer-markdown-editor'
+import type { RichMarkdownEditorOptions } from '@/features/items/rich-markdown-editor'
+import type { ComposerRichMarkdownEditorHandle } from '@/features/capture/composer-rich-markdown-editor'
 import { composeMarkdownCapture, detectCaptureKind } from '@/features/capture/capture-detection'
 import { useCaptureSession } from '@/features/capture/use-capture-session'
 import { useCaptureQueue } from '@/features/capture/use-capture-queue'
@@ -59,9 +59,9 @@ import {
   rewriteMarkdownImageDestinations
 } from '../../../../shared/markdown-image-references'
 
-const ComposerMarkdownEditor = lazy(() =>
-  import('@/features/capture/composer-markdown-editor').then((module) => ({
-    default: module.ComposerMarkdownEditor
+const ComposerRichMarkdownEditor = lazy(() =>
+  import('@/features/capture/composer-rich-markdown-editor').then((module) => ({
+    default: module.ComposerRichMarkdownEditor
   }))
 )
 
@@ -284,7 +284,7 @@ export function AddItemComposer({
     phase: 'saving' | 'preview'
   } | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
-  const editorRef = useRef<ComposerMarkdownEditorHandle>(null)
+  const editorRef = useRef<ComposerRichMarkdownEditorHandle>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const attachmentNameInputRef = useRef<HTMLInputElement>(null)
   const renamingAttachmentRef = useRef(false)
@@ -340,7 +340,7 @@ export function AddItemComposer({
     effectiveKind === 'note' && (surface === 'quick' || presentation === 'card')
   const displayedError = error || captureSession.error
   const draftPreviews = useCaptureDraftPreviews(attachments)
-  const liveOptions = useMemo<LivePreviewOptions>(() => {
+  const richOptions = useMemo<RichMarkdownEditorOptions>(() => {
     const images = new Map<string, { attachment: CaptureDraftImageDto; preview: string | null }>()
     for (const attachment of attachments) {
       const entry = { attachment, preview: draftPreviews[attachment.id] ?? null }
@@ -386,9 +386,8 @@ export function AddItemComposer({
 
   const insertAtSelection = useCallback(
     (value: string, start?: number, end?: number): void => {
-      const selection = editorRef.current?.getSelection()
-      const selectionStart = start ?? selection?.from ?? draft.length
-      const selectionEnd = end ?? selection?.to ?? selectionStart
+      const selectionStart = start ?? draft.length
+      const selectionEnd = end ?? selectionStart
       setDraft((current) => {
         const prefix = current.slice(0, selectionStart)
         const suffix = current.slice(selectionEnd)
@@ -737,10 +736,6 @@ export function AddItemComposer({
     stageCaptureImage
   ])
 
-  const handlePasteImage = (file: File, from: number, to: number): void => {
-    void stageCaptureImage(file, from, to, 'clipboard')
-  }
-
   if (!open && !morphedItem) return null
 
   if (morphedItem) {
@@ -770,7 +765,7 @@ export function AddItemComposer({
 
   const editor = (
     <Suspense fallback={<div className="min-h-32 animate-pulse rounded-md bg-muted/35" />}>
-      <ComposerMarkdownEditor
+      <ComposerRichMarkdownEditor
         ref={editorRef}
         className={surface === 'quick' || presentation === 'pane' ? 'h-full' : undefined}
         value={exiting ? exitingDraft : draft}
@@ -781,14 +776,19 @@ export function AddItemComposer({
         }
         disabled={captureBlocked || fileCandidate !== null}
         surface={surface}
-        liveOptions={liveOptions}
-        onChange={setDraft}
-        transformInput={(before, after) => {
-          if (detectCaptureKind(before, attachments.length) !== 'image') return null
-          if (!after.trim() || attachments.length === 0) return null
-          return composeMarkdownCapture([markdownImage(attachments[0])], after)
+        options={richOptions}
+        onChange={(after) => {
+          if (
+            detectCaptureKind(draft, attachments.length) === 'image' &&
+            after.trim() &&
+            attachments.length > 0
+          ) {
+            setDraft(composeMarkdownCapture([markdownImage(attachments[0])], after))
+            return
+          }
+          setDraft(after)
         }}
-        onPasteImage={handlePasteImage}
+        onPasteImage={(file) => void stageCaptureImage(file, undefined, undefined, 'clipboard')}
         onSave={() => void save()}
         onContinueInEditor={canContinueInEditor ? () => void save(true) : undefined}
         onEscape={() => {
