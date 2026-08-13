@@ -9,6 +9,43 @@ const AddItemComposer = lazy(() =>
   }))
 )
 
+function observeQuickCaptureSize(root: HTMLElement): () => void {
+  let observedContent: HTMLElement | null = null
+  const resize = new ResizeObserver(() => measure())
+  const measure = (): void => {
+    const composerContent = root.querySelector<HTMLElement>('.quick-capture-composer > *')
+    const cardContent = root.querySelector<HTMLElement>(
+      '.quick-capture-composer [data-slot="card-content"]'
+    )
+    const measuredContent = cardContent ?? composerContent
+    if (measuredContent && measuredContent !== observedContent) {
+      if (observedContent) resize.unobserve(observedContent)
+      observedContent = measuredContent
+      resize.observe(measuredContent)
+    }
+    let measuredHeight = measuredContent?.getBoundingClientRect().height ?? root.scrollHeight
+    if (cardContent) {
+      const contentTop = cardContent.getBoundingClientRect().top
+      const occupiedBottom = Array.from(cardContent.children).reduce((bottom, child) => {
+        const bounds = child.getBoundingClientRect()
+        return bounds.width > 0 && bounds.height > 0 ? Math.max(bottom, bounds.bottom) : bottom
+      }, contentTop)
+      const paddingBottom =
+        Number.parseFloat(window.getComputedStyle(cardContent).paddingBottom) || 0
+      measuredHeight = occupiedBottom - contentTop + paddingBottom
+    }
+    window.capture.setQuickCaptureHeight(Math.ceil(measuredHeight))
+  }
+  const mutations = new MutationObserver(measure)
+  mutations.observe(root, { childList: true, subtree: true })
+  measure()
+  return () => {
+    if (observedContent) resize.unobserve(observedContent)
+    resize.disconnect()
+    mutations.disconnect()
+  }
+}
+
 function QuickCaptureSurface({ library }: { library: LibraryDto }): React.JSX.Element {
   const [focusRequest, setFocusRequest] = useState(1)
   const [visible, setVisible] = useState(() => document.visibilityState === 'visible')
@@ -33,39 +70,7 @@ function QuickCaptureSurface({ library }: { library: LibraryDto }): React.JSX.El
   useEffect(() => {
     const root = rootRef.current
     if (!root) return
-    let observedContent: HTMLElement | null = null
-    const resize = new ResizeObserver(() => measure())
-    const measure = (): void => {
-      const composerContent = root.querySelector<HTMLElement>('.quick-capture-composer > *')
-      const cardContent = root.querySelector<HTMLElement>(
-        '.quick-capture-composer [data-slot="card-content"]'
-      )
-      const measuredContent = cardContent ?? composerContent
-      if (measuredContent && measuredContent !== observedContent) {
-        if (observedContent) resize.unobserve(observedContent)
-        observedContent = measuredContent
-        resize.observe(measuredContent)
-      }
-      let measuredHeight = measuredContent?.getBoundingClientRect().height ?? root.scrollHeight
-      if (cardContent) {
-        const contentTop = cardContent.getBoundingClientRect().top
-        const occupiedBottom = Array.from(cardContent.children).reduce((bottom, child) => {
-          const bounds = child.getBoundingClientRect()
-          return bounds.width > 0 && bounds.height > 0 ? Math.max(bottom, bounds.bottom) : bottom
-        }, contentTop)
-        const paddingBottom =
-          Number.parseFloat(window.getComputedStyle(cardContent).paddingBottom) || 0
-        measuredHeight = occupiedBottom - contentTop + paddingBottom
-      }
-      window.capture.setQuickCaptureHeight(Math.ceil(measuredHeight))
-    }
-    const mutations = new MutationObserver(measure)
-    mutations.observe(root, { childList: true, subtree: true })
-    measure()
-    return () => {
-      resize.disconnect()
-      mutations.disconnect()
-    }
+    return observeQuickCaptureSize(root)
   }, [])
 
   return (

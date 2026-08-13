@@ -840,6 +840,7 @@ export function AddItemComposer({
           ref={fileInputRef}
           className="sr-only"
           type="file"
+          aria-label="Choose an image or file"
           tabIndex={-1}
           onChange={(event) => {
             onFileDialogActiveChange?.(false)

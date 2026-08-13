@@ -563,10 +563,10 @@ export class LibraryService {
     const bytes = validateImageInput(input)
     const detected = detectImage(bytes)
     if (!detected) throw new Error('Kuskus supports PNG, JPEG, GIF, WebP, and BMP images.')
-    const existing = await this.store.readCaptureDraftAttachments(libraryPath)
     if (input.origin !== undefined && input.origin !== 'clipboard' && input.origin !== 'file') {
       throw new Error('The image source is invalid.')
     }
+    const existing = await this.store.readCaptureDraftAttachments(libraryPath)
     const clipboardName = input.origin === 'clipboard' ? this.clipboardImageStem(new Date()) : null
     const filename = noteAttachmentFilename(
       input.origin === 'clipboard' ? null : input.sourceFilename,

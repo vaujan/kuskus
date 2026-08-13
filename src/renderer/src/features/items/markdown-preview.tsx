@@ -125,7 +125,7 @@ export const MarkdownPreview = memo(function MarkdownPreview({
       )
     },
     input: ({ checked, type }) => {
-      if (type !== 'checkbox') return <input type={type} />
+      if (type !== 'checkbox') return null
       const position = taskMarkers[taskIndex++]
       const interactive = onTaskToggle !== undefined && position !== undefined
       return (

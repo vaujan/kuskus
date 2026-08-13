@@ -126,8 +126,9 @@ export class NoteWindowController {
       return { action: 'deny' }
     })
 
-    if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-      const url = new URL(process.env['ELECTRON_RENDERER_URL'])
+    const rendererUrl = process.env['ELECTRON_RENDERER_URL']
+    const url = rendererUrl ? URL.parse(rendererUrl) : null
+    if (is.dev && url) {
       url.searchParams.set('surface', 'note-window')
       url.searchParams.set('itemId', itemId)
       void window.loadURL(url.toString())

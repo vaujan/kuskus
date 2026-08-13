@@ -617,18 +617,17 @@ export function LibrarySidebar({
   const setFolderCollapsed = (folderId: string, collapsed: boolean): void => {
     setStoredCollapsedFolderIds((current) => {
       const collapsedIds = sanitizeCollapsedFolderIds(library.collections, current)
-      if (collapsed) collapsedIds.add(folderId)
-      else collapsedIds.delete(folderId)
-      return collapsedIds
+      return collapsed
+        ? new Set([...collapsedIds, folderId])
+        : new Set([...collapsedIds].filter((id) => id !== folderId))
     })
   }
 
   const selectFolder = (folderId: string): void => {
-    const ancestorIds = getFolderAncestorIds(library.collections, folderId)
+    const ancestorIds = new Set(getFolderAncestorIds(library.collections, folderId))
     setStoredCollapsedFolderIds((current) => {
       const collapsedIds = sanitizeCollapsedFolderIds(library.collections, current)
-      for (const ancestorId of ancestorIds) collapsedIds.delete(ancestorId)
-      return collapsedIds
+      return new Set([...collapsedIds].filter((id) => !ancestorIds.has(id)))
     })
     onDestinationChange({ type: 'collection', collectionId: folderId })
   }

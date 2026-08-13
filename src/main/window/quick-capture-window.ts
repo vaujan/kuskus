@@ -182,8 +182,9 @@ export class QuickCaptureWindowController {
       window.webContents.send(WINDOW_CHANNELS.reducedTransparencyChanged, this.reducedTransparency)
     })
 
-    if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-      const url = new URL(process.env['ELECTRON_RENDERER_URL'])
+    const rendererUrl = process.env['ELECTRON_RENDERER_URL']
+    const url = rendererUrl ? URL.parse(rendererUrl) : null
+    if (is.dev && url) {
       url.searchParams.set('surface', 'quick-capture')
       url.searchParams.set('material', presentation.material)
       url.searchParams.set('corners', presentation.corners)

@@ -364,6 +364,18 @@ test('stages a recoverable image without creating an item and commits it explici
   const service = new LibraryService(settingsPath)
   await service.createIn(root, 'Explicit Image Capture')
 
+  await assert.rejects(
+    () =>
+      service.stageCaptureDraftImage({
+        bytes: arrayBuffer(onePixelPng),
+        mediaType: 'image/png',
+        sourceFilename: 'Invalid.png',
+        origin: 'invalid'
+      }),
+    /image source is invalid/i
+  )
+  assert.deepEqual(await service.listCaptureDraftImages(), [])
+
   const staged = await service.stageCaptureDraftImage({
     bytes: arrayBuffer(onePixelPng),
     mediaType: 'image/png',
