@@ -1,6 +1,8 @@
 import { Dialog } from '@base-ui/react/dialog'
 import {
   forwardRef,
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -80,12 +82,10 @@ import {
   reduceInlineTitleEdit,
   resolveInlineTitleSubmission
 } from '@/features/items/item-title-edit'
-import { MarkdownEditor, type MarkdownEditorHandle } from '@/features/items/markdown-editor'
-import { MarkdownPreview } from '@/features/items/markdown-preview'
-import {
-  RichMarkdownEditor,
-  type RichMarkdownEditorHandle,
-  type RichMarkdownEditorOptions
+import type { MarkdownEditorHandle } from '@/features/items/markdown-editor'
+import type {
+  RichMarkdownEditorHandle,
+  RichMarkdownEditorOptions
 } from '@/features/items/rich-markdown-editor'
 import { partitionRichMarkdownSource } from '@/features/items/rich-markdown-source'
 import { supportsRichMarkdown } from '@/features/items/rich-markdown-syntax'
@@ -126,6 +126,20 @@ import type {
 } from '../../../../shared/library-contract'
 import { markdownImageTargetKey } from '../../../../shared/markdown-image-references'
 import { parseNoteFrontmatter } from '../../../../shared/note-frontmatter'
+
+const MarkdownEditor = lazy(() =>
+  import('@/features/items/markdown-editor').then((module) => ({ default: module.MarkdownEditor }))
+)
+const MarkdownPreview = lazy(() =>
+  import('@/features/items/markdown-preview').then((module) => ({
+    default: module.MarkdownPreview
+  }))
+)
+const RichMarkdownEditor = lazy(() =>
+  import('@/features/items/rich-markdown-editor').then((module) => ({
+    default: module.RichMarkdownEditor
+  }))
+)
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   year: 'numeric',
@@ -913,6 +927,7 @@ function NoteCanvas({
   mode,
   snapshot,
   historyRevision,
+  sourceActivated,
   readingWidth,
   showInlineTitle,
   onRenameTitle,
@@ -929,6 +944,7 @@ function NoteCanvas({
   mode: NoteMode
   snapshot: NoteAutosaveSnapshot
   historyRevision: number
+  sourceActivated: boolean
   readingWidth: NoteReadingWidth
   showInlineTitle: boolean
   onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
@@ -1177,18 +1193,22 @@ function NoteCanvas({
                   />
                 </div>
               ) : null}
-              <MarkdownEditor
-                key={historyRevision}
-                ref={editorRef}
-                value={snapshot.draft}
-                active={mode === 'markdown' || mode === 'split'}
-                className={cn('flex-1', showInlineTitle && '[&_.cm-content]:pt-4')}
-                onChange={(value) => {
-                  activeScrollDriverRef.current = 'source'
-                  onDraftChange(value)
-                }}
-                onScroll={() => scheduleScrollSynchronization('source')}
-              />
+              {sourceActivated ? (
+                <Suspense fallback={<div className="min-h-48 flex-1 animate-pulse bg-muted/20" />}>
+                  <MarkdownEditor
+                    key={historyRevision}
+                    ref={editorRef}
+                    value={snapshot.draft}
+                    active={mode === 'markdown' || mode === 'split'}
+                    className={cn('flex-1', showInlineTitle && '[&_.cm-content]:pt-4')}
+                    onChange={(value) => {
+                      activeScrollDriverRef.current = 'source'
+                      onDraftChange(value)
+                    }}
+                    onScroll={() => scheduleScrollSynchronization('source')}
+                  />
+                </Suspense>
+              ) : null}
             </div>
             <ScrollArea
               className={cn(
@@ -1210,16 +1230,18 @@ function NoteCanvas({
                   onError={onError}
                 />
                 {mode === 'read' || mode === 'live' ? (
-                  richSupported ? (
-                    <RichMarkdownEditor
-                      ref={richEditorRef}
-                      value={snapshot.draft}
-                      editable={mode === 'live'}
-                      active={mode === 'live'}
-                      options={richOptions}
-                      onChange={onDraftChange}
-                      onError={onError}
-                    />
+                  mode === 'live' && richSupported ? (
+                    <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
+                      <RichMarkdownEditor
+                        ref={richEditorRef}
+                        value={snapshot.draft}
+                        editable
+                        active
+                        options={richOptions}
+                        onChange={onDraftChange}
+                        onError={onError}
+                      />
+                    </Suspense>
                   ) : (
                     <>
                       {mode === 'live' ? (
@@ -1231,16 +1253,18 @@ function NoteCanvas({
                           </AlertDescription>
                         </Alert>
                       ) : null}
-                      <MarkdownPreview
-                        value={snapshot.draft}
-                        itemId={item.id}
-                        attachments={item.attachments}
-                        attachmentPreviews={attachmentPreviews}
-                        presentation="detail"
-                        onOpenLink={(url) => void openExternalUrlWithFeedback(url)}
-                        onOpenVaultLink={onOpenVaultLink}
-                        onChange={onDraftChange}
-                      />
+                      <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
+                        <MarkdownPreview
+                          value={snapshot.draft}
+                          itemId={item.id}
+                          attachments={item.attachments}
+                          attachmentPreviews={attachmentPreviews}
+                          presentation="detail"
+                          onOpenLink={(url) => void openExternalUrlWithFeedback(url)}
+                          onOpenVaultLink={onOpenVaultLink}
+                          onChange={onDraftChange}
+                        />
+                      </Suspense>
                     </>
                   )
                 ) : null}
@@ -1271,16 +1295,7 @@ function NoteCanvas({
                   onError={onError}
                 />
                 {mode === 'split' ? (
-                  richSupported ? (
-                    <RichMarkdownEditor
-                      value={snapshot.draft}
-                      editable={false}
-                      active={false}
-                      options={richOptions}
-                      onChange={onDraftChange}
-                      onError={onError}
-                    />
-                  ) : (
+                  <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
                     <MarkdownPreview
                       value={snapshot.draft}
                       itemId={item.id}
@@ -1291,7 +1306,7 @@ function NoteCanvas({
                       onOpenVaultLink={onOpenVaultLink}
                       onChange={onDraftChange}
                     />
-                  )
+                  </Suspense>
                 ) : null}
               </article>
             </ScrollArea>
@@ -1687,6 +1702,9 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       coordinator?.getSnapshot ?? (() => fallbackSnapshot.current)
     )
     const [mode, setMode] = useState<NoteMode>(initialNoteMode)
+    const [sourceActivated, setSourceActivated] = useState(
+      initialNoteMode === 'markdown' || initialNoteMode === 'split'
+    )
     const [modeHudVisible, setModeHudVisible] = useState(false)
     const modeHudTimeoutRef = useRef<number | null>(null)
     const previousSingleModeRef = useRef<SinglePaneNoteMode>(
@@ -1748,6 +1766,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
     const changeMode = useCallback(
       (nextMode: NoteMode): void => {
         if (nextMode === mode) return
+        if (nextMode === 'markdown' || nextMode === 'split') setSourceActivated(true)
         setMode(nextMode)
         setModeHudVisible(true)
         if (modeHudTimeoutRef.current !== null) window.clearTimeout(modeHudTimeoutRef.current)
@@ -1979,6 +1998,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
                 mode={mode}
                 snapshot={snapshot}
                 historyRevision={noteHistoryRevision}
+                sourceActivated={sourceActivated}
                 showInlineTitle={showInlineTitle}
                 onRenameTitle={renameCurrentItem}
                 onDraftChange={(value) => {

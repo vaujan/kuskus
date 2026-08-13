@@ -185,11 +185,13 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
     const publishedRef = useRef<string | null>(null)
     const [failed, setFailed] = useState(false)
 
-    valueRef.current = value
-    editableRef.current = editable
-    optionsRef.current = options ?? {}
-    onChangeRef.current = onChange
-    onErrorRef.current = onError
+    useLayoutEffect(() => {
+      valueRef.current = value
+      editableRef.current = editable
+      optionsRef.current = options ?? {}
+      onChangeRef.current = onChange
+      onErrorRef.current = onError
+    }, [editable, onChange, onError, options, value])
 
     useImperativeHandle(
       forwardedRef,
