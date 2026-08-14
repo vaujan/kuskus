@@ -431,11 +431,13 @@ export function AddItemComposer({
           setError(result.error)
           return
         }
-        const noteIntent = draft.trim().length > 0
+        const noteIntent = detectCaptureKind(draft, attachments.length) === 'note'
         const imageCandidate = !noteIntent && attachments.length === 1
         setAttachments((current) => [...current, result.data])
-        setEditingAttachmentId(result.data.id)
-        setAttachmentName(result.data.filename.replace(/\.[^.]+$/, ''))
+        if (!noteIntent) {
+          setEditingAttachmentId(result.data.id)
+          setAttachmentName(result.data.filename.replace(/\.[^.]+$/, ''))
+        }
         void touchAssets()
         if (noteIntent) {
           if (insertRichImage) insertRichImage(encodeMarkdownImageTarget(result.data.relativePath))
@@ -809,7 +811,7 @@ export function AddItemComposer({
       ref={rootRef}
       aria-busy={savingFeedback}
       className={cn(
-        'gap-0 overflow-hidden rounded-lg py-0 transition-[opacity,transform,filter] [transition-duration:80ms] ease-in',
+        'gap-0 overflow-hidden rounded-sm py-0 transition-[opacity,transform,filter] [transition-duration:80ms] ease-in',
         surface === 'quick' && 'h-full',
         presentation === 'pane' &&
           'focus-detail-composer-surface size-full rounded-none border-0 shadow-none',
@@ -881,7 +883,7 @@ export function AddItemComposer({
             </Button>
           </div>
         ) : null}
-        {attachments.length > 0 ? (
+        {attachments.length > 0 && captureKind !== 'note' ? (
           <div className="flex flex-col gap-2" aria-label="Draft images">
             {attachments.map((attachment) => (
               <div

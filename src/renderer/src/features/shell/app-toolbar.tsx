@@ -98,28 +98,6 @@ export function AppToolbar({
   }, [keyboardShortcutsEnabled])
 
   useEffect(() => {
-    const openNewItem = (event: KeyboardEvent): void => {
-      if (
-        !keyboardShortcutsEnabled ||
-        event.defaultPrevented ||
-        !event.ctrlKey ||
-        event.metaKey ||
-        event.altKey ||
-        event.shiftKey ||
-        event.key.toLocaleLowerCase() !== 'n' ||
-        document.querySelector('[role="dialog"]') !== null
-      ) {
-        return
-      }
-      if (event.target instanceof Element && event.target.closest('[data-detail-surface]')) return
-      event.preventDefault()
-      onNewItem()
-    }
-    window.addEventListener('keydown', openNewItem)
-    return () => window.removeEventListener('keydown', openNewItem)
-  }, [keyboardShortcutsEnabled, onNewItem])
-
-  useEffect(() => {
     if (newItemFocusRequest > 0) newItemRef.current?.focus()
   }, [newItemFocusRequest])
 

@@ -165,6 +165,13 @@ test('Detail capture stays in the rail and can promote notes into the editor', (
   assert.match(workspaceSource, /const focusDetail = focusItem \? \(/)
   assert.match(workspaceSource, /if \(!focusItemId\) return/)
   assert.match(workspaceSource, /if \(focusItemId\) requestFocusTransition\(open\)/)
+  const newItemShortcut = workspaceSource.slice(
+    workspaceSource.indexOf('const handleNewItemShortcut'),
+    workspaceSource.indexOf('const prepareGlobalCapture')
+  )
+  assert.match(newItemShortcut, /openComposer\(\)/)
+  assert.doesNotMatch(newItemShortcut, /data-detail-surface/)
+  assert.match(workspaceSource, /setComposerOpen\(true\)\s+setFocusDetailOpen\(false\)/)
   assert.match(workspaceSource, /window\.capture\.onMainItemRequested/)
   assert.match(workspaceSource, /openDetail\(nextItem\.id, true\)/)
   assert.doesNotMatch(workspaceSource, /composerOpen \? \(\s*addItemComposer/)

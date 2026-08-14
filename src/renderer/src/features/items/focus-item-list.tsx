@@ -77,7 +77,7 @@ export function FocusItemList({
       ) : (
         <div className="min-h-full py-2 pr-3 pl-2" role="group" aria-label="Items">
           <OrderedMasonry gap={8}>
-            {composer}
+            {composer ? <div className="rounded-sm p-1">{composer}</div> : null}
 
             {items.map((item) => {
               const active = item.id === activeItemId

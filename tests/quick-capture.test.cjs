@@ -114,6 +114,17 @@ test('continues Quick Capture notes in the main editor', () => {
   assert.match(contractSource, /openMainItem: \(itemId: string\) => void/)
 })
 
+test('keeps pasted images inline once the composer is a note', () => {
+  const source = readFileSync(
+    require.resolve('../src/renderer/src/features/capture/add-item-composer.tsx'),
+    'utf8'
+  )
+
+  assert.match(source, /detectCaptureKind\(draft, attachments\.length\) === 'note'/)
+  assert.match(source, /if \(!noteIntent\) \{[\s\S]*setEditingAttachmentId/)
+  assert.match(source, /attachments\.length > 0 && captureKind !== 'note'/)
+})
+
 test('persists revisioned capture text and rejects stale or inactive writers', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-capture-session-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))

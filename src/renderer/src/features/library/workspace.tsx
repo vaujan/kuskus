@@ -1166,12 +1166,33 @@ export function Workspace({
     const open = (): void => {
       mainComposerOwnershipRequested.current = captureOwner.current !== 'main'
       setComposerOpen(true)
+      setFocusDetailOpen(false)
       setFocusNoteExpanded(false)
       setComposerFocusRequest((request) => request + 1)
     }
     if (focusItemId) requestFocusTransition(open)
     else open()
   }, [focusItemId, requestFocusTransition])
+
+  useEffect(() => {
+    const handleNewItemShortcut = (event: KeyboardEvent): void => {
+      if (
+        event.defaultPrevented ||
+        !event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        event.shiftKey ||
+        event.key.toLocaleLowerCase() !== 'n' ||
+        document.querySelector('[role="dialog"]') !== null
+      ) {
+        return
+      }
+      event.preventDefault()
+      openComposer()
+    }
+    window.addEventListener('keydown', handleNewItemShortcut)
+    return () => window.removeEventListener('keydown', handleNewItemShortcut)
+  }, [openComposer])
 
   const prepareGlobalCapture = useCallback((): void => {
     const modalOpen = document.querySelector('[role="dialog"]') !== null
