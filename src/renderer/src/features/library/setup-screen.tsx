@@ -103,7 +103,7 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
         </div>
         <WindowControls />
       </header>
-      <main className="flex flex-1 items-center justify-center overflow-auto p-6">
+      <main className="flex flex-1 items-center justify-center overflow-auto p-4 sm:p-6">
         <Card className="w-full max-w-lg">
           <CardHeader className="gap-3 border-b">
             <Library
@@ -111,8 +111,8 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
               aria-hidden="true"
             />
             <div className="flex flex-col gap-1">
-              <CardTitle>{title}</CardTitle>
-              <p className="text-sm leading-relaxed text-muted-foreground">
+              <CardTitle className="text-balance">{title}</CardTitle>
+              <p className="text-pretty text-sm leading-relaxed text-muted-foreground">
                 {initialState.status === 'needs-initialization'
                   ? 'Kuskus will leave visible files untouched and keep identity and operational records in .kuskus.'
                   : initialState.status === 'needs-migration'
@@ -154,6 +154,7 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
                       id="library-name"
                       name="libraryName"
                       autoComplete="off"
+                      autoFocus
                       value={name}
                       maxLength={80}
                       disabled={busy}
@@ -164,21 +165,31 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
                 {error && <LibraryAlert title="Unable to Continue" description={error} />}
               </FieldGroup>
             </CardContent>
-            <CardFooter className="justify-between gap-3 border-t">
-              <Button type="button" variant="ghost" disabled={busy} onClick={openLibrary}>
+            <CardFooter className="flex-col-reverse items-stretch justify-between gap-3 border-t sm:flex-row sm:items-center">
+              <Button
+                type="button"
+                variant="ghost"
+                className="transition-[scale,background-color,color] active:scale-[0.96] motion-reduce:scale-100 motion-reduce:transition-none"
+                disabled={busy}
+                onClick={openLibrary}
+              >
                 <FolderOpen data-icon="inline-start" aria-hidden="true" />
                 Open Existing
               </Button>
               <Button
                 type={needsPreparation ? 'button' : 'submit'}
+                className="transition-[scale,background-color,color] active:scale-[0.96] motion-reduce:scale-100 motion-reduce:transition-none"
                 disabled={busy || (!needsPreparation && !name.trim())}
                 onClick={needsPreparation ? prepareSelectedVault : undefined}
               >
-                {busy ? (
-                  <Spinner data-icon="inline-start" />
-                ) : (
-                  <Plus data-icon="inline-start" aria-hidden="true" />
-                )}
+                <span data-icon="inline-start" className="relative size-4" aria-hidden="true">
+                  <Plus
+                    className={`absolute inset-0 transition-[scale,opacity,filter] duration-300 [transition-timing-function:cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none ${busy ? 'scale-[0.25] opacity-0 blur-[4px]' : 'scale-100 opacity-100 blur-0'}`}
+                  />
+                  <Spinner
+                    className={`transition-[scale,opacity,filter] duration-300 [transition-timing-function:cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none ${busy ? 'scale-100 opacity-100 blur-0' : 'scale-[0.25] opacity-0 blur-[4px]'}`}
+                  />
+                </span>
                 {busy
                   ? 'Working…'
                   : initialState.status === 'needs-initialization'

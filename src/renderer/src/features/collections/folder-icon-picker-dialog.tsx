@@ -50,8 +50,8 @@ export function FolderIconPickerDialog({
     >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Choose a folder icon</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-balance">Choose a folder icon</DialogTitle>
+          <DialogDescription className="text-pretty">
             Pick a symbol that makes this folder easy to recognize.
           </DialogDescription>
         </DialogHeader>
@@ -70,7 +70,7 @@ export function FolderIconPickerDialog({
         </InputGroup>
         {options.length > 0 ? (
           <div
-            className="grid max-h-72 grid-cols-6 gap-1 overflow-y-auto p-0.5"
+            className="grid max-h-72 grid-cols-6 gap-1 overflow-y-auto p-0.5 sm:grid-cols-8"
             role="group"
             aria-label="Folder icons"
           >
@@ -81,9 +81,13 @@ export function FolderIconPickerDialog({
                 <Button
                   key={option.key}
                   type="button"
-                  variant={selected ? 'default' : 'ghost'}
+                  variant="ghost"
                   size="icon-lg"
-                  className={cn('relative', selected && 'ring-1 ring-ring/30')}
+                  className={cn(
+                    'relative transition-[scale,background-color,color,box-shadow] active:scale-[0.96] motion-reduce:scale-100 motion-reduce:transition-none',
+                    selected &&
+                      'bg-primary/10 text-primary shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--primary),transparent_70%)] hover:bg-primary/15'
+                  )}
                   aria-label={option.label}
                   aria-pressed={selected}
                   title={option.label}

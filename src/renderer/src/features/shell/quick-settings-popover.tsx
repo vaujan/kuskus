@@ -63,7 +63,7 @@ export function QuickSettingsPopover({
 }): React.JSX.Element {
   const captureStatus =
     globalCaptureShortcutStatus === null
-      ? 'Checking'
+      ? 'Checking…'
       : globalCaptureShortcutStatus.registered
         ? 'Ready'
         : 'Unavailable'
@@ -158,14 +158,14 @@ export function QuickSettingsPopover({
                 <ToggleGroupItem
                   value="light"
                   aria-label="Light mode"
-                  className="size-9 rounded-md p-0 data-[state=on]:bg-background data-[state=on]:shadow-sm"
+                  className="size-10 rounded-md p-0 data-[state=on]:bg-background data-[state=on]:shadow-sm"
                 >
                   <IconSun aria-hidden="true" />
                 </ToggleGroupItem>
                 <ToggleGroupItem
                   value="dark"
                   aria-label="Dark mode"
-                  className="size-9 rounded-md p-0 data-[state=on]:bg-background data-[state=on]:shadow-sm"
+                  className="size-10 rounded-md p-0 data-[state=on]:bg-background data-[state=on]:shadow-sm"
                 >
                   <IconMoon aria-hidden="true" />
                 </ToggleGroupItem>
@@ -211,6 +211,7 @@ export function QuickSettingsPopover({
                 <div className="flex min-h-6 items-center justify-between gap-3">
                   <p className="text-sm font-medium">Global capture</p>
                   <Badge
+                    aria-live="polite"
                     variant={
                       globalCaptureShortcutStatus?.registered === false
                         ? 'destructive'
