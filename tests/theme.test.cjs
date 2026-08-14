@@ -18,14 +18,14 @@ require.extensions['.ts'] = (module, filename) => {
 
 const { applyTheme, resolveTheme } = require('../src/renderer/src/hooks/use-theme.ts')
 
-test('resolves supported themes and rejects stale values', () => {
-  assert.equal(resolveTheme('solarized-light'), 'solarized-light')
-  assert.equal(resolveTheme('solarized-dark'), 'solarized-dark')
+test('resolves light and dark themes and rejects stale values', () => {
   assert.equal(resolveTheme('light'), 'light')
+  assert.equal(resolveTheme('dark'), 'dark')
+  assert.equal(resolveTheme('solarized-light'), 'dark')
   assert.equal(resolveTheme('system'), 'dark')
 })
 
-test('applies Solarized independently from light and dark mode', () => {
+test('applies light and dark color modes', () => {
   const classes = new Set()
   const root = {
     classList: {
@@ -34,23 +34,17 @@ test('applies Solarized independently from light and dark mode', () => {
     style: {}
   }
 
-  applyTheme('solarized-light', root)
-  assert.deepEqual([...classes], ['solarized'])
-  assert.equal(root.style.colorScheme, 'light')
-
-  applyTheme('solarized-dark', root)
-  assert.deepEqual([...classes].sort(), ['dark', 'solarized'])
+  applyTheme('dark', root)
+  assert.deepEqual([...classes], ['dark'])
   assert.equal(root.style.colorScheme, 'dark')
 
   applyTheme('light', root)
   assert.deepEqual([...classes], [])
+  assert.equal(root.style.colorScheme, 'light')
 })
 
-test('defines light and dark Solarized token sets', () => {
+test('does not define obsolete Solarized tokens', () => {
   const css = readFileSync(require.resolve('../src/renderer/src/assets/main.css'), 'utf8')
 
-  assert.match(css, /\.solarized:not\(\.dark\)/)
-  assert.match(css, /\.solarized\.dark/)
-  assert.match(css, /--background: #fdf6e3/)
-  assert.match(css, /--background: #002b36/)
+  assert.doesNotMatch(css, /solarized/i)
 })

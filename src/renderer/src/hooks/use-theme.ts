@@ -1,21 +1,17 @@
 import { useEffect, useState } from 'react'
 
-export type Theme = 'dark' | 'light' | 'solarized-dark' | 'solarized-light'
+export type Theme = 'dark' | 'light'
 
 export function resolveTheme(value: string | null): Theme {
-  return value === 'light' || value === 'solarized-dark' || value === 'solarized-light'
-    ? value
-    : 'dark'
+  return value === 'light' ? 'light' : 'dark'
 }
 
 export function applyTheme(
   theme: Theme,
   root: Pick<HTMLElement, 'classList' | 'style'> = document.documentElement
 ): void {
-  const mode = theme.endsWith('dark') ? 'dark' : 'light'
-  root.classList.toggle('dark', mode === 'dark')
-  root.classList.toggle('solarized', theme.startsWith('solarized'))
-  root.style.colorScheme = mode
+  root.classList.toggle('dark', theme === 'dark')
+  root.style.colorScheme = theme
 }
 
 export function useTheme(): [Theme, (theme: Theme) => void] {

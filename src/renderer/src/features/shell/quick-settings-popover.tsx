@@ -1,21 +1,15 @@
 import {
+  IconBolt,
   IconLayoutDashboard,
   IconLayoutGrid,
   IconMoon,
+  IconPalette,
   IconSun,
   type TablerIcon
 } from '@tabler/icons-react'
 import type { ReactElement } from 'react'
 
 import { Badge } from '@/components/ui/badge'
-import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldLegend,
-  FieldSet,
-  FieldTitle
-} from '@/components/ui/field'
 import { Kbd } from '@/components/ui/kbd'
 import {
   Popover,
@@ -35,6 +29,10 @@ const VIEW_OPTIONS: Array<{ value: LibraryView; label: string; icon: TablerIcon 
   { value: 'visual', label: 'Masonry', icon: IconLayoutDashboard },
   { value: 'grid', label: 'Grid', icon: IconLayoutGrid }
 ]
+
+const surfaceClass =
+  'rounded-2xl bg-muted/45 p-1.5 shadow-[inset_0_0_0_1px_rgb(0_0_0/0.035)] dark:shadow-[inset_0_0_0_1px_rgb(255_255_255/0.05)]'
+const rowClass = 'flex min-h-12 items-center gap-3 rounded-lg px-3'
 
 export function QuickSettingsPopover({
   open,
@@ -63,30 +61,26 @@ export function QuickSettingsPopover({
   translucentBackgroundReduced: boolean
   onTranslucentBackgroundChange: (enabled: boolean) => void
 }): React.JSX.Element {
-  const captureAvailable = globalCaptureShortcutStatus?.registered !== false
   const captureStatus =
     globalCaptureShortcutStatus === null
       ? 'Checking'
       : globalCaptureShortcutStatus.registered
-        ? 'Available'
+        ? 'Ready'
         : 'Unavailable'
   const captureDescription =
     globalCaptureShortcutStatus === null
       ? 'Checking the system-wide shortcut.'
       : globalCaptureShortcutStatus.registered
-        ? 'Available from any app while Kuskus is running.'
-        : 'The system-wide shortcut could not be registered.'
-
-  const themeMode = theme.endsWith('dark') ? 'dark' : 'light'
-  const themePalette = theme.startsWith('solarized') ? 'solarized' : 'default'
+        ? 'Capture from any app while Kuskus is running.'
+        : 'Another app may already be using this shortcut.'
   const translucencyDisabled =
     translucentBackgroundSupported !== true || translucentBackgroundReduced
   const translucencyDescription =
     translucentBackgroundSupported === false
       ? 'Requires Windows 11 22H2 or newer.'
       : translucentBackgroundReduced
-        ? 'Turn on Windows Transparency effects under Accessibility, Visual effects.'
-        : 'Let the Windows desktop material show through the application shell.'
+        ? 'Enable Windows Transparency effects to use this.'
+        : 'Let the desktop material show through the app shell.'
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -95,146 +89,148 @@ export function QuickSettingsPopover({
         side="right"
         align="end"
         sideOffset={8}
-        className="max-h-[calc(100vh-1rem)] w-[min(20rem,calc(100vw-1rem))] gap-5 overflow-y-auto p-4"
+        className="max-h-[calc(100vh-1rem)] w-[min(21rem,calc(100vw-1rem))] gap-5 overflow-y-auto rounded-xl p-4 shadow-xl"
       >
-        <PopoverHeader className="gap-0">
-          <PopoverTitle className="font-heading text-lg text-balance">Quick settings</PopoverTitle>
-          <PopoverDescription className="sr-only">
-            Adjust the library view and appearance.
+        <PopoverHeader className="gap-1 px-1">
+          <PopoverTitle className="font-heading text-lg font-semibold text-balance">
+            Quick settings
+          </PopoverTitle>
+          <PopoverDescription className="text-sm text-pretty">
+            Personalize your workspace without leaving the library.
           </PopoverDescription>
         </PopoverHeader>
 
-        <FieldSet className="gap-2">
-          <FieldLegend variant="label" className="sr-only">
-            Library view
-          </FieldLegend>
-          <Field className="gap-2">
-            <FieldTitle>Layout</FieldTitle>
-            <ToggleGroup
-              value={[view]}
-              onValueChange={(values) => {
-                const nextView = values[0]
-                if (nextView) onViewChange(nextView as LibraryView)
-              }}
-              variant="outline"
-              spacing={0}
-              aria-label="Library view"
-              className="w-full"
-            >
-              {VIEW_OPTIONS.map((option) => {
-                const Icon = option.icon
-                return (
-                  <ToggleGroupItem
-                    key={option.value}
-                    value={option.value}
-                    aria-label={option.label}
-                    title={option.label}
-                    className="min-h-10 min-w-0 flex-1"
-                  >
-                    <Icon aria-hidden="true" />
-                    <span>{option.label}</span>
-                  </ToggleGroupItem>
-                )
-              })}
-            </ToggleGroup>
-          </Field>
-        </FieldSet>
+        <section className="space-y-2" aria-labelledby="layout-settings-title">
+          <h3
+            id="layout-settings-title"
+            className="px-1 text-xs font-medium tracking-wide text-muted-foreground"
+          >
+            Library layout
+          </h3>
+          <ToggleGroup
+            value={[view]}
+            onValueChange={(values) => {
+              const nextView = values[0]
+              if (nextView) onViewChange(nextView as LibraryView)
+            }}
+            spacing={1}
+            aria-label="Library layout"
+            className={`${surfaceClass} w-full gap-1.5`}
+          >
+            {VIEW_OPTIONS.map((option) => {
+              const Icon = option.icon
+              return (
+                <ToggleGroupItem
+                  key={option.value}
+                  value={option.value}
+                  aria-label={option.label}
+                  className="min-h-11 min-w-0 flex-1 rounded-lg bg-transparent transition-[color,background-color,box-shadow] duration-150 ease-out data-[state=on]:bg-background data-[state=on]:shadow-sm"
+                >
+                  <Icon aria-hidden="true" />
+                  <span>{option.label}</span>
+                </ToggleGroupItem>
+              )
+            })}
+          </ToggleGroup>
+        </section>
 
-        <FieldSet className="gap-3">
-          <FieldLegend variant="label" className="sr-only">
+        <section className="space-y-2" aria-labelledby="appearance-settings-title">
+          <h3
+            id="appearance-settings-title"
+            className="px-1 text-xs font-medium tracking-wide text-muted-foreground"
+          >
             Appearance
-          </FieldLegend>
-          <Field orientation="horizontal" className="min-h-10 items-center gap-4">
-            <FieldTitle>Theme</FieldTitle>
-            <ToggleGroup
-              value={[themePalette]}
-              onValueChange={(values) => {
-                const palette = values[0]
-                if (palette)
-                  onThemeChange(
-                    (palette === 'solarized' ? `solarized-${themeMode}` : themeMode) as Theme
-                  )
-              }}
-              variant="outline"
-              spacing={0}
-              aria-label="Theme"
-              className="w-44 shrink-0"
-            >
-              <ToggleGroupItem value="default" className="min-h-10 min-w-0 flex-1">
-                Default
-              </ToggleGroupItem>
-              <ToggleGroupItem value="solarized" className="min-h-10 min-w-0 flex-1">
-                Solarized
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </Field>
-          <Field orientation="horizontal" className="min-h-10 items-center gap-4">
-            <FieldTitle>Mode</FieldTitle>
-            <ToggleGroup
-              value={[themeMode]}
-              onValueChange={(values) => {
-                const mode = values[0]
-                if (mode)
-                  onThemeChange(
-                    (themePalette === 'solarized' ? `solarized-${mode}` : mode) as Theme
-                  )
-              }}
-              variant="outline"
-              spacing={0}
-              aria-label="Color mode"
-              className="w-44 shrink-0"
-            >
-              <ToggleGroupItem value="light" className="min-h-10 min-w-0 flex-1">
-                <IconSun aria-hidden="true" />
-                Light
-              </ToggleGroupItem>
-              <ToggleGroupItem value="dark" className="min-h-10 min-w-0 flex-1">
-                <IconMoon aria-hidden="true" />
-                Dark
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </Field>
-          {window.electron.window.platform === 'win32' && (
-            <Field
-              orientation="horizontal"
-              data-disabled={translucencyDisabled || undefined}
-              className="min-h-10 gap-4"
-            >
-              <FieldContent>
-                <FieldTitle>Translucent background</FieldTitle>
-                {translucencyDisabled && (
-                  <FieldDescription className="text-pretty">
-                    {translucencyDescription}
-                  </FieldDescription>
-                )}
-              </FieldContent>
-              <Switch
-                aria-label="Translucent background"
-                checked={translucentBackgroundEnabled}
-                disabled={translucencyDisabled}
-                onCheckedChange={onTranslucentBackgroundChange}
-              />
-            </Field>
-          )}
-        </FieldSet>
-
-        <section className="flex flex-col gap-2" aria-labelledby="global-capture-title">
-          <div className="flex min-h-8 items-center justify-between gap-4">
-            <div className="min-w-0">
-              <h3 id="global-capture-title" className="font-medium text-foreground">
-                Global capture
-              </h3>
-              {globalCaptureShortcutStatus?.registered !== true && (
-                <p className="text-sm text-pretty text-muted-foreground">{captureDescription}</p>
-              )}
+          </h3>
+          <div className={surfaceClass}>
+            <div className={rowClass}>
+              <IconPalette className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <span className="min-w-0 flex-1 text-sm font-medium">Color mode</span>
+              <ToggleGroup
+                value={[theme]}
+                onValueChange={(values) => {
+                  const mode = values[0]
+                  if (mode) onThemeChange(mode as Theme)
+                }}
+                spacing={1}
+                aria-label="Color mode"
+                className="shrink-0 gap-1 rounded-lg bg-background/55 p-1 shadow-inner"
+              >
+                <ToggleGroupItem
+                  value="light"
+                  aria-label="Light mode"
+                  className="size-9 rounded-md p-0 data-[state=on]:bg-background data-[state=on]:shadow-sm"
+                >
+                  <IconSun aria-hidden="true" />
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  value="dark"
+                  aria-label="Dark mode"
+                  className="size-9 rounded-md p-0 data-[state=on]:bg-background data-[state=on]:shadow-sm"
+                >
+                  <IconMoon aria-hidden="true" />
+                </ToggleGroupItem>
+              </ToggleGroup>
             </div>
-            <Badge variant={captureAvailable ? 'secondary' : 'destructive'}>{captureStatus}</Badge>
+            {window.electron.window.platform === 'win32' ? (
+              <div
+                className={`${rowClass} group border-t border-foreground/5 py-2`}
+                data-disabled={translucencyDisabled || undefined}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium group-data-[disabled=true]:opacity-50">
+                    Translucent background
+                  </p>
+                  <p className="mt-0.5 text-xs leading-5 text-pretty text-muted-foreground">
+                    {translucencyDescription}
+                  </p>
+                </div>
+                <Switch
+                  aria-label="Translucent background"
+                  checked={translucentBackgroundEnabled}
+                  disabled={translucencyDisabled}
+                  onCheckedChange={onTranslucentBackgroundChange}
+                />
+              </div>
+            ) : null}
           </div>
-          <div className="flex min-h-8 items-center justify-between gap-4 text-sm">
-            <span className="text-muted-foreground">Shortcut</span>
-            <Kbd className="shrink-0">
-              {globalCaptureShortcutStatus?.accelerator ?? 'Ctrl+Shift+Space'}
-            </Kbd>
+        </section>
+
+        <section className="space-y-2" aria-labelledby="capture-settings-title">
+          <h3
+            id="capture-settings-title"
+            className="px-1 text-xs font-medium tracking-wide text-muted-foreground"
+          >
+            Capture
+          </h3>
+          <div className={surfaceClass}>
+            <div className={`${rowClass} items-start py-2.5`}>
+              <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-background/70 text-foreground shadow-sm">
+                <IconBolt className="size-4" aria-hidden="true" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex min-h-6 items-center justify-between gap-3">
+                  <p className="text-sm font-medium">Global capture</p>
+                  <Badge
+                    variant={
+                      globalCaptureShortcutStatus?.registered === false
+                        ? 'destructive'
+                        : 'secondary'
+                    }
+                  >
+                    {captureStatus}
+                  </Badge>
+                </div>
+                <p className="mt-0.5 text-xs leading-5 text-pretty text-muted-foreground">
+                  {captureDescription}
+                </p>
+              </div>
+            </div>
+            <div className={`${rowClass} min-h-11 border-t border-foreground/5`}>
+              <span className="flex-1 text-sm text-muted-foreground">Shortcut</span>
+              <Kbd className="h-6 rounded-md bg-background/70 px-2 text-foreground shadow-sm">
+                {globalCaptureShortcutStatus?.accelerator ?? 'Ctrl+Shift+Space'}
+              </Kbd>
+            </div>
           </div>
         </section>
       </PopoverContent>

@@ -262,7 +262,7 @@ function PropertyRow({
 }): React.JSX.Element {
   const TypeIcon = TYPE_ICONS[property.type]
   return (
-    <div className="group/property relative grid min-w-0 grid-cols-[10rem_minmax(0,1fr)] items-start gap-3 rounded-xl px-2 py-0.5 transition-[background-color,box-shadow] duration-150 hover:bg-background/70 hover:shadow-sm focus-within:bg-background/70 focus-within:shadow-sm">
+    <div className="group/property relative grid min-w-0 grid-cols-[10rem_minmax(0,1fr)] items-start gap-3 rounded-xl px-2 py-0.5 transition-[background-color,box-shadow] duration-150 hover:bg-muted/80 hover:shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)] focus-within:bg-background/70 focus-within:shadow-sm">
       <div className="flex min-w-0 items-center gap-1">
         {editable ? (
           <Select
@@ -281,7 +281,7 @@ function PropertyRow({
               size="sm"
               showIcon={false}
               aria-label={`Type for ${property.key}`}
-              className="size-8 shrink-0 justify-center rounded-none border-transparent bg-transparent px-0 text-muted-foreground shadow-none focus-visible:border-transparent focus-visible:ring-0"
+              className="size-8 shrink-0 justify-center rounded-none border-transparent bg-transparent px-0 text-muted-foreground shadow-none hover:bg-transparent focus-visible:border-transparent focus-visible:ring-0 dark:hover:bg-transparent"
             >
               <TypeIcon aria-hidden />
             </SelectTrigger>
