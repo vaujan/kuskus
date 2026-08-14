@@ -290,6 +290,27 @@
     font: inherit;
   }
 
+  .kuskus-mermaid-diagram {
+    overflow-x: auto;
+    padding: 0.5rem 1rem 1rem;
+    text-align: center;
+  }
+
+  .kuskus-mermaid-diagram svg {
+    display: inline-block;
+    width: auto;
+    max-width: 100%;
+    height: auto;
+  }
+
+  .kuskus-mermaid-loading {
+    padding: 1rem;
+    color: var(--typeset-muted);
+    font-family: var(--typeset-font-body);
+    font-size: 0.8125rem;
+    text-align: center;
+  }
+
   .tok-keyword,
   .tok-operator,
   .tok-controlKeyword,

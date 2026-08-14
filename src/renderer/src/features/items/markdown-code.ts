@@ -20,10 +20,22 @@ export function markdownCodeLanguage(info: string): Language | null {
   return CODE_LANGUAGES[info.trim().toLowerCase()] ?? null
 }
 
+export function isMermaidLanguage(info: string): boolean {
+  return info.trim().toLowerCase() === 'mermaid'
+}
+
 export function codeLanguageLabel(info: string): string {
   const language = info.trim().toLowerCase()
   if (!language) return 'Plain text'
-  return { js: 'JavaScript', jsx: 'JSX', ts: 'TypeScript', tsx: 'TSX' }[language] ?? language
+  return (
+    {
+      js: 'JavaScript',
+      jsx: 'JSX',
+      mermaid: 'Mermaid',
+      ts: 'TypeScript',
+      tsx: 'TSX'
+    }[language] ?? language
+  )
 }
 
 export interface HighlightedCodeRange {

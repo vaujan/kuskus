@@ -67,7 +67,10 @@ test('async image paste never edits a stale selection', () => {
 })
 
 test('code blocks are syntax highlighted in previews and both note editors', () => {
-  const { highlightedCodeRanges } = require('../src/renderer/src/features/items/markdown-code.ts')
+  const {
+    highlightedCodeRanges,
+    isMermaidLanguage
+  } = require('../src/renderer/src/features/items/markdown-code.ts')
   const richEditor = readFileSync(
     require.resolve('../src/renderer/src/features/items/rich-markdown-editor.tsx'),
     'utf8'
@@ -85,9 +88,36 @@ test('code blocks are syntax highlighted in previews and both note editors', () 
   assert.ok(ranges.some((range) => range.classes.includes('tok-keyword')))
   assert.ok(ranges.some((range) => range.classes.includes('tok-string')))
   assert.deepEqual(highlightedCodeRanges('print(1)', 'python'), [])
+  assert.equal(isMermaidLanguage('mermaid'), true)
+  assert.equal(isMermaidLanguage('typescript'), false)
   assert.match(richEditor, /\.use\(richMarkdownCode\)/)
   assert.match(preview, /<MarkdownCodeBlock/)
   assert.match(sourceEditor, /codeLanguages: markdownCodeLanguage/)
+})
+
+test('Mermaid code blocks render diagrams lazily and safely', () => {
+  const codeBlock = readFileSync(
+    require.resolve('../src/renderer/src/features/items/markdown-code-block.tsx'),
+    'utf8'
+  )
+  const mermaid = readFileSync(
+    require.resolve('../src/renderer/src/features/items/markdown-mermaid.tsx'),
+    'utf8'
+  )
+
+  assert.match(codeBlock, /diagrams && isMermaidLanguage\(language\)/)
+  assert.match(codeBlock, /<MarkdownMermaid code=\{code\}/)
+  assert.match(
+    readFileSync(
+      require.resolve('../src/renderer/src/features/items/markdown-preview.tsx'),
+      'utf8'
+    ),
+    /diagrams=\{presentation === 'detail'\}/
+  )
+  assert.match(mermaid, /await import\('mermaid'\)/)
+  assert.match(mermaid, /securityLevel: 'strict'/)
+  assert.match(mermaid, /suppressErrorRendering: true/)
+  assert.match(mermaid, /Mermaid · Invalid diagram/)
 })
 
 test('Markdown media renders remote images and keeps block math visually distinct', () => {

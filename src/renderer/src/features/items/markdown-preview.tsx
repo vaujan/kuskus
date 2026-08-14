@@ -192,6 +192,7 @@ export const MarkdownPreview = memo(function MarkdownPreview({
         <MarkdownCodeBlock
           code={String(child.props.children ?? '').replace(/\n$/, '')}
           language={language}
+          diagrams={presentation === 'detail'}
         />
       )
     },

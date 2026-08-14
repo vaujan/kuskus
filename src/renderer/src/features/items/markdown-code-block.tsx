@@ -3,15 +3,19 @@ import { useEffect, useRef, useState } from 'react'
 import {
   codeLanguageLabel,
   copyMarkdownCode,
+  isMermaidLanguage,
   renderHighlightedCode
 } from '@/features/items/markdown-code'
+import { MarkdownMermaid } from '@/features/items/markdown-mermaid'
 
 export function MarkdownCodeBlock({
   code,
-  language
+  language,
+  diagrams = false
 }: {
   code: string
   language: string
+  diagrams?: boolean
 }): React.JSX.Element {
   const codeRef = useRef<HTMLElement>(null)
   const [copied, setCopied] = useState(false)
@@ -19,6 +23,8 @@ export function MarkdownCodeBlock({
   useEffect(() => {
     if (codeRef.current) renderHighlightedCode(codeRef.current, code, language)
   }, [code, language])
+
+  if (diagrams && isMermaidLanguage(language)) return <MarkdownMermaid code={code} />
 
   return (
     <div className="kuskus-code-block not-typeset" data-not-typeset>
