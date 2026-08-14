@@ -2475,6 +2475,64 @@ export class LibraryStore {
     })
   }
 
+  async importNoteImage(
+    libraryPath: string,
+    itemId: string,
+    input: {
+      id: string
+      filename: string
+      sourceFilename: string | null
+      bytes: Uint8Array
+      mediaType: NoteAttachmentDto['mediaType']
+      width: number
+      height: number
+      timestamp: string
+    }
+  ): Promise<NoteAttachmentDto> {
+    const note = await this.resolveItem(libraryPath, itemId)
+    if (note.metadata.type !== 'note') throw new Error('The saved item is not a note.')
+    const destination = await this.uniquePath(note.directory, input.filename)
+    await writeFile(destination, input.bytes, { flag: 'wx' })
+    const relativePath = slash(relative(libraryPath, destination))
+    const metadata = {
+      ...createImageMetadata(
+        input.id,
+        input.sourceFilename ?? basename(destination),
+        { mediaType: input.mediaType, width: input.width, height: input.height },
+        input.timestamp
+      ),
+      title: titleFromPath(relativePath),
+      contentFilename: basename(destination),
+      relativePath,
+      referencedAttachment: true,
+      attachmentOrigin: 'note-capture'
+    } satisfies PersistedImageItem
+    try {
+      await this.writeItemRecord(libraryPath, {
+        schemaVersion: 2,
+        id: input.id,
+        relativePath,
+        fingerprint: await this.fingerprint(destination),
+        fileIdentity: await this.fileIdentity(destination),
+        recovery: { lastSeenAt: input.timestamp, missingSince: null },
+        metadata
+      })
+    } catch (error) {
+      await rm(destination, { force: true })
+      throw error
+    }
+    return {
+      id: input.id,
+      filename: basename(destination),
+      relativePath: markdownPathForAttachment(note.path, destination),
+      sourceFilename: input.sourceFilename,
+      mediaType: input.mediaType,
+      width: input.width,
+      height: input.height,
+      missingContent: false
+    }
+  }
+
   async updateNote(
     libraryPath: string,
     metadata: PersistedNoteItem,

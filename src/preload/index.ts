@@ -113,6 +113,7 @@ const libraryApi: KuskusLibraryApi = {
   migrateLibrary: () => ipcRenderer.invoke(KUSKUS_CHANNELS.migrateLibrary),
   createNote: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.createNote, input),
   updateNote: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.updateNote, input),
+  importNoteImage: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.importNoteImage, input),
   listCaptureDraftImages: () => ipcRenderer.invoke(KUSKUS_CHANNELS.listCaptureDraftImages),
   stageCaptureDraftImage: (input) =>
     ipcRenderer.invoke(KUSKUS_CHANNELS.stageCaptureDraftImage, input),

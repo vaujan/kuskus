@@ -8,6 +8,7 @@ import {
 } from '@milkdown/core'
 import { history } from '@milkdown/plugin-history'
 import type { Node as ProseNode } from '@milkdown/prose/model'
+import { Selection } from '@milkdown/prose/state'
 import type {
   EditorView as ProseEditorView,
   NodeView,
@@ -26,8 +27,15 @@ import {
 } from 'react'
 import { cn } from '@/lib/utils'
 import { richMarkdownActiveLine } from '@/features/items/rich-markdown-active-line'
+import { richMarkdownCode } from '@/features/items/rich-markdown-code'
 import { richMarkdownMath } from '@/features/items/rich-markdown-math'
 import { richMarkdownPublisher } from '@/features/items/rich-markdown-publisher'
+import { RichMarkdownSlashMenu } from '@/features/items/rich-markdown-slash-menu'
+import {
+  richMarkdownSlashMenu,
+  runRichMarkdownSlashCommand,
+  type RichMarkdownSlashState
+} from '@/features/items/rich-markdown-slash-menu-plugin'
 import { partitionRichMarkdownSource } from '@/features/items/rich-markdown-source'
 import {
   prepareRichMarkdown,
@@ -51,6 +59,16 @@ export interface RichMarkdownEditorOptions {
 
 export interface RichMarkdownEditorHandle {
   focus: () => void
+}
+
+function focusRichMarkdownEditor(editor: Editor | null): void {
+  editor?.action((ctx) => {
+    const view = ctx.get(editorViewCtx)
+    view.dispatch(
+      view.state.tr.setSelection(Selection.near(view.state.doc.resolve(view.state.selection.head)))
+    )
+    view.focus()
+  })
 }
 
 interface RichMarkdownEditorProps {
@@ -178,24 +196,27 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
     const hostRef = useRef<HTMLDivElement>(null)
     const editorRef = useRef<Editor | null>(null)
     const valueRef = useRef(value)
+    const activeRef = useRef(active)
     const editableRef = useRef(editable)
     const optionsRef = useRef(options ?? {})
     const onChangeRef = useRef(onChange)
     const onErrorRef = useRef(onError)
     const publishedRef = useRef<string | null>(null)
     const [failed, setFailed] = useState(false)
+    const [slashState, setSlashState] = useState<RichMarkdownSlashState | null>(null)
 
     useLayoutEffect(() => {
       valueRef.current = value
+      activeRef.current = active
       editableRef.current = editable
       optionsRef.current = options ?? {}
       onChangeRef.current = onChange
       onErrorRef.current = onError
-    }, [editable, onChange, onError, options, value])
+    }, [active, editable, onChange, onError, options, value])
 
     useImperativeHandle(
       forwardedRef,
-      () => ({ focus: () => editorRef.current?.action((ctx) => ctx.get(editorViewCtx).focus()) }),
+      () => ({ focus: () => focusRichMarkdownEditor(editorRef.current) }),
       []
     )
 
@@ -223,50 +244,60 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
         valueRef.current = next
         onChangeRef.current(next)
       })
+      const slashMenu = richMarkdownSlashMenu(
+        setSlashState,
+        (state, id) =>
+          editorRef.current?.action((ctx) =>
+            runRichMarkdownSlashCommand(ctx.get(editorViewCtx), state, id)
+          ),
+        () => editableRef.current
+      )
       const editor = Editor.make()
         .use(commonmark)
         .use(gfm)
+        .use(richMarkdownCode)
+        .use(slashMenu)
         .use(richMarkdownMath)
-        .use(richMarkdownActiveLine)
         .use(publisher)
         .use(history)
-        .config((ctx) => {
-          ctx.set(rootCtx, host)
-          ctx.set(defaultValueCtx, prepareRichMarkdown(source.body))
-          ctx.set(rootAttrsCtx, {
-            class: 'typeset kuskus-typeset kuskus-rich-document',
-            'data-typeset-presentation': presentation
-          })
-          ctx.set(editorViewOptionsCtx, {
-            editable: () => editableRef.current,
-            nodeViews: { image: imageView, list_item: taskView },
-            attributes: {
-              'aria-label': editableRef.current ? 'Rich Markdown editor' : 'Markdown document',
-              spellcheck: 'true'
-            },
-            handlePaste: (view, event) => {
-              const file = Array.from(event.clipboardData?.items ?? [])
-                .find((entry) => entry.type.startsWith('image/'))
-                ?.getAsFile()
-              const onPasteImage = optionsRef.current.onPasteImage
-              if (!file || !onPasteImage) return false
-              event.preventDefault()
-              const position = view.state.selection.from
-              onPasteImage(file, (src) => {
-                const image = view.state.schema.nodes.image?.create({ src, alt: '', title: '' })
-                if (!image) return
-                try {
-                  view.dispatch(
-                    view.state.tr.insert(Math.min(position, view.state.doc.content.size), image)
-                  )
-                } catch {
-                  onErrorRef.current?.('The image could not be inserted at the current position.')
-                }
-              })
-              return true
-            }
-          })
+      if (presentation === 'detail') editor.use(richMarkdownActiveLine)
+      editor.config((ctx) => {
+        ctx.set(rootCtx, host)
+        ctx.set(defaultValueCtx, prepareRichMarkdown(source.body))
+        ctx.set(rootAttrsCtx, {
+          class: 'typeset kuskus-typeset kuskus-rich-document',
+          'data-typeset-presentation': presentation
         })
+        ctx.set(editorViewOptionsCtx, {
+          editable: () => editableRef.current,
+          nodeViews: { image: imageView, list_item: taskView },
+          attributes: {
+            'aria-label': editableRef.current ? 'Rich Markdown editor' : 'Markdown document',
+            spellcheck: 'true'
+          },
+          handlePaste: (view, event) => {
+            const file = Array.from(event.clipboardData?.items ?? [])
+              .find((entry) => entry.type.startsWith('image/'))
+              ?.getAsFile()
+            const onPasteImage = optionsRef.current.onPasteImage
+            if (!file || !onPasteImage) return false
+            event.preventDefault()
+            const position = view.state.selection.from
+            onPasteImage(file, (src) => {
+              const image = view.state.schema.nodes.image?.create({ src, alt: '', title: '' })
+              if (!image) return
+              try {
+                view.dispatch(
+                  view.state.tr.insert(Math.min(position, view.state.doc.content.size), image)
+                )
+              } catch {
+                onErrorRef.current?.('The image could not be inserted at the current position.')
+              }
+            })
+            return true
+          }
+        })
+      })
 
       const handleClick = (event: MouseEvent): void => {
         const anchor = (event.target as HTMLElement | null)?.closest<HTMLAnchorElement>('a[href]')
@@ -296,6 +327,7 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
           if (current && current.prefix + current.body !== source.prefix + source.body) {
             editor.action(replaceAll(prepareRichMarkdown(current.body), true))
           }
+          if (activeRef.current && editableRef.current) focusRichMarkdownEditor(editor)
         })
         .catch((error: unknown) => {
           setFailed(true)
@@ -339,12 +371,22 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
           checkbox.disabled = !editable && !optionsRef.current.tasksEditable
         })
       })
-      if (active && editable) editor.action((ctx) => ctx.get(editorViewCtx).focus())
+      if (active && editable) focusRichMarkdownEditor(editor)
     }, [active, editable])
 
     return (
       <div className={cn('kuskus-rich-editor min-w-0', className)}>
         <div ref={hostRef} className={failed ? 'hidden' : undefined} />
+        {slashState && editable ? (
+          <RichMarkdownSlashMenu
+            state={slashState}
+            onSelect={(id) =>
+              editorRef.current?.action((ctx) =>
+                runRichMarkdownSlashCommand(ctx.get(editorViewCtx), slashState, id)
+              )
+            }
+          />
+        ) : null}
         {failed ? (
           <pre className="whitespace-pre-wrap font-mono text-sm" role="alert">
             {value}

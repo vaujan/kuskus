@@ -27,6 +27,7 @@ import type {
   LibraryState,
   MoveItemsInput,
   MoveCollectionInput,
+  NoteImageImportInput,
   NoteItemDto,
   QueryItemsInput,
   QueryItemsResult,
@@ -545,6 +546,36 @@ export class LibraryService {
     )
     if (!item || item.type !== 'note') throw new Error('The saved note could not be reopened.')
     return { ...item, body: markdown }
+  }
+
+  async importNoteImage(input: NoteImageImportInput): Promise<CaptureDraftImageDto> {
+    const libraryPath = this.requireCurrentLibrary()
+    this.validateItemId(input.itemId, 'item')
+    const bytes = validateImageInput(input)
+    const detected = detectImage(bytes)
+    if (!detected) throw new Error('Kuskus supports PNG, JPEG, GIF, WebP, and BMP images.')
+    if (input.origin !== undefined && input.origin !== 'clipboard' && input.origin !== 'file') {
+      throw new Error('The image source is invalid.')
+    }
+    const note = await this.getItemDetail(input.itemId)
+    if (note.type !== 'note') throw new Error('The saved item is not a note.')
+    const timestamp = new Date()
+    const clipboardName = input.origin === 'clipboard' ? this.clipboardImageStem(timestamp) : null
+    const filename = noteAttachmentFilename(
+      input.origin === 'clipboard' ? null : input.sourceFilename,
+      detected,
+      new Set(note.attachments.map((attachment) => attachment.filename.toLocaleLowerCase())),
+      clipboardName ?? 'pasted-image'
+    )
+    return this.store.importNoteImage(libraryPath, input.itemId, {
+      id: randomUUID(),
+      filename,
+      sourceFilename:
+        input.origin === 'clipboard' ? filename : safeSourceFilename(input.sourceFilename),
+      bytes,
+      ...detected,
+      timestamp: timestamp.toISOString()
+    })
   }
 
   async listCaptureDraftImages(): Promise<CaptureDraftImageDto[]> {

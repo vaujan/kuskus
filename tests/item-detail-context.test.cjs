@@ -246,7 +246,14 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.doesNotMatch(detailSource, /NoteMetadataControls|NoteIdentityControls/)
   assert.match(detailSource, /function NoteDocumentBlocks/)
   assert.match(detailSource, /showInlineTitle/)
-  assert.match(detailSource, /showInlineTitle \? \([\s\S]*?<InlineItemTitle[\s\S]*?<MarkdownEditor/)
+  assert.match(
+    detailSource,
+    /<MarkdownEditor[\s\S]*?header=\{[\s\S]*?showInlineTitle \? \([\s\S]*?<InlineItemTitle/
+  )
+  assert.match(
+    editorSource,
+    /Decoration\.widget\(\{ widget: new MarkdownHeaderWidget\(\), block: true/
+  )
   assert.doesNotMatch(detailSource, /border-b border-border\/50 pt-10 pb-2/)
   assert.doesNotMatch(detailSource, /group-hover\/title:opacity-100/)
   assert.match(

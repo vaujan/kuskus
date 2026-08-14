@@ -124,7 +124,10 @@ import type {
   CollectionDto,
   LibraryItemDto
 } from '../../../../shared/library-contract'
-import { markdownImageTargetKey } from '../../../../shared/markdown-image-references'
+import {
+  encodeMarkdownImageTarget,
+  markdownImageTargetKey
+} from '../../../../shared/markdown-image-references'
 import { parseNoteFrontmatter } from '../../../../shared/note-frontmatter'
 
 const MarkdownEditor = lazy(() =>
@@ -974,6 +977,24 @@ function NoteCanvas({
   useEffect(() => {
     onOpenVaultLinkRef.current = onOpenVaultLink
   }, [onOpenVaultLink])
+  const importPastedImage = useCallback(
+    async (file: File, insertAtSelection: (src: string) => void): Promise<void> => {
+      try {
+        const result = await window.kuskus.importNoteImage({
+          itemId: item.id,
+          bytes: await file.arrayBuffer(),
+          mediaType: file.type,
+          sourceFilename: file.name || null,
+          origin: 'clipboard'
+        })
+        if (!result.ok) return onError(result.error)
+        insertAtSelection(encodeMarkdownImageTarget(result.data.relativePath))
+      } catch (error) {
+        onError(error instanceof Error ? error.message : 'The image could not be pasted.')
+      }
+    },
+    [item.id, onError]
+  )
   const richOptions = useMemo<RichMarkdownEditorOptions>(() => {
     const images = new Map<
       string,
@@ -996,9 +1017,10 @@ function NoteCanvas({
       },
       onOpenLink: (url) => void openExternalUrlWithFeedback(url),
       onOpenVaultLink: (target) => onOpenVaultLinkRef.current(target),
+      onPasteImage: importPastedImage,
       tasksEditable: mode === 'read'
     }
-  }, [attachmentPreviews, mode, noteAttachments])
+  }, [attachmentPreviews, importPastedImage, mode, noteAttachments])
 
   const scheduleScrollSynchronization = useCallback(
     (driver: 'source' | 'preview', recordDriver = true): void => {
@@ -1060,6 +1082,11 @@ function NoteCanvas({
     return () => preview.removeEventListener('scroll', handlePreviewScroll)
   }, [scheduleScrollSynchronization])
 
+  const focusWritingSurface = useCallback((): void => {
+    if (mode === 'live') richEditorRef.current?.focus()
+    else if (mode === 'markdown' || mode === 'split') editorRef.current?.focus()
+  }, [mode])
+
   useLayoutEffect(() => {
     if (mode === 'read') {
       const preview = previewViewportRef.current
@@ -1067,12 +1094,19 @@ function NoteCanvas({
         preview.tabIndex = 0
         preview.focus({ preventScroll: true })
       }
-    } else if (mode === 'live') {
-      richEditorRef.current?.focus()
-    } else if (mode === 'markdown') {
-      editorRef.current?.focus()
+      return
     }
-  }, [mode])
+    const frame = requestAnimationFrame(focusWritingSurface)
+    return () => cancelAnimationFrame(frame)
+  }, [focusWritingSurface, mode])
+
+  useEffect(() => {
+    const handleWindowFocus = (): void => {
+      requestAnimationFrame(focusWritingSurface)
+    }
+    window.addEventListener('focus', handleWindowFocus)
+    return () => window.removeEventListener('focus', handleWindowFocus)
+  }, [focusWritingSurface])
 
   useEffect(() => {
     const previousMode = previousModeRef.current
@@ -1183,16 +1217,6 @@ function NoteCanvas({
                 mode === 'markdown' || mode === 'split' ? 'flex' : 'hidden'
               )}
             >
-              {showInlineTitle ? (
-                <div className="kuskus-detail-document-frame shrink-0 pt-10 pb-2">
-                  <InlineItemTitle
-                    item={item}
-                    onRename={onRenameTitle}
-                    className="font-heading text-3xl leading-tight font-semibold text-foreground text-balance"
-                    textClassName="break-words"
-                  />
-                </div>
-              ) : null}
               {sourceActivated ? (
                 <Suspense fallback={<div className="min-h-48 flex-1 animate-pulse bg-muted/20" />}>
                   <MarkdownEditor
@@ -1200,11 +1224,22 @@ function NoteCanvas({
                     ref={editorRef}
                     value={snapshot.draft}
                     active={mode === 'markdown' || mode === 'split'}
-                    className={cn('flex-1', showInlineTitle && '[&_.cm-content]:pt-4')}
+                    className="flex-1"
+                    header={
+                      showInlineTitle ? (
+                        <InlineItemTitle
+                          item={item}
+                          onRename={onRenameTitle}
+                          className="font-heading text-3xl leading-tight font-semibold text-foreground text-balance"
+                          textClassName="break-words"
+                        />
+                      ) : null
+                    }
                     onChange={(value) => {
                       activeScrollDriverRef.current = 'source'
                       onDraftChange(value)
                     }}
+                    onPasteImage={importPastedImage}
                     onScroll={() => scheduleScrollSynchronization('source')}
                   />
                 </Suspense>

@@ -9,6 +9,7 @@ export const KUSKUS_CHANNELS = {
   openLibrary: 'library:open',
   createNote: 'library:create-note',
   updateNote: 'library:update-note',
+  importNoteImage: 'library:import-note-image',
   listCaptureDraftImages: 'library:list-capture-draft-images',
   stageCaptureDraftImage: 'library:stage-capture-draft-image',
   renameCaptureDraftImage: 'library:rename-capture-draft-image',
@@ -248,6 +249,10 @@ export interface ImageImportInput {
   origin?: 'clipboard' | 'file'
 }
 
+export interface NoteImageImportInput extends ImageImportInput {
+  itemId: string
+}
+
 export interface RenameCaptureDraftImageInput {
   attachmentId: string
   name: string
@@ -403,6 +408,7 @@ export interface KuskusLibraryApi {
   migrateLibrary: () => Promise<ApiResult<{ state: LibraryState; backupPath: string }>>
   createNote: (input: CreateNoteInput) => Promise<ApiResult<NoteItemDto>>
   updateNote: (input: UpdateNoteInput) => Promise<UpdateNoteResult>
+  importNoteImage: (input: NoteImageImportInput) => Promise<ApiResult<NoteAttachmentDto>>
   listCaptureDraftImages: () => Promise<ApiResult<CaptureDraftImageDto[]>>
   stageCaptureDraftImage: (input: ImageImportInput) => Promise<ApiResult<CaptureDraftImageDto>>
   renameCaptureDraftImage: (

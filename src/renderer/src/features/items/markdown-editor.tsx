@@ -2,10 +2,25 @@ import { defaultKeymap, history, historyKeymap, redo, undo } from '@codemirror/c
 import { markdown } from '@codemirror/lang-markdown'
 import { bracketMatching, syntaxHighlighting } from '@codemirror/language'
 import { EditorSelection, EditorState, Transaction } from '@codemirror/state'
-import { EditorView, highlightActiveLine, highlightSpecialChars, keymap } from '@codemirror/view'
+import {
+  Decoration,
+  EditorView,
+  highlightActiveLine,
+  highlightSpecialChars,
+  keymap,
+  WidgetType
+} from '@codemirror/view'
 import { GFM } from '@lezer/markdown'
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search'
-import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef } from 'react'
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState
+} from 'react'
+import { createPortal } from 'react-dom'
 
 import { getPublishedMarkdownChange } from '@/features/items/markdown-editor-change'
 import { toggleMarkdownMarker } from '@/features/items/markdown-formatting'
@@ -26,7 +41,9 @@ interface MarkdownEditorProps {
   value: string
   active: boolean
   className?: string
+  header?: React.ReactNode
   onChange: (value: string) => void
+  onPasteImage?: (file: File, insertAtSelection: (src: string) => void) => void
   onScroll?: (scroller: HTMLElement) => void
 }
 
@@ -65,11 +82,31 @@ const editorTheme = EditorView.theme({
     caretColor: 'currentColor'
   },
   '.cm-line': { padding: '0' },
+  '.cm-markdown-header': {
+    width: '100%',
+    whiteSpace: 'normal',
+    fontFamily: 'var(--font-sans)'
+  },
+  '.cm-markdown-header:not(:empty)': { paddingBottom: '1.5rem' },
   '&.cm-kuskus-detail-editor.cm-focused .cm-activeLine': {
     backgroundColor: 'color-mix(in oklab, var(--foreground) 7%, transparent)',
     borderRadius: '0.25rem'
   }
 })
+
+class MarkdownHeaderWidget extends WidgetType {
+  toDOM(): HTMLElement {
+    const host = document.createElement('div')
+    host.className = 'cm-markdown-header'
+    return host
+  }
+}
+
+const markdownHeader = EditorView.decorations.of(
+  Decoration.set([
+    Decoration.widget({ widget: new MarkdownHeaderWidget(), block: true, side: -1 }).range(0)
+  ])
+)
 
 function markerCommand(marker: '*' | '**'): (view: EditorView) => boolean {
   return (view) => {
@@ -91,23 +128,32 @@ function markerCommand(marker: '*' | '**'): (view: EditorView) => boolean {
 
 export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
   function MarkdownEditor(
-    { value, active, className, onChange, onScroll },
+    { value, active, className, header, onChange, onPasteImage, onScroll },
     forwardedRef
   ): React.JSX.Element {
     const hostRef = useRef<HTMLDivElement>(null)
+    const [headerHost, setHeaderHost] = useState<HTMLElement | null>(null)
     const viewRef = useRef<EditorView | null>(null)
     const initialValueRef = useRef(value)
     const onChangeRef = useRef(onChange)
+    const onPasteImageRef = useRef(onPasteImage)
     const onScrollRef = useRef(onScroll)
     useLayoutEffect(() => {
       onChangeRef.current = onChange
+      onPasteImageRef.current = onPasteImage
       onScrollRef.current = onScroll
     })
 
     useImperativeHandle(
       forwardedRef,
       () => ({
-        focus: () => viewRef.current?.focus(),
+        focus: () => {
+          const view = viewRef.current
+          if (!view) return
+          const { head } = view.state.selection.main
+          view.dispatch({ selection: EditorSelection.cursor(head) })
+          view.focus()
+        },
         getScroller: () => viewRef.current?.scrollDOM ?? null,
         requestMeasure: () => viewRef.current?.requestMeasure(),
         redo: () => (viewRef.current ? redo(viewRef.current) : false),
@@ -133,6 +179,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
             highlightActiveLine(),
             highlightSelectionMatches(),
             EditorView.editorAttributes.of({ class: 'cm-kuskus-detail-editor' }),
+            markdownHeader,
             editorTheme,
             markdownSearchTheme,
             syntaxHighlighting(markdownHighlightStyle),
@@ -149,6 +196,27 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
               autocomplete: 'off',
               spellcheck: 'true'
             }),
+            EditorView.domEventHandlers({
+              paste: (event, editor) => {
+                const file = Array.from(event.clipboardData?.items ?? [])
+                  .find((entry) => entry.type.startsWith('image/'))
+                  ?.getAsFile()
+                const pasteImage = onPasteImageRef.current
+                if (!file || !pasteImage) return false
+                event.preventDefault()
+                const { from, to } = editor.state.selection.main
+                pasteImage(file, (src) => {
+                  const image = `![image](${src})`
+                  editor.dispatch({
+                    changes: { from, to, insert: image },
+                    selection: { anchor: from + image.length },
+                    userEvent: 'input.paste'
+                  })
+                  editor.focus()
+                })
+                return true
+              }
+            }),
             EditorView.updateListener.of((update) => {
               const markdownChange = getPublishedMarkdownChange(
                 update.docChanged,
@@ -160,6 +228,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         })
       })
       viewRef.current = view
+      setHeaderHost(view.dom.querySelector<HTMLElement>('.cm-markdown-header'))
 
       const handleScroll = (): void => onScrollRef.current?.(view.scrollDOM)
       view.scrollDOM.addEventListener('scroll', handleScroll, { passive: true })
@@ -192,6 +261,11 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       view.focus()
     }, [active])
 
-    return <div ref={hostRef} className={cn('size-full min-h-0', className)} />
+    return (
+      <>
+        <div ref={hostRef} className={cn('size-full min-h-0', className)} />
+        {header && headerHost ? createPortal(header, headerHost) : null}
+      </>
+    )
   }
 )

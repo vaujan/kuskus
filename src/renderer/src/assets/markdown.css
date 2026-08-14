@@ -258,8 +258,19 @@
   }
 
   .tok-string,
+  .tok-string2,
   .tok-special\:tok-string {
     color: oklch(0.7 0.14 150);
+  }
+
+  .tok-typeName,
+  .tok-className {
+    color: oklch(0.7 0.13 210);
+  }
+
+  .tok-variableName.tok-definition,
+  .tok-propertyName {
+    color: oklch(0.68 0.14 250);
   }
 
   .tok-number,

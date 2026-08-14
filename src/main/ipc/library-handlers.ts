@@ -12,6 +12,7 @@ import {
   type InspectItemDeletionInput,
   type MoveItemsInput,
   type MoveCollectionInput,
+  type NoteImageImportInput,
   type RenameItemInput,
   type UrlPreviewKind,
   type UpdateNoteInput
@@ -193,6 +194,21 @@ export function registerLibraryIpc(
           conflict: { current: error.current }
         }
       }
+      return errorResult(error, 'invalid-input')
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.importNoteImage, async (_event, input: unknown) => {
+    if (
+      !input ||
+      typeof input !== 'object' ||
+      typeof (input as Record<string, unknown>).itemId !== 'string'
+    ) {
+      return errorResult(new Error('The note image is invalid.'), 'invalid-input')
+    }
+    try {
+      return { ok: true, data: await libraryService.importNoteImage(input as NoteImageImportInput) }
+    } catch (error) {
       return errorResult(error, 'invalid-input')
     }
   })

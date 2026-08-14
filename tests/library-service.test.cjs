@@ -1067,6 +1067,35 @@ test('updates Markdown notes without changing their identity or attachments', as
   assert.equal(reopenedNote.title, updated.title)
 })
 
+test('imports a clipboard image directly into an existing note', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-note-image-paste-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  await service.createIn(root, 'Pasted note images')
+  const note = await service.createNote({ markdown: 'Before', attachmentIds: [] })
+
+  const image = await service.importNoteImage({
+    itemId: note.id,
+    bytes: arrayBuffer(onePixelPng),
+    mediaType: 'image/png',
+    sourceFilename: 'image.png',
+    origin: 'clipboard'
+  })
+  const markdown = `${note.body}\n\n![image](${image.relativePath})`
+  const updated = await service.updateNote({
+    itemId: note.id,
+    markdown,
+    expectedMarkdown: note.body
+  })
+
+  assert.equal(updated.attachments.length, 1)
+  assert.equal(updated.attachments[0].id, image.id)
+  assert.deepEqual(
+    await readFile(join(dirname(await service.getItemContentPath(note.id)), image.filename)),
+    onePixelPng
+  )
+})
+
 test('rejects invalid, missing, non-note, and externally changed note updates', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-note-update-safety-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
