@@ -56,6 +56,15 @@ export function runRichMarkdownSlashCommand(
   state: RichMarkdownSlashState,
   id: RichMarkdownSlashCommandId
 ): void {
+  const current = currentSlashState(view.state)
+  if (
+    !current ||
+    current.from !== state.from ||
+    current.to !== state.to ||
+    current.query !== state.query
+  ) {
+    return
+  }
   view.dispatch(view.state.tr.delete(state.from, state.to))
   const { schema } = view.state
   const command =

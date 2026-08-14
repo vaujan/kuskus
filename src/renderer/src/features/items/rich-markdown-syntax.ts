@@ -29,6 +29,10 @@ function transformProse(value: string, transform: (prose: string) => string): st
     .join('')
 }
 
+export function normalizeHtmlBreaks(value: string): string {
+  return transformProse(value, (prose) => prose.replace(HTML_BREAK, '  \n'))
+}
+
 export function supportsRichMarkdown(value: string): boolean {
   let supported = true
   transformProse(value, (prose) => {
@@ -39,19 +43,17 @@ export function supportsRichMarkdown(value: string): boolean {
 }
 
 export function prepareRichMarkdown(value: string): string {
-  return transformProse(value, (prose) =>
-    prose
-      .replace(HTML_BREAK, '  \n')
-      .replace(WIKILINK, (_match, bang: string, rawTarget: string, rawAlias?: string) => {
-        const target = rawTarget.trim()
-        const alias = rawAlias?.trim() || target
-        const kind = bang ? 'embed' : 'wiki'
-        const encodedTarget = encodeURIComponent(target).replace(
-          /[()]/g,
-          (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`
-        )
-        return `${bang}[${alias}](kuskus-${kind}:${encodedTarget})`
-      })
+  return transformProse(normalizeHtmlBreaks(value), (prose) =>
+    prose.replace(WIKILINK, (_match, bang: string, rawTarget: string, rawAlias?: string) => {
+      const target = rawTarget.trim()
+      const alias = rawAlias?.trim() || target
+      const kind = bang ? 'embed' : 'wiki'
+      const encodedTarget = encodeURIComponent(target).replace(
+        /[()]/g,
+        (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`
+      )
+      return `${bang}[${alias}](kuskus-${kind}:${encodedTarget})`
+    })
   )
 }
 

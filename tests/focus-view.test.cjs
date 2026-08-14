@@ -92,6 +92,15 @@ test('medium windows use an overlay sidebar with a persistent detail trigger', (
   assert.match(focusWorkspaceSource, /<ShellSidebarTrigger \/>/)
 })
 
+test('image captions stay quieter than document text', () => {
+  const source = readFileSync(
+    require.resolve('../src/renderer/src/features/items/image-item-card.tsx'),
+    'utf8'
+  )
+  assert.match(source, /className="justify-center text-center"/)
+  assert.match(source, /text-\[0\.6875rem\].*text-muted-foreground/)
+})
+
 test('visual notes use the same compact title caption as other item types', () => {
   const source = readFileSync(
     require.resolve('../src/renderer/src/features/items/note-item-card.tsx'),
@@ -172,6 +181,14 @@ test('Detail capture stays in the rail and can promote notes into the editor', (
   assert.match(newItemShortcut, /openComposer\(\)/)
   assert.doesNotMatch(newItemShortcut, /data-detail-surface/)
   assert.match(workspaceSource, /setComposerOpen\(true\)\s+setFocusDetailOpen\(false\)/)
+  assert.match(
+    workspaceSource,
+    /item\.type === 'note' && item\.bodyTruncated !== true[\s\S]*?setItemDetails/
+  )
+  assert.match(
+    workspaceSource,
+    /\.\.\.focusItemDetail,[\s\S]*\.\.\.focusItemSummary,[\s\S]*body: focusItemDetail\.body/
+  )
   assert.match(workspaceSource, /window\.capture\.onMainItemRequested/)
   assert.match(workspaceSource, /openDetail\(nextItem\.id, true\)/)
   assert.doesNotMatch(workspaceSource, /composerOpen \? \(\s*addItemComposer/)

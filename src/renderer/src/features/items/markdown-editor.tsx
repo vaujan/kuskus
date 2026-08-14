@@ -205,11 +205,15 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
                 if (!file || !pasteImage) return false
                 event.preventDefault()
                 const { from, to } = editor.state.selection.main
+                const pastedInto = editor.state.doc
                 pasteImage(file, (src) => {
+                  if (viewRef.current !== editor) return
+                  const range =
+                    editor.state.doc === pastedInto ? { from, to } : editor.state.selection.main
                   const image = `![image](${src})`
                   editor.dispatch({
-                    changes: { from, to, insert: image },
-                    selection: { anchor: from + image.length },
+                    changes: { from: range.from, to: range.to, insert: image },
+                    selection: { anchor: range.from + image.length },
                     userEvent: 'input.paste'
                   })
                   editor.focus()

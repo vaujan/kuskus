@@ -93,8 +93,10 @@ export function ImageItemCard({
           />
         )}
       </ItemCardSurface>
-      <ItemCardCaption compact={compact}>
-        <p className="min-w-0 flex-1 truncate font-normal text-foreground/80">{item.title}</p>
+      <ItemCardCaption compact={compact} className="justify-center text-center">
+        <p className="min-w-0 truncate text-[0.6875rem] font-normal text-muted-foreground">
+          {item.title}
+        </p>
       </ItemCardCaption>
     </ItemCard>
   )

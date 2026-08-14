@@ -162,14 +162,21 @@ export const MarkdownPreview = memo(function MarkdownPreview({
         return (
           <a
             href={source}
-            className="transition-[opacity] [transition-duration:var(--motion-duration-press)] [transition-timing-function:var(--motion-ease-out)] active:opacity-60"
+            aria-label={`Open image${alt ? `: ${alt}` : ''}`}
+            className="inline-block cursor-zoom-in transition-[opacity] [transition-duration:var(--motion-duration-press)] [transition-timing-function:var(--motion-ease-out)] active:opacity-60"
             onClick={(event) => {
               event.preventDefault()
               event.stopPropagation()
               onOpenLink?.(source)
             }}
           >
-            {alt || 'Open remote image'}
+            <img
+              src={source}
+              alt={alt ?? ''}
+              loading="lazy"
+              referrerPolicy="no-referrer"
+              className="kuskus-markdown-image"
+            />
           </a>
         )
       }

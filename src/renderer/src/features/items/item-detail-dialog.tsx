@@ -424,7 +424,9 @@ function DetailToolbar({
 }): React.JSX.Element {
   if (presentation === 'focus') {
     const isMac = window.electron.window.platform === 'darwin'
-    const expandLabel = expanded ? 'Restore item rail' : 'Expand note'
+    const expandLabel = expanded
+      ? 'Exit zen mode (Ctrl+Shift+\\)'
+      : 'Enter zen mode (Ctrl+Shift+\\)'
 
     return (
       <header
@@ -451,6 +453,7 @@ function DetailToolbar({
                     variant="ghost"
                     className="size-10 text-muted-foreground"
                     aria-label={expandLabel}
+                    aria-keyshortcuts="Control+Shift+\\"
                     aria-pressed={expanded}
                     onClick={() => onExpandedChange(!expanded)}
                   />
@@ -841,19 +844,41 @@ function ImageCanvas({
   onMoveToTrash?: () => void
 }): React.JSX.Element {
   const { preview, previewError } = useImagePreview(item.id, item.missingContent)
+  const [zoomed, setZoomed] = useState(false)
 
   return (
-    <section className="flex min-h-64 min-w-0 items-center justify-center overflow-hidden bg-white p-5 dark:bg-black @min-[860px]/detail:min-h-0 @min-[860px]/detail:p-10">
+    <section
+      className={cn(
+        'flex min-h-64 min-w-0 bg-white p-5 dark:bg-black @min-[860px]/detail:min-h-0 @min-[860px]/detail:p-10',
+        zoomed
+          ? 'items-start justify-start overflow-auto'
+          : 'items-center justify-center overflow-hidden'
+      )}
+    >
       {item.missingContent ? (
         <MissingContent type="image" onMoveToTrash={onMoveToTrash} />
       ) : preview ? (
-        <img
-          src={preview}
-          alt={item.title}
-          width={item.width}
-          height={item.height}
-          className="max-h-full max-w-full rounded-sm object-contain shadow-[0_20px_60px_-36px_rgb(0_0_0/0.8)] outline -outline-offset-1 outline-black/10 dark:outline-white/10"
-        />
+        <button
+          type="button"
+          className={cn(
+            'block shrink-0 outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
+            zoomed ? 'cursor-zoom-out' : 'max-h-full max-w-full cursor-zoom-in'
+          )}
+          aria-label={zoomed ? 'Fit image to view' : 'View image at full size'}
+          aria-pressed={zoomed}
+          onClick={() => setZoomed((current) => !current)}
+        >
+          <img
+            src={preview}
+            alt={item.title}
+            width={item.width}
+            height={item.height}
+            className={cn(
+              'rounded-sm object-contain shadow-[0_20px_60px_-36px_rgb(0_0_0/0.8)] outline -outline-offset-1 outline-black/10 dark:outline-white/10',
+              zoomed ? 'max-h-none max-w-none' : 'max-h-full max-w-full'
+            )}
+          />
+        </button>
       ) : previewError ? (
         <div className="flex max-w-xs flex-col items-center gap-3 px-6 text-center">
           <span className="flex size-11 items-center justify-center rounded-full bg-background/70 text-muted-foreground shadow-sm">
@@ -1012,7 +1037,9 @@ function NoteCanvas({
         return {
           src: entry.preview,
           missing: entry.attachment.missingContent,
-          label: entry.attachment.filename
+          label: entry.attachment.filename,
+          width: entry.attachment.width,
+          height: entry.attachment.height
         }
       },
       onOpenLink: (url) => void openExternalUrlWithFeedback(url),
@@ -1756,10 +1783,13 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
     const [conflictResolution, setConflictResolution] = useState<'mine' | 'disk' | null>(null)
     const [attachmentsOpen, setAttachmentsOpen] = useState(false)
     const [noteDetailsOpen, setNoteDetailsOpen] = useState(false)
-    const changeExpanded = (nextExpanded: boolean): void => {
-      if (nextExpanded) setAttachmentsOpen(false)
-      onExpandedChange?.(nextExpanded)
-    }
+    const changeExpanded = useCallback(
+      (nextExpanded: boolean): void => {
+        if (nextExpanded) setAttachmentsOpen(false)
+        onExpandedChange?.(nextExpanded)
+      },
+      [onExpandedChange]
+    )
 
     const diffRows = useMemo(
       () =>
@@ -1814,6 +1844,20 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
 
       const handleNoteModeShortcut = (event: KeyboardEvent): void => {
         if (
+          event.key === '\\' &&
+          event.ctrlKey &&
+          event.shiftKey &&
+          !event.altKey &&
+          !event.metaKey &&
+          !event.repeat &&
+          presentation === 'focus' &&
+          expandable
+        ) {
+          event.preventDefault()
+          changeExpanded(!expanded)
+          return
+        }
+        if (
           event.key.toLocaleLowerCase() !== 'e' ||
           !event.ctrlKey ||
           event.metaKey ||
@@ -1836,7 +1880,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
 
       window.addEventListener('keydown', handleNoteModeShortcut, true)
       return () => window.removeEventListener('keydown', handleNoteModeShortcut, true)
-    }, [changeMode, item?.type, mode])
+    }, [changeExpanded, changeMode, expanded, expandable, item?.type, mode, presentation])
 
     const resolvePendingNote = useCallback(async (): Promise<'ready' | 'trashed' | 'blocked'> => {
       if (leaving) return 'blocked'

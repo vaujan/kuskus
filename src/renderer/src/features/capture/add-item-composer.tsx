@@ -354,7 +354,9 @@ export function AddItemComposer({
         return {
           src: entry.preview,
           missing: entry.attachment.missingContent,
-          label: entry.attachment.filename
+          label: entry.attachment.filename,
+          width: entry.attachment.width,
+          height: entry.attachment.height
         }
       }
     }

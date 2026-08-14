@@ -148,7 +148,8 @@ test('detail modes share the compact toolbar and inline document flow', () => {
     /absolute left-1\/2 max-w-\[min\(32rem,calc\(100%-28rem\)\)\] -translate-x-1\/2 truncate/
   )
   assert.match(focusToolbarSource, /max-\[1080px\]:hidden/)
-  assert.match(focusToolbarSource, /expanded \? 'Restore item rail' : 'Expand note'/)
+  assert.match(focusToolbarSource, /Exit zen mode \(Ctrl\+Shift\+\\\\\)/)
+  assert.match(focusToolbarSource, /Enter zen mode \(Ctrl\+Shift\+\\\\\)/)
   assert.match(focusToolbarSource, /aria-pressed=\{expanded\}/)
   assert.match(focusToolbarSource, /onClick=\{\(\) => onExpandedChange\(!expanded\)\}/)
   assert.match(
@@ -227,10 +228,9 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   )
   assert.match(workspaceSource, /Masonry overview/)
   assert.doesNotMatch(focusSplitHandlerSource, /setFocusNoteExpanded\(false\)/)
-  assert.match(
-    workspaceSource,
-    /announceStatus\(expanded \? 'Note expanded' : 'Item rail restored'\)/
-  )
+  assert.match(workspaceSource, /announceStatus\(expanded \? 'Zen mode on' : 'Zen mode off'\)/)
+  assert.match(detailSource, /aria-keyshortcuts="Control\+Shift\+\\\\"/)
+  assert.match(detailSource, /event\.key === '\\\\'[\s\S]*changeExpanded\(!expanded\)/)
   assert.doesNotMatch(
     workspaceSource,
     /localStorage\.(?:getItem|setItem)\([^\n]*focus-note-expanded/
@@ -268,6 +268,8 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   )
   assert.match(detailSource, /function DetailInspector/)
   assert.match(detailSource, /function FileCanvas/)
+  assert.match(detailSource, /View image at full size/)
+  assert.match(detailSource, /setZoomed\(\(current\) => !current\)/)
   assert.match(detailSource, /<article className="kuskus-detail-document-frame/)
   assert.match(actionMenuSource, /<DropdownMenuLabel>View<\/DropdownMenuLabel>/)
   assert.match(actionMenuSource, /Readable line length/)

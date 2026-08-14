@@ -138,7 +138,7 @@ const AddItemComposer = lazy(() =>
 const DEFAULT_SIDEBAR_WIDTH = 256
 const MIN_SIDEBAR_WIDTH = 208
 const MAX_SIDEBAR_WIDTH = 384
-const ITEM_PAGE_SIZE = 100
+const ITEM_PAGE_SIZE = 50
 
 function destinationLabel(destination: LibraryDestination, library: LibraryDto): string {
   if (destination.type === 'inbox') return 'Inbox'
@@ -495,10 +495,21 @@ export function Workspace({
   const focusNoteExpansionActive =
     focusNoteExpanded && !composerOpen && focusItemSummary?.type === 'note'
 
+  const focusItemDetail =
+    focusItemSummary?.type === 'note' ? itemDetails.get(focusItemSummary.id) : undefined
   const focusItem =
-    focusItemSummary?.type === 'note' && focusItemSummary.bodyTruncated
-      ? (itemDetails.get(focusItemSummary.id) ?? null)
-      : focusItemSummary
+    focusItemSummary?.type === 'note' &&
+    focusItemSummary.bodyTruncated &&
+    focusItemDetail?.type === 'note'
+      ? {
+          ...focusItemDetail,
+          ...focusItemSummary,
+          body: focusItemDetail.body,
+          bodyTruncated: false as const
+        }
+      : focusItemSummary?.type === 'note' && focusItemSummary.bodyTruncated
+        ? null
+        : focusItemSummary
   const focusVisibleIndex = useMemo(
     () => visibleItems.findIndex((item) => item.id === focusItemId),
     [focusItemId, visibleItems]
@@ -562,7 +573,7 @@ export function Workspace({
   const changeFocusNoteExpanded = useCallback(
     (expanded: boolean): void => {
       setFocusNoteExpanded(expanded)
-      announceStatus(expanded ? 'Note expanded' : 'Item rail restored')
+      announceStatus(expanded ? 'Zen mode on' : 'Zen mode off')
     },
     [announceStatus]
   )
@@ -629,6 +640,15 @@ export function Workspace({
       ...current,
       items: current.items.map((entry) => (entry.id === item.id ? item : entry))
     }))
+    if (item.type === 'note' && item.bodyTruncated !== true) {
+      setItemDetails((current) => {
+        if (!current.has(item.id)) return current
+        const next = new Map(current)
+        next.delete(item.id)
+        next.set(item.id, item)
+        return next
+      })
+    }
   }, [])
 
   const applyLibraryResult = useCallback(

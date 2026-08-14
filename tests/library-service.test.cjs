@@ -1380,6 +1380,10 @@ test('preserves Kuskus wikilinks through the rich Markdown interchange format', 
   assert.equal(supportsRichMarkdown(markdown), true)
   assert.equal(supportsRichMarkdown('line<br />next'), true)
   assert.equal(prepareRichMarkdown('line<br />next'), 'line  \nnext')
+  assert.equal(
+    prepareObsidianMarkdown('line<br/>next\n`literal <br/>`', []),
+    'line  \nnext\n`literal <br/>`'
+  )
   assert.equal(supportsRichMarkdown('<details>exact HTML</details>'), false)
   assert.equal(
     prepareRichMarkdown('`[[literal]] <br>`\n```md\n[[fenced]] <br>\n```\n[[Real]]'),
@@ -2592,6 +2596,25 @@ test('serves a rebuildable cached snapshot and reconciles an edit made while clo
     reconciled.library.items.find((item) => item.id === note.id).body.includes('Changed outside'),
     true
   )
+})
+
+test('reconciles a dirty vault before applying a cached mutation', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-dirty-mutation-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  const created = await service.createIn(root, 'Vault')
+  const note = await service.createNote({ markdown: '# Existing note', attachmentIds: [] })
+  await service.getState()
+
+  await writeFile(join(created.library.path, 'External note.md'), '# Added outside Kuskus')
+  service.vaultDirty = true
+  const library = await service.renameItem({ itemId: note.id, title: 'Renamed note' })
+
+  assert.equal(
+    library.items.some((item) => item.title === 'External note'),
+    true
+  )
+  assert.equal(library.items.find((item) => item.id === note.id).title, 'Renamed note')
 })
 
 test('ignores and repairs a corrupt rebuildable library snapshot', async (context) => {

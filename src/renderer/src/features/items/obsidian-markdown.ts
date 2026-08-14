@@ -1,4 +1,5 @@
 import type { NoteAttachmentDto } from '../../../../shared/library-contract'
+import { normalizeHtmlBreaks } from './rich-markdown-syntax'
 import {
   encodeMarkdownImageTarget,
   markdownImageTargetKey,
@@ -23,7 +24,7 @@ function attachmentFor(
 }
 
 export function prepareObsidianMarkdown(value: string, attachments: NoteAttachmentDto[]): string {
-  const source = stripFrontmatter(value)
+  const source = normalizeHtmlBreaks(stripFrontmatter(value))
   const withEmbeds = source.replace(
     /!\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]/g,
     (_match, rawTarget: string, rawLabel?: string) => {

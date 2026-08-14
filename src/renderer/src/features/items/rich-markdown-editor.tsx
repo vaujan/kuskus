@@ -47,6 +47,8 @@ export interface RichMarkdownImage {
   src: string | null
   missing: boolean
   label: string
+  width: number
+  height: number
 }
 
 export interface RichMarkdownEditorOptions {
@@ -92,23 +94,42 @@ function decodeVaultTarget(value: string): string | null {
   }
 }
 
-function imageNodeView(node: ProseNode, getOptions: () => RichMarkdownEditorOptions): NodeView {
+function imageNodeView(
+  node: ProseNode,
+  getOptions: () => RichMarkdownEditorOptions,
+  registerRefresh: (refresh: () => void) => () => void
+): NodeView {
+  let currentNode = node
   const dom = document.createElement('span')
   dom.className = 'kuskus-rich-image-wrap'
 
-  const render = (current: ProseNode): void => {
+  const render = (): void => {
+    const current = currentNode
     const target = String(current.attrs.src ?? '')
     const alt = String(current.attrs.alt ?? '')
     const vaultTarget = target.startsWith('kuskus-embed:') ? decodeVaultTarget(target) : null
     const resolution = getOptions().resolveImage?.(vaultTarget ?? target) ?? null
     dom.replaceChildren()
 
-    if (resolution?.src) {
+    const remote = /^https?:\/\//i.test(target)
+    if (resolution?.src || remote) {
       const image = document.createElement('img')
       image.className = 'kuskus-markdown-image'
-      image.src = resolution.src
-      image.alt = alt || resolution.label
-      dom.append(image)
+      image.src = resolution?.src ?? target
+      image.alt = alt || resolution?.label || ''
+      image.loading = 'lazy'
+      image.referrerPolicy = 'no-referrer'
+      if (resolution) {
+        image.width = resolution.width
+        image.height = resolution.height
+        dom.append(image)
+      } else {
+        const link = document.createElement('a')
+        link.href = target
+        link.setAttribute('aria-label', `Open image${alt ? `: ${alt}` : ''}`)
+        link.append(image)
+        dom.append(link)
+      }
       return
     }
 
@@ -126,14 +147,17 @@ function imageNodeView(node: ProseNode, getOptions: () => RichMarkdownEditorOpti
     dom.append(chip)
   }
 
-  render(node)
+  const unregisterRefresh = registerRefresh(render)
+  render()
   return {
     dom,
     update: (next) => {
       if (next.type !== node.type) return false
-      render(next)
+      currentNode = next
+      render()
       return true
-    }
+    },
+    destroy: unregisterRefresh
   }
 }
 
@@ -199,6 +223,7 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
     const activeRef = useRef(active)
     const editableRef = useRef(editable)
     const optionsRef = useRef(options ?? {})
+    const imageRefreshersRef = useRef(new Set<() => void>())
     const onChangeRef = useRef(onChange)
     const onErrorRef = useRef(onError)
     const publishedRef = useRef<string | null>(null)
@@ -209,10 +234,14 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
       valueRef.current = value
       activeRef.current = active
       editableRef.current = editable
-      optionsRef.current = options ?? {}
       onChangeRef.current = onChange
       onErrorRef.current = onError
-    }, [active, editable, onChange, onError, options, value])
+    }, [active, editable, onChange, onError, value])
+
+    useLayoutEffect(() => {
+      optionsRef.current = options ?? {}
+      imageRefreshersRef.current.forEach((refresh) => refresh())
+    }, [options])
 
     useImperativeHandle(
       forwardedRef,
@@ -227,7 +256,15 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
       let disposed = false
       setFailed(false)
 
-      const imageView: NodeViewConstructor = (node) => imageNodeView(node, () => optionsRef.current)
+      const imageView: NodeViewConstructor = (node) =>
+        imageNodeView(
+          node,
+          () => optionsRef.current,
+          (refresh) => {
+            imageRefreshersRef.current.add(refresh)
+            return () => imageRefreshersRef.current.delete(refresh)
+          }
+        )
       const taskView: NodeViewConstructor = (node, view, getPos) =>
         listItemNodeView(
           node,
@@ -282,14 +319,16 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
             const onPasteImage = optionsRef.current.onPasteImage
             if (!file || !onPasteImage) return false
             event.preventDefault()
-            const position = view.state.selection.from
+            const { from, to } = view.state.selection
+            const pastedInto = view.state.doc
             onPasteImage(file, (src) => {
               const image = view.state.schema.nodes.image?.create({ src, alt: '', title: '' })
-              if (!image) return
+              if (!image || view.isDestroyed) return
               try {
-                view.dispatch(
-                  view.state.tr.insert(Math.min(position, view.state.doc.content.size), image)
-                )
+                const transaction = view.state.tr
+                if (view.state.doc === pastedInto) transaction.replaceRangeWith(from, to, image)
+                else transaction.replaceSelectionWith(image)
+                view.dispatch(transaction.scrollIntoView())
               } catch {
                 onErrorRef.current?.('The image could not be inserted at the current position.')
               }
