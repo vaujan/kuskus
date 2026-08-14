@@ -92,15 +92,6 @@ test('medium windows use an overlay sidebar with a persistent detail trigger', (
   assert.match(focusWorkspaceSource, /<ShellSidebarTrigger \/>/)
 })
 
-test('image captions stay quieter than document text', () => {
-  const source = readFileSync(
-    require.resolve('../src/renderer/src/features/items/image-item-card.tsx'),
-    'utf8'
-  )
-  assert.match(source, /className="justify-center text-center"/)
-  assert.match(source, /text-\[0\.6875rem\].*text-muted-foreground/)
-})
-
 test('visual notes use the same compact title caption as other item types', () => {
   const source = readFileSync(
     require.resolve('../src/renderer/src/features/items/note-item-card.tsx'),

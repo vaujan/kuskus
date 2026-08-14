@@ -1,4 +1,13 @@
-import { Children, isValidElement, memo, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import {
+  Children,
+  isValidElement,
+  memo,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
 import ReactMarkdown, { defaultUrlTransform, type Components } from 'react-markdown'
 import '@/assets/katex-woff2.css'
 import rehypeKatex from 'rehype-katex'
@@ -20,6 +29,60 @@ import {
 
 const REMARK_PLUGINS = [remarkGfm, remarkBreaks, remarkMath]
 const REHYPE_PLUGINS = [rehypeKatex]
+
+function MarkdownImage({
+  src,
+  alt,
+  width,
+  height,
+  interactive,
+  remote = false
+}: {
+  src: string
+  alt: string
+  width?: number
+  height?: number
+  interactive: boolean
+  remote?: boolean
+}): React.JSX.Element {
+  const [zoomed, setZoomed] = useState(false)
+
+  useEffect(() => {
+    if (!zoomed) return
+    const close = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setZoomed(false)
+    }
+    window.addEventListener('keydown', close)
+    return () => window.removeEventListener('keydown', close)
+  }, [zoomed])
+
+  return (
+    <button
+      type="button"
+      className="not-typeset kuskus-markdown-image-button"
+      data-not-typeset
+      data-zoomed={zoomed}
+      disabled={!interactive}
+      aria-label={`${zoomed ? 'Close' : 'Zoom'} image${alt ? `: ${alt}` : ''}`}
+      aria-pressed={interactive ? zoomed : undefined}
+      onClick={(event) => {
+        event.stopPropagation()
+        setZoomed((current) => !current)
+      }}
+    >
+      <img
+        src={src}
+        alt=""
+        width={width}
+        height={height}
+        loading={remote ? 'lazy' : undefined}
+        referrerPolicy={remote ? 'no-referrer' : undefined}
+        className="kuskus-markdown-image"
+      />
+      {alt ? <span className="kuskus-markdown-image-caption">{alt}</span> : null}
+    </button>
+  )
+}
 
 function EmbeddedImageState({ children }: { children: React.ReactNode }): React.JSX.Element {
   return (
@@ -151,33 +214,23 @@ export const MarkdownPreview = memo(function MarkdownPreview({
         }
         if (!local.preview) return <EmbeddedImageState>Loading image…</EmbeddedImageState>
         return (
-          <img
+          <MarkdownImage
             src={local.preview}
             alt={alt ?? local.attachment.filename}
-            className="kuskus-markdown-image"
+            width={local.attachment.width}
+            height={local.attachment.height}
+            interactive={presentation === 'detail'}
           />
         )
       }
       if (/^https?:\/\//i.test(source)) {
         return (
-          <a
-            href={source}
-            aria-label={`Open image${alt ? `: ${alt}` : ''}`}
-            className="inline-block cursor-zoom-in transition-[opacity] [transition-duration:var(--motion-duration-press)] [transition-timing-function:var(--motion-ease-out)] active:opacity-60"
-            onClick={(event) => {
-              event.preventDefault()
-              event.stopPropagation()
-              onOpenLink?.(source)
-            }}
-          >
-            <img
-              src={source}
-              alt={alt ?? ''}
-              loading="lazy"
-              referrerPolicy="no-referrer"
-              className="kuskus-markdown-image"
-            />
-          </a>
+          <MarkdownImage
+            src={source}
+            alt={alt ?? ''}
+            interactive={presentation === 'detail'}
+            remote
+          />
         )
       }
       return <code>{source || alt || 'Invalid image'}</code>

@@ -268,8 +268,6 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   )
   assert.match(detailSource, /function DetailInspector/)
   assert.match(detailSource, /function FileCanvas/)
-  assert.match(detailSource, /View image at full size/)
-  assert.match(detailSource, /setZoomed\(\(current\) => !current\)/)
   assert.match(detailSource, /<article className="kuskus-detail-document-frame/)
   assert.match(actionMenuSource, /<DropdownMenuLabel>View<\/DropdownMenuLabel>/)
   assert.match(actionMenuSource, /Readable line length/)

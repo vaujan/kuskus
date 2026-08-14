@@ -844,41 +844,19 @@ function ImageCanvas({
   onMoveToTrash?: () => void
 }): React.JSX.Element {
   const { preview, previewError } = useImagePreview(item.id, item.missingContent)
-  const [zoomed, setZoomed] = useState(false)
 
   return (
-    <section
-      className={cn(
-        'flex min-h-64 min-w-0 bg-white p-5 dark:bg-black @min-[860px]/detail:min-h-0 @min-[860px]/detail:p-10',
-        zoomed
-          ? 'items-start justify-start overflow-auto'
-          : 'items-center justify-center overflow-hidden'
-      )}
-    >
+    <section className="flex min-h-64 min-w-0 items-center justify-center overflow-hidden bg-white p-5 dark:bg-black @min-[860px]/detail:min-h-0 @min-[860px]/detail:p-10">
       {item.missingContent ? (
         <MissingContent type="image" onMoveToTrash={onMoveToTrash} />
       ) : preview ? (
-        <button
-          type="button"
-          className={cn(
-            'block shrink-0 outline-none focus-visible:ring-3 focus-visible:ring-ring/50',
-            zoomed ? 'cursor-zoom-out' : 'max-h-full max-w-full cursor-zoom-in'
-          )}
-          aria-label={zoomed ? 'Fit image to view' : 'View image at full size'}
-          aria-pressed={zoomed}
-          onClick={() => setZoomed((current) => !current)}
-        >
-          <img
-            src={preview}
-            alt={item.title}
-            width={item.width}
-            height={item.height}
-            className={cn(
-              'rounded-sm object-contain shadow-[0_20px_60px_-36px_rgb(0_0_0/0.8)] outline -outline-offset-1 outline-black/10 dark:outline-white/10',
-              zoomed ? 'max-h-none max-w-none' : 'max-h-full max-w-full'
-            )}
-          />
-        </button>
+        <img
+          src={preview}
+          alt={item.title}
+          width={item.width}
+          height={item.height}
+          className="max-h-full max-w-full rounded-sm object-contain shadow-[0_20px_60px_-36px_rgb(0_0_0/0.8)] outline -outline-offset-1 outline-black/10 dark:outline-white/10"
+        />
       ) : previewError ? (
         <div className="flex max-w-xs flex-col items-center gap-3 px-6 text-center">
           <span className="flex size-11 items-center justify-center rounded-full bg-background/70 text-muted-foreground shadow-sm">

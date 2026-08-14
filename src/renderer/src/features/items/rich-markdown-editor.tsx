@@ -113,23 +113,48 @@ function imageNodeView(
 
     const remote = /^https?:\/\//i.test(target)
     if (resolution?.src || remote) {
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.className = 'kuskus-markdown-image-button'
+      button.contentEditable = 'false'
+      button.dataset.zoomed = 'false'
+      button.setAttribute('aria-label', `Zoom image${alt ? `: ${alt}` : ''}`)
+      button.setAttribute('aria-pressed', 'false')
+      button.addEventListener('click', () => {
+        const zoomed = button.dataset.zoomed !== 'true'
+        button.dataset.zoomed = String(zoomed)
+        button.setAttribute(
+          'aria-label',
+          `${zoomed ? 'Close' : 'Zoom'} image${alt ? `: ${alt}` : ''}`
+        )
+        button.setAttribute('aria-pressed', String(zoomed))
+      })
+      button.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape' || button.dataset.zoomed !== 'true') return
+        event.preventDefault()
+        button.dataset.zoomed = 'false'
+        button.setAttribute('aria-label', `Zoom image${alt ? `: ${alt}` : ''}`)
+        button.setAttribute('aria-pressed', 'false')
+      })
+
       const image = document.createElement('img')
       image.className = 'kuskus-markdown-image'
       image.src = resolution?.src ?? target
-      image.alt = alt || resolution?.label || ''
+      image.alt = ''
       image.loading = 'lazy'
       image.referrerPolicy = 'no-referrer'
       if (resolution) {
         image.width = resolution.width
         image.height = resolution.height
-        dom.append(image)
-      } else {
-        const link = document.createElement('a')
-        link.href = target
-        link.setAttribute('aria-label', `Open image${alt ? `: ${alt}` : ''}`)
-        link.append(image)
-        dom.append(link)
       }
+      button.append(image)
+      if (alt) {
+        const caption = document.createElement('span')
+        caption.className = 'kuskus-markdown-image-caption'
+        caption.textContent = alt
+        button.append(caption)
+      }
+      dom.append(button)
       return
     }
 
@@ -157,6 +182,9 @@ function imageNodeView(
       render()
       return true
     },
+    stopEvent: (event) =>
+      event.target instanceof Element &&
+      Boolean(event.target.closest('.kuskus-markdown-image-button')),
     destroy: unregisterRefresh
   }
 }
