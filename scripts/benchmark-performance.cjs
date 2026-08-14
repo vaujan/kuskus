@@ -94,7 +94,14 @@ async function runFixture(itemCount) {
 
     const cold = await measure(() => service.getState())
     if (cold.value.status !== 'ready') throw new Error('Fixture did not open.')
+    const note = cold.value.library.items.find((item) => item.type === 'note')
+    if (!note) throw new Error('Fixture did not create a note.')
+    const renamed = await measure(() =>
+      service.renameItem({ itemId: note.id, title: `Renamed ${itemCount}` })
+    )
+    const archived = await measure(() => service.archiveItems({ itemIds: [note.id] }))
     const beforeWarm = await recordTimes(vaultPath)
+
     let resolveExternalEdit
     const externalEditReconciled = new Promise((resolve) => {
       resolveExternalEdit = resolve
@@ -103,7 +110,7 @@ async function runFixture(itemCount) {
     const warm = await measure(() => service.reconcileState())
     const afterWarm = await recordTimes(vaultPath)
 
-    const editedNote = join(vaultPath, 'Note 00000.md')
+    const editedNote = join(vaultPath, 'Note 00001.md')
     const editStartedAt = performance.now()
     await writeFile(editedNote, `${noteBody}\n\nEdited externally.`)
     await externalEditReconciled
@@ -115,13 +122,7 @@ async function runFixture(itemCount) {
     const cached = await measure(() => reopened.getState(true))
     await reopened.reconcileState()
 
-    const searchStartedAt = performance.now()
-    const matches = cold.value.library.items.filter((item) =>
-      `${item.title} ${item.type === 'note' ? item.body : ''}`
-        .toLocaleLowerCase()
-        .includes('searchable content')
-    ).length
-    const searchMilliseconds = Math.round(performance.now() - searchStartedAt)
+    const search = await measure(() => service.queryItems({ query: 'searchable content' }))
 
     return {
       itemCount,
@@ -130,10 +131,12 @@ async function runFixture(itemCount) {
       noOpReconcileMs: warm.milliseconds,
       noOpRecordWrites: changedRecords(beforeWarm, afterWarm),
       oneNoteEditMs: editMilliseconds,
+      renameItemMs: renamed.milliseconds,
+      archiveItemMs: archived.milliseconds,
       cachedInitializeMs: initialize.milliseconds,
       cachedStateMs: cached.milliseconds,
-      searchMs: searchMilliseconds,
-      searchMatches: matches,
+      searchMs: search.milliseconds,
+      searchMatches: search.value.itemIds.length,
       rssMb: Math.round(process.memoryUsage().rss / 1024 / 1024)
     }
   } finally {
@@ -143,7 +146,19 @@ async function runFixture(itemCount) {
 
 async function main() {
   await mkdir(tmpdir(), { recursive: true })
-  for (const size of sizes) console.log(JSON.stringify(await runFixture(size)))
+  for (const size of sizes) {
+    const result = await runFixture(size)
+    console.log(JSON.stringify(result))
+    if (size >= 5_000 && result.searchMs > 100) {
+      throw new Error(`5,000-item search exceeded 100 ms: ${result.searchMs} ms.`)
+    }
+    if (size >= 5_000 && result.renameItemMs > 250) {
+      throw new Error(`5,000-item rename exceeded 250 ms: ${result.renameItemMs} ms.`)
+    }
+    if (size >= 5_000 && result.archiveItemMs > 250) {
+      throw new Error(`5,000-item archive exceeded 250 ms: ${result.archiveItemMs} ms.`)
+    }
+  }
 }
 
 main().catch((error) => {

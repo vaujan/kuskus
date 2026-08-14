@@ -28,6 +28,7 @@ import type {
   MoveItemsInput,
   MoveCollectionInput,
   NoteImageImportInput,
+  NoteAttachmentDto,
   NoteItemDto,
   QueryItemsInput,
   QueryItemsResult,
@@ -99,6 +100,8 @@ export class LibraryService {
   private libraryRevision = 0
   private vaultWatcher: FSWatcher | null = null
   private vaultChangeTimer: NodeJS.Timeout | null = null
+  private ignoredAppMoveTimer: NodeJS.Timeout | null = null
+  private readonly ignoredAppMovePaths = new Set<string>()
   private readonly vaultChangeListeners = new Set<() => void>()
 
   constructor(
@@ -548,7 +551,7 @@ export class LibraryService {
     return { ...item, body: markdown }
   }
 
-  async importNoteImage(input: NoteImageImportInput): Promise<CaptureDraftImageDto> {
+  async importNoteImage(input: NoteImageImportInput): Promise<NoteAttachmentDto> {
     const libraryPath = this.requireCurrentLibrary()
     this.validateItemId(input.itemId, 'item')
     const bytes = validateImageInput(input)
@@ -959,7 +962,7 @@ export class LibraryService {
     const collections = await this.store.readPersistedCollections(libraryPath)
     const current = collections.find((entry) => entry.id === input.collectionId)
     if (!current) throw new Error('This folder no longer exists.')
-    if (current.parentId === input.parentId) return this.buildLibraryDto(libraryPath)
+    if (current.parentId === input.parentId) return this.currentLibraryDto(libraryPath)
     if (input.parentId !== null) {
       const parent = collections.find((entry) => entry.id === input.parentId)
       if (!parent) throw new Error('The destination folder no longer exists.')
@@ -977,7 +980,10 @@ export class LibraryService {
       }
     }
     await this.store.moveCollection(libraryPath, current.id, input.parentId)
-    return this.buildLibraryDto(libraryPath)
+    return this.refreshLibraryDto(
+      libraryPath,
+      (this.librarySnapshot?.items ?? []).map((item) => item.id)
+    )
   }
 
   async setCollectionIcon(
@@ -998,7 +1004,7 @@ export class LibraryService {
   async deleteCollection(collectionId: string): Promise<LibraryDto> {
     this.validateCollectionId(collectionId)
     const libraryPath = this.requireCurrentLibrary()
-    const library = await this.buildLibraryDto(libraryPath)
+    const library = await this.currentLibraryDto(libraryPath)
     const items = library.items.filter(
       (item) => item.location.type === 'collection' && item.location.collectionId === collectionId
     )
@@ -1024,7 +1030,13 @@ export class LibraryService {
       )
     }
     await this.store.deleteCollection(libraryPath, collectionId)
-    return this.buildLibraryDto(libraryPath)
+    return this.refreshLibraryDto(
+      libraryPath,
+      this.affectedItemIds(
+        library,
+        items.map((item) => item.id)
+      )
+    )
   }
 
   async renameItem(input: RenameItemInput): Promise<LibraryDto> {
@@ -1040,7 +1052,10 @@ export class LibraryService {
       titleSource: 'custom',
       updatedAt: new Date().toISOString()
     })
-    return this.buildLibraryDto(libraryPath)
+    return this.refreshLibraryDto(
+      libraryPath,
+      this.affectedItemIds(await this.currentLibraryDto(libraryPath), [item.metadata.id])
+    )
   }
 
   async moveItems(input: MoveItemsInput): Promise<LibraryDto> {
@@ -1053,7 +1068,7 @@ export class LibraryService {
     ) {
       throw new Error('The destination folder no longer exists.')
     }
-    const library = await this.buildLibraryDto(libraryPath)
+    const library = await this.currentLibraryDto(libraryPath)
     const itemIds = this.withExclusiveSiblingAttachments(library, requestedItemIds)
     const items = await Promise.all(
       itemIds.map((itemId) => this.store.resolveItem(libraryPath, itemId))
@@ -1069,13 +1084,13 @@ export class LibraryService {
         metadata: this.clearLifecycleMetadata(item.metadata)
       }))
     await this.store.moveItems(libraryPath, requests)
-    return this.buildLibraryDto(libraryPath)
+    return this.refreshLibraryDto(libraryPath, this.affectedItemIds(library, itemIds))
   }
 
   async archiveItems(input: ItemMutationInput): Promise<LibraryDto> {
     const requestedItemIds = this.validateItemMutationInput(input)
     const libraryPath = this.requireCurrentLibrary()
-    const library = await this.buildLibraryDto(libraryPath)
+    const library = await this.currentLibraryDto(libraryPath)
     const itemIds = this.withExclusiveSiblingAttachments(library, requestedItemIds)
     const items = await Promise.all(
       itemIds.map((itemId) => this.store.resolveItem(libraryPath, itemId))
@@ -1099,13 +1114,13 @@ export class LibraryService {
         }
       }))
     )
-    return this.buildLibraryDto(libraryPath)
+    return this.refreshLibraryDto(libraryPath, this.affectedItemIds(library, itemIds))
   }
 
   async unarchiveItems(input: ItemMutationInput): Promise<LibraryDto> {
     const requestedItemIds = this.validateItemMutationInput(input)
     const libraryPath = this.requireCurrentLibrary()
-    const library = await this.buildLibraryDto(libraryPath)
+    const library = await this.currentLibraryDto(libraryPath)
     const itemIds = this.withExclusiveSiblingAttachments(library, requestedItemIds)
     const items = await Promise.all(
       itemIds.map((itemId) => this.store.resolveItem(libraryPath, itemId))
@@ -1124,7 +1139,7 @@ export class LibraryService {
       })
     )
     await this.store.moveItems(libraryPath, requests)
-    return this.buildLibraryDto(libraryPath)
+    return this.refreshLibraryDto(libraryPath, this.affectedItemIds(library, itemIds))
   }
 
   private withExclusiveSiblingAttachments(
@@ -1236,7 +1251,10 @@ export class LibraryService {
         }
       })
     )
-    return this.buildLibraryDto(libraryPath)
+    return this.refreshLibraryDto(
+      libraryPath,
+      this.affectedItemIds(await this.currentLibraryDto(libraryPath), itemIds)
+    )
   }
 
   async restoreItems(input: ItemMutationInput): Promise<LibraryDto> {
@@ -1272,7 +1290,10 @@ export class LibraryService {
       })
     )
     await this.store.moveItems(libraryPath, requests)
-    return this.buildLibraryDto(libraryPath)
+    return this.refreshLibraryDto(
+      libraryPath,
+      this.affectedItemIds(await this.currentLibraryDto(libraryPath), itemIds)
+    )
   }
 
   async permanentlyDeleteItems(input: PermanentlyDeleteItemsInput): Promise<LibraryDto> {
@@ -1305,7 +1326,7 @@ export class LibraryService {
       )
     )
     if (cleanupImageIds.length > 0) await this.trashItems({ itemIds: cleanupImageIds })
-    return this.buildLibraryDto(libraryPath)
+    return this.refreshLibraryDto(libraryPath, [], itemIds)
   }
 
   async getItemContentPath(itemId: string): Promise<string> {
@@ -1392,6 +1413,9 @@ export class LibraryService {
     this.librarySnapshot = null
     this.startupReconciliationPending = false
     this.vaultDirty = true
+    if (this.ignoredAppMoveTimer) clearTimeout(this.ignoredAppMoveTimer)
+    this.ignoredAppMoveTimer = null
+    this.ignoredAppMovePaths.clear()
     await writeJsonAtomic(this.settingsPath, {
       schemaVersion: 1,
       lastLibraryPath: libraryPath
@@ -1426,6 +1450,7 @@ export class LibraryService {
         ) {
           return
         }
+        if (this.ignoredAppMovePaths.has(relativePath.toLocaleLowerCase())) return
         this.vaultDirty = true
         this.vaultChangedPaths.add(relativePath)
         if (this.vaultChangeTimer) clearTimeout(this.vaultChangeTimer)
@@ -1442,6 +1467,74 @@ export class LibraryService {
     } catch {
       // Startup/focus rescans remain available when recursive watching is unsupported.
     }
+  }
+
+  private async currentLibraryDto(libraryPath: string): Promise<LibraryDto> {
+    if (this.reconciliation) return this.reconciliation
+    if (!this.librarySnapshot || this.vaultDirty) return this.buildLibraryDto(libraryPath)
+    return this.librarySnapshot
+  }
+
+  private affectedItemIds(library: LibraryDto, itemIds: readonly string[]): string[] {
+    const affected = new Set(itemIds)
+    const referenced = new Set(
+      library.items.flatMap((item) =>
+        affected.has(item.id) && (item.type === 'image' || item.type === 'file') ? [item.id] : []
+      )
+    )
+    if (referenced.size > 0) {
+      for (const item of library.items) {
+        if (
+          item.type === 'note' &&
+          item.attachments.some((attachment) => referenced.has(attachment.id))
+        ) {
+          affected.add(item.id)
+        }
+      }
+    }
+    return [...affected]
+  }
+
+  private async refreshLibraryDto(
+    libraryPath: string,
+    changedItemIds: readonly string[],
+    removedItemIds: readonly string[] = []
+  ): Promise<LibraryDto> {
+    const current = this.librarySnapshot ?? (await this.currentLibraryDto(libraryPath))
+    const library = await this.store.updateLibraryDto(
+      libraryPath,
+      current,
+      changedItemIds,
+      removedItemIds
+    )
+    const nextById = new Map(library.items.map((item) => [item.id, item]))
+    for (const item of current.items) {
+      if (
+        (changedItemIds.includes(item.id) || removedItemIds.includes(item.id)) &&
+        nextById.get(item.id)?.relativePath !== item.relativePath
+      ) {
+        this.ignoredAppMovePaths.add(item.relativePath.toLocaleLowerCase())
+      }
+    }
+    if (this.ignoredAppMovePaths.size > 0) {
+      for (const path of this.vaultChangedPaths) {
+        if (this.ignoredAppMovePaths.has(path.toLocaleLowerCase())) {
+          this.vaultChangedPaths.delete(path)
+        }
+      }
+      if (this.ignoredAppMoveTimer) clearTimeout(this.ignoredAppMoveTimer)
+      this.ignoredAppMoveTimer = setTimeout(() => {
+        this.ignoredAppMoveTimer = null
+        this.ignoredAppMovePaths.clear()
+      }, 1_000)
+      this.ignoredAppMoveTimer.unref()
+    }
+    if (this.currentLibraryPath === libraryPath) {
+      this.librarySnapshot = library
+      this.vaultDirty = false
+      this.libraryRevision += 1
+    }
+    return library
   }
 
   private async buildLibraryDto(libraryPath: string): Promise<LibraryDto> {

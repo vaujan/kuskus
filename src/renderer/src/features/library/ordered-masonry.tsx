@@ -58,12 +58,13 @@ export function OrderedMasonry({
         item.style.width = `${columnWidth}px`
       }
 
+      const itemHeights = visibleItems.map((item) => item.getBoundingClientRect().height)
       for (const [index, item] of visibleItems.entries()) {
         const column = index % columnCount
         const top = columnHeights[column]
         item.style.left = `${column * (columnWidth + gap)}px`
         item.style.top = `${top}px`
-        columnHeights[column] = top + item.getBoundingClientRect().height + gap
+        columnHeights[column] = top + itemHeights[index] + gap
       }
 
       container.style.height = `${Math.max(...columnHeights) - gap}px`

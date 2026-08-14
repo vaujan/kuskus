@@ -10,6 +10,7 @@ import {
 } from '@/features/items/item-card'
 import type { LibraryView } from '@/features/items/item-view'
 import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
+import { useNearViewport } from '@/features/items/use-near-viewport'
 import { cn } from '@/lib/utils'
 import type { NoteItemDto } from '../../../../shared/library-contract'
 
@@ -38,8 +39,10 @@ export function NoteItemCard({
   compact?: boolean
   showSelectionVisual?: boolean
 }): React.JSX.Element {
+  const { nearViewport, observe } = useNearViewport()
+
   return (
-    <ItemCard data-selected={selected && showSelectionVisual}>
+    <ItemCard ref={observe} data-selected={selected && showSelectionVisual}>
       <ItemCardPrimaryAction
         aria-label={`Open note ${item.title}`}
         aria-haspopup={opensDialog ? 'dialog' : undefined}
@@ -72,7 +75,7 @@ export function NoteItemCard({
             </span>
             <span className="text-xs">Empty note</span>
           </div>
-        ) : (
+        ) : nearViewport ? (
           <Suspense
             fallback={<div className="size-full min-h-28 animate-pulse rounded-lg bg-muted/40" />}
           >
@@ -84,6 +87,8 @@ export function NoteItemCard({
               onOpenLink={(url) => void openExternalUrlWithFeedback(url)}
             />
           </Suspense>
+        ) : (
+          <div className="size-full min-h-28" aria-hidden="true" />
         )}
       </ItemCardSurface>
       {!item.missingContent && item.body.trim() ? (

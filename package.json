@@ -11,6 +11,7 @@
     "demo:reset": "node scripts/create-demo-library.cjs --reset",
     "perf:benchmark": "node scripts/benchmark-performance.cjs",
     "perf:budget": "node scripts/check-performance-budget.cjs",
+    "perf:packaged": "pnpm build:unpack && node scripts/measure-packaged-performance.cjs",
     "dev:demo": "node scripts/run-demo.cjs",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",

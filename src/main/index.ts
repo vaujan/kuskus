@@ -18,10 +18,14 @@ import { WINDOW_CHANNELS } from '../shared/window-contract'
 import { CAPTURE_CHANNELS } from '../shared/capture-contract'
 import { QuickCaptureWindowController } from './window/quick-capture-window'
 import { NoteWindowController } from './window/note-window'
+import { startPerformanceReporter } from './performance-reporter'
 
 const demoUserDataPath = process.env.KUSKUS_DEMO_USER_DATA
+const performanceUserDataPath = process.env.KUSKUS_PERFORMANCE_USER_DATA
 performance.mark('kuskus:main-entry')
-if (demoUserDataPath && !app.isPackaged) {
+if (performanceUserDataPath && process.env.KUSKUS_PERFORMANCE_OUTPUT) {
+  app.setPath('userData', resolve(performanceUserDataPath))
+} else if (demoUserDataPath && !app.isPackaged) {
   app.setPath('userData', resolve(demoUserDataPath))
 }
 
@@ -179,7 +183,8 @@ if (!hasSingleInstanceLock) {
       optimizer.watchWindowShortcuts(window)
     })
 
-    ensureMainWindow()
+    const window = ensureMainWindow()
+    startPerformanceReporter(window)
     globalCaptureShortcut.start()
 
     app.on('activate', () => {

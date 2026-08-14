@@ -6,6 +6,39 @@ const test = require('node:test')
 
 const { staticJavaScriptGraph } = require('../scripts/check-performance-budget.cjs')
 
+test('keeps large-vault work bounded to changed items and near-viewport cards', () => {
+  const service = require('node:fs').readFileSync(
+    require.resolve('../src/main/library/library-service.ts'),
+    'utf8'
+  )
+  const store = require('node:fs').readFileSync(
+    require.resolve('../src/main/library/storage/library-store.ts'),
+    'utf8'
+  )
+  const noteCard = require('node:fs').readFileSync(
+    require.resolve('../src/renderer/src/features/items/note-item-card.tsx'),
+    'utf8'
+  )
+  const masonry = require('node:fs').readFileSync(
+    require.resolve('../src/renderer/src/features/library/ordered-masonry.tsx'),
+    'utf8'
+  )
+  const benchmark = require('node:fs').readFileSync(
+    require.resolve('../scripts/benchmark-performance.cjs'),
+    'utf8'
+  )
+
+  assert.match(service, /store\.updateLibraryDto/)
+  assert.match(store, /async updateLibraryDto\(/)
+  assert.doesNotMatch(store, /async resolveItem[\s\S]*?await this\.scanVault/)
+  assert.match(noteCard, /useNearViewport\(\)/)
+  assert.match(noteCard, /nearViewport \? \(/)
+  assert.match(masonry, /visibleItems\.map\(\(item\) => item\.getBoundingClientRect\(\)\.height\)/)
+  assert.match(benchmark, /service\.queryItems/)
+  assert.match(benchmark, /renameItemMs/)
+  assert.match(benchmark, /archiveItemMs/)
+})
+
 test('counts shared JavaScript chunks once across multiple entries', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-performance-budget-'))
   context.after(() => rm(root, { recursive: true, force: true }))
