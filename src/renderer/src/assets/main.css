@@ -223,6 +223,17 @@
   )::-webkit-scrollbar-button {
     display: none;
   }
+
+  mark[data-kuskus-find-result] {
+    border-radius: 0.125rem;
+    background: color-mix(in oklch, var(--primary) 28%, transparent);
+    color: var(--foreground);
+  }
+
+  mark[data-kuskus-find-result][data-current] {
+    box-shadow: inset 0 0 0 1px var(--primary);
+    background: color-mix(in oklch, var(--primary) 45%, transparent);
+  }
 }
 
 html[data-surface='quick-capture'],

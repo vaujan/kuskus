@@ -100,6 +100,7 @@ import type {
 import { partitionRichMarkdownSource } from '@/features/items/rich-markdown-source'
 import { supportsRichMarkdown } from '@/features/items/rich-markdown-syntax'
 import { NoteProperties } from '@/features/items/note-properties'
+import { NoteFind } from '@/features/items/note-find'
 import {
   getScrollRatio,
   getScrollTopForRatio,
@@ -1002,6 +1003,7 @@ function NoteCanvas({
   const editorRef = useRef<MarkdownEditorHandle>(null)
   const richEditorRef = useRef<RichMarkdownEditorHandle>(null)
   const previewViewportRef = useRef<HTMLDivElement>(null)
+  const noteViewportRef = useRef<HTMLDivElement>(null)
   const previousModeRef = useRef<NoteMode>(mode)
   const activeScrollDriverRef = useRef<'source' | 'preview'>(mode === 'read' ? 'preview' : 'source')
   const pendingScrollDriverRef = useRef<'source' | 'preview' | null>(null)
@@ -1210,10 +1212,11 @@ function NoteCanvas({
 
   return (
     <div
-      className="flex h-full min-w-0 flex-1 flex-col"
+      className="relative flex h-full min-w-0 flex-1 flex-col"
       data-reading-width={readingWidth}
       onKeyDownCapture={handleUndo}
     >
+      <NoteFind enabled={mode === 'read' || mode === 'live'} scopeRef={noteViewportRef} />
       {item.missingContent ? (
         <div className="flex min-h-0 flex-1 items-center justify-center">
           <MissingContent type="note" onMoveToTrash={() => onMoveToTrash(item.id)} />
@@ -1288,6 +1291,10 @@ function NoteCanvas({
               ) : null}
             </div>
             <ScrollArea
+              ref={(root) => {
+                noteViewportRef.current =
+                  root?.querySelector<HTMLDivElement>('[data-slot="scroll-area-viewport"]') ?? null
+              }}
               className={cn(
                 'min-h-0 min-w-0',
                 mode === 'read' || mode === 'live' ? 'flex' : 'hidden'
