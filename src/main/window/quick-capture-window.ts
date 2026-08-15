@@ -16,6 +16,7 @@ import {
   type QuickCapturePresentation
 } from './quick-capture-material'
 import { OPAQUE_WINDOW_BACKGROUND } from './window-material'
+import { installDevToolsShortcut } from './devtools-shortcut'
 import { installTextContextMenu } from './text-context-menu'
 
 const HIDDEN_WINDOW_IDLE_MS = 60_000
@@ -189,6 +190,7 @@ export class QuickCaptureWindowController {
     this.position(window)
 
     installTextContextMenu(window)
+    installDevToolsShortcut(window)
 
     window.on('blur', () => {
       if (!this.blurSuppressed) this.hide()

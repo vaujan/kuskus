@@ -6,6 +6,7 @@ import icon from '../../../resources/icon.png?asset'
 import { WINDOW_CHANNELS } from '../../shared/window-contract'
 import type { LibraryService } from '../library/library-service'
 import { OPAQUE_WINDOW_BACKGROUND } from './window-material'
+import { installDevToolsShortcut } from './devtools-shortcut'
 import { installTextContextMenu } from './text-context-menu'
 
 export class NoteWindowController {
@@ -103,6 +104,7 @@ export class NoteWindowController {
     })
 
     installTextContextMenu(window)
+    installDevToolsShortcut(window)
     window.on('ready-to-show', () => window.show())
     window.on('close', (event) => {
       if (this.approvedCloses.delete(window)) return

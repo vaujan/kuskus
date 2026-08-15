@@ -5,6 +5,7 @@ import { is } from '@electron-toolkit/utils'
 import icon from '../../../resources/icon.png?asset'
 import { WINDOW_CHANNELS, type AppZoomShortcut } from '../../shared/window-contract'
 import { OPAQUE_WINDOW_BACKGROUND } from './window-material'
+import { installDevToolsShortcut } from './devtools-shortcut'
 import { installTextContextMenu } from './text-context-menu'
 
 export function createMainWindow(): BrowserWindow {
@@ -42,6 +43,7 @@ export function createMainWindow(): BrowserWindow {
   })
 
   installTextContextMenu(mainWindow)
+  installDevToolsShortcut(mainWindow)
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url)
