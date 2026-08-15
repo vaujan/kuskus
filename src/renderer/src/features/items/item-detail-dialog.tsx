@@ -1281,12 +1281,7 @@ function NoteCanvas({
                 mode === 'read' || mode === 'live' ? 'flex' : 'hidden'
               )}
             >
-              <article
-                className={cn(
-                  'kuskus-detail-document-frame min-h-full w-full pt-8',
-                  mode === 'live' ? 'pb-[38vh]' : 'pb-8'
-                )}
-              >
+              <article className="kuskus-detail-document-frame min-h-full w-full py-8">
                 <NoteDocumentBlocks
                   item={item}
                   markdown={snapshot.draft}

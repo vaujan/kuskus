@@ -351,6 +351,10 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
         ctx.set(editorViewOptionsCtx, {
           editable: () => editableRef.current,
           nodeViews: { image: imageView, list_item: taskView },
+          // Start scrolling before the cursor touches the pane edge and keep
+          // it roughly four lines above the bottom while typing.
+          scrollThreshold: { top: 0, right: 0, bottom: 24, left: 0 },
+          scrollMargin: { top: 5, right: 5, bottom: 112, left: 5 },
           attributes: {
             'aria-label': editableRef.current ? 'Rich Markdown editor' : 'Markdown document',
             spellcheck: 'true'

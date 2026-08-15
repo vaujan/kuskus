@@ -78,7 +78,7 @@ const editorTheme = EditorView.theme({
     // full-width scroller leaves its scrollbar at the pane edge.
     maxWidth: 'var(--detail-document-max-width)',
     margin: '0 auto',
-    padding: '2.5rem var(--typeset-detail-gutter) 38vh',
+    padding: '2.5rem var(--typeset-detail-gutter)',
     caretColor: 'currentColor'
   },
   '.cm-line': { padding: '0' },
@@ -179,6 +179,9 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
             highlightActiveLine(),
             highlightSelectionMatches(),
             EditorView.editorAttributes.of({ class: 'cm-kuskus-detail-editor' }),
+            // Keep the cursor roughly four lines above the pane bottom while
+            // typing instead of letting it settle at the last line.
+            EditorView.scrollMargins.of(() => ({ bottom: 112 })),
             markdownHeader,
             editorTheme,
             markdownSearchTheme,
