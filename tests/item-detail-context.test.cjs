@@ -230,7 +230,10 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.doesNotMatch(focusSplitHandlerSource, /setFocusNoteExpanded\(false\)/)
   assert.match(workspaceSource, /announceStatus\(expanded \? 'Zen mode on' : 'Zen mode off'\)/)
   assert.match(detailSource, /aria-keyshortcuts="Control\+Shift\+\\\\"/)
-  assert.match(detailSource, /event\.key === '\\\\'[\s\S]*changeExpanded\(!expanded\)/)
+  assert.match(
+    detailSource,
+    /\[['"]Backslash['"], ['"]IntlBackslash['"]\]\.includes\(event\.code\)[\s\S]*changeExpanded\(!expanded\)/
+  )
   assert.doesNotMatch(
     workspaceSource,
     /localStorage\.(?:getItem|setItem)\([^\n]*focus-note-expanded/

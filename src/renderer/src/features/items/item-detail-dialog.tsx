@@ -1883,7 +1883,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
 
       const handleNoteModeShortcut = (event: KeyboardEvent): void => {
         if (
-          event.key === '\\' &&
+          ['Backslash', 'IntlBackslash'].includes(event.code) &&
           event.ctrlKey &&
           event.shiftKey &&
           !event.altKey &&
