@@ -1983,11 +1983,10 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
         !event.metaKey &&
         !event.shiftKey
       ) {
-        const editing =
-          target?.closest(
-            'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]'
-          ) ?? null
-        if (editing) return
+        const renamingTitle = target?.closest(
+          '[contenteditable]:not([contenteditable="false"])[aria-label^="Rename "]'
+        )
+        if (renamingTitle) return
         const titleTarget =
           item?.type === 'note'
             ? mode === 'markdown'
