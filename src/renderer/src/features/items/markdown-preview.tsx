@@ -159,7 +159,7 @@ export const MarkdownPreview = memo(function MarkdownPreview({
         <Checkbox
           checked={Boolean(checked)}
           readOnly={!onChange}
-          className="mt-1.5 inline-flex"
+          className="inline-flex"
           aria-label={checked ? 'Completed task' : 'Open task'}
           onClick={(event) => event.stopPropagation()}
           onCheckedChange={(nextChecked) =>
