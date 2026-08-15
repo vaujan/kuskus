@@ -33,6 +33,7 @@ export function resolveSelection(
 
 export function useLibrarySelection(announceStatus: (message: string) => void): {
   selectedIds: ReadonlySet<string>
+  anchorId: string | null
   clearSelection: () => void
   clearSelectionSilently: () => void
   pruneSelection: (itemIds: ReadonlySet<string>) => void
@@ -91,6 +92,7 @@ export function useLibrarySelection(announceStatus: (message: string) => void): 
 
   return {
     selectedIds: selection.selectedIds,
+    anchorId: selection.anchorId,
     clearSelection,
     clearSelectionSilently,
     pruneSelection,

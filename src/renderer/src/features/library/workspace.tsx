@@ -264,6 +264,7 @@ export function Workspace({
 
   const {
     selectedIds,
+    anchorId,
     clearSelection,
     clearSelectionSilently,
     prepareItem: prepareItemMenu,
@@ -1016,6 +1017,9 @@ export function Workspace({
   const activateItem = useCallback(
     (itemId: string, event: Pick<React.MouseEvent, 'shiftKey' | 'ctrlKey' | 'metaKey'>): void => {
       if (event.shiftKey || event.ctrlKey || event.metaKey) {
+        if (event.shiftKey && !anchorId && focusItemId && focusItemId !== itemId) {
+          prepareItemMenu(focusItemId)
+        }
         selectItem(itemId, visibleItemIdList, event)
         return
       }
@@ -1028,10 +1032,13 @@ export function Workspace({
       openDetail(itemId)
     },
     [
+      anchorId,
       announceStatus,
       clearSelectionSilently,
       composerHasTransientWork,
+      focusItemId,
       openDetail,
+      prepareItemMenu,
       selectItem,
       visibleItemIdList
     ]
