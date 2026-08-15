@@ -166,171 +166,188 @@ export interface DetailTitleRenameResult {
   error?: string
 }
 
-function InlineItemTitle({
-  item,
-  onRename,
-  className,
-  textClassName,
-  centered = false
-}: {
+export interface InlineItemTitleHandle {
+  startEditing: () => void
+}
+
+interface InlineItemTitleProps {
   item: LibraryItemDto
   onRename: (title: string) => Promise<DetailTitleRenameResult>
   className?: string
   textClassName?: string
   centered?: boolean
-}): React.JSX.Element {
-  const [state, dispatch] = useReducer(
-    reduceInlineTitleEdit,
-    item.title,
-    createInlineTitleEditState
-  )
-  const editorRef = useRef<HTMLSpanElement | null>(null)
-  const initialDraft = useRef(item.title)
-  const pendingRef = useRef(false)
-  const cancelledByEscape = useRef(false)
-  const focusEditor = useCallback((editor: HTMLSpanElement | null): void => {
-    editorRef.current = editor
-    if (!editor) return
-    editor.textContent = initialDraft.current
-    editor.focus()
-    const range = document.createRange()
-    range.selectNodeContents(editor)
-    const selection = window.getSelection()
-    selection?.removeAllRanges()
-    selection?.addRange(range)
-  }, [])
-
-  const cancel = (): void => {
-    if (pendingRef.current) return
-    cancelledByEscape.current = true
-    dispatch({ type: 'cancel', title: item.title })
-  }
-
-  const commit = async (): Promise<void> => {
-    if (pendingRef.current) return
-    const resolution = resolveInlineTitleSubmission(
-      item.title,
-      editorRef.current?.textContent ?? state.draft
-    )
-    if (resolution.type === 'cancel') {
-      dispatch({ type: 'cancel', title: item.title })
-      return
-    }
-
-    pendingRef.current = true
-    dispatch({ type: 'submit' })
-    let result: DetailTitleRenameResult
-    try {
-      result = await onRename(resolution.title)
-    } catch {
-      result = { ok: false, error: 'The item could not be renamed.' }
-    }
-    pendingRef.current = false
-    if (result.ok) {
-      dispatch({ type: 'success', title: resolution.title })
-      return
-    }
-    dispatch({ type: 'failure', error: result.error ?? 'The item could not be renamed.' })
-    window.requestAnimationFrame(() => editorRef.current?.focus())
-  }
-
-  if (item.location.type === 'trash') {
-    return <span className={cn(className, textClassName)}>{item.title}</span>
-  }
-
-  return (
-    <div className={cn('min-w-0', centered && 'flex w-full flex-col items-center')}>
-      {state.editing ? (
-        <div
-          className={cn('flex w-fit min-w-0 max-w-full', centered && 'justify-center')}
-          onBlur={() => {
-            if (cancelledByEscape.current) {
-              cancelledByEscape.current = false
-              return
-            }
-            void commit()
-          }}
-        >
-          <span
-            ref={focusEditor}
-            role="textbox"
-            contentEditable={state.pending ? false : 'plaintext-only'}
-            suppressContentEditableWarning
-            aria-label={`Rename ${item.title}`}
-            aria-multiline="false"
-            aria-disabled={state.pending || undefined}
-            className={cn(
-              '-my-2.5 block min-w-[1ch] max-w-full bg-transparent px-0 py-2.5 outline-none',
-              className,
-              textClassName,
-              state.pending && 'cursor-wait opacity-60',
-              centered && 'text-center'
-            )}
-            spellCheck
-            aria-invalid={state.error ? true : undefined}
-            onInput={(event) => {
-              const editor = event.currentTarget
-              const value = (editor.textContent ?? '').replace(/[\r\n]+/g, ' ').slice(0, 200)
-              if (editor.textContent !== value) {
-                editor.textContent = value
-                const range = document.createRange()
-                range.selectNodeContents(editor)
-                range.collapse(false)
-                const selection = window.getSelection()
-                selection?.removeAllRanges()
-                selection?.addRange(range)
-              }
-              dispatch({ type: 'change', value })
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault()
-                event.stopPropagation()
-                void commit()
-              } else if (event.key === 'Escape') {
-                event.preventDefault()
-                event.stopPropagation()
-                cancel()
-              }
-            }}
-          />
-          <span className="sr-only" aria-live="polite">
-            {state.pending
-              ? 'Saving title'
-              : 'Editing title. Press Enter to save or Escape to cancel.'}
-          </span>
-        </div>
-      ) : (
-        <button
-          type="button"
-          className={cn(
-            '-my-2.5 flex max-w-full items-center py-2.5 text-left outline-none',
-            className,
-            centered && 'justify-center text-center'
-          )}
-          aria-label={`Rename ${item.title}`}
-          onClick={() => {
-            cancelledByEscape.current = false
-            initialDraft.current = item.title
-            dispatch({ type: 'start', title: item.title })
-          }}
-        >
-          <span className={cn('min-w-0', textClassName)} title={item.title}>
-            {item.title}
-          </span>
-        </button>
-      )}
-      {state.error ? (
-        <p
-          className={cn('mt-1 text-xs leading-4 text-destructive', centered && 'text-center')}
-          role="alert"
-        >
-          {state.error}
-        </p>
-      ) : null}
-    </div>
-  )
 }
+
+const InlineItemTitle = forwardRef<InlineItemTitleHandle, InlineItemTitleProps>(
+  function InlineItemTitle(
+    { item, onRename, className, textClassName, centered = false },
+    ref
+  ): React.JSX.Element {
+    const [state, dispatch] = useReducer(
+      reduceInlineTitleEdit,
+      item.title,
+      createInlineTitleEditState
+    )
+    const editorRef = useRef<HTMLSpanElement | null>(null)
+    const initialDraft = useRef(item.title)
+    const pendingRef = useRef(false)
+    const cancelledByEscape = useRef(false)
+    const focusEditor = useCallback((editor: HTMLSpanElement | null): void => {
+      editorRef.current = editor
+      if (!editor) return
+      editor.textContent = initialDraft.current
+      editor.focus()
+      const range = document.createRange()
+      range.selectNodeContents(editor)
+      const selection = window.getSelection()
+      selection?.removeAllRanges()
+      selection?.addRange(range)
+    }, [])
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        startEditing: (): void => {
+          cancelledByEscape.current = false
+          initialDraft.current = item.title
+          dispatch({ type: 'start', title: item.title })
+        }
+      }),
+      [item.title]
+    )
+
+    const cancel = (): void => {
+      if (pendingRef.current) return
+      cancelledByEscape.current = true
+      dispatch({ type: 'cancel', title: item.title })
+    }
+
+    const commit = async (): Promise<void> => {
+      if (pendingRef.current) return
+      const resolution = resolveInlineTitleSubmission(
+        item.title,
+        editorRef.current?.textContent ?? state.draft
+      )
+      if (resolution.type === 'cancel') {
+        dispatch({ type: 'cancel', title: item.title })
+        return
+      }
+
+      pendingRef.current = true
+      dispatch({ type: 'submit' })
+      let result: DetailTitleRenameResult
+      try {
+        result = await onRename(resolution.title)
+      } catch {
+        result = { ok: false, error: 'The item could not be renamed.' }
+      }
+      pendingRef.current = false
+      if (result.ok) {
+        dispatch({ type: 'success', title: resolution.title })
+        return
+      }
+      dispatch({ type: 'failure', error: result.error ?? 'The item could not be renamed.' })
+      window.requestAnimationFrame(() => editorRef.current?.focus())
+    }
+
+    if (item.location.type === 'trash') {
+      return <span className={cn(className, textClassName)}>{item.title}</span>
+    }
+
+    return (
+      <div className={cn('min-w-0', centered && 'flex w-full flex-col items-center')}>
+        {state.editing ? (
+          <div
+            className={cn('flex w-fit min-w-0 max-w-full', centered && 'justify-center')}
+            onBlur={() => {
+              if (cancelledByEscape.current) {
+                cancelledByEscape.current = false
+                return
+              }
+              void commit()
+            }}
+          >
+            <span
+              ref={focusEditor}
+              role="textbox"
+              contentEditable={state.pending ? false : 'plaintext-only'}
+              suppressContentEditableWarning
+              aria-label={`Rename ${item.title}`}
+              aria-multiline="false"
+              aria-disabled={state.pending || undefined}
+              className={cn(
+                '-my-2.5 block min-w-[1ch] max-w-full bg-transparent px-0 py-2.5 outline-none',
+                className,
+                textClassName,
+                state.pending && 'cursor-wait opacity-60',
+                centered && 'text-center'
+              )}
+              spellCheck
+              aria-invalid={state.error ? true : undefined}
+              onInput={(event) => {
+                const editor = event.currentTarget
+                const value = (editor.textContent ?? '').replace(/[\r\n]+/g, ' ').slice(0, 200)
+                if (editor.textContent !== value) {
+                  editor.textContent = value
+                  const range = document.createRange()
+                  range.selectNodeContents(editor)
+                  range.collapse(false)
+                  const selection = window.getSelection()
+                  selection?.removeAllRanges()
+                  selection?.addRange(range)
+                }
+                dispatch({ type: 'change', value })
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  void commit()
+                } else if (event.key === 'Escape') {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  cancel()
+                }
+              }}
+            />
+            <span className="sr-only" aria-live="polite">
+              {state.pending
+                ? 'Saving title'
+                : 'Editing title. Press Enter to save or Escape to cancel.'}
+            </span>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className={cn(
+              '-my-2.5 flex max-w-full items-center py-2.5 text-left outline-none',
+              className,
+              centered && 'justify-center text-center'
+            )}
+            aria-label={`Rename ${item.title}`}
+            onClick={() => {
+              cancelledByEscape.current = false
+              initialDraft.current = item.title
+              dispatch({ type: 'start', title: item.title })
+            }}
+          >
+            <span className={cn('min-w-0', textClassName)} title={item.title}>
+              {item.title}
+            </span>
+          </button>
+        )}
+        {state.error ? (
+          <p
+            className={cn('mt-1 text-xs leading-4 text-destructive', centered && 'text-center')}
+            role="alert"
+          >
+            {state.error}
+          </p>
+        ) : null}
+      </div>
+    )
+  }
+)
 
 function PropertyRow({
   icon: Icon,
@@ -713,6 +730,7 @@ function NoteDocumentBlocks({
   showProperties,
   propertiesEditable,
   className,
+  titleRef,
   onRenameTitle,
   onDraftChange,
   onOpenSource,
@@ -724,6 +742,7 @@ function NoteDocumentBlocks({
   showProperties: boolean
   propertiesEditable: boolean
   className?: string
+  titleRef?: React.Ref<InlineItemTitleHandle>
   onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
   onDraftChange: (value: string) => void
   onOpenSource: () => void
@@ -741,6 +760,7 @@ function NoteDocumentBlocks({
     >
       {showInlineTitle ? (
         <InlineItemTitle
+          ref={titleRef}
           item={item}
           onRename={onRenameTitle}
           className="font-heading text-3xl leading-tight font-semibold text-foreground text-balance"
@@ -936,6 +956,8 @@ function NoteCanvas({
   sourceActivated,
   readingWidth,
   showInlineTitle,
+  noteTitleRef,
+  sourceTitleRef,
   onRenameTitle,
   onDraftChange,
   onModeChange,
@@ -953,6 +975,8 @@ function NoteCanvas({
   sourceActivated: boolean
   readingWidth: NoteReadingWidth
   showInlineTitle: boolean
+  noteTitleRef: React.Ref<InlineItemTitleHandle>
+  sourceTitleRef: React.Ref<InlineItemTitleHandle>
   onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
   onDraftChange: (value: string) => void
   onModeChange: (mode: NoteMode) => void
@@ -1233,6 +1257,7 @@ function NoteCanvas({
                     header={
                       showInlineTitle ? (
                         <InlineItemTitle
+                          ref={sourceTitleRef}
                           item={item}
                           onRename={onRenameTitle}
                           className="font-heading text-3xl leading-tight font-semibold text-foreground text-balance"
@@ -1264,6 +1289,7 @@ function NoteCanvas({
                   showProperties
                   propertiesEditable={mode === 'live'}
                   className="mb-8"
+                  titleRef={noteTitleRef}
                   onRenameTitle={onRenameTitle}
                   onDraftChange={onDraftChange}
                   onOpenSource={() => onModeChange('markdown')}
@@ -1329,6 +1355,7 @@ function NoteCanvas({
                   showProperties
                   propertiesEditable={false}
                   className="mb-8"
+                  titleRef={noteTitleRef}
                   onRenameTitle={onRenameTitle}
                   onDraftChange={onDraftChange}
                   onOpenSource={() => onModeChange('markdown')}
@@ -1517,14 +1544,17 @@ function DetailInspector({ children }: { children: React.ReactNode }): React.JSX
 
 function ImageInspector({
   item,
+  titleRef,
   onRenameTitle
 }: {
   item: Extract<LibraryItemDto, { type: 'image' }>
+  titleRef?: React.Ref<InlineItemTitleHandle>
   onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
 }): React.JSX.Element {
   return (
     <DetailInspector>
       <InlineItemTitle
+        ref={titleRef}
         item={item}
         onRename={onRenameTitle}
         className="text-2xl leading-8 font-semibold tracking-tight text-balance"
@@ -1576,14 +1606,17 @@ function FileCanvas({
 
 function FileInspector({
   item,
+  titleRef,
   onRenameTitle
 }: {
   item: Extract<LibraryItemDto, { type: 'file' }>
+  titleRef?: React.Ref<InlineItemTitleHandle>
   onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
 }): React.JSX.Element {
   return (
     <DetailInspector>
       <InlineItemTitle
+        ref={titleRef}
         item={item}
         onRename={onRenameTitle}
         className="text-2xl leading-8 font-semibold tracking-tight text-balance"
@@ -1606,10 +1639,12 @@ function FileInspector({
 
 function UrlInspector({
   item,
+  titleRef,
   onRenameTitle,
   onOpenLink
 }: {
   item: Extract<LibraryItemDto, { type: 'url' }>
+  titleRef?: React.Ref<InlineItemTitleHandle>
   onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
   onOpenLink: () => void
 }): React.JSX.Element {
@@ -1621,6 +1656,7 @@ function UrlInspector({
           <span className="truncate">{item.domain}</span>
         </p>
         <InlineItemTitle
+          ref={titleRef}
           item={item}
           onRename={onRenameTitle}
           className="text-2xl leading-8 font-semibold tracking-tight text-balance"
@@ -1750,6 +1786,9 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
     const previousSingleModeRef = useRef<SinglePaneNoteMode>(
       initialNoteMode === 'split' ? 'read' : initialNoteMode
     )
+    const noteTitleRef = useRef<InlineItemTitleHandle | null>(null)
+    const sourceTitleRef = useRef<InlineItemTitleHandle | null>(null)
+    const inspectorTitleRef = useRef<InlineItemTitleHandle | null>(null)
     const [leaving, setLeaving] = useState(false)
     const [readingWidth, setReadingWidth] = useState<NoteReadingWidth>(() =>
       parseNoteReadingWidth(localStorage.getItem(NOTE_READING_WIDTH_STORAGE_KEY))
@@ -1932,6 +1971,32 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       if (event.defaultPrevented) return
       const target = event.target as HTMLElement | null
       const isEditingTarget = Boolean(target?.closest('input, textarea, [contenteditable="true"]'))
+      if (
+        event.key === 'F2' &&
+        !event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.shiftKey
+      ) {
+        const editing =
+          target?.closest(
+            'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]'
+          ) ?? null
+        if (editing) return
+        const titleTarget =
+          item?.type === 'note'
+            ? mode === 'markdown'
+              ? sourceTitleRef
+              : noteTitleRef
+            : item?.type === 'image' || item?.type === 'file' || item?.type === 'url'
+              ? inspectorTitleRef
+              : null
+        if (titleTarget?.current && item?.location.type !== 'trash') {
+          event.preventDefault()
+          titleTarget.current.startEditing()
+        }
+        return
+      }
       if (event.key === 'Escape' && expanded && !isEditingTarget) {
         event.preventDefault()
         changeExpanded(false)
@@ -2057,6 +2122,8 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
                 historyRevision={noteHistoryRevision}
                 sourceActivated={sourceActivated}
                 showInlineTitle={showInlineTitle}
+                noteTitleRef={noteTitleRef}
+                sourceTitleRef={sourceTitleRef}
                 onRenameTitle={renameCurrentItem}
                 onDraftChange={(value) => {
                   coordinator?.updateDraft(value)
@@ -2098,13 +2165,18 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
                       item={item}
                       onMoveToTrash={() => requestGuardedAction(() => onMoveToTrash(item.id))}
                     />
-                    <ImageInspector item={item} onRenameTitle={renameCurrentItem} />
+                    <ImageInspector
+                      item={item}
+                      titleRef={inspectorTitleRef}
+                      onRenameTitle={renameCurrentItem}
+                    />
                   </>
                 ) : item.type === 'url' ? (
                   <>
                     <UrlCanvas item={item} />
                     <UrlInspector
                       item={item}
+                      titleRef={inspectorTitleRef}
                       onRenameTitle={renameCurrentItem}
                       onOpenLink={() => void openLink()}
                     />
@@ -2115,7 +2187,11 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
                       item={item}
                       onMoveToTrash={() => requestGuardedAction(() => onMoveToTrash(item.id))}
                     />
-                    <FileInspector item={item} onRenameTitle={renameCurrentItem} />
+                    <FileInspector
+                      item={item}
+                      titleRef={inspectorTitleRef}
+                      onRenameTitle={renameCurrentItem}
+                    />
                   </>
                 )}
               </div>
