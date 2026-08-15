@@ -1,13 +1,16 @@
 import { defaultKeymap, history, historyKeymap, redo, undo } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
-import { bracketMatching, syntaxHighlighting } from '@codemirror/language'
-import { EditorSelection, EditorState, Transaction } from '@codemirror/state'
+import { bracketMatching, syntaxHighlighting, syntaxTree } from '@codemirror/language'
+import { EditorSelection, EditorState, RangeSetBuilder, Transaction } from '@codemirror/state'
 import {
   Decoration,
+  DecorationSet,
   EditorView,
   highlightActiveLine,
   highlightSpecialChars,
   keymap,
+  ViewPlugin,
+  type ViewUpdate,
   WidgetType
 } from '@codemirror/view'
 import { GFM } from '@lezer/markdown'
@@ -108,6 +111,90 @@ const markdownHeader = EditorView.decorations.of(
   ])
 )
 
+class TaskCheckboxWidget extends WidgetType {
+  constructor(
+    readonly checked: boolean,
+    readonly toggle: () => void
+  ) {
+    super()
+  }
+
+  eq(other: TaskCheckboxWidget): boolean {
+    return other.checked === this.checked
+  }
+
+  toDOM(): HTMLElement {
+    const box = document.createElement('input')
+    box.type = 'checkbox'
+    box.className = 'kuskus-task-checkbox'
+    box.checked = this.checked
+    box.contentEditable = 'false'
+    box.setAttribute('aria-label', this.checked ? 'Completed task' : 'Open task')
+    box.addEventListener('mousedown', (event) => event.preventDefault())
+    box.addEventListener('click', (event) => {
+      event.preventDefault()
+      this.toggle()
+    })
+    return box
+  }
+
+  ignoreEvent(): boolean {
+    return true
+  }
+}
+
+function toggleTaskCheckbox(view: EditorView, position: number): void {
+  const doc = view.state.doc
+  if (position < 0 || position + 3 > doc.length) return
+  const marker = doc.sliceString(position, position + 3)
+  if (!/^\[[ xX]\]$/.test(marker)) return
+  const checked = marker[1] !== ' '
+  view.dispatch({
+    changes: { from: position, to: position + 3, insert: checked ? '[ ]' : '[x]' },
+    annotations: Transaction.addToHistory.of(true),
+    userEvent: 'input'
+  })
+  view.focus()
+}
+
+function taskCheckboxDecorations(view: EditorView): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>()
+  syntaxTree(view.state).iterate({
+    enter: (node) => {
+      if (node.name !== 'Task') return true
+      const marker = node.node.firstChild
+      if (marker && marker.name === 'TaskMarker') {
+        const checked = view.state.doc.sliceString(marker.from, marker.to)[1] !== ' '
+        builder.add(
+          marker.from,
+          marker.to,
+          Decoration.replace({
+            widget: new TaskCheckboxWidget(checked, () => toggleTaskCheckbox(view, marker.from)),
+            block: false
+          })
+        )
+      }
+      return false
+    }
+  })
+  return builder.finish()
+}
+
+const taskCheckboxPlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet
+    constructor(view: EditorView) {
+      this.decorations = taskCheckboxDecorations(view)
+    }
+    update(update: ViewUpdate): void {
+      if (update.docChanged || update.viewportChanged) {
+        this.decorations = taskCheckboxDecorations(update.view)
+      }
+    }
+  },
+  { decorations: (plugin) => plugin.decorations }
+)
+
 function markerCommand(marker: '*' | '**'): (view: EditorView) => boolean {
   return (view) => {
     const selection = view.state.selection.main
@@ -183,6 +270,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
             // typing instead of letting it settle at the last line.
             EditorView.scrollMargins.of(() => ({ bottom: 112 })),
             markdownHeader,
+            taskCheckboxPlugin,
             editorTheme,
             markdownSearchTheme,
             syntaxHighlighting(markdownHighlightStyle),
