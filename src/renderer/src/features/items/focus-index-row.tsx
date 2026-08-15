@@ -48,7 +48,8 @@ export function FocusIndexRow({
   onDragStart,
   onDragEnd,
   onNavigate,
-  actions
+  actions,
+  ...rest
 }: {
   item: LibraryItemDto
   active: boolean
@@ -59,7 +60,7 @@ export function FocusIndexRow({
   onDragEnd: () => void
   onNavigate: (key: 'ArrowUp' | 'ArrowDown' | 'Home' | 'End') => void
   actions: React.ReactNode
-}): React.JSX.Element {
+} & React.ComponentProps<'div'>): React.JSX.Element {
   const updatedTime = relativeUpdatedTime(item.updatedAt)
   const typeLabel = itemTypeLabel(item)
   const detail = itemDetail(item)
@@ -67,6 +68,7 @@ export function FocusIndexRow({
 
   return (
     <div
+      {...rest}
       className="group/focus-index-row group/saved-item relative min-h-[88px] min-w-0 overflow-hidden border-b border-border/45 bg-transparent outline-none [content-visibility:auto] [contain-intrinsic-size:96px] transition-[background-color,opacity,box-shadow] [transition-duration:var(--motion-duration-ui)] [transition-timing-function:var(--motion-ease-out)] before:pointer-events-none before:absolute before:inset-y-2.5 before:left-0 before:z-10 before:w-0.5 before:rounded-r-full before:bg-primary before:opacity-0 hover:bg-muted/45 data-[active=true]:bg-primary/9 data-[active=true]:before:opacity-100 data-[dragging=true]:opacity-40 data-[selected=true]:shadow-[inset_0_0_0_1px_var(--primary)]"
       data-item-id={item.id}
       data-active={active || undefined}
@@ -99,7 +101,7 @@ export function FocusIndexRow({
           <time className="shrink-0 tabular-nums" dateTime={item.updatedAt}>
             {updatedTime}
           </time>
-          <span className="shrink-0 rounded-sm bg-muted px-1.5 font-medium text-foreground/70">
+          <span className="kuskus-type-badge" data-type={item.type}>
             {typeLabel}
           </span>
           {detail ? <span className="truncate text-foreground/55">{detail}</span> : null}

@@ -224,6 +224,42 @@
     display: none;
   }
 
+  .kuskus-type-badge {
+    --badge-h: 292;
+    --badge-c: 0.22;
+    --badge-l: 0.62;
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid
+      color-mix(in oklch, oklch(var(--badge-l) var(--badge-c) var(--badge-h)) 34%, transparent);
+    border-radius: 0.25rem;
+    background: color-mix(
+      in oklch,
+      oklch(var(--badge-l) var(--badge-c) var(--badge-h)) 16%,
+      transparent
+    );
+    color: color-mix(
+      in oklch,
+      oklch(var(--badge-l) var(--badge-c) var(--badge-h)) 55%,
+      var(--foreground)
+    );
+    font-weight: 500;
+    line-height: 1;
+    padding: 0.1875rem 0.375rem;
+  }
+
+  .kuskus-type-badge[data-type='url'] {
+    --badge-h: 210;
+  }
+
+  .kuskus-type-badge[data-type='image'] {
+    --badge-h: 195;
+  }
+
+  .kuskus-type-badge[data-type='file'] {
+    --badge-h: 32;
+  }
+
   mark[data-kuskus-find-result] {
     border-radius: 0.125rem;
     background: color-mix(in oklch, var(--primary) 28%, transparent);
