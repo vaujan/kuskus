@@ -54,20 +54,6 @@ export function highlightedCodeRanges(code: string, info: string): HighlightedCo
   return ranges
 }
 
-export function renderHighlightedCode(element: HTMLElement, code: string, info: string): void {
-  element.replaceChildren()
-  let position = 0
-  for (const range of highlightedCodeRanges(code, info)) {
-    element.append(code.slice(position, range.from))
-    const node = document.createElement('span')
-    node.className = range.classes
-    node.textContent = code.slice(range.from, range.to)
-    element.append(node)
-    position = range.to
-  }
-  element.append(code.slice(position))
-}
-
 export async function copyMarkdownCode(code: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(code)

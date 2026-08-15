@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import {
   codeLanguageLabel,
   copyMarkdownCode,
-  isMermaidLanguage,
-  renderHighlightedCode
+  highlightedCodeRanges,
+  isMermaidLanguage
 } from '@/features/items/markdown-code'
 import { MarkdownMermaid } from '@/features/items/markdown-mermaid'
 
@@ -17,11 +17,22 @@ export function MarkdownCodeBlock({
   language: string
   diagrams?: boolean
 }): React.JSX.Element {
-  const codeRef = useRef<HTMLElement>(null)
   const [copied, setCopied] = useState(false)
 
-  useEffect(() => {
-    if (codeRef.current) renderHighlightedCode(codeRef.current, code, language)
+  const highlighted = useMemo(() => {
+    const nodes: React.ReactNode[] = []
+    let position = 0
+    for (const range of highlightedCodeRanges(code, language)) {
+      if (range.from > position) nodes.push(code.slice(position, range.from))
+      nodes.push(
+        <span key={`${range.from}-${range.to}`} className={range.classes}>
+          {code.slice(range.from, range.to)}
+        </span>
+      )
+      position = range.to
+    }
+    if (position < code.length) nodes.push(code.slice(position))
+    return nodes
   }, [code, language])
 
   if (diagrams && isMermaidLanguage(language)) return <MarkdownMermaid code={code} />
@@ -44,7 +55,7 @@ export function MarkdownCodeBlock({
         </button>
       </div>
       <pre>
-        <code ref={codeRef} />
+        <code>{highlighted}</code>
       </pre>
     </div>
   )
