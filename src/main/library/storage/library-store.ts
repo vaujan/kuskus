@@ -431,7 +431,8 @@ export class LibraryStore {
       schemaVersion: 2,
       id: randomUUID(),
       name: basename(libraryPath),
-      createdAt
+      createdAt,
+      pinnedItemIds: []
     }
     await writeJsonAtomic(kuskusPath(libraryPath, LIBRARY_FILENAME), {
       ...library,
@@ -450,7 +451,10 @@ export class LibraryStore {
       if (!isPersistedLibrary(library) || library.schemaVersion !== 2) {
         throw new Error('This vault uses an unsupported Kuskus storage version.')
       }
-      return library
+      return {
+        ...library,
+        pinnedItemIds: Array.isArray(library.pinnedItemIds) ? library.pinnedItemIds : []
+      }
     }
     const legacyPath = join(libraryPath, LIBRARY_FILENAME)
     if (await this.pathExists(legacyPath)) {
@@ -460,6 +464,15 @@ export class LibraryStore {
       }
     }
     throw new Error('This folder has not been initialized as a Kuskus vault.')
+  }
+
+  async setItemsPinned(libraryPath: string, pinnedItemIds: readonly string[]): Promise<void> {
+    const library = await this.readPersistedLibrary(libraryPath)
+    await writeJsonAtomic(kuskusPath(libraryPath, LIBRARY_FILENAME), {
+      ...library,
+      schemaVersion: 2,
+      pinnedItemIds
+    })
   }
 
   async isLegacyLibrary(libraryPath: string): Promise<boolean> {
@@ -527,7 +540,7 @@ export class LibraryStore {
     if (await this.pathExists(backupPath)) throw new Error('A migration backup already exists.')
     await mkdir(stagingPath, { recursive: false })
     try {
-      await this.prepareNewLibrary(stagingPath, { ...legacy, schemaVersion: 2 })
+      await this.prepareNewLibrary(stagingPath, { ...legacy, schemaVersion: 2, pinnedItemIds: [] })
       const collectionMap = new Map<string, string>()
       const legacyCollections = join(libraryPath, 'collections')
       if (await this.pathExists(legacyCollections)) {

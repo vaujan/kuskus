@@ -9,6 +9,8 @@ import {
   IconInfoCircle,
   IconPaperclip,
   IconPencil,
+  IconPin,
+  IconPinnedOff,
   IconRulerMeasure,
   IconTextCaption,
   IconRestore,
@@ -73,6 +75,8 @@ export interface ItemActionHandlers {
   onOpen: () => void
   onOpenInNewWindow: () => void
   onRename: () => void
+  onPin: () => void
+  onUnpin: () => void
   onMove: (destination: ActiveItemLocation) => void
   onReveal: () => void
   onArchive: () => void
@@ -88,6 +92,7 @@ interface ItemActionMenuProps extends ItemActionHandlers {
   collections: CollectionDto[]
   targetCount: number
   targetLocations: readonly ItemLocation[]
+  pinned: boolean
   onMenuOpen?: () => void
   alwaysVisible?: boolean
   showQuickSourceAction?: boolean
@@ -287,6 +292,12 @@ function ItemActions({
             Rename
           </ActionItem>
         ) : null}
+        {!inTrash ? (
+          <ActionItem surface={surface} onClick={props.pinned ? props.onUnpin : props.onPin}>
+            {props.pinned ? <IconPinnedOff aria-hidden="true" /> : <IconPin aria-hidden="true" />}
+            {props.pinned ? 'Unpin' : 'Pin to Pinned'}
+          </ActionItem>
+        ) : null}
         {!inTrash && !bulk ? <MoveAction surface={surface} {...props} /> : null}
         <ActionItem surface={surface} onClick={props.onReveal}>
           <IconFolderOpen aria-hidden="true" />
@@ -310,7 +321,17 @@ function ItemActions({
                 Restore
               </ActionItem>
             ) : (
-              <MoveAction surface={surface} {...props} />
+              <>
+                <MoveAction surface={surface} {...props} />
+                <ActionItem surface={surface} onClick={props.pinned ? props.onUnpin : props.onPin}>
+                  {props.pinned ? (
+                    <IconPinnedOff aria-hidden="true" />
+                  ) : (
+                    <IconPin aria-hidden="true" />
+                  )}
+                  {props.pinned ? 'Unpin' : 'Pin to Pinned'}
+                </ActionItem>
+              </>
             )}
           </>
         ) : null}

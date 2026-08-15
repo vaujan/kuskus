@@ -14,6 +14,7 @@ import {
   type MoveCollectionInput,
   type NoteImageImportInput,
   type RenameItemInput,
+  type SetItemsPinnedInput,
   type UrlPreviewKind,
   type UpdateNoteInput
 } from '../../shared/library-contract'
@@ -468,6 +469,14 @@ export function registerLibraryIpc(
   ipcMain.handle(KUSKUS_CHANNELS.moveItems, async (_event, input: unknown) => {
     try {
       return { ok: true, data: await libraryService.moveItems(input as MoveItemsInput) }
+    } catch (error) {
+      return errorResult(error, 'invalid-input')
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.setItemsPinned, async (_event, input: unknown) => {
+    try {
+      return { ok: true, data: await libraryService.setItemsPinned(input as SetItemsPinnedInput) }
     } catch (error) {
       return errorResult(error, 'invalid-input')
     }

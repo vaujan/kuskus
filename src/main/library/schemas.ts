@@ -12,6 +12,7 @@ export interface PersistedLibrary {
   id: string
   name: string
   createdAt: string
+  pinnedItemIds: string[]
 }
 
 export interface PersistedCollection {

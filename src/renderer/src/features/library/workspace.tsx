@@ -143,6 +143,7 @@ const ITEM_PAGE_SIZE = 50
 function destinationLabel(destination: LibraryDestination, library: LibraryDto): string {
   if (destination.type === 'inbox') return 'Inbox'
   if (destination.type === 'all') return 'All Items'
+  if (destination.type === 'pinned') return 'Pinned'
   if (destination.type === 'archive') return 'Archive'
   if (destination.type === 'trash') return 'Trash'
   return (
@@ -876,6 +877,29 @@ export function Workspace({
     [applyLibraryResult, library.collections, library.items]
   )
 
+  const setItemsPinned = useCallback(
+    async (itemIds: string[], pinned: boolean): Promise<void> => {
+      setItemOperationBusy(true)
+      try {
+        const result = await window.kuskus.setItemsPinned({ itemIds, pinned })
+        if (!result.ok) {
+          setMessage(result.error)
+          return
+        }
+        setLibrary(result.data)
+        setMessage('')
+        announceStatus(
+          `${itemIds.length} ${itemIds.length === 1 ? 'item' : 'items'} ${
+            pinned ? 'pinned' : 'unpinned'
+          }`
+        )
+      } finally {
+        setItemOperationBusy(false)
+      }
+    },
+    [announceStatus]
+  )
+
   const trashItemIds = useCallback(
     async (itemIds: string[], showUndo = true): Promise<boolean> => {
       setItemOperationBusy(true)
@@ -1028,6 +1052,8 @@ export function Workspace({
           setRenameTitle(item.title)
         })
       },
+      onPin: () => guardFocusTargets(targetIds, () => void setItemsPinned(targetIds, true)),
+      onUnpin: () => guardFocusTargets(targetIds, () => void setItemsPinned(targetIds, false)),
       onMove: (nextDestination) =>
         guardFocusTargets(targetIds, () => void moveItemIds(targetIds, nextDestination)),
       onReveal: () => void revealItem(item.id),
@@ -1047,6 +1073,7 @@ export function Workspace({
       requestPermanentDelete,
       restoreItemIds,
       revealItem,
+      setItemsPinned,
       trashItemIds,
       unarchiveItemIds,
       openDetail
@@ -1493,6 +1520,7 @@ export function Workspace({
   ): ItemActionHandlers & {
     targetCount: number
     targetLocations: LibraryItemDto['location'][]
+    pinned: boolean
     onMenuOpen?: () => void
   } => {
     const targetIds = resolveItemMenuTargets(selectedIds, item.id, visibleItemIds)
@@ -1502,6 +1530,7 @@ export function Workspace({
       targetLocations: library.items
         .filter((candidate) => targetIdSet.has(candidate.id))
         .map((candidate) => candidate.location),
+      pinned: library.pinnedItemIds.includes(item.id),
       onMenuOpen: () => prepareItemMenu(item.id),
       ...itemActions(item, targetIds)
     }
@@ -1730,6 +1759,7 @@ export function Workspace({
               collections={library.collections}
               targetCount={1}
               targetLocations={[focusItem.location]}
+              pinned={library.pinnedItemIds.includes(focusItem.id)}
               alwaysVisible
               triggerSurface="caption"
               hideOpenAction
@@ -1737,6 +1767,8 @@ export function Workspace({
               {...actions}
               onOpenInNewWindow={() => guard(actions.onOpenInNewWindow)}
               onRename={() => guard(actions.onRename)}
+              onPin={() => guard(actions.onPin)}
+              onUnpin={() => guard(actions.onUnpin)}
               onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}
               onArchive={() => guard(actions.onArchive)}
               onUnarchive={() => guard(actions.onUnarchive)}
@@ -2087,6 +2119,13 @@ export function Workspace({
           onArchive={(itemIds) => guardFocusTargets(itemIds, () => void archiveItemIds(itemIds))}
           onUnarchive={(itemIds) =>
             guardFocusTargets(itemIds, () => void unarchiveItemIds(itemIds))
+          }
+          onPinChange={(itemIds, pinned) =>
+            guardFocusTargets(itemIds, () => void setItemsPinned(itemIds, pinned))
+          }
+          allPinned={
+            selectedItemIds.length > 0 &&
+            selectedItemIds.every((itemId) => library.pinnedItemIds.includes(itemId))
           }
           onTrash={(itemIds) => guardFocusTargets(itemIds, () => void trashItemIds(itemIds))}
           onRestore={(itemIds) => guardFocusTargets(itemIds, () => void restoreItemIds(itemIds))}

@@ -3,6 +3,8 @@ import {
   IconArchiveOff,
   IconChevronDown,
   IconFolderOpen,
+  IconPin,
+  IconPinnedOff,
   IconRestore,
   IconTrash,
   IconTrashX,
@@ -35,6 +37,8 @@ interface BulkActionToolbarProps {
   onMove: (itemIds: string[], destination: ActiveItemLocation) => void
   onArchive: (itemIds: string[]) => void
   onUnarchive: (itemIds: string[]) => void
+  onPinChange: (itemIds: string[], pinned: boolean) => void
+  allPinned: boolean
   onTrash: (itemIds: string[]) => void
   onRestore: (itemIds: string[]) => void
   onDeletePermanently: (itemIds: string[]) => void
@@ -54,6 +58,8 @@ export function BulkActionToolbar({
   onMove,
   onArchive,
   onUnarchive,
+  onPinChange,
+  allPinned,
   onTrash,
   onRestore,
   onDeletePermanently,
@@ -177,6 +183,33 @@ export function BulkActionToolbar({
             <TooltipContent>Archive selected items</TooltipContent>
           </Tooltip>
         )}
+
+        {destination.type !== 'trash' ? (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  aria-label={allPinned ? 'Unpin selected items' : 'Pin selected items'}
+                  disabled={!visible}
+                  className={actionClassName}
+                  onClick={() => onPinChange(selectedItemIds, !allPinned)}
+                />
+              }
+            >
+              {allPinned ? (
+                <IconPinnedOff data-icon="inline-start" aria-hidden="true" />
+              ) : (
+                <IconPin data-icon="inline-start" aria-hidden="true" />
+              )}
+              <span className={actionLabelClassName}>{allPinned ? 'Unpin' : 'Pin'}</span>
+            </TooltipTrigger>
+            <TooltipContent>
+              {allPinned ? 'Unpin selected items' : 'Pin selected items'}
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
 
         {destination.type === 'trash' ? (
           <Tooltip>

@@ -36,6 +36,7 @@ import type {
   CaptureDraftFileDto,
   UpdateNoteInput,
   RenameItemInput,
+  SetItemsPinnedInput,
   UrlItemDto,
   UrlPreviewDto,
   UrlPreviewKind
@@ -417,7 +418,8 @@ export class LibraryService {
       schemaVersion: 2,
       id: randomUUID(),
       name,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      pinnedItemIds: []
     }
 
     await this.store.prepareNewLibrary(libraryPath, library)
@@ -1140,6 +1142,37 @@ export class LibraryService {
     )
     await this.store.moveItems(libraryPath, requests)
     return this.refreshLibraryDto(libraryPath, this.affectedItemIds(library, itemIds))
+  }
+
+  async setItemsPinned(input: SetItemsPinnedInput): Promise<LibraryDto> {
+    if (!input || typeof input !== 'object') throw new Error('The pin request is invalid.')
+    const itemIds = this.validateItemMutationInput(input)
+    if (typeof input.pinned !== 'boolean') throw new Error('The pin request is invalid.')
+    const libraryPath = this.requireCurrentLibrary()
+    const library = await this.currentLibraryDto(libraryPath)
+    const requested = new Set(itemIds)
+    const existing = new Set(library.pinnedItemIds)
+    const nextPinned = input.pinned
+      ? [
+          ...existing,
+          ...library.items
+            .filter((item) => requested.has(item.id))
+            .map((item) => item.id)
+            .filter((itemId) => !existing.has(itemId))
+        ]
+      : library.pinnedItemIds.filter((itemId) => !requested.has(itemId))
+    await this.store.setItemsPinned(libraryPath, nextPinned)
+    const nextLibrary = await this.store.updateLibraryDto(
+      libraryPath,
+      { ...library, pinnedItemIds: nextPinned },
+      []
+    )
+    if (this.currentLibraryPath === libraryPath) {
+      this.librarySnapshot = nextLibrary
+      this.vaultDirty = false
+      this.libraryRevision += 1
+    }
+    return nextLibrary
   }
 
   private withExclusiveSiblingAttachments(

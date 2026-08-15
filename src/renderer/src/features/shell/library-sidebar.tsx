@@ -9,6 +9,7 @@ import {
   IconInbox,
   IconLibrary,
   IconPencil,
+  IconPin,
   IconPlus,
   IconSettings,
   IconTrash
@@ -106,6 +107,7 @@ type FolderDropTarget = { type: 'root' } | { type: 'folder'; id: string } | null
 export type LibraryDestination =
   | { type: 'inbox' }
   | { type: 'all' }
+  | { type: 'pinned' }
   | { type: 'collection'; collectionId: string }
   | { type: 'archive' }
   | { type: 'trash' }
@@ -768,8 +770,10 @@ export function LibrarySidebar({
   const locationCounts = useMemo(() => {
     let inbox = 0
     let active = 0
+    let pinned = 0
     let archive = 0
     let trash = 0
+    const pinnedIds = new Set(library.pinnedItemIds)
 
     for (const item of library.items) {
       if (item.location.type === 'inbox') {
@@ -782,10 +786,16 @@ export function LibrarySidebar({
       } else {
         trash += 1
       }
+      if (
+        pinnedIds.has(item.id) &&
+        (item.location.type === 'inbox' || item.location.type === 'collection')
+      ) {
+        pinned += 1
+      }
     }
 
-    return { inbox, active, archive, trash }
-  }, [library.items])
+    return { inbox, active, pinned, archive, trash }
+  }, [library.items, library.pinnedItemIds])
 
   const collectionSubtreeCounts = useMemo(
     () =>
@@ -869,6 +879,18 @@ export function LibrarySidebar({
                   </SidebarMenuButton>
                   <SidebarMenuBadge className="font-mono font-normal text-sidebar-foreground/60">
                     {locationCounts.active}
+                  </SidebarMenuBadge>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={destination.type === 'pinned'}
+                    onClick={() => onDestinationChange({ type: 'pinned' })}
+                  >
+                    <IconPin aria-hidden="true" />
+                    <span>Pinned</span>
+                  </SidebarMenuButton>
+                  <SidebarMenuBadge className="font-mono font-normal text-sidebar-foreground/60">
+                    {locationCounts.pinned}
                   </SidebarMenuBadge>
                 </SidebarMenuItem>
               </SidebarMenu>

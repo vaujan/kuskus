@@ -144,6 +144,7 @@ const libraryApi: KuskusLibraryApi = {
   deleteCollection: (id) => ipcRenderer.invoke(KUSKUS_CHANNELS.deleteCollection, id),
   renameItem: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.renameItem, input),
   moveItems: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.moveItems, input),
+  setItemsPinned: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.setItemsPinned, input),
   archiveItems: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.archiveItems, input),
   unarchiveItems: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.unarchiveItems, input),
   trashItems: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.trashItems, input),

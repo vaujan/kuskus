@@ -17,10 +17,17 @@ import type { LibraryDto, LibraryItemDto } from '../../../../shared/library-cont
 function itemMatchesDestination(
   item: LibraryItemDto,
   destination: LibraryDestination,
-  collectionSubtreeIds: ReadonlySet<string> | null
+  collectionSubtreeIds: ReadonlySet<string> | null,
+  pinnedItemIds: ReadonlySet<string>
 ): boolean {
   if (destination.type === 'all') {
     return item.location.type === 'inbox' || item.location.type === 'collection'
+  }
+  if (destination.type === 'pinned') {
+    return (
+      pinnedItemIds.has(item.id) &&
+      (item.location.type === 'inbox' || item.location.type === 'collection')
+    )
   }
   if (destination.type === 'collection') {
     return (
@@ -89,6 +96,7 @@ export function useLibraryRetrieval({
         : null,
     [destination, library.collections]
   )
+  const pinnedItemIds = useMemo(() => new Set(library.pinnedItemIds), [library.pinnedItemIds])
   const acceptedSearchIds =
     searchMatches?.library === library && searchMatches.query === query
       ? searchMatches.itemIds
@@ -96,13 +104,14 @@ export function useLibraryRetrieval({
   const matchesCurrentRetrieval = useCallback(
     (item: LibraryItemDto): boolean =>
       (showReferencedAttachments || !item.referencedAttachment) &&
-      itemMatchesDestination(item, destination, collectionSubtreeIds) &&
+      itemMatchesDestination(item, destination, collectionSubtreeIds, pinnedItemIds) &&
       (typeFilters.length === 0 || typeFilters.includes(item.type)) &&
       (!query || acceptedSearchIds?.has(item.id) === true),
     [
       acceptedSearchIds,
       collectionSubtreeIds,
       destination,
+      pinnedItemIds,
       query,
       showReferencedAttachments,
       typeFilters
@@ -119,9 +128,9 @@ export function useLibraryRetrieval({
   const destinationItems = useMemo(
     () =>
       library.items.filter((item) =>
-        itemMatchesDestination(item, destination, collectionSubtreeIds)
+        itemMatchesDestination(item, destination, collectionSubtreeIds, pinnedItemIds)
       ),
-    [collectionSubtreeIds, destination, library.items]
+    [collectionSubtreeIds, destination, library.items, pinnedItemIds]
   )
 
   return {

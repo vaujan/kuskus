@@ -32,6 +32,7 @@ export const KUSKUS_CHANNELS = {
   deleteCollection: 'library:delete-collection',
   renameItem: 'library:rename-item',
   moveItems: 'library:move-items',
+  setItemsPinned: 'library:set-items-pinned',
   archiveItems: 'library:archive-items',
   unarchiveItems: 'library:unarchive-items',
   trashItems: 'library:trash-items',
@@ -67,6 +68,11 @@ export type ItemLocation =
 
 export interface ItemMutationInput {
   itemIds: string[]
+}
+
+export interface SetItemsPinnedInput {
+  itemIds: string[]
+  pinned: boolean
 }
 
 export interface InspectItemDeletionInput extends ItemMutationInput {
@@ -285,6 +291,7 @@ export interface LibraryDto {
   name: string
   path: string
   createdAt: string
+  pinnedItemIds: string[]
   items: LibraryItemDto[]
   collections: CollectionDto[]
   cleanup: VaultCleanupDto
@@ -436,6 +443,7 @@ export interface KuskusLibraryApi {
   deleteCollection: (id: string) => Promise<ApiResult<LibraryDto>>
   renameItem: (input: RenameItemInput) => Promise<ApiResult<LibraryDto>>
   moveItems: (input: MoveItemsInput) => Promise<ApiResult<LibraryDto>>
+  setItemsPinned: (input: SetItemsPinnedInput) => Promise<ApiResult<LibraryDto>>
   archiveItems: (input: ItemMutationInput) => Promise<ApiResult<LibraryDto>>
   unarchiveItems: (input: ItemMutationInput) => Promise<ApiResult<LibraryDto>>
   inspectItemDeletion: (
