@@ -73,6 +73,16 @@ import {
   DialogHeader as ConflictDialogHeader,
   DialogTitle as ConflictDialogTitle
 } from '@/components/ui/dialog'
+import {
+  Dialog as RenameDialog,
+  DialogContent as RenameDialogContent,
+  DialogDescription as RenameDialogDescription,
+  DialogFooter as RenameDialogFooter,
+  DialogHeader as RenameDialogHeader,
+  DialogTitle as RenameDialogTitle
+} from '@/components/ui/dialog'
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
 import { Kbd } from '@/components/ui/kbd'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -958,6 +968,7 @@ function NoteCanvas({
   showInlineTitle,
   noteTitleRef,
   sourceTitleRef,
+  previewTitleRef,
   onRenameTitle,
   onDraftChange,
   onModeChange,
@@ -977,6 +988,7 @@ function NoteCanvas({
   showInlineTitle: boolean
   noteTitleRef: React.Ref<InlineItemTitleHandle>
   sourceTitleRef: React.Ref<InlineItemTitleHandle>
+  previewTitleRef: React.Ref<InlineItemTitleHandle>
   onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
   onDraftChange: (value: string) => void
   onModeChange: (mode: NoteMode) => void
@@ -1355,7 +1367,7 @@ function NoteCanvas({
                   showProperties
                   propertiesEditable={false}
                   className="mb-8"
-                  titleRef={noteTitleRef}
+                  titleRef={previewTitleRef}
                   onRenameTitle={onRenameTitle}
                   onDraftChange={onDraftChange}
                   onOpenSource={() => onModeChange('markdown')}
@@ -1788,6 +1800,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
     )
     const noteTitleRef = useRef<InlineItemTitleHandle | null>(null)
     const sourceTitleRef = useRef<InlineItemTitleHandle | null>(null)
+    const previewTitleRef = useRef<InlineItemTitleHandle | null>(null)
     const inspectorTitleRef = useRef<InlineItemTitleHandle | null>(null)
     const [leaving, setLeaving] = useState(false)
     const [readingWidth, setReadingWidth] = useState<NoteReadingWidth>(() =>
@@ -1800,6 +1813,8 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
     const [conflictResolution, setConflictResolution] = useState<'mine' | 'disk' | null>(null)
     const [attachmentsOpen, setAttachmentsOpen] = useState(false)
     const [noteDetailsOpen, setNoteDetailsOpen] = useState(false)
+    const [renameDialogOpen, setRenameDialogOpen] = useState(false)
+    const [renameDraft, setRenameDraft] = useState('')
     const changeExpanded = useCallback(
       (nextExpanded: boolean): void => {
         if (nextExpanded) setAttachmentsOpen(false)
@@ -1899,6 +1914,58 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       return () => window.removeEventListener('keydown', handleNoteModeShortcut, true)
     }, [changeExpanded, changeMode, expanded, expandable, item?.type, mode, presentation])
 
+    useEffect(() => {
+      if (!item) return
+      const handleRenameShortcut = (event: KeyboardEvent): void => {
+        if (
+          event.defaultPrevented ||
+          event.key !== 'F2' ||
+          event.altKey ||
+          event.ctrlKey ||
+          event.metaKey ||
+          event.shiftKey
+        ) {
+          return
+        }
+        const target = event.target as Element | null
+        if (
+          !target ||
+          (!target.closest('[data-detail-surface], [role="dialog"]') &&
+            target.closest('[data-item-id]'))
+        ) {
+          return
+        }
+        if (
+          target.closest(
+            '[contenteditable]:not([contenteditable="false"])[aria-label^="Rename "]'
+          ) ||
+          target.closest('[data-detail-rename-dialog]')
+        ) {
+          return
+        }
+        if (item.location.type === 'trash') return
+        const titleTarget =
+          item.type === 'note'
+            ? mode === 'markdown'
+              ? sourceTitleRef
+              : mode === 'split'
+                ? previewTitleRef
+                : noteTitleRef
+            : item.type === 'image' || item.type === 'file' || item.type === 'url'
+              ? inspectorTitleRef
+              : null
+        event.preventDefault()
+        if (titleTarget?.current) {
+          titleTarget.current.startEditing()
+          return
+        }
+        setRenameDraft(item.title)
+        setRenameDialogOpen(true)
+      }
+      window.addEventListener('keydown', handleRenameShortcut, true)
+      return () => window.removeEventListener('keydown', handleRenameShortcut, true)
+    }, [item, mode])
+
     const resolvePendingNote = useCallback(async (): Promise<'ready' | 'trashed' | 'blocked'> => {
       if (leaving) return 'blocked'
       if (!coordinator) return 'ready'
@@ -1971,31 +2038,6 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       if (event.defaultPrevented) return
       const target = event.target as HTMLElement | null
       const isEditingTarget = Boolean(target?.closest('input, textarea, [contenteditable="true"]'))
-      if (
-        event.key === 'F2' &&
-        !event.altKey &&
-        !event.ctrlKey &&
-        !event.metaKey &&
-        !event.shiftKey
-      ) {
-        const renamingTitle = target?.closest(
-          '[contenteditable]:not([contenteditable="false"])[aria-label^="Rename "]'
-        )
-        if (renamingTitle) return
-        const titleTarget =
-          item?.type === 'note'
-            ? mode === 'markdown'
-              ? sourceTitleRef
-              : noteTitleRef
-            : item?.type === 'image' || item?.type === 'file' || item?.type === 'url'
-              ? inspectorTitleRef
-              : null
-        if (titleTarget?.current && item?.location.type !== 'trash') {
-          event.preventDefault()
-          titleTarget.current.startEditing()
-        }
-        return
-      }
       if (event.key === 'Escape' && expanded && !isEditingTarget) {
         event.preventDefault()
         changeExpanded(false)
@@ -2123,6 +2165,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
                 showInlineTitle={showInlineTitle}
                 noteTitleRef={noteTitleRef}
                 sourceTitleRef={sourceTitleRef}
+                previewTitleRef={previewTitleRef}
                 onRenameTitle={renameCurrentItem}
                 onDraftChange={(value) => {
                   coordinator?.updateDraft(value)
@@ -2313,6 +2356,49 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
             </ConflictDialogFooter>
           </ConflictDialogContent>
         </ConflictDialog>
+        <RenameDialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+          <RenameDialogContent data-detail-rename-dialog showCloseButton>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault()
+                const title = renameDraft.trim()
+                if (!item || !title) return
+                void renameCurrentItem(title).then((result) => {
+                  if (result.ok) setRenameDialogOpen(false)
+                })
+              }}
+            >
+              <RenameDialogHeader>
+                <RenameDialogTitle>Rename item</RenameDialogTitle>
+                <RenameDialogDescription>
+                  This renames the visible vault file. Kuskus keeps its stable identity and updates
+                  inbound references.
+                </RenameDialogDescription>
+              </RenameDialogHeader>
+              <FieldGroup className="py-4">
+                <Field>
+                  <FieldLabel htmlFor="detail-item-title">Title</FieldLabel>
+                  <Input
+                    id="detail-item-title"
+                    autoFocus
+                    maxLength={200}
+                    value={renameDraft}
+                    onFocus={(event) => event.currentTarget.select()}
+                    onChange={(event) => setRenameDraft(event.target.value)}
+                  />
+                </Field>
+              </FieldGroup>
+              <RenameDialogFooter>
+                <Button type="button" variant="outline" onClick={() => setRenameDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={!renameDraft.trim()}>
+                  Rename
+                </Button>
+              </RenameDialogFooter>
+            </form>
+          </RenameDialogContent>
+        </RenameDialog>
         <AlertDialog
           open={conflictResolution !== null}
           onOpenChange={(open) => {
