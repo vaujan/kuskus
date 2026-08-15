@@ -14,11 +14,10 @@ import {
   IconInbox as Inbox,
   IconLayoutDashboard,
   IconLibrary,
-  IconSearch as Search,
-  IconX as X
+  IconSearch as Search
 } from '@tabler/icons-react'
 
-import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,7 +51,6 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Switch } from '@/components/ui/switch'
 import { SidebarInset, SidebarProvider } from '@/features/shell/app-sidebar'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { ImportRequest } from '@/features/capture/add-item-composer'
 import { shouldYieldMainComposer } from '@/features/capture/capture-draft-tracker'
 import { ExternalDropShadow } from '@/features/capture/external-drop-shadow'
@@ -111,6 +109,7 @@ import type {
 import type { GlobalCaptureShortcutStatus } from '../../../../shared/window-contract'
 import type { CaptureSurface } from '../../../../shared/capture-contract'
 import {
+  notifyActionError,
   notifyArchived,
   notifyEmptyNoteTrashed,
   notifyGlobalCapturePrepared,
@@ -217,7 +216,6 @@ export function Workspace({
   const [showReferencedAttachments, setShowReferencedAttachments] = useState(
     () => localStorage.getItem('kuskus-show-referenced-attachments') === 'true'
   )
-  const [message, setMessage] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
   const [itemDetails, setItemDetails] = useState<Map<string, LibraryItemDto>>(() => new Map())
   const [destination, setDestination] = useState<LibraryDestination>({ type: 'inbox' })
@@ -425,7 +423,7 @@ export function Workspace({
         return path === normalized || item.title.toLocaleLowerCase() === normalized
       })
       if (matches.length !== 1) {
-        setMessage(
+        notifyActionError(
           matches.length === 0
             ? `The linked note “${target}” could not be found.`
             : `The linked note “${target}” is ambiguous.`
@@ -609,7 +607,6 @@ export function Workspace({
       const nextItem = nextLibrary?.items.find((entry) => entry.id === item.id) ?? item
       if (nextLibrary) setLibrary(nextLibrary)
       else setLibrary((current) => ({ ...current, items: [item, ...current.items] }))
-      setMessage('')
       const remainsVisible = matchesCurrentRetrieval(nextItem)
       if (remainsVisible) pendingRevealItemId.current = nextItem.id
       if (openInEditor && nextItem.type === 'note') openDetail(nextItem.id, true)
@@ -628,7 +625,6 @@ export function Workspace({
       const nextItem = candidate?.type === 'url' ? candidate : item
       if (nextLibrary) setLibrary(nextLibrary)
       else setLibrary((current) => ({ ...current, items: [item, ...current.items] }))
-      setMessage('')
       return {
         item: nextItem,
         remainsVisible: matchesCurrentRetrieval(nextItem)
@@ -656,7 +652,7 @@ export function Workspace({
   const applyLibraryResult = useCallback(
     (result: ApiResult<LibraryDto>): LibraryDto | null => {
       if (!result.ok) {
-        setMessage(result.error)
+        notifyActionError(result.error)
         return null
       }
       setLibrary(result.data)
@@ -669,7 +665,6 @@ export function Workspace({
         ).map((item) => item.id)
         return resolveFocusAfterRemoval(visibleItemIdList, nextVisibleIds, current)
       })
-      setMessage('')
       clearSelectionSilently()
       return result.data
     },
@@ -884,11 +879,10 @@ export function Workspace({
       try {
         const result = await window.kuskus.setItemsPinned({ itemIds, pinned })
         if (!result.ok) {
-          setMessage(result.error)
+          notifyActionError(result.error)
           return
         }
         setLibrary(result.data)
-        setMessage('')
         announceStatus(
           `${itemIds.length} ${itemIds.length === 1 ? 'item' : 'items'} ${
             pinned ? 'pinned' : 'unpinned'
@@ -907,7 +901,7 @@ export function Workspace({
       try {
         const inspected = await window.kuskus.inspectItemDeletion({ itemIds, mode: 'trash' })
         if (!inspected.ok) {
-          setMessage(inspected.error)
+          notifyActionError(inspected.error)
           return false
         }
         if (inspected.data.referencedItems.length > 0) {
@@ -1006,7 +1000,7 @@ export function Workspace({
 
   const revealItem = useCallback(async (itemId: string): Promise<void> => {
     const result = await window.kuskus.showItemInExplorer(itemId)
-    if (!result.ok) setMessage(result.error)
+    if (!result.ok) notifyActionError(result.error)
   }, [])
 
   const openSource = useCallback(async (item: LibraryItemDto): Promise<void> => {
@@ -1050,7 +1044,9 @@ export function Workspace({
       onOpenInNewWindow: () => {
         if (item.type !== 'note') return
         void window.electron.window.openNoteWindow(item.id).catch((error: unknown) => {
-          setMessage(error instanceof Error ? error.message : 'The note could not be opened.')
+          notifyActionError(
+            error instanceof Error ? error.message : 'The note could not be opened.'
+          )
         })
       },
       onRename: () => {
@@ -1305,18 +1301,17 @@ export function Workspace({
       window.capture.onMainItemRequested((itemId) => {
         void window.kuskus.getState().then((result) => {
           if (!result.ok || result.data.status !== 'ready') {
-            setMessage('The saved note could not be opened.')
+            notifyActionError('The saved note could not be opened.')
             return
           }
           const nextLibrary = result.data.library
           const item = nextLibrary.items.find((candidate) => candidate.id === itemId)
           if (!item) {
-            setMessage('The saved note could not be found.')
+            notifyActionError('The saved note could not be found.')
             return
           }
           const open = (): void => {
             setLibrary(nextLibrary)
-            setMessage('')
             clearSelectionSilently()
             openDetail(item.id, item.type === 'note')
           }
@@ -1355,7 +1350,7 @@ export function Workspace({
   const requestImageImport = useCallback(
     (file: File, origin: 'clipboard' | 'file' = 'file'): void => {
       if (!file.type.startsWith('image/')) {
-        setMessage('Only image files can be imported here right now.')
+        notifyActionError('Only image files can be imported here right now.')
         return
       }
       importRequestId.current += 1
@@ -1423,7 +1418,7 @@ export function Workspace({
     setIsDragging(false)
     const image = files.find((file) => file.type.startsWith('image/'))
     if (image) requestImageImport(image)
-    else if (files.length > 0) setMessage('Only image files can be imported here right now.')
+    else if (files.length > 0) notifyActionError('Only image files can be imported here right now.')
   }
 
   const renameItemTitle = useCallback(
@@ -1498,7 +1493,7 @@ export function Workspace({
       .then((result) => {
         if (!active) return
         if (result.ok) setDeleteInspection(result.data)
-        else setMessage(result.error)
+        else notifyActionError(result.error)
       })
     return () => {
       active = false
@@ -1785,7 +1780,7 @@ export function Workspace({
             />
           )
         }}
-        onError={setMessage}
+        onError={notifyActionError}
       />
     </Suspense>
   ) : (
@@ -1840,7 +1835,7 @@ export function Workspace({
           if (focusItemId) requestFocusTransition(apply)
           else apply()
         }}
-        onError={setMessage}
+        onError={notifyActionError}
         onStatus={announceStatus}
         onMoveItems={(itemIds, nextDestination) =>
           guardFocusTargets(itemIds, () => void moveItemIds(itemIds, nextDestination))
@@ -1911,22 +1906,6 @@ export function Workspace({
                 </AlertDescription>
               </Alert>
             ) : null}
-            {message ? (
-              <Alert className="m-3 mb-0 shrink-0" variant="destructive">
-                <AlertTitle>Unable to Complete Action</AlertTitle>
-                <AlertDescription>{message}</AlertDescription>
-                <AlertAction>
-                  <Button
-                    size="icon-xs"
-                    variant="ghost"
-                    aria-label="Dismiss error"
-                    onClick={() => setMessage('')}
-                  >
-                    <X aria-hidden="true" />
-                  </Button>
-                </AlertAction>
-              </Alert>
-            ) : null}
             <FocusWorkspace
               listWidth={focusListWidth}
               onListWidthChange={setFocusListWidth}
@@ -1977,29 +1956,6 @@ export function Workspace({
                       unchanged because removing the old bookmark metadata could hide user-authored
                       content. The original files remain authoritative.
                     </AlertDescription>
-                  </Alert>
-                )}
-                {message && (
-                  <Alert className="mb-4" variant="destructive">
-                    <AlertTitle>Unable to Complete Action</AlertTitle>
-                    <AlertDescription>{message}</AlertDescription>
-                    <AlertAction>
-                      <Tooltip>
-                        <TooltipTrigger
-                          render={
-                            <Button
-                              size="icon-xs"
-                              variant="ghost"
-                              aria-label="Dismiss error"
-                              onClick={() => setMessage('')}
-                            >
-                              <X aria-hidden="true" />
-                            </Button>
-                          }
-                        />
-                        <TooltipContent>Dismiss error</TooltipContent>
-                      </Tooltip>
-                    </AlertAction>
                   </Alert>
                 )}
                 {view === 'visual' ? (

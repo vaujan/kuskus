@@ -1,4 +1,5 @@
 import {
+  IconAlertOctagon,
   IconArchive,
   IconArchiveOff,
   IconArrowUpRight,
@@ -133,6 +134,14 @@ function showVerbToast({
     id,
     action,
     classNames: destructive ? { icon: '!text-destructive' } : undefined
+  })
+}
+
+export function notifyActionError(error: string): void {
+  toast.error('Unable to Complete Action', {
+    description: error,
+    duration: 6000,
+    icon: <IconAlertOctagon />
   })
 }
 
