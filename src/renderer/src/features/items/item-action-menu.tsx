@@ -295,7 +295,7 @@ function ItemActions({
         {!inTrash ? (
           <ActionItem surface={surface} onClick={props.pinned ? props.onUnpin : props.onPin}>
             {props.pinned ? <IconPinnedOff aria-hidden="true" /> : <IconPin aria-hidden="true" />}
-            {props.pinned ? 'Unpin' : 'Pin to Pinned'}
+            {props.pinned ? 'Unpin' : 'Pin'}
           </ActionItem>
         ) : null}
         {!inTrash && !bulk ? <MoveAction surface={surface} {...props} /> : null}
@@ -329,7 +329,7 @@ function ItemActions({
                   ) : (
                     <IconPin aria-hidden="true" />
                   )}
-                  {props.pinned ? 'Unpin' : 'Pin to Pinned'}
+                  {props.pinned ? 'Unpin' : 'Pin'}
                 </ActionItem>
               </>
             )}
