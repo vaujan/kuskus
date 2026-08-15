@@ -63,12 +63,27 @@ export interface RichMarkdownEditorHandle {
   focus: () => void
 }
 
-function focusRichMarkdownEditor(editor: Editor | null): void {
+function richMarkdownScrollRestorePoint(view: ProseEditorView): number | null {
+  const viewport = view.dom.closest<HTMLElement>('[data-slot="scroll-area-viewport"]')
+  if (!viewport || viewport.scrollTop <= 0) return null
+  const rect = viewport.getBoundingClientRect()
+  const maxScrollTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight)
+  const targetScrollTop = Math.min(viewport.scrollTop, maxScrollTop)
+  const coords = {
+    left: rect.left + Math.min(rect.width / 2, viewport.clientWidth / 2),
+    top: rect.top + targetScrollTop + rect.height / 2
+  }
+  const at = view.posAtCoords(coords)
+  if (!at || at.inside >= 0) return null
+  return at.pos
+}
+
+function focusRichMarkdownEditor(editor: Editor | null, restoreScrollPosition = false): void {
   editor?.action((ctx) => {
     const view = ctx.get(editorViewCtx)
-    view.dispatch(
-      view.state.tr.setSelection(Selection.near(view.state.doc.resolve(view.state.selection.head)))
-    )
+    const restorePoint = restoreScrollPosition ? richMarkdownScrollRestorePoint(view) : null
+    const target = restorePoint ?? view.state.selection.head
+    view.dispatch(view.state.tr.setSelection(Selection.near(view.state.doc.resolve(target), 1)))
     view.focus()
   })
 }
@@ -394,7 +409,7 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
           if (current && current.prefix + current.body !== source.prefix + source.body) {
             editor.action(replaceAll(prepareRichMarkdown(current.body), true))
           }
-          if (activeRef.current && editableRef.current) focusRichMarkdownEditor(editor)
+          if (activeRef.current && editableRef.current) focusRichMarkdownEditor(editor, true)
         })
         .catch((error: unknown) => {
           setFailed(true)

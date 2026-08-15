@@ -21,7 +21,7 @@ test('source and live writing modes highlight the active line', () => {
   assert.match(rich, /presentation === 'detail'\) editor\.use\(richMarkdownActiveLine\)/)
   assert.match(
     rich,
-    /if \(activeRef\.current && editableRef\.current\) focusRichMarkdownEditor\(editor\)/
+    /if \(activeRef\.current && editableRef\.current\) focusRichMarkdownEditor\(editor, true\)/
   )
   assert.match(source, /EditorSelection\.cursor\(head\)/)
   assert.match(plugin, /selection\.empty/)

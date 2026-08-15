@@ -78,7 +78,7 @@ const editorTheme = EditorView.theme({
     // full-width scroller leaves its scrollbar at the pane edge.
     maxWidth: 'var(--detail-document-max-width)',
     margin: '0 auto',
-    padding: '2.5rem var(--typeset-detail-gutter)',
+    padding: '2.5rem var(--typeset-detail-gutter) 38vh',
     caretColor: 'currentColor'
   },
   '.cm-line': { padding: '0' },
