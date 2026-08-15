@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { FocusIndexRow } from '@/features/items/focus-index-row'
 import {
@@ -40,9 +41,25 @@ export function FocusItemList({
   wrapRow: (item: LibraryItemDto, row: React.ReactElement) => React.ReactNode
 }): React.JSX.Element {
   const itemIds = items.map((item) => item.id)
+  const viewportRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    const viewport = viewportRef.current
+    if (!viewport || !activeItemId) return
+    const row = viewport.querySelector<HTMLElement>(`[data-item-id="${CSS.escape(activeItemId)}"]`)
+    if (!row) return
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    row.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest' })
+  }, [activeItemId])
 
   return (
-    <ScrollArea className="library-scroll-container min-h-0 min-w-0 flex-1 [&_[data-slot=scroll-area-viewport]]:focus-visible:ring-0 [&_[data-slot=scroll-area-viewport]]:focus-visible:outline-none">
+    <ScrollArea
+      ref={(root) => {
+        viewportRef.current =
+          root?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]') ?? null
+      }}
+      className="library-scroll-container min-h-0 min-w-0 flex-1 [&_[data-slot=scroll-area-viewport]]:focus-visible:ring-0 [&_[data-slot=scroll-area-viewport]]:focus-visible:outline-none"
+    >
       {density === 'index' ? (
         <div className="min-h-full pt-2" role="group" aria-label="Items">
           {composer ? <div className="p-2">{composer}</div> : null}
