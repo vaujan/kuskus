@@ -5,7 +5,7 @@
 
 @layer components {
   .typeset {
-    --typeset-font-body: inherit;
+    --typeset-font-body: var(--font-serif);
     --typeset-font-heading: var(--font-heading);
     --typeset-font-mono: var(--font-mono);
     --typeset-size: 1em;

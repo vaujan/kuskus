@@ -877,7 +877,7 @@ export function LibrarySidebar({
           <SidebarGroup className="group/folder-group">
             <SidebarGroupLabel
               className={cn(
-                'rounded-xl transition-[background-color,color,box-shadow] [transition-duration:var(--motion-duration-tooltip)] [transition-timing-function:var(--motion-ease-out)] motion-reduce:transition-none',
+                'rounded-xl font-mono uppercase font-light transition-[background-color,color,box-shadow] [transition-duration:var(--motion-duration-tooltip)] [transition-timing-function:var(--motion-ease-out)] motion-reduce:transition-none',
                 activeFolderDropTarget?.type === 'root' &&
                   'bg-sidebar-accent/60 text-sidebar-accent-foreground ring-2 ring-sidebar-ring'
               )}
@@ -944,6 +944,7 @@ export function LibrarySidebar({
               />
             </SidebarGroupContent>
           </SidebarGroup>
+
           <SidebarGroup>
             <SidebarGroupContent>
               <SidebarMenu aria-label="Item lifecycle">
