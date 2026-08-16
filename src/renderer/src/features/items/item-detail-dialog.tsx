@@ -1737,6 +1737,7 @@ interface ItemDetailProps {
   onError: (message: string) => void
   presentation?: 'dialog' | 'focus'
   initialNoteMode?: NoteMode
+  onNoteModeChange?: (mode: NoteMode) => void
   expanded?: boolean
   expandable?: boolean
   onExpandedChange?: (expanded: boolean) => void
@@ -1761,6 +1762,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       onEmptyNote,
       onError,
       initialNoteMode = 'read',
+      onNoteModeChange,
       expanded = false,
       expandable = true,
       onExpandedChange,
@@ -1875,8 +1877,9 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
         setModeHudVisible(true)
         if (modeHudTimeoutRef.current !== null) window.clearTimeout(modeHudTimeoutRef.current)
         modeHudTimeoutRef.current = window.setTimeout(() => setModeHudVisible(false), 900)
+        onNoteModeChange?.(nextMode)
       },
-      [mode]
+      [mode, onNoteModeChange]
     )
     useEffect(() => {
       if (item?.type !== 'note') return

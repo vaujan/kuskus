@@ -78,6 +78,7 @@ import {
 import { BulkActionToolbar } from '@/features/library/bulk-action-toolbar'
 import { FocusWorkspace } from '@/features/library/focus-workspace'
 import { OrderedMasonry } from '@/features/library/ordered-masonry'
+import { readAppSession, writeAppSession } from '@/features/library/session-restore'
 import { expandLibraryOverview } from '@/features/library/library-overview'
 import { useLibraryRetrieval } from '@/features/library/use-library-retrieval'
 import { useLibrarySelection } from '@/features/library/use-library-selection'
@@ -93,6 +94,7 @@ import {
   type ItemSort
 } from '@/features/items/item-sort'
 import { parseLibraryView, type ItemTypeFilter, type LibraryView } from '@/features/items/item-view'
+import type { NoteMode } from '@/features/items/note-view-mode'
 import { AppToolbar } from '@/features/shell/app-toolbar'
 import { LibrarySidebar, type LibraryDestination } from '@/features/shell/library-sidebar'
 import { useTheme } from '@/hooks/use-theme'
@@ -171,6 +173,7 @@ export function Workspace({
   translucentBackground: TranslucentBackgroundPreference
 }): React.JSX.Element {
   const [library, setLibrary] = useState(initialLibrary)
+  const [initialSession] = useState(() => readAppSession(initialLibrary))
   const [sidebarHidden, setSidebarHidden] = useState(
     () => localStorage.getItem('kuskus-sidebar-hidden') === 'true'
   )
@@ -194,8 +197,10 @@ export function Workspace({
     useState<GlobalCaptureShortcutStatus | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [draggedItemIds, setDraggedItemIds] = useState<ReadonlySet<string>>(() => new Set())
-  const [search, setSearch] = useState('')
-  const [typeFilters, setTypeFilters] = useState<ItemTypeFilter[]>([])
+  const [search, setSearch] = useState(() => initialSession?.search ?? '')
+  const [typeFilters, setTypeFilters] = useState<ItemTypeFilter[]>(
+    () => initialSession?.typeFilters ?? []
+  )
   const [sort, setSort] = useState<ItemSort>(() =>
     parseItemSort(localStorage.getItem(ITEM_SORT_STORAGE_KEY))
   )
@@ -208,17 +213,30 @@ export function Workspace({
   const [focusRailDensity, setFocusRailDensity] = useState<FocusRailDensity>(() =>
     parseFocusRailDensity(localStorage.getItem(FOCUS_RAIL_DENSITY_STORAGE_KEY))
   )
-  const [focusWorkspaceOpen, setFocusWorkspaceOpen] = useState(false)
-  const [focusItemId, setFocusItemId] = useState<string | null>(null)
+  const [focusWorkspaceOpen, setFocusWorkspaceOpen] = useState(
+    () => initialSession !== null && initialSession.focusItemId !== null
+  )
+  const [focusItemId, setFocusItemId] = useState<string | null>(
+    () => initialSession?.focusItemId ?? null
+  )
   const [focusItemEditOnOpenId, setFocusItemEditOnOpenId] = useState<string | null>(null)
-  const [focusDetailOpen, setFocusDetailOpen] = useState(false)
-  const [focusNoteExpanded, setFocusNoteExpanded] = useState(false)
+  const [focusDetailOpen, setFocusDetailOpen] = useState(
+    () => initialSession?.focusDetailOpen ?? false
+  )
+  const [focusNoteExpanded, setFocusNoteExpanded] = useState(
+    () => initialSession?.focusNoteExpanded ?? false
+  )
+  const [focusNoteMode, setFocusNoteMode] = useState<NoteMode | null>(
+    () => initialSession?.focusNoteMode ?? null
+  )
   const [showReferencedAttachments, setShowReferencedAttachments] = useState(
     () => localStorage.getItem('kuskus-show-referenced-attachments') === 'true'
   )
   const [statusMessage, setStatusMessage] = useState('')
   const [itemDetails, setItemDetails] = useState<Map<string, LibraryItemDto>>(() => new Map())
-  const [destination, setDestination] = useState<LibraryDestination>({ type: 'inbox' })
+  const [destination, setDestination] = useState<LibraryDestination>(
+    () => initialSession?.destination ?? { type: 'inbox' }
+  )
   const [renameTarget, setRenameTarget] = useState<LibraryItemDto | null>(null)
   const [renameTitle, setRenameTitle] = useState('')
   const [deleteTargets, setDeleteTargets] = useState<string[]>([])
@@ -282,6 +300,7 @@ export function Workspace({
       const item = library.items.find((candidate) => candidate.id === itemId)
       setFocusNoteExpanded((current) => (item?.type === 'note' ? current : false))
       setFocusItemEditOnOpenId(null)
+      setFocusNoteMode(null)
       setFocusItemId(itemId)
     },
     [library.items]
@@ -292,6 +311,7 @@ export function Workspace({
       const apply = (): void => {
         setComposerOpen(false)
         setFocusNoteExpanded(false)
+        setFocusNoteMode(null)
         setFocusWorkspaceOpen(true)
         setFocusItemId(itemId)
         setFocusItemEditOnOpenId(edit ? itemId : null)
@@ -339,6 +359,27 @@ export function Workspace({
   useEffect(() => {
     localStorage.setItem('kuskus-show-referenced-attachments', String(showReferencedAttachments))
   }, [showReferencedAttachments])
+
+  useEffect(() => {
+    writeAppSession(library.path, {
+      destination,
+      search,
+      typeFilters,
+      focusItemId,
+      focusDetailOpen: focusDetailOpen && focusItemId !== null,
+      focusNoteExpanded: focusNoteExpanded && focusItemId !== null,
+      focusNoteMode: focusItemId !== null ? focusNoteMode : null
+    })
+  }, [
+    destination,
+    search,
+    typeFilters,
+    focusItemId,
+    focusDetailOpen,
+    focusNoteExpanded,
+    focusNoteMode,
+    library.path
+  ])
 
   const refreshVault = useCallback(async (reconcile = false): Promise<void> => {
     const result = reconcile
@@ -525,6 +566,7 @@ export function Workspace({
         resolveInitialFocusItemId(visibleItemIdList, current)
       )
     })
+    if (!library.items.some((item) => item.id === focusItemId)) setFocusNoteMode(null)
     previousVisibleItemIdsRef.current = [...visibleItemIdList]
   }, [focusItemId, library.items, visibleItemIdList])
   const selectPreviousFocusItem = useCallback((): void => {
@@ -1723,7 +1765,10 @@ export function Workspace({
         key={`focus-${focusItem.id}`}
         presentation="focus"
         item={focusItem}
-        initialNoteMode={focusItemEditOnOpenId === focusItem.id ? 'live' : undefined}
+        initialNoteMode={
+          focusNoteMode ?? (focusItemEditOnOpenId === focusItem.id ? 'live' : undefined)
+        }
+        onNoteModeChange={setFocusNoteMode}
         expanded={focusNoteExpansionActive}
         onExpandedChange={changeFocusNoteExpanded}
         collections={library.collections}

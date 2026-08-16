@@ -217,14 +217,14 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   )
   assert.match(
     workspaceSource,
-    /const \[focusNoteExpanded, setFocusNoteExpanded\] = useState\(false\)/
+    /const \[focusNoteExpanded, setFocusNoteExpanded\] = useState\(\n\s*\(\) => initialSession\?\.focusNoteExpanded \?\? false\n\s*\)/
   )
   assert.match(workspaceSource, /focusItemSummary\?\.type === 'note'/)
   assert.match(workspaceSource, /open=\{!sidebarHidden && !focusNoteExpansionActive\}/)
   assert.match(workspaceSource, /setFocusNoteExpanded\(false\)/)
   assert.match(
     workspaceSource,
-    /const \[focusWorkspaceOpen, setFocusWorkspaceOpen\] = useState\(false\)/
+    /const \[focusWorkspaceOpen, setFocusWorkspaceOpen\] = useState\(\n\s*\(\) => initialSession !== null && initialSession\.focusItemId !== null\n\s*\)/
   )
   assert.match(workspaceSource, /Masonry overview/)
   assert.doesNotMatch(focusSplitHandlerSource, /setFocusNoteExpanded\(false\)/)
