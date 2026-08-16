@@ -147,17 +147,14 @@
   }
 
   .kuskus-typeset li.task-list-item {
-    display: block;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5em;
     padding-inline-start: 0;
   }
 
-  .kuskus-typeset li.task-list-item [data-slot='checkbox'] {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-block-start: 0;
-    margin-inline-end: 0.5em;
-    vertical-align: middle;
+  .kuskus-typeset li.task-list-item > input[type='checkbox'] {
+    margin-inline-end: 0;
   }
 
   .kuskus-rich-document li[data-item-type='task'] {

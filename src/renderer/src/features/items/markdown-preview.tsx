@@ -1,5 +1,6 @@
 import {
   Children,
+  cloneElement,
   isValidElement,
   memo,
   useEffect,
@@ -15,7 +16,6 @@ import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 
-import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import { useNoteAttachmentPreviews } from '@/features/items/use-note-attachment-previews'
 import type { NoteAttachmentDto } from '../../../../shared/library-contract'
@@ -29,6 +29,36 @@ import {
 
 const REMARK_PLUGINS = [remarkGfm, remarkBreaks, remarkMath]
 const REHYPE_PLUGINS = [rehypeKatex]
+
+function extractTaskCheckbox(node: React.ReactNode): {
+  checkbox: React.ReactNode
+  rest: React.ReactNode
+} {
+  if (isValidElement<{ children?: React.ReactNode; type?: string }>(node)) {
+    if (node.props.type === 'checkbox') {
+      return { checkbox: node, rest: null }
+    }
+    let checkbox: React.ReactNode = null
+    const rest = Children.map(node.props.children, (child) => {
+      if (checkbox !== null) return child
+      const result = extractTaskCheckbox(child)
+      if (result.checkbox !== null) checkbox = result.checkbox
+      return result.rest
+    })
+    return { checkbox, rest: cloneElement(node, {}, rest) }
+  }
+  if (Array.isArray(node)) {
+    let checkbox: React.ReactNode = null
+    const rest = Children.map(node, (child) => {
+      if (checkbox !== null) return child
+      const result = extractTaskCheckbox(child)
+      if (result.checkbox !== null) checkbox = result.checkbox
+      return result.rest
+    })
+    return { checkbox, rest }
+  }
+  return { checkbox: null, rest: node }
+}
 
 function MarkdownImage({
   src,
@@ -156,16 +186,44 @@ export const MarkdownPreview = memo(function MarkdownPreview({
     input: ({ checked }) => {
       const index = taskIndex++
       return (
-        <Checkbox
+        <input
+          type="checkbox"
+          className="kuskus-task-checkbox"
           checked={Boolean(checked)}
-          readOnly={!onChange}
-          className="inline-flex"
+          disabled={!onChange}
           aria-label={checked ? 'Completed task' : 'Open task'}
           onClick={(event) => event.stopPropagation()}
-          onCheckedChange={(nextChecked) =>
-            onChange?.(setMarkdownTaskChecked(value, index, nextChecked))
+          onChange={(event) =>
+            onChange?.(setMarkdownTaskChecked(value, index, event.target.checked))
           }
         />
+      )
+    },
+    li: ({ className, children, ...props }) => {
+      if (
+        !String(className ?? '')
+          .split(/\s+/)
+          .includes('task-list-item')
+      ) {
+        return (
+          <li className={className} {...props}>
+            {children}
+          </li>
+        )
+      }
+      const { checkbox, rest } = extractTaskCheckbox(children)
+      if (checkbox === null) {
+        return (
+          <li className={className} {...props}>
+            {children}
+          </li>
+        )
+      }
+      return (
+        <li className={className} {...props}>
+          {checkbox}
+          <div className="kuskus-rich-task-content">{rest}</div>
+        </li>
       )
     },
     a: ({ href, children, ...props }) => {
