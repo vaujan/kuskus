@@ -67,20 +67,33 @@ function richMarkdownScrollRestorePoint(view: ProseEditorView): number | null {
   const viewport = view.dom.closest<HTMLElement>('[data-slot="scroll-area-viewport"]')
   if (!viewport || viewport.scrollTop <= 0) return null
   const rect = viewport.getBoundingClientRect()
-  const maxScrollTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight)
-  const targetScrollTop = Math.min(viewport.scrollTop, maxScrollTop)
-  const coords = {
-    left: rect.left + Math.min(rect.width / 2, viewport.clientWidth / 2),
-    top: rect.top + targetScrollTop + rect.height / 2
+  const contentLeft = rect.left + Math.min(rect.width / 2, viewport.clientWidth / 2)
+  const candidates: Array<[number, number]> = []
+  for (const verticalFraction of [0.5, 0.25, 0.75, 0.15, 0.85]) {
+    candidates.push([contentLeft, rect.top + rect.height * verticalFraction])
   }
-  const at = view.posAtCoords(coords)
-  if (!at || at.inside >= 0) return null
-  return at.pos
+  for (const horizontalFraction of [0.3, 0.5, 0.7]) {
+    candidates.push([rect.left + rect.width * horizontalFraction, rect.top + rect.height / 2])
+  }
+  for (const [left, top] of candidates) {
+    const at = view.posAtCoords({ left, top })
+    if (at) return at.pos
+  }
+  return null
 }
 
-function focusRichMarkdownEditor(editor: Editor | null, restoreScrollPosition = false): void {
+function focusRichMarkdownEditor(
+  editor: Editor | null,
+  restoreScrollPosition = false,
+  preserveScrollTop: number | null = null
+): void {
   editor?.action((ctx) => {
     const view = ctx.get(editorViewCtx)
+    const viewport = view.dom.closest<HTMLElement>('[data-slot="scroll-area-viewport"]')
+    if (viewport && preserveScrollTop != null) {
+      const maxScrollTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight)
+      viewport.scrollTop = Math.min(preserveScrollTop, maxScrollTop)
+    }
     const restorePoint = restoreScrollPosition ? richMarkdownScrollRestorePoint(view) : null
     const target = restorePoint ?? view.state.selection.head
     view.dispatch(view.state.tr.setSelection(Selection.near(view.state.doc.resolve(target), 1)))
@@ -94,6 +107,7 @@ interface RichMarkdownEditorProps {
   active: boolean
   options?: RichMarkdownEditorOptions
   presentation?: 'card' | 'detail'
+  preserveScrollTopRef?: React.RefObject<number> | null
   className?: string
   onChange: (value: string) => void
   onError?: (message: string) => void
@@ -257,7 +271,17 @@ function listItemNodeView(
 
 export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkdownEditorProps>(
   function RichMarkdownEditor(
-    { value, editable, active, options, presentation = 'detail', className, onChange, onError },
+    {
+      value,
+      editable,
+      active,
+      options,
+      presentation = 'detail',
+      preserveScrollTopRef = null,
+      className,
+      onChange,
+      onError
+    },
     forwardedRef
   ): React.JSX.Element {
     const hostRef = useRef<HTMLDivElement>(null)
@@ -269,7 +293,7 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
     const imageRefreshersRef = useRef(new Set<() => void>())
     const onChangeRef = useRef(onChange)
     const onErrorRef = useRef(onError)
-    const publishedRef = useRef<string | null>(null)
+    const publishedRef = useRef<string | null>(value)
     const [failed, setFailed] = useState(false)
     const [slashState, setSlashState] = useState<RichMarkdownSlashState | null>(null)
 
@@ -412,8 +436,11 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
           const current = partitionRichMarkdownSource(valueRef.current)
           if (current && current.prefix + current.body !== source.prefix + source.body) {
             editor.action(replaceAll(prepareRichMarkdown(current.body), true))
+            publishedRef.current = current.prefix + current.body
           }
-          if (activeRef.current && editableRef.current) focusRichMarkdownEditor(editor, true)
+          if (activeRef.current && editableRef.current) {
+            focusRichMarkdownEditor(editor, true, preserveScrollTopRef?.current ?? null)
+          }
         })
         .catch((error: unknown) => {
           setFailed(true)
@@ -428,17 +455,16 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
         if (editorRef.current === editor) editorRef.current = null
         void editor.destroy()
       }
-    }, [presentation])
+    }, [presentation, preserveScrollTopRef])
 
     useEffect(() => {
       const editor = editorRef.current
-      if (!editor || publishedRef.current === value) {
-        publishedRef.current = null
-        return
-      }
+      if (!editor) return
+      if (publishedRef.current === value) return
       const source = partitionRichMarkdownSource(value)
       if (!source || !supportsRichMarkdown(source.body)) return
       editor.action(replaceAll(prepareRichMarkdown(source.body), true))
+      publishedRef.current = value
     }, [value])
 
     useEffect(() => {

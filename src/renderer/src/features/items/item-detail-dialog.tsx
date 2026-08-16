@@ -1004,6 +1004,7 @@ function NoteCanvas({
   const richEditorRef = useRef<RichMarkdownEditorHandle>(null)
   const previewViewportRef = useRef<HTMLDivElement>(null)
   const noteViewportRef = useRef<HTMLDivElement>(null)
+  const noteScrollTopRef = useRef(0)
   const previousModeRef = useRef<NoteMode>(mode)
   const activeScrollDriverRef = useRef<'source' | 'preview'>(mode === 'read' ? 'preview' : 'source')
   const pendingScrollDriverRef = useRef<'source' | 'preview' | null>(null)
@@ -1018,6 +1019,16 @@ function NoteCanvas({
   useEffect(() => {
     onOpenVaultLinkRef.current = onOpenVaultLink
   }, [onOpenVaultLink])
+  useEffect(() => {
+    const viewport = noteViewportRef.current
+    if (!viewport) return
+    const handleScroll = (): void => {
+      noteScrollTopRef.current = viewport.scrollTop
+    }
+    handleScroll()
+    viewport.addEventListener('scroll', handleScroll, { passive: true })
+    return () => viewport.removeEventListener('scroll', handleScroll)
+  }, [])
   const importPastedImage = useCallback(
     async (file: File, insertAtSelection: (src: string) => void): Promise<void> => {
       try {
@@ -1323,6 +1334,7 @@ function NoteCanvas({
                         editable
                         active
                         options={richOptions}
+                        preserveScrollTopRef={noteScrollTopRef}
                         onChange={onDraftChange}
                         onError={onError}
                       />
