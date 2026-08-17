@@ -1,18 +1,12 @@
-import {
-  startTransition,
-  useCallback,
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useRef,
-  useState
-} from 'react'
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { getFolderSubtreeIds } from '@/features/collections/folder-tree'
 import { sortItems, type ItemSort } from '@/features/items/item-sort'
 import type { ItemTypeFilter } from '@/features/items/item-view'
 import type { LibraryDestination } from '@/features/shell/library-sidebar'
 import type { LibraryDto, LibraryItemDto } from '../../../../shared/library-contract'
+
+const SEARCH_QUERY_DEBOUNCE_MS = 150
 
 function itemMatchesDestination(
   item: LibraryItemDto,
@@ -64,7 +58,14 @@ export function useLibraryRetrieval({
   destinationItems: LibraryItemDto[]
   matchesCurrentRetrieval: (item: LibraryItemDto) => boolean
 } {
-  const deferredSearch = useDeferredValue(search)
+  const [deferredSearch, setDeferredSearch] = useState(search)
+  useEffect(() => {
+    const timer = window.setTimeout(
+      () => setDeferredSearch(search),
+      search ? SEARCH_QUERY_DEBOUNCE_MS : 0
+    )
+    return () => window.clearTimeout(timer)
+  }, [search])
   const query = deferredSearch.trim().toLocaleLowerCase()
   const requestId = useRef(0)
   const [searchMatches, setSearchMatches] = useState<{
@@ -98,9 +99,7 @@ export function useLibraryRetrieval({
   )
   const pinnedItemIds = useMemo(() => new Set(library.pinnedItemIds), [library.pinnedItemIds])
   const acceptedSearchIds =
-    searchMatches?.library === library && searchMatches.query === query
-      ? searchMatches.itemIds
-      : null
+    searchMatches?.library === library && query ? searchMatches.itemIds : null
   const matchesCurrentRetrieval = useCallback(
     (item: LibraryItemDto): boolean =>
       (showReferencedAttachments || !item.referencedAttachment) &&
