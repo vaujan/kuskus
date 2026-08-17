@@ -204,6 +204,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     const [headerHost, setHeaderHost] = useState<HTMLElement | null>(null)
     const viewRef = useRef<EditorView | null>(null)
     const initialValueRef = useRef(value)
+    const publishedRef = useRef<string | null>(null)
     const onChangeRef = useRef(onChange)
     const onPasteImageRef = useRef(onPasteImage)
     const onScrollRef = useRef(onScroll)
@@ -309,7 +310,10 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
                 update.docChanged,
                 update.state.doc.toString()
               )
-              if (markdownChange !== null) onChangeRef.current(markdownChange)
+              if (markdownChange !== null) {
+                publishedRef.current = markdownChange
+                onChangeRef.current(markdownChange)
+              }
             })
           ]
         })
@@ -329,7 +333,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
 
     useEffect(() => {
       const view = viewRef.current
-      if (!view || view.state.doc.toString() === value) return
+      if (!view || publishedRef.current === value || view.state.doc.toString() === value) return
       const { anchor, head } = view.state.selection.main
       view.dispatch({
         changes: { from: 0, to: view.state.doc.length, insert: value },

@@ -127,6 +127,7 @@ import {
 import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
 import { useImagePreview } from '@/features/items/use-image-preview'
 import { useNoteAttachmentPreviews } from '@/features/items/use-note-attachment-previews'
+import { useTrailingValue } from '@/features/items/use-trailing-value'
 import { useUrlPreview } from '@/features/items/use-url-preview'
 import { WindowControls } from '@/features/shell/window-controls'
 import { cn } from '@/lib/utils'
@@ -1012,13 +1013,30 @@ function NoteCanvas({
   const syncFrameRef = useRef<number | null>(null)
   const releaseSyncFrameRef = useRef<number | null>(null)
   const attachmentPreviews = useNoteAttachmentPreviews(item.id, item.attachments)
-  const richSource = partitionRichMarkdownSource(snapshot.draft)
-  const richSupported = richSource !== null && supportsRichMarkdown(richSource.body)
+  const deferredDraft = useTrailingValue(snapshot.draft, 200)
+  const richSource = useMemo(() => partitionRichMarkdownSource(deferredDraft), [deferredDraft])
+  const richSupported = useMemo(
+    () => richSource !== null && supportsRichMarkdown(richSource.body),
+    [richSource]
+  )
   const noteAttachments = item.attachments
   const onOpenVaultLinkRef = useRef(onOpenVaultLink)
   useEffect(() => {
     onOpenVaultLinkRef.current = onOpenVaultLink
   }, [onOpenVaultLink])
+  const onDraftChangeRef = useRef(onDraftChange)
+  useEffect(() => {
+    onDraftChangeRef.current = onDraftChange
+  }, [onDraftChange])
+  const handlePreviewOpenLink = useCallback((url: string): void => {
+    void openExternalUrlWithFeedback(url)
+  }, [])
+  const handlePreviewOpenVaultLink = useCallback((target: string): void => {
+    onOpenVaultLinkRef.current(target)
+  }, [])
+  const handlePreviewChange = useCallback((value: string): void => {
+    onDraftChangeRef.current(value)
+  }, [])
   useEffect(() => {
     const viewport = noteViewportRef.current
     if (!viewport) return
@@ -1312,19 +1330,21 @@ function NoteCanvas({
               )}
             >
               <article className="kuskus-detail-document-frame min-h-full w-full py-8">
-                <NoteDocumentBlocks
-                  item={item}
-                  markdown={snapshot.draft}
-                  showInlineTitle={showInlineTitle}
-                  showProperties
-                  propertiesEditable={mode === 'live'}
-                  className="mb-8"
-                  titleRef={noteTitleRef}
-                  onRenameTitle={onRenameTitle}
-                  onDraftChange={onDraftChange}
-                  onOpenSource={() => onModeChange('markdown')}
-                  onError={onError}
-                />
+                {mode === 'read' || mode === 'live' ? (
+                  <NoteDocumentBlocks
+                    item={item}
+                    markdown={snapshot.draft}
+                    showInlineTitle={showInlineTitle}
+                    showProperties
+                    propertiesEditable={mode === 'live'}
+                    className="mb-8"
+                    titleRef={noteTitleRef}
+                    onRenameTitle={onRenameTitle}
+                    onDraftChange={onDraftChange}
+                    onOpenSource={() => onModeChange('markdown')}
+                    onError={onError}
+                  />
+                ) : null}
                 {mode === 'read' || mode === 'live' ? (
                   mode === 'live' && richSupported ? (
                     <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
@@ -1352,14 +1372,14 @@ function NoteCanvas({
                       ) : null}
                       <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
                         <MarkdownPreview
-                          value={snapshot.draft}
+                          value={deferredDraft}
                           itemId={item.id}
                           attachments={item.attachments}
                           attachmentPreviews={attachmentPreviews}
                           presentation="detail"
-                          onOpenLink={(url) => void openExternalUrlWithFeedback(url)}
-                          onOpenVaultLink={onOpenVaultLink}
-                          onChange={onDraftChange}
+                          onOpenLink={handlePreviewOpenLink}
+                          onOpenVaultLink={handlePreviewOpenVaultLink}
+                          onChange={handlePreviewChange}
                         />
                       </Suspense>
                     </>
@@ -1379,30 +1399,32 @@ function NoteCanvas({
               )}
             >
               <article className="kuskus-detail-document-frame min-h-full w-full py-8">
-                <NoteDocumentBlocks
-                  item={item}
-                  markdown={snapshot.draft}
-                  showInlineTitle={showInlineTitle}
-                  showProperties
-                  propertiesEditable={false}
-                  className="mb-8"
-                  titleRef={previewTitleRef}
-                  onRenameTitle={onRenameTitle}
-                  onDraftChange={onDraftChange}
-                  onOpenSource={() => onModeChange('markdown')}
-                  onError={onError}
-                />
+                {mode === 'split' ? (
+                  <NoteDocumentBlocks
+                    item={item}
+                    markdown={snapshot.draft}
+                    showInlineTitle={showInlineTitle}
+                    showProperties
+                    propertiesEditable={false}
+                    className="mb-8"
+                    titleRef={previewTitleRef}
+                    onRenameTitle={onRenameTitle}
+                    onDraftChange={onDraftChange}
+                    onOpenSource={() => onModeChange('markdown')}
+                    onError={onError}
+                  />
+                ) : null}
                 {mode === 'split' ? (
                   <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
                     <MarkdownPreview
-                      value={snapshot.draft}
+                      value={deferredDraft}
                       itemId={item.id}
                       attachments={item.attachments}
                       attachmentPreviews={attachmentPreviews}
                       presentation="detail"
-                      onOpenLink={(url) => void openExternalUrlWithFeedback(url)}
-                      onOpenVaultLink={onOpenVaultLink}
-                      onChange={onDraftChange}
+                      onOpenLink={handlePreviewOpenLink}
+                      onOpenVaultLink={handlePreviewOpenVaultLink}
+                      onChange={handlePreviewChange}
                     />
                   </Suspense>
                 ) : null}
@@ -1798,6 +1820,12 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
           : null,
       [onItemUpdated, openedNote]
     )
+    const handleNoteDraftChange = useCallback(
+      (value: string): void => {
+        coordinator?.updateDraft(value)
+      },
+      [coordinator]
+    )
     const fallbackSnapshot = useRef<NoteAutosaveSnapshot>({
       status: 'saved',
       draft: '',
@@ -2189,10 +2217,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
                 sourceTitleRef={sourceTitleRef}
                 previewTitleRef={previewTitleRef}
                 onRenameTitle={renameCurrentItem}
-                onDraftChange={(value) => {
-                  coordinator?.updateDraft(value)
-                  onItemUpdated({ ...item, body: value })
-                }}
+                onDraftChange={handleNoteDraftChange}
                 onModeChange={changeMode}
                 readingWidth={readingWidth}
                 onRetry={() => void coordinator?.retry()}
