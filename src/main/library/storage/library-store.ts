@@ -298,6 +298,11 @@ export class LibraryStore {
     { records: VaultItemRecord[]; collections: VaultCollectionRecord[] }
   >()
   private readonly scannedNoteSources = new Map<string, ReadonlyMap<string, string>>()
+  private performanceVaultScans = 0
+
+  getPerformanceVaultScanCount(): number {
+    return this.performanceVaultScans
+  }
 
   async pathExists(path: string): Promise<boolean> {
     try {
@@ -1180,6 +1185,7 @@ export class LibraryStore {
     const key = resolve(libraryPath)
     const active = this.scanPromises.get(key)
     if (active) return active
+    if (process.env.KUSKUS_PERFORMANCE_TYPING === '1') this.performanceVaultScans += 1
     const scan = this.performScanVault(libraryPath)
       .then((snapshot) => {
         this.scanSnapshots.set(key, snapshot)

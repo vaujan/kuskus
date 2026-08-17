@@ -88,6 +88,11 @@ export class LibraryService {
   private pendingLibraryPath: string | null = null
   private unavailableLibrary: { path: string; message: string } | null = null
   private readonly store = new LibraryStore()
+
+  getPerformanceVaultScanCount(): number {
+    return this.store.getPerformanceVaultScanCount()
+  }
+
   private readonly urlNetwork: UrlNetworkDependencies
   private readonly enrichmentRequests = new Map<string, Promise<UrlItemDto>>()
   private readonly previewRequests = new Map<string, Promise<UrlPreviewDto>>()

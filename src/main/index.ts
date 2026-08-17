@@ -19,6 +19,7 @@ import { CAPTURE_CHANNELS } from '../shared/capture-contract'
 import { QuickCaptureWindowController } from './window/quick-capture-window'
 import { NoteWindowController } from './window/note-window'
 import { startPerformanceReporter } from './performance-reporter'
+import { trackPerformanceIpcTimings } from './performance-log'
 
 const demoUserDataPath = process.env.KUSKUS_DEMO_USER_DATA
 const performanceUserDataPath = process.env.KUSKUS_PERFORMANCE_USER_DATA
@@ -163,6 +164,7 @@ if (!hasSingleInstanceLock) {
       (itemId) => noteWindows.open(itemId),
       (sender, approved) => noteWindows.resolveClose(sender, approved)
     )
+    trackPerformanceIpcTimings()
     registerLibraryIpc(libraryService, () => noteWindows.closeAll())
     registerCaptureIpc(captureSessions, libraryService, {
       surfaceFor: (sender) => {
@@ -184,7 +186,7 @@ if (!hasSingleInstanceLock) {
     })
 
     const window = ensureMainWindow()
-    startPerformanceReporter(window)
+    startPerformanceReporter(window, libraryService)
     globalCaptureShortcut.start()
 
     app.on('activate', () => {
