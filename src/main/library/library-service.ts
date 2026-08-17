@@ -59,7 +59,6 @@ import {
   type PersistedCollection,
   type PersistedItem,
   type PersistedLibrary,
-  type PersistedNoteItem,
   type PersistedSettings,
   type PersistedUrlItem
 } from './schemas'
@@ -103,7 +102,24 @@ export class LibraryService {
   private vaultChangeTimer: NodeJS.Timeout | null = null
   private ignoredAppMoveTimer: NodeJS.Timeout | null = null
   private readonly ignoredAppMovePaths = new Set<string>()
+  private readonly recentAppWrites = new Map<string, number>()
   private readonly vaultChangeListeners = new Set<() => void>()
+
+  private markAppOwnedWrite(relativePath: string): void {
+    if (!relativePath) return
+    this.recentAppWrites.set(relativePath.replace(/\\/g, '/').toLocaleLowerCase(), Date.now())
+  }
+
+  private isAppOwnedWrite(relativePath: string): boolean {
+    const key = relativePath.replace(/\\/g, '/').toLocaleLowerCase()
+    const writtenAt = this.recentAppWrites.get(key)
+    if (writtenAt === undefined) return false
+    if (Date.now() - writtenAt > 1_500) {
+      this.recentAppWrites.delete(key)
+      return false
+    }
+    return true
+  }
 
   constructor(
     private readonly settingsPath: string,
@@ -248,11 +264,9 @@ export class LibraryService {
     )
     const persisted = await this.store.readPersistedItem(libraryPath, record.id)
     if (persisted.type !== 'note') throw new Error('The saved note could not be reopened.')
-    return this.toCurrentNoteDto(
-      libraryPath,
-      persisted,
-      (await this.store.readItemContent(libraryPath, persisted)).toString('utf8')
-    )
+    const item = await this.refreshChangedItem(libraryPath, record.id)
+    if (item.type !== 'note') throw new Error('The saved note could not be reopened.')
+    return item
   }
 
   async initialize(): Promise<void> {
@@ -505,11 +519,9 @@ export class LibraryService {
     await this.store.discardCaptureDraft(libraryPath)
     const persisted = await this.store.readPersistedItem(libraryPath, id)
     if (persisted.type !== 'note') throw new Error('The saved note could not be reopened.')
-    return this.toCurrentNoteDto(
-      libraryPath,
-      persisted,
-      (await this.store.readItemContent(libraryPath, persisted)).toString('utf8')
-    )
+    const item = await this.refreshChangedItem(libraryPath, id)
+    if (item.type !== 'note') throw new Error('The saved note could not be reopened.')
+    return item
   }
 
   async updateNote(input: UpdateNoteInput): Promise<NoteItemDto> {
@@ -531,26 +543,27 @@ export class LibraryService {
       throw new Error('The note file is missing from the library.')
     }
     if (currentMarkdown !== expectedMarkdown) {
-      throw new NoteUpdateConflictError(
-        await this.toCurrentNoteDto(libraryPath, metadata, currentMarkdown)
-      )
+      const conflict = await this.refreshChangedItem(libraryPath, itemId)
+      if (conflict.type !== 'note') throw new Error('The saved note could not be reopened.')
+      throw new NoteUpdateConflictError(conflict)
     }
 
     const updated = updateNoteMetadata(metadata, markdown, new Date().toISOString())
     await this.store.updateNote(libraryPath, updated, markdown)
-    return this.toCurrentNoteDto(libraryPath, updated, markdown)
+    this.markAppOwnedWrite(metadata.relativePath ?? '')
+    const item = await this.refreshChangedItem(libraryPath, itemId)
+    if (item.type !== 'note') throw new Error('The saved note could not be reopened.')
+    return item
   }
 
-  private async toCurrentNoteDto(
-    libraryPath: string,
-    metadata: PersistedNoteItem,
-    markdown: string
-  ): Promise<NoteItemDto> {
-    const item = (await this.buildLibraryDto(libraryPath)).items.find(
-      (entry) => entry.id === metadata.id && entry.type === 'note'
-    )
-    if (!item || item.type !== 'note') throw new Error('The saved note could not be reopened.')
-    return { ...item, body: markdown }
+  private async refreshChangedItem(libraryPath: string, itemId: string): Promise<LibraryItemDto> {
+    const next = this.librarySnapshot
+      ? await this.store.updateLibraryDto(libraryPath, this.librarySnapshot, [itemId])
+      : null
+    if (next) this.librarySnapshot = next
+    const item = next?.items.find((entry) => entry.id === itemId)
+    if (!item) throw new Error('The saved item could not be reopened.')
+    return item
   }
 
   async importNoteImage(input: NoteImageImportInput): Promise<NoteAttachmentDto> {
@@ -1484,6 +1497,7 @@ export class LibraryService {
           return
         }
         if (this.ignoredAppMovePaths.has(relativePath.toLocaleLowerCase())) return
+        if (this.isAppOwnedWrite(relativePath)) return
         this.vaultDirty = true
         this.vaultChangedPaths.add(relativePath)
         if (this.vaultChangeTimer) clearTimeout(this.vaultChangeTimer)

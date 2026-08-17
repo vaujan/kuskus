@@ -1433,7 +1433,13 @@ export class LibraryStore {
   ): Promise<LibraryDto> {
     const snapshot = this.scanSnapshots.get(resolve(libraryPath))
     if (!snapshot) return this.buildLibraryDtoFromRecords(libraryPath)
+    const existingIds = new Set(library.items.map((item) => item.id))
     const changed = new Set(changedItemIds)
+    for (const record of snapshot.records) {
+      if (!existingIds.has(record.id) && !removedItemIds.includes(record.id)) {
+        changed.add(record.id)
+      }
+    }
     const removed = new Set(removedItemIds)
     const context = this.dtoBuildContextFromRecords(libraryPath, snapshot.records)
     const changedItems = await mapWithConcurrency(
@@ -1442,7 +1448,6 @@ export class LibraryStore {
       (record) => this.recordToDto(libraryPath, record, snapshot.collections, context)
     )
     const changedById = new Map(changedItems.map((item) => [item.id, item]))
-    const existingIds = new Set(library.items.map((item) => item.id))
     const next: LibraryDto = {
       ...library,
       items: [
