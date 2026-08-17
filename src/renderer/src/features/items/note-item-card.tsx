@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { useMemo } from 'react'
 import { IconFileAlert as FileWarning, IconNote as Note } from '@tabler/icons-react'
 
 import {
@@ -9,16 +9,10 @@ import {
   ItemCardSurface
 } from '@/features/items/item-card'
 import type { LibraryView } from '@/features/items/item-view'
-import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
+import { noteCardSnippet } from '@/features/items/note-card-snippet'
 import { useNearViewport } from '@/features/items/use-near-viewport'
 import { cn } from '@/lib/utils'
 import type { NoteItemDto } from '../../../../shared/library-contract'
-
-const MarkdownPreview = lazy(() =>
-  import('@/features/items/markdown-preview').then((module) => ({
-    default: module.MarkdownPreview
-  }))
-)
 
 export function NoteItemCard({
   item,
@@ -40,6 +34,7 @@ export function NoteItemCard({
   showSelectionVisual?: boolean
 }): React.JSX.Element {
   const { nearViewport, observe } = useNearViewport()
+  const snippet = useMemo(() => noteCardSnippet(item.body), [item.body])
 
   return (
     <ItemCard ref={observe} data-selected={selected && showSelectionVisual}>
@@ -76,17 +71,9 @@ export function NoteItemCard({
             <span className="text-xs">Empty note</span>
           </div>
         ) : nearViewport ? (
-          <Suspense
-            fallback={<div className="size-full min-h-28 animate-pulse rounded-lg bg-muted/40" />}
-          >
-            <MarkdownPreview
-              value={item.body}
-              itemId={item.id}
-              attachments={item.attachments}
-              presentation={compact ? 'compact' : 'card'}
-              onOpenLink={(url) => void openExternalUrlWithFeedback(url)}
-            />
-          </Suspense>
+          <p className="line-clamp-[6] max-h-28 overflow-hidden whitespace-pre-line text-xs leading-relaxed text-muted-foreground">
+            {snippet}
+          </p>
         ) : (
           <div className="size-full min-h-28" aria-hidden="true" />
         )}
