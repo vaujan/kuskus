@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { startTransition, useEffect, useRef, useState } from 'react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { FocusIndexRow } from '@/features/items/focus-index-row'
 import {
@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import type { LibraryItemDto } from '../../../../shared/library-contract'
 
 const PLAIN_ACTIVATION = { shiftKey: false, ctrlKey: false, metaKey: false } as const
+const FOCUS_PAGE_SIZE = 50
 
 export function FocusItemList({
   items,
@@ -19,6 +20,7 @@ export function FocusItemList({
   selectedIds,
   draggedIds,
   composer,
+  pageKey,
   onActivate,
   onDragStart,
   onDragEnd,
@@ -31,6 +33,7 @@ export function FocusItemList({
   selectedIds: ReadonlySet<string>
   draggedIds: ReadonlySet<string>
   composer: React.ReactNode
+  pageKey: string
   onActivate: (
     itemId: string,
     event: Pick<React.MouseEvent, 'shiftKey' | 'ctrlKey' | 'metaKey'>
@@ -42,6 +45,32 @@ export function FocusItemList({
 }): React.JSX.Element {
   const itemIds = items.map((item) => item.id)
   const viewportRef = useRef<HTMLElement | null>(null)
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+  const [page, setPage] = useState({ key: pageKey, limit: FOCUS_PAGE_SIZE })
+  const pageLimit = page.key === pageKey ? page.limit : FOCUS_PAGE_SIZE
+  const activeItemIndex = activeItemId ? items.findIndex((item) => item.id === activeItemId) : -1
+  const renderLimit = Math.max(pageLimit, activeItemIndex + 1)
+  const mountedItems = items.slice(0, renderLimit)
+
+  useEffect(() => {
+    if (renderLimit >= items.length) return
+    const target = sentinelRef.current
+    if (!target) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return
+        startTransition(() =>
+          setPage((current) => ({
+            key: pageKey,
+            limit: (current.key === pageKey ? current.limit : FOCUS_PAGE_SIZE) + FOCUS_PAGE_SIZE
+          }))
+        )
+      },
+      { rootMargin: '600px 0px' }
+    )
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [items.length, pageKey, renderLimit])
 
   useEffect(() => {
     const viewport = viewportRef.current
@@ -50,7 +79,7 @@ export function FocusItemList({
     if (!row) return
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     row.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest' })
-  }, [activeItemId])
+  }, [activeItemId, renderLimit])
 
   return (
     <ScrollArea
@@ -64,7 +93,7 @@ export function FocusItemList({
         <div className="min-h-full pt-2" role="group" aria-label="Items">
           {composer ? <div className="p-2">{composer}</div> : null}
 
-          {items.map((item) => {
+          {mountedItems.map((item) => {
             const active = item.id === activeItemId
             const selected = selectedIds.has(item.id)
             const row = (
@@ -90,13 +119,16 @@ export function FocusItemList({
             )
             return wrapRow(item, row)
           })}
+          {mountedItems.length < items.length ? (
+            <div ref={sentinelRef} className="h-px" aria-hidden="true" />
+          ) : null}
         </div>
       ) : (
         <div className="min-h-full py-2 pr-3 pl-2" role="group" aria-label="Items">
           <OrderedMasonry gap={8}>
             {composer ? <div className="rounded-sm p-1">{composer}</div> : null}
 
-            {items.map((item) => {
+            {mountedItems.map((item) => {
               const active = item.id === activeItemId
               const selected = selectedIds.has(item.id)
               const row = (
@@ -152,6 +184,9 @@ export function FocusItemList({
               return wrapRow(item, row)
             })}
           </OrderedMasonry>
+          {mountedItems.length < items.length ? (
+            <div ref={sentinelRef} className="h-px" aria-hidden="true" />
+          ) : null}
         </div>
       )}
     </ScrollArea>

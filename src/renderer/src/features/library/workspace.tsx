@@ -1728,6 +1728,7 @@ export function Workspace({
       />
       <FocusItemList
         items={visibleItems}
+        pageKey={retrievalPageKey}
         density={focusRailDensity}
         activeItemId={focusItemId}
         selectedIds={selectedIds}
