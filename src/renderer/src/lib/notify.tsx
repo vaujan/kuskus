@@ -277,3 +277,14 @@ export function notifyGlobalCaptureUnavailable(): void {
     id: 'global-capture-unavailable'
   })
 }
+
+export function notifyVaultIndexingStarted(): void {
+  toast.loading('Indexing your vault', {
+    description: 'The first open builds an index of every file, so large vaults take a moment.',
+    id: 'vault-indexing'
+  })
+}
+
+export function dismissVaultIndexing(): void {
+  toast.dismiss('vault-indexing')
+}

@@ -12,6 +12,7 @@ import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 import { WindowControls } from '@/features/shell/window-controls'
+import { dismissVaultIndexing, notifyVaultIndexingStarted } from '@/lib/notify'
 import type { LibraryState } from '../../../../shared/library-contract'
 
 function LibraryAlert({
@@ -74,11 +75,15 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
     setBusy(true)
     setError('')
     try {
+      if (initialState.status === 'needs-initialization') notifyVaultIndexingStarted()
       const result =
         initialState.status === 'needs-initialization'
           ? await window.kuskus.initializeVault()
           : await window.kuskus.migrateLibrary()
-      if (!result.ok) setError(result.error)
+      if (!result.ok) {
+        dismissVaultIndexing()
+        setError(result.error)
+      }
       if (result.ok) window.location.reload()
     } finally {
       setBusy(false)
