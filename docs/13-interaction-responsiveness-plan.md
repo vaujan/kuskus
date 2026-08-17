@@ -121,11 +121,10 @@ Confirmed hot paths that remain:
    support scan, frontmatter parse, hidden panes, and — when a preview is visible — a full
    react-markdown + KaTeX re-parse). Phase 3.
 4. ~~**Interactivity is unmeasured.**~~ Implemented (Phase 0, above).
-5. **The library list renders a full document per note card.** `get-overview` ships every note's full
-   `body` to the renderer, and each near-viewport card (`useNearViewport`, 600 px margin) parses and
-   mounts the *entire* document via react-markdown + KaTeX, then clips it with CSS
-   (`markdown-preview.tsx:321-325`). Scrolling re-parses whole documents. The index density already
-   avoids markdown; the visual density does not. Phase 4.
+5. ~~**The library list renders a full document per note card.**~~ Resolved. `get-overview` ships
+   `previewMarkdown` (bounded) instead of full `body`, and cards render a plain-text snippet
+   (`note-card-snippet.ts`). Scrolling no longer re-parses whole documents. The remaining list cost is
+   mounting the full result set — Phase 4, step 3 (windowing).
 
 ## Performance contract
 
@@ -195,51 +194,44 @@ Checks:
 - external edits still reconcile and refresh immediately;
 - search, selection, and focus behavior are unchanged while editing.
 
-## Phase 3 — Decouple per-keystroke work from typing in the note editor
+## Phase 3 — Decouple per-keystroke work from typing in the note editor ✅
 
 Warranted by measurement (see Validation notes): in Markdown source mode each keystroke blocked the
 renderer ~1 s on the validation machine, and the work is app-side. Adopt the Joplin model — the
 CodeMirror editor is the typing surface; everything else leaves the per-keystroke path.
 
-Per-keystroke work in `NoteCanvas` today (all O(doc) or whole-tree):
+Implemented:
 
-- `partitionRichMarkdownSource` + `supportsRichMarkdown` run on the live draft every render
-  (`item-detail-dialog.tsx:1015-1016`) to decide which editor to show;
-- `NoteDocumentBlocks` → `parseNoteFrontmatter` runs every render (twice in split mode);
-- `MarkdownPreview` (react-markdown + remark + rehype-katex, a full AST parse) re-renders on every
-  keystroke whenever it is visible (live-unsupported and split modes);
-- the hidden preview pane stays mounted in Markdown source mode and still re-parses its header blocks
-  per keystroke (the Joplin #9891 trap);
-- the CodeMirror value-sync effect stringifies the whole doc each render
-  (`markdown-editor.tsx:332`).
+- **Preview and rich-support decision run on a deferred draft.** `useTrailingValue` (200 ms) in
+  `NoteCanvas` (`item-detail-dialog.tsx`) feeds `MarkdownPreview`, `partitionRichMarkdownSource`, and
+  `supportsRichMarkdown`; react-markdown + KaTeX and the O(doc) rich scan run at most ~every 200 ms
+  while typing, never per keystroke. The source editor stays the only thing that sees every
+  keystroke.
+- **No hidden panes.** `NoteDocumentBlocks` and the preview render only in the modes that show them;
+  in Markdown source mode the hidden preview `ScrollArea`s are empty shells (the Joplin #9891 trap is
+  closed).
+- **Stable deferred callbacks.** `onOpenLink`/`onOpenVaultLink`/`onChange` are `useCallback`d via refs
+  so `MarkdownPreview`'s `memo` holds and the deferred value skips re-parsing between keystrokes.
+- **The dialog no longer rebuilds the workspace per keystroke.** `onDraftChange` only feeds the
+  coordinator; the workspace `item` updates at save cadence via the coordinator's `onSaved` instead of
+  replacing the library state (and re-filtering/sorting every item) on every key.
+- **No full-doc stringify in the CodeMirror value-sync path.** A `publishedRef` records changes the
+  editor published itself so the sync effect skips the `toString()` comparison
+  (`markdown-editor.tsx`).
 
-Implementation, in order:
+Validation (packaged `--typing`, A/B against `HEAD~2` on the dev machine):
 
-1. **Feed the preview and the rich-support decision from a deferred copy of the draft**, not the live
-   one. A small trailing debounce (~150–250 ms, `useDeferredValue`-style) means react-markdown + KaTeX
-   and the O(doc) rich scan run at most ~every 200 ms while typing, never per keystroke. The source
-   editor stays the only thing that sees every keystroke.
-2. **Do not mount hidden panes.** Render the preview `ScrollArea` (and its `NoteDocumentBlocks`) only
-   in the modes that show it. In Markdown source mode nothing but the CodeMirror editor and its header
-   is mounted. This is the direct fix for the hidden-pane cost and mirrors Joplin #9891.
-3. **Memoize the deferred sub-trees** (preview, rich detection, header blocks) so they re-render only
-   when their *deferred* props change; per-keystroke the dialog reconciles a thin shell.
-4. **Remove the full-doc stringify** from the CodeMirror value-sync path; track change-origin so the
-   editor skips the comparison when the change came from itself.
+- Note-editor keystroke p95 collapsed from ~7,130 ms (first key) / ~933 ms (draining) to **~15–30 ms**,
+  flat across the burst.
+- Search keystroke p95 ~120 ms → ~61 ms.
+- `autosaveScans` = 0 and `vaultScans` = 0 during the note-typing burst.
 
-Checks:
+Checks (remaining work: none; re-validate on a fast desktop per the Performance contract):
 
 - typing in Markdown source / live / split performs no O(doc) scan and no react-markdown parse per
-  keystroke (verify via `--typing` before/after; note-editor p95 must collapse);
+  keystroke (verified via `--typing` before/after);
 - preview correctness, task toggling, and split-scroll sync are unchanged;
 - switching modes still shows a correct preview within ~250 ms of settling.
-
-Likely files:
-
-- `src/renderer/src/features/items/item-detail-dialog.tsx`
-- `src/renderer/src/features/items/markdown-preview.tsx`
-- `src/renderer/src/features/items/markdown-editor.tsx`
-- `src/renderer/src/features/items/rich-markdown-source.ts` (call sites)
 
 Not in scope: building Obsidian-style in-editor live preview. The existing Milkdown (ProseMirror)
 live mode already renders incrementally per block; the fix above makes Markdown source and split match
@@ -249,33 +241,38 @@ its typing behavior.
 
 The library list has two compounding renderer costs, both O(result-set) today:
 
-- **Every note card parses and mounts its full document.** `get-overview` ships every note's full
-  `body` in the `LibraryDto`, and each near-viewport card runs the entire react-markdown pipeline
-  (remark + **rehype-katex**) over the whole body, mounting all code blocks, mermaid, math, tables,
-  and images, then clips the overflow with CSS. The visual density is therefore O(full doc) per
-  visible card; scrolling re-parses incoming cards. The index density is already cheap (title + text
-  only) and is the correct baseline for what a card needs to show.
-- **The results list mounts every filtered item** (`focus-item-list.tsx:67-92`, no windowing), so
-  settling a query on a 2,000–5,000 item result set reconciles thousands of card DOM trees at once.
+- **Every note card parses and mounts its full document.** (Resolved.) `get-overview` now ships each
+  note's `previewMarkdown` (first 2,400 chars, `library-service.ts` `toOverviewState`) rather than the
+  full `body`, and each near-viewport card renders a bounded text snippet instead of the entire
+  react-markdown + KaTeX pipeline (`note-card-snippet.ts` + `note-item-card.tsx`). A card is O(snippet).
+- **The results list mounts every filtered item** (no windowing), so settling a query on a 2,000–5,000
+  item result set reconciles thousands of card DOM trees at once. (Resolved.) The library view already
+  paged; the focus rail now bounds its mount count with the same pattern (`focus-item-list.tsx`):
+  an initial page of 50 with an IntersectionObserver sentinel that grows the page as the view
+  approaches the end, plus a reveal rule that mounts through the active item so keyboard/focus
+  navigation still shows its row. Only the mounted page is reconciled at settle.
 
 Adopt the Obsidian/Joplin card model: a card preview shows a small excerpt, never a full-document
 render, and full content loads only when the item is opened.
 
 Implementation:
 
-1. **Snippet cards.** For card rendering, truncate the note body to a bounded preview (first
-   ~600–1,000 characters after the frontmatter, cut at a line boundary) and parse only that. A card
-   becomes O(snippet); heavy elements below the fold never enter the parse. Preserves the current
-   rich-preview look with bounded cost. Where the snippet is produced matters — prefer main-process
-   (see 2) so renderers never hold full bodies.
-2. **Defer full content to open time.** Have `get-overview` omit note `body` (shipping either
-   nothing or the precomputed snippet) and fetch the full body via `get-item-detail` only when a note
-   is opened. Search already runs in the main process over content, so the renderer never needs every
-   note's full text resident. Shrinks the overview payload and per-card memory.
-3. **Window the item list so render cost is O(viewport), not O(results).** The library and focus rails
-   both render full arrays today. A simple virtualized/windowing wrapper (fixed-row index density,
-   positioned rows for the visual masonry) keeps mounting bounded. The guardrail permits a dependency
-   now that the measured budget is missed; prefer the simplest approach that meets it.
+1. **Snippet cards.** ✅ Done. Card previews truncate the note body to ~800 chars after the frontmatter
+   (`note-card-snippet.ts`) and render as a plain-text excerpt (`note-item-card.tsx`). No card parse
+   ever touches more than the snippet.
+2. **Defer full content to open time.** ✅ Already satisfied. `get-overview` ships `previewMarkdown`
+   (no full `body`); the full body is fetched via `get-item-detail` only when a note is opened. Search
+   runs in the main process over content, so the renderer never holds every note's full text resident.
+   Remaining: confirm offline-from-cache behavior on open after the overview no longer ships full
+   bodies (existing `bodyTruncated` → `getItemDetail` path covers it).
+3. **Bound the item list so render cost is not O(results).** ✅ Done. The library view already paged
+   (workspace.tsx `ITEM_PAGE_SIZE` + sentinel); the focus rail now applies the same paging
+   (`focus-item-list.tsx`, `FOCUS_PAGE_SIZE = 50`): a sentinel grows the mounted page as the scroll
+   end approaches, `pageKey` resets the page when the query changes, and the mounted window extends
+   through the active item so keyboard and focus navigation keep the active row in view. This keeps
+   the first paint and each settle bounded to a page instead of the full result set, with no new
+   dependency (adding one would modify the release-prep package.json). A scroll-window virtualizer
+   that unmounts scrolled-past rows remains a possible refinement if paging proves insufficient.
 4. **Keep previous results visible while a query settles** (already done via progressive refinement).
 5. **Push destination/type/reference filters into the main-process query** only if windowing leaves
    the post-debounce render over budget.
@@ -306,8 +303,9 @@ Land one independently measured change at a time, each with before/after medians
 1. typing scenario + interactivity budgets in the packaged runner; ✅
 2. note autosave fast path (no full rebuild); ✅
 3. single renderer library update per save; ✅
-4. decouple note-editor per-keystroke work from typing (Phase 3);
-5. bound library list rendering — snippet cards, deferred bodies, windowing (Phase 4).
+4. decouple note-editor per-keystroke work from typing (Phase 3); ✅
+5. bound library list rendering — snippet cards, deferred bodies, and bounded list mounting done
+   (Phase 4).
 
 Run after each phase:
 
@@ -325,10 +323,12 @@ pnpm perf:packaged
 
 - all existing budgets still pass;
 - typing in the note editor and search box keeps p95 keystroke-to-paint ≤ 100 ms with no task
-  > 100 ms at 5,000 items, and no O(doc) scan or preview re-parse runs per keystroke;
-- no library card render ever parses a full note document, and the overview no longer ships every
-  note body (full content loads at open time);
-- search results settle within 100 ms (post-debounce) and never mount the full result set at once;
-- note autosave never triggers a full vault scan or a second renderer library swap;
-- first-open indexing shows the toast and never freezes a frame;
+  > 100 ms at 5,000 items, and no O(doc) scan or preview re-parse runs per keystroke ✅ (re-validate on
+  a fast desktop);
+- no library card render ever parses a full note document ✅, and the overview no longer ships every
+  note body (full content loads at open time) ✅;
+- search results settle within 100 ms (post-debounce) and never mount the full result set at once ✅
+  (bounded paging in the library view and focus rail; re-validate on a fast desktop);
+- note autosave never triggers a full vault scan or a second renderer library swap ✅;
+- first-open indexing shows the toast and never freezes a frame ✅;
 - every retained optimization has a measured user-facing benefit.
