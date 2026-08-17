@@ -59,17 +59,50 @@ feeling, so no optimization here is accepted without an interactivity measuremen
 ## Validation notes
 
 The harness was validated against the packaged build on the development machine (2,000-item fixture).
-That machine is far slower than a typical desktop — cold first-card took 16–25 s — so the absolute
-keystroke-to-paint numbers are inflated and are not a fair budget gate. What the runs do confirm,
-architecture-wise:
+Two separate conclusions follow from the runs, and they must not be conflated:
+
+- **Cold-start cost is machine-bound.** First card took 16–25 s, the first `getOverview` 16–21 s. Disk
+  and fixture-build work like this does not transfer to a normal desktop, so absolute cold-start
+  numbers here are not a fair gate.
+- **Note-editor keystroke-to-paint is app-side, not machine-bound.** At steady state each keystroke
+  in Markdown source mode blocked the renderer for roughly one second (10-key burst: 11.2 s → 0.97 s
+  per key). The renderer on this machine demonstrably can run at 60 FPS (rAF fired 1,100+ times per
+  phase), and comparable Electron note apps (Obsidian) type smoothly here. Typing in our editor does
+  far more per keystroke than an editor alone should: it re-runs several O(doc) scans and reconciles
+  the whole detail-dialog tree. A slow machine magnifies that cost, but the cost is ours to remove.
+  **Phase 3 is therefore warranted, not merely gated.**
+
+What the runs confirm, architecture-wise:
 
 - `updateNote` IPC dropped from the 16–21 s full rebuild to **~120–140 ms** per save.
 - `getOverview` right after a save returns in ~1 ms (no rescan).
 - **`autosaveScans` = 0** during the note-typing burst: the autosave performs no full vault scan.
 - `queryItems` returns in ~6 ms after the debounce.
+- Search keystroke-to-paint p95 settled at ~190 ms (down from ~370 ms as the scenario stabilized),
+  which is close to the 150 ms search debounce plus render cost — see Phase 4.
 
-Phases 3 and 4 remain gated on measurements taken on a normal desktop: the keystroke-to-paint budgets
-cannot be satisfied (or fairly judged) on this validation machine.
+## Reference architectures
+
+The goal is Obsidian-like smoothness. The three mature designs that matter here:
+
+- **Joplin (Markdown source editor + separate preview).** Typing touches *only* the CodeMirror 6
+  editor: the parser is incremental and only viewport lines render. The preview pane lives in its own
+  iframe/webview and receives HTML via `setHtml`; it is *decoupled* from typing, so a heavy preview
+  never blocks a keystroke. Joplin also fixed (issue #9891) that a *hidden* preview pane must not
+  re-render at all — hiding a pane used to cost seconds on long notes because the viewer stayed
+  mounted.
+- **Obsidian (CodeMirror 6 "live preview").** One editor renders the document with decorations
+  (replace widgets for rendered math/images/tasks, mark decorations for styling); only the active
+  line reveals raw syntax, and decoration state fields use narrow invalidation so editing costs
+  O(change), not O(doc).
+- **SiYuan / Anytype (block editors).** ProseMirror-style block models; editing re-renders only the
+  edited block, never the document.
+
+Common thread: **the editor itself is the typing surface and everything else is either out of the
+per-keystroke path or rendered incrementally.** Our note editor violates this twice — the whole
+dialog re-renders per keystroke, and the react-markdown preview re-parses the whole document per
+keystroke when visible. Phase 3 closes that gap using the Joplin model, which fits our existing
+four-mode architecture; it does not require building Obsidian's in-editor live preview.
 
 ## Current evidence
 
@@ -84,7 +117,9 @@ Confirmed hot paths that remain:
 
 1. ~~**Note autosave rebuilds the whole library every ~800 ms of typing.**~~ Implemented (above).
 2. ~~**Each save causes two renderer `setLibrary` calls.**~~ Implemented (above).
-3. **Live Markdown preview re-parses per keystroke** (mermaid/katex). Candidate, not yet measured.
+3. **The note editor re-runs O(doc) work and re-renders the whole dialog per keystroke** (rich
+   support scan, frontmatter parse, hidden panes, and — when a preview is visible — a full
+   react-markdown + KaTeX re-parse). Phase 3.
 4. ~~**Interactivity is unmeasured.**~~ Implemented (Phase 0, above).
 
 ## Performance contract
@@ -99,9 +134,13 @@ packaged runs. Use the deterministic fixtures from the prior plans.
 | Note editor keystroke to committed paint                |          p95 ≤ 100 ms, no task > 100 ms |
 | Rapid key burst (10 keys, any surface) in main window   |           no long task > 100 ms during it |
 | Scroll through 100 mixed cards                          | ≥ 55 FPS p95, no task > 100 ms (existing) |
-| Search keystroke to settled results at 5,000 items      | p95 ≤ 100 ms (existing, now via typing)  |
+| Search keystroke to settled results at 5,000 items      |    p95 ≤ 100 ms of render + IPC after the 150 ms debounce |
 | Autosave commit while typing a note                     |      no task > 100 ms, zero vault rescan |
 | Open vault for the first time (5,000 items)             |          toast shown; no frozen UI frame |
+
+The search row is measured as the latency *after* the 150 ms debounce commits (typing latency itself
+stays ≤ 100 ms p95). A "keystroke → settled results" budget below the debounce is not physically
+meaningful; Phase 4 addresses the render cost that sits on top of it.
 
 ### Guardrails
 
@@ -151,42 +190,93 @@ Checks:
 - external edits still reconcile and refresh immediately;
 - search, selection, and focus behavior are unchanged while editing.
 
-## Phase 3 — Measure, then bound, live preview re-parse
+## Phase 3 — Decouple per-keystroke work from typing in the note editor
 
-Only if Phase 1 + 2 leave the typing budget over.
+Warranted by measurement (see Validation notes): in Markdown source mode each keystroke blocked the
+renderer ~1 s on the validation machine, and the work is app-side. Adopt the Joplin model — the
+CodeMirror editor is the typing surface; everything else leaves the per-keystroke path.
 
-- Profile a 10-second typing trace in split/live mode; attribute long tasks to markdown/mermaid/katex
-  re-parse vs render commit.
-- Prefer the first sufficient fix: defer heavy rendering to idle, skip re-render when the visible
-  preview is scrolled out, or throttle re-render at the existing 800 ms autosave cadence rather than
-  per keystroke.
+Per-keystroke work in `NoteCanvas` today (all O(doc) or whole-tree):
+
+- `partitionRichMarkdownSource` + `supportsRichMarkdown` run on the live draft every render
+  (`item-detail-dialog.tsx:1015-1016`) to decide which editor to show;
+- `NoteDocumentBlocks` → `parseNoteFrontmatter` runs every render (twice in split mode);
+- `MarkdownPreview` (react-markdown + remark + rehype-katex, a full AST parse) re-renders on every
+  keystroke whenever it is visible (live-unsupported and split modes);
+- the hidden preview pane stays mounted in Markdown source mode and still re-parses its header blocks
+  per keystroke (the Joplin #9891 trap);
+- the CodeMirror value-sync effect stringifies the whole doc each render
+  (`markdown-editor.tsx:332`).
+
+Implementation, in order:
+
+1. **Feed the preview and the rich-support decision from a deferred copy of the draft**, not the live
+   one. A small trailing debounce (~150–250 ms, `useDeferredValue`-style) means react-markdown + KaTeX
+   and the O(doc) rich scan run at most ~every 200 ms while typing, never per keystroke. The source
+   editor stays the only thing that sees every keystroke.
+2. **Do not mount hidden panes.** Render the preview `ScrollArea` (and its `NoteDocumentBlocks`) only
+   in the modes that show it. In Markdown source mode nothing but the CodeMirror editor and its header
+   is mounted. This is the direct fix for the hidden-pane cost and mirrors Joplin #9891.
+3. **Memoize the deferred sub-trees** (preview, rich detection, header blocks) so they re-render only
+   when their *deferred* props change; per-keystroke the dialog reconciles a thin shell.
+4. **Remove the full-doc stringify** from the CodeMirror value-sync path; track change-origin so the
+   editor skips the comparison when the change came from itself.
+
+Checks:
+
+- typing in Markdown source / live / split performs no O(doc) scan and no react-markdown parse per
+  keystroke (verify via `--typing` before/after; note-editor p95 must collapse);
+- preview correctness, task toggling, and split-scroll sync are unchanged;
+- switching modes still shows a correct preview within ~250 ms of settling.
 
 Likely files:
 
-- `src/renderer/src/features/items/markdown-preview.tsx`
 - `src/renderer/src/features/items/item-detail-dialog.tsx`
+- `src/renderer/src/features/items/markdown-preview.tsx`
+- `src/renderer/src/features/items/markdown-editor.tsx`
+- `src/renderer/src/features/items/rich-markdown-source.ts` (call sites)
 
-## Phase 4 — Verify search under the new harness
+Not in scope: building Obsidian-style in-editor live preview. The existing Milkdown (ProseMirror)
+live mode already renders incrementally per block; the fix above makes Markdown source and split match
+its typing behavior.
 
-The debounce + progressive-refinement fix is expected to satisfy the 100 ms p95 search budget through
-real IPC typing. If it does not:
+## Phase 4 — Bound search results rendering
 
-- avoid returning IDs that will be filtered by destination/type/reference (push those filters into the
-  main-process query);
-- precompute normalized searchable text per item when the snapshot is built or an item changes;
-- raise the debounce only if IPC call count, not filtering, is the measured bottleneck.
+The main-process query is fast (`queryItems` ~6 ms). The renderer cost on top of the 150 ms debounce
+is what pushes search typing over budget: `FocusItemList` mounts **every** filtered item
+(`focus-item-list.tsx:67-92`, no windowing), so settling a query on a 2,000–5,000 item result set
+reconciles thousands of card DOM trees at once.
 
-Do not add a search package until normalized in-memory search misses the target.
+- **Window the item list so render cost is O(viewport), not O(results).** The library and focus rails
+  both render full arrays today. A simple virtualized/windowing wrapper (fixed-row index density,
+  positioned rows for the visual masonry) keeps mounting bounded. The guardrail permits a dependency
+  now that the measured budget is missed; prefer the simplest approach that meets it.
+- **Keep previous results visible while a query settles** (already done via progressive refinement).
+- **Push destination/type/reference filters into the main-process query** only if windowing leaves
+  the post-debounce render over budget.
+- Do not add a search/indexing package until normalized in-memory search misses the target; it does
+  not today.
+
+Checks:
+
+- search typing p95 (post-debounce render + IPC) ≤ 100 ms at 5,000 items, with no long task > 100 ms;
+- result count, ordering, selection, and drag behavior unchanged with windowing;
+- first paint of a cold search result set is bounded (no thousands of cards mounted at once).
+
+Likely files:
+
+- `src/renderer/src/features/items/focus-item-list.tsx`
+- `src/renderer/src/features/library/focus-view.tsx` (or the surface that renders the list)
 
 ## Delivery order
 
 Land one independently measured change at a time, each with before/after medians and p95:
 
-1. typing scenario + interactivity budgets in the packaged runner;
-2. note autosave fast path (no full rebuild);
-3. single renderer library update per save;
-4. live preview bounding, only if still over budget;
-5. search hardening, only if still over budget.
+1. typing scenario + interactivity budgets in the packaged runner; ✅
+2. note autosave fast path (no full rebuild); ✅
+3. single renderer library update per save; ✅
+4. decouple note-editor per-keystroke work from typing (Phase 3);
+5. bound search results rendering (Phase 4).
 
 Run after each phase:
 
@@ -203,8 +293,9 @@ pnpm perf:packaged
 ## Completion criteria
 
 - all existing budgets still pass;
-- typing a note or search box keeps p95 keystroke-to-paint ≤ 100 ms with no task > 100 ms at 5,000
-  items;
+- typing in the note editor and search box keeps p95 keystroke-to-paint ≤ 100 ms with no task
+  > 100 ms at 5,000 items, and no O(doc) scan or preview re-parse runs per keystroke;
+- search results settle within 100 ms (post-debounce) and never mount the full result set at once;
 - note autosave never triggers a full vault scan or a second renderer library swap;
 - first-open indexing shows the toast and never freezes a frame;
 - every retained optimization has a measured user-facing benefit.
