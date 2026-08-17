@@ -119,7 +119,7 @@ export class LibraryService {
     const key = relativePath.replace(/\\/g, '/').toLocaleLowerCase()
     const writtenAt = this.recentAppWrites.get(key)
     if (writtenAt === undefined) return false
-    if (Date.now() - writtenAt > 1_500) {
+    if (Date.now() - writtenAt > 5_000) {
       this.recentAppWrites.delete(key)
       return false
     }

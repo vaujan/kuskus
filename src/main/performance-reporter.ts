@@ -10,23 +10,23 @@ const typingEnabled = process.env.KUSKUS_PERFORMANCE_TYPING === '1'
 
 const TYPING_INSTRUMENTATION = `
   (() => {
-    const state = (window.__kuskusTyping = { keyLatencies: [], droppedFrames: 0, longTasks: [] });
+    const state = (window.__kuskusTyping = { keyLatencies: [], droppedFrames: 0, longTasks: [], rafTicks: 0, pendingKeyTimes: [] });
     let lastFrame = performance.now();
     const frame = () => {
       const now = performance.now();
+      state.rafTicks += 1;
       if (now - lastFrame > 25) state.droppedFrames += 1;
       lastFrame = now;
       requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);
-    let pendingKeyAt = null;
     window.addEventListener('keydown', () => {
-      if (pendingKeyAt !== null) return;
-      pendingKeyAt = performance.now();
+      state.pendingKeyTimes.push(performance.now());
       requestAnimationFrame(() => {
-        if (pendingKeyAt !== null) {
-          state.keyLatencies.push(performance.now() - pendingKeyAt);
-          pendingKeyAt = null;
+        if (state.pendingKeyTimes.length > 0) {
+          const paintedAt = performance.now();
+          for (const keyAt of state.pendingKeyTimes) state.keyLatencies.push(paintedAt - keyAt);
+          state.pendingKeyTimes.length = 0;
         }
       });
     });
@@ -37,9 +37,9 @@ const TYPING_INSTRUMENTATION = `
   window.__kuskusLongTasks = window.__kuskusTyping.longTasks;
 `
 
-const TYPING_RESET = `(() => { const s = window.__kuskusTyping; if (s) { s.keyLatencies = []; s.droppedFrames = 0; s.longTasks = []; } return !!s })()`
+const TYPING_RESET = `(() => { const s = window.__kuskusTyping; if (s) { s.keyLatencies = []; s.droppedFrames = 0; s.longTasks = []; s.pendingKeyTimes.length = 0; } return !!s })()`
 
-const TYPING_READ = `(() => { const s = window.__kuskusTyping; return s ? { keyLatencies: s.keyLatencies, droppedFrames: s.droppedFrames, longTasks: s.longTasks } : null })()`
+const TYPING_READ = `(() => { const s = window.__kuskusTyping; return s ? { keyLatencies: s.keyLatencies, droppedFrames: s.droppedFrames, longTasks: s.longTasks, rafTicks: s.rafTicks } : null })()`
 
 const FOCUS_SEARCH = `(() => {
   const input = document.querySelector('input[type="search"]');
@@ -72,6 +72,43 @@ const FOCUS_EDITOR = `(() => {
   return true;
 })()`
 
+const EDITOR_PRESENT = `!!(
+  document.querySelector('[aria-label="Markdown editor"]') ??
+  document.querySelector('[aria-label="Rich Markdown editor"]')
+)`
+
+const DETAIL_OPEN = `!!document.querySelector('[aria-label^="Item details for"]')`
+
+const SWITCH_TO_MARKDOWN = `(() => {
+  const trigger = document.querySelector('[aria-label^="Note mode:"]');
+  if (!trigger) return false;
+  trigger.click();
+  return true;
+})()`
+
+const CLICK_MARKDOWN_ITEM = `(() => {
+  const item = [...document.querySelectorAll('[role="menuitemradio"]')].find((el) =>
+    el.textContent.includes('Markdown')
+  );
+  if (!item) return false;
+  item.click();
+  return true;
+})()`
+
+const WAIT_STABLE = `new Promise((resolve) => {
+  let stable = 0;
+  let last = performance.now();
+  const step = () => {
+    const now = performance.now();
+    if (now - last < 50) stable += 1;
+    else stable = 0;
+    last = now;
+    if (stable >= 3) resolve(true);
+    else requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+})`
+
 export function startPerformanceReporter(
   window: BrowserWindow,
   libraryService: LibraryService
@@ -95,6 +132,14 @@ export function startPerformanceReporter(
     sendKey(window, 'keyUp', char)
   }
 
+  const waitStable = async (): Promise<void> => {
+    await Promise.race([
+      window.webContents.executeJavaScript(WAIT_STABLE).then(() => undefined),
+      wait(15_000).then(() => undefined)
+    ])
+    await wait(1_000)
+  }
+
   const sampleMemory = async (checkpoint: string): Promise<void> => {
     const processes = app.getAppMetrics().map((metric) => ({
       type: metric.type,
@@ -109,6 +154,27 @@ export function startPerformanceReporter(
     })
   }
 
+  const waitFor = async (
+    check: () => Promise<boolean>,
+    intervalMs: number,
+    timeoutMs: number
+  ): Promise<boolean> => {
+    const deadline = Date.now() + timeoutMs
+    while (Date.now() < deadline) {
+      if (await check()) return true
+      await wait(intervalMs)
+    }
+    return false
+  }
+
+  const scenarioState = (): Promise<unknown> =>
+    window.webContents
+      .executeJavaScript(TYPING_READ)
+      .then((data: unknown) => data)
+      .catch(() => null)
+
+  let scenarioDone: Promise<void> = Promise.resolve()
+
   const runTypingScenario = async (): Promise<void> => {
     if (!typingEnabled) return
     try {
@@ -117,45 +183,92 @@ export function startPerformanceReporter(
       return
     }
 
-    const summarize = (data: unknown): unknown =>
-      data ? data : { keyLatencies: [], droppedFrames: 0, longTasks: [] }
+    const empty = {
+      keyLatencies: [] as number[],
+      droppedFrames: 0,
+      longTasks: [] as number[],
+      rafTicks: 0
+    }
+    const summarize = (data: unknown): typeof empty => (data as typeof empty | null) ?? empty
+
+    const ready = await waitFor(
+      () =>
+        window.webContents
+          .executeJavaScript(`!!document.querySelector('input[type="search"]')`)
+          .catch(() => false),
+      250,
+      60_000
+    )
 
     const scansBefore = libraryService.getPerformanceVaultScanCount()
 
-    await window.webContents.executeJavaScript(TYPING_RESET)
-    const searchFocused = await window.webContents.executeJavaScript(FOCUS_SEARCH)
-    if (searchFocused) {
-      for (const char of 'alpha') {
-        await typeKey(char)
-        await wait(25)
-      }
-      await wait(250)
-      await window.webContents.executeJavaScript(CLEAR_SEARCH)
-      await wait(250)
-    }
-    const search = summarize(await window.webContents.executeJavaScript(TYPING_READ))
-
-    await window.webContents.executeJavaScript(TYPING_RESET)
-    const noteOpened = await window.webContents.executeJavaScript(OPEN_FIRST_NOTE)
-    if (noteOpened) {
-      await wait(600)
-      const editorFocused = await window.webContents.executeJavaScript(FOCUS_EDITOR)
-      if (editorFocused) {
-        await wait(50)
-        for (let index = 0; index < 10; index += 1) {
-          await typeKey(String(index % 10))
+    let search: typeof empty = empty
+    let note: typeof empty = empty
+    let noteScansBefore: number | null = null
+    if (ready) {
+      const searchFocused = await window.webContents.executeJavaScript(FOCUS_SEARCH)
+      if (searchFocused) {
+        await waitStable()
+        await typeKey('a')
+        await waitStable()
+        await window.webContents.executeJavaScript(TYPING_RESET)
+        for (const char of 'alpha') {
+          await typeKey(char)
           await wait(25)
         }
+        await wait(250)
+        await window.webContents.executeJavaScript(CLEAR_SEARCH)
+        await wait(250)
       }
-      await wait(1_500)
-    }
-    const note = summarize(await window.webContents.executeJavaScript(TYPING_READ))
+      search = summarize(await scenarioState())
 
-    writePerformanceEvent('typing', {
-      search,
-      note,
-      vaultScans: libraryService.getPerformanceVaultScanCount() - scansBefore
-    })
+      await window.webContents.executeJavaScript(TYPING_RESET)
+      const noteOpened = await window.webContents.executeJavaScript(OPEN_FIRST_NOTE)
+      if (noteOpened) {
+        const dialogReady = await waitFor(
+          () => window.webContents.executeJavaScript(DETAIL_OPEN).catch(() => false),
+          250,
+          30_000
+        )
+        let switched = false
+        if (dialogReady) {
+          switched = await window.webContents.executeJavaScript(SWITCH_TO_MARKDOWN)
+          if (switched) {
+            await wait(200)
+            switched = await window.webContents.executeJavaScript(CLICK_MARKDOWN_ITEM)
+          }
+        }
+        const editorReady =
+          switched &&
+          (await waitFor(
+            () => window.webContents.executeJavaScript(EDITOR_PRESENT).catch(() => false),
+            250,
+            30_000
+          ))
+        if (editorReady) {
+          await window.webContents.executeJavaScript(FOCUS_EDITOR)
+          await waitStable()
+          await typeKey('0')
+          await waitStable()
+          await window.webContents.executeJavaScript(TYPING_RESET)
+          noteScansBefore = libraryService.getPerformanceVaultScanCount()
+          for (let index = 0; index < 10; index += 1) {
+            await typeKey(String(index % 10))
+            await wait(25)
+          }
+        }
+        await wait(1_500)
+      }
+      note = summarize(await scenarioState())
+      writePerformanceEvent('typing', {
+        completed: ready,
+        search,
+        note,
+        vaultScans: libraryService.getPerformanceVaultScanCount() - scansBefore,
+        autosaveScans:
+          libraryService.getPerformanceVaultScanCount() - (noteScansBefore ?? scansBefore)
+      })
+    }
   }
 
   window.webContents.once('did-finish-load', () => {
@@ -170,6 +283,11 @@ export function startPerformanceReporter(
         `
     )
 
+    if (typingEnabled) {
+      scenarioDone = runTypingScenario().catch(() => undefined)
+    }
+
+    let firstCardWritten = false
     const poll = setInterval(() => {
       if (window.isDestroyed()) return
       void window.webContents
@@ -177,11 +295,11 @@ export function startPerformanceReporter(
           `performance.getEntriesByName('kuskus:renderer-entry-to-first-card').at(-1)?.duration ?? null`
         )
         .then(async (duration: number | null) => {
-          if (duration === null) return
+          if (duration === null || firstCardWritten) return
+          firstCardWritten = true
           clearInterval(poll)
           writePerformanceEvent('first-card', { milliseconds: duration })
           await sampleMemory('first-card-memory')
-          await runTypingScenario()
         })
     }, 100)
     poll.unref()
@@ -191,14 +309,16 @@ export function startPerformanceReporter(
   const duration = Math.max(1_000, Number(process.env.KUSKUS_PERFORMANCE_DURATION_MS) || 10_000)
   const finish = setTimeout(() => {
     if (window.isDestroyed()) return app.quit()
-    void window.webContents
-      .executeJavaScript(
-        `({
+    void scenarioDone
+      .then(() =>
+        window.webContents.executeJavaScript(
+          `({
         url: location.href,
         text: document.body.innerText.slice(0, 500),
         measures: performance.getEntriesByType('measure').map(({ name, duration }) => ({ name, duration })),
         longTasks: window.__kuskusLongTasks ?? []
       })`
+        )
       )
       .then(async (renderer: unknown) => {
         writePerformanceEvent('renderer', renderer)

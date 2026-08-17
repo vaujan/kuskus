@@ -135,6 +135,11 @@ async function main() {
       if (typingEvents.length !== runs) {
         throw new Error('A packaged run did not complete the typing scenario.')
       }
+      if (typingEvents.some((entry) => entry.data.completed === false)) {
+        throw new Error(
+          'A typing scenario never reached an interactive workspace (no search input found).'
+        )
+      }
       const searchKeyLatencies = typingEvents.flatMap((entry) => entry.data.search.keyLatencies)
       const noteKeyLatencies = typingEvents.flatMap((entry) => entry.data.note.keyLatencies)
       const longTasks = typingEvents.flatMap((entry) => [
@@ -184,7 +189,7 @@ async function main() {
       throw new Error(`Cached first card exceeded 1,200 ms: ${median(cachedFirstCards)} ms.`)
     }
   } finally {
-    await rm(root, { recursive: true, force: true })
+    await rm(root, { recursive: true, force: true }).catch(() => {})
   }
 }
 
