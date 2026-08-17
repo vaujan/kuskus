@@ -121,6 +121,11 @@ Confirmed hot paths that remain:
    support scan, frontmatter parse, hidden panes, and — when a preview is visible — a full
    react-markdown + KaTeX re-parse). Phase 3.
 4. ~~**Interactivity is unmeasured.**~~ Implemented (Phase 0, above).
+5. **The library list renders a full document per note card.** `get-overview` ships every note's full
+   `body` to the renderer, and each near-viewport card (`useNearViewport`, 600 px margin) parses and
+   mounts the *entire* document via react-markdown + KaTeX, then clips it with CSS
+   (`markdown-preview.tsx:321-325`). Scrolling re-parses whole documents. The index density already
+   avoids markdown; the visual density does not. Phase 4.
 
 ## Performance contract
 
@@ -240,25 +245,48 @@ Not in scope: building Obsidian-style in-editor live preview. The existing Milkd
 live mode already renders incrementally per block; the fix above makes Markdown source and split match
 its typing behavior.
 
-## Phase 4 — Bound search results rendering
+## Phase 4 — Bound library list rendering (cards and search)
 
-The main-process query is fast (`queryItems` ~6 ms). The renderer cost on top of the 150 ms debounce
-is what pushes search typing over budget: `FocusItemList` mounts **every** filtered item
-(`focus-item-list.tsx:67-92`, no windowing), so settling a query on a 2,000–5,000 item result set
-reconciles thousands of card DOM trees at once.
+The library list has two compounding renderer costs, both O(result-set) today:
 
-- **Window the item list so render cost is O(viewport), not O(results).** The library and focus rails
-  both render full arrays today. A simple virtualized/windowing wrapper (fixed-row index density,
-  positioned rows for the visual masonry) keeps mounting bounded. The guardrail permits a dependency
-  now that the measured budget is missed; prefer the simplest approach that meets it.
-- **Keep previous results visible while a query settles** (already done via progressive refinement).
-- **Push destination/type/reference filters into the main-process query** only if windowing leaves
-  the post-debounce render over budget.
-- Do not add a search/indexing package until normalized in-memory search misses the target; it does
-  not today.
+- **Every note card parses and mounts its full document.** `get-overview` ships every note's full
+  `body` in the `LibraryDto`, and each near-viewport card runs the entire react-markdown pipeline
+  (remark + **rehype-katex**) over the whole body, mounting all code blocks, mermaid, math, tables,
+  and images, then clips the overflow with CSS. The visual density is therefore O(full doc) per
+  visible card; scrolling re-parses incoming cards. The index density is already cheap (title + text
+  only) and is the correct baseline for what a card needs to show.
+- **The results list mounts every filtered item** (`focus-item-list.tsx:67-92`, no windowing), so
+  settling a query on a 2,000–5,000 item result set reconciles thousands of card DOM trees at once.
+
+Adopt the Obsidian/Joplin card model: a card preview shows a small excerpt, never a full-document
+render, and full content loads only when the item is opened.
+
+Implementation:
+
+1. **Snippet cards.** For card rendering, truncate the note body to a bounded preview (first
+   ~600–1,000 characters after the frontmatter, cut at a line boundary) and parse only that. A card
+   becomes O(snippet); heavy elements below the fold never enter the parse. Preserves the current
+   rich-preview look with bounded cost. Where the snippet is produced matters — prefer main-process
+   (see 2) so renderers never hold full bodies.
+2. **Defer full content to open time.** Have `get-overview` omit note `body` (shipping either
+   nothing or the precomputed snippet) and fetch the full body via `get-item-detail` only when a note
+   is opened. Search already runs in the main process over content, so the renderer never needs every
+   note's full text resident. Shrinks the overview payload and per-card memory.
+3. **Window the item list so render cost is O(viewport), not O(results).** The library and focus rails
+   both render full arrays today. A simple virtualized/windowing wrapper (fixed-row index density,
+   positioned rows for the visual masonry) keeps mounting bounded. The guardrail permits a dependency
+   now that the measured budget is missed; prefer the simplest approach that meets it.
+4. **Keep previous results visible while a query settles** (already done via progressive refinement).
+5. **Push destination/type/reference filters into the main-process query** only if windowing leaves
+   the post-debounce render over budget.
+6. Do not add a search/indexing package until normalized in-memory search misses the target; it does
+   not today.
 
 Checks:
 
+- no library list render ever parses a full note document (card parse is bounded by the snippet);
+- `get-overview` no longer transfers full note bodies; opening a note fetches its content and works
+  offline from the cache;
 - search typing p95 (post-debounce render + IPC) ≤ 100 ms at 5,000 items, with no long task > 100 ms;
 - result count, ordering, selection, and drag behavior unchanged with windowing;
 - first paint of a cold search result set is bounded (no thousands of cards mounted at once).
@@ -266,7 +294,10 @@ Checks:
 Likely files:
 
 - `src/renderer/src/features/items/focus-item-list.tsx`
-- `src/renderer/src/features/library/focus-view.tsx` (or the surface that renders the list)
+- `src/renderer/src/features/items/note-item-card.tsx`
+- `src/renderer/src/features/items/markdown-preview.tsx`
+- `src/renderer/src/features/library/use-library-retrieval.ts`
+- `src/main/library/library-service.ts` (overview DTO shape) and `src/main/ipc/library-handlers.ts`
 
 ## Delivery order
 
@@ -276,7 +307,7 @@ Land one independently measured change at a time, each with before/after medians
 2. note autosave fast path (no full rebuild); ✅
 3. single renderer library update per save; ✅
 4. decouple note-editor per-keystroke work from typing (Phase 3);
-5. bound search results rendering (Phase 4).
+5. bound library list rendering — snippet cards, deferred bodies, windowing (Phase 4).
 
 Run after each phase:
 
@@ -295,6 +326,8 @@ pnpm perf:packaged
 - all existing budgets still pass;
 - typing in the note editor and search box keeps p95 keystroke-to-paint ≤ 100 ms with no task
   > 100 ms at 5,000 items, and no O(doc) scan or preview re-parse runs per keystroke;
+- no library card render ever parses a full note document, and the overview no longer ships every
+  note body (full content loads at open time);
 - search results settle within 100 ms (post-debounce) and never mount the full result set at once;
 - note autosave never triggers a full vault scan or a second renderer library swap;
 - first-open indexing shows the toast and never freezes a frame;
