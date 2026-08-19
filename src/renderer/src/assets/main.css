@@ -13,6 +13,23 @@
 @import 'shadcn/tailwind.css';
 @import './window-material.css';
 @import './typeset.css';
+
+/* Column guides for the markdown source editor's table under the caret. The
+   overlay is appended to <body> (fixed positioning), so it can't live in the
+   CodeMirror-scoped theme and is defined globally instead. */
+.cm-kuskus-table-guides {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.cm-kuskus-table-guide {
+  position: absolute;
+  width: 1px;
+  background: color-mix(in oklch, var(--muted-foreground) 30%, transparent);
+}
+
 @import './markdown.css';
 @import './shell.css';
 @import './motion.css';

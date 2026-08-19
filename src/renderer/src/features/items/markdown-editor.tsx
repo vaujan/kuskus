@@ -1,4 +1,11 @@
-import { defaultKeymap, history, historyKeymap, redo, undo } from '@codemirror/commands'
+import {
+  defaultKeymap,
+  history,
+  historyKeymap,
+  indentWithTab,
+  redo,
+  undo
+} from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { bracketMatching, syntaxHighlighting, syntaxTree } from '@codemirror/language'
 import { EditorSelection, EditorState, RangeSetBuilder, Transaction } from '@codemirror/state'
@@ -27,7 +34,18 @@ import { createPortal } from 'react-dom'
 
 import { getPublishedMarkdownChange } from '@/features/items/markdown-editor-change'
 import { toggleMarkdownMarker } from '@/features/items/markdown-formatting'
+import { markdownFrontmatter } from '@/features/items/markdown-frontmatter'
 import { markdownHighlightStyle } from '@/features/items/markdown-highlight-style'
+import {
+  continueTable,
+  convertTablePaste,
+  formatMarkdownTable,
+  insertMarkdownTable,
+  insertTableRowBelow,
+  moveTableCursor,
+  moveTableRow
+} from '@/features/items/markdown-table'
+import { markdownTableGuides } from '@/features/items/markdown-table-guides'
 import { cn } from '@/lib/utils'
 import { markdownCodeLanguage } from '@/features/items/markdown-code'
 import { markdownSearchTheme } from '@/features/items/markdown-search-theme'
@@ -243,7 +261,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
           extensions: [
             history(),
             EditorView.lineWrapping,
-            markdown({ extensions: GFM, codeLanguages: markdownCodeLanguage }),
+            markdown({ extensions: [GFM, markdownFrontmatter], codeLanguages: markdownCodeLanguage }),
             bracketMatching(),
             highlightSpecialChars(),
             highlightActiveLine(),
@@ -254,12 +272,22 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
             EditorView.scrollMargins.of(() => ({ bottom: 112 })),
             markdownHeader,
             taskMarkerPlugin,
+            markdownTableGuides,
             editorTheme,
             markdownSearchTheme,
             syntaxHighlighting(markdownHighlightStyle),
             keymap.of([
               { key: 'Mod-b', preventDefault: true, run: markerCommand('**') },
               { key: 'Mod-i', preventDefault: true, run: markerCommand('*') },
+              { key: 'Mod-Shift-T', preventDefault: true, run: insertMarkdownTable },
+              { key: 'Mod-Alt-T', preventDefault: true, run: formatMarkdownTable },
+              { key: 'Tab', run: (view) => moveTableCursor(view, 1) },
+              { key: 'Shift-Tab', run: (view) => moveTableCursor(view, -1) },
+              { key: 'Enter', run: continueTable },
+              { key: 'Ctrl-Enter', run: insertTableRowBelow },
+              { key: 'Alt-ArrowUp', run: (view) => moveTableRow(view, -1) },
+              { key: 'Alt-ArrowDown', run: (view) => moveTableRow(view, 1) },
+              indentWithTab,
               ...defaultKeymap,
               ...historyKeymap,
               ...searchKeymap
@@ -286,22 +314,42 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
                   .find((entry) => entry.type.startsWith('image/'))
                   ?.getAsFile()
                 const pasteImage = onPasteImageRef.current
-                if (!file || !pasteImage) return false
+                if (file && pasteImage) {
+                  event.preventDefault()
+                  const { from, to } = editor.state.selection.main
+                  const pastedInto = editor.state.doc
+                  pasteImage(file, (src) => {
+                    if (viewRef.current !== editor) return
+                    const range =
+                      editor.state.doc === pastedInto ? { from, to } : editor.state.selection.main
+                    const image = `![image](${src})`
+                    editor.dispatch({
+                      changes: { from: range.from, to: range.to, insert: image },
+                      selection: { anchor: range.from + image.length },
+                      userEvent: 'input.paste'
+                    })
+                    editor.focus()
+                  })
+                  return true
+                }
+                const text = event.clipboardData?.getData('text/plain') ?? ''
+                const table = convertTablePaste(text)
+                if (!table) return false
                 event.preventDefault()
                 const { from, to } = editor.state.selection.main
-                const pastedInto = editor.state.doc
-                pasteImage(file, (src) => {
-                  if (viewRef.current !== editor) return
-                  const range =
-                    editor.state.doc === pastedInto ? { from, to } : editor.state.selection.main
-                  const image = `![image](${src})`
-                  editor.dispatch({
-                    changes: { from: range.from, to: range.to, insert: image },
-                    selection: { anchor: range.from + image.length },
-                    userEvent: 'input.paste'
-                  })
-                  editor.focus()
+                const prefix =
+                  from > 0 && editor.state.doc.sliceString(from - 1, from) !== '\n' ? '\n' : ''
+                const suffix =
+                  to < editor.state.doc.length && editor.state.doc.sliceString(to, to + 1) !== '\n'
+                    ? '\n'
+                    : ''
+                const insert = `${prefix}${table}${suffix}`
+                editor.dispatch({
+                  changes: { from, to, insert },
+                  selection: { anchor: from + prefix.length },
+                  userEvent: 'input.paste'
                 })
+                editor.focus()
                 return true
               }
             }),
