@@ -46,6 +46,7 @@
       font-family: var(--typeset-font-heading);
       font-weight: 600;
       margin-block-end: 0;
+      border-bottom: 1px solid var(--typeset-rule);
     }
     &:where(h1) {
       font-size: 1.75em;

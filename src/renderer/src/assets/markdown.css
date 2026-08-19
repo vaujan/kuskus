@@ -297,20 +297,6 @@
     text-wrap: pretty;
   }
 
-  .kuskus-typeset
-    :where(
-      p:has(> .kuskus-markdown-image-button:only-child),
-      p:has(> .kuskus-rich-image-wrap:only-child)
-    )
-    + p {
-    margin-block-start: 0.5rem;
-    color: var(--typeset-muted);
-    font-size: 0.8125em;
-    font-weight: 400;
-    line-height: 1.5;
-    text-align: center;
-  }
-
   .kuskus-markdown-image-button[data-zoomed='true'] {
     position: fixed;
     inset: 0;
