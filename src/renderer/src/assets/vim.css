@@ -14,7 +14,10 @@
   background: color-mix(in oklch, var(--primary) 25%, transparent);
 }
 
-/* Search bar follows the editor surface instead of the library's light default. */
+/* Search bar follows the editor surface instead of the library's light default.
+   The library inserts it after the whole ProseMirror document, so without this it
+   lands at the very bottom of the note and scrolls out of view. Sticky keeps it
+   pinned to the bottom of the scroll viewport (nearest scrollable ancestor). */
 .milkdown .vim-search-bar {
   display: flex;
   align-items: center;
@@ -24,6 +27,10 @@
   font-family: var(--font-mono);
   font-size: 0.8125rem;
   min-height: 28px;
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  box-shadow: 0 -4px 12px rgb(0 0 0 / 0.08);
 }
 
 .milkdown .vim-search-prefix {
@@ -43,4 +50,37 @@
 .milkdown .vim-search-match-current {
   background: color-mix(in oklch, var(--primary) 55%, transparent);
   border-radius: 1px;
+}
+
+/* Ex command line (:w, :q, :s/.../.../) is inserted after the document like the
+   search bar, so it needs the same sticky treatment to stay pinned to the
+   bottom of the scroll viewport instead of riding at the end of the note. */
+.milkdown .vim-ex-bar {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  background: var(--popover);
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  min-height: 28px;
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  box-shadow: 0 -4px 12px rgb(0 0 0 / 0.08);
+}
+
+.milkdown .vim-ex-prefix {
+  color: var(--muted-foreground);
+  margin-right: 2px;
+}
+
+.milkdown .vim-ex-input {
+  color: var(--foreground);
+  white-space: pre;
+}
+
+.milkdown .vim-ex-cursor {
+  color: var(--foreground);
+  animation: vim-cursor-blink 1s step-end infinite;
 }
