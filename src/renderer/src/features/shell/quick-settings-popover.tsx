@@ -1,5 +1,6 @@
 import {
   IconBolt,
+  IconKeyboard,
   IconLayoutDashboard,
   IconLayoutGrid,
   IconMoon,
@@ -46,7 +47,9 @@ export function QuickSettingsPopover({
   translucentBackgroundEnabled,
   translucentBackgroundSupported,
   translucentBackgroundReduced,
-  onTranslucentBackgroundChange
+  onTranslucentBackgroundChange,
+  vimEnabled,
+  onVimEnabledChange
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -60,6 +63,8 @@ export function QuickSettingsPopover({
   translucentBackgroundSupported: boolean | null
   translucentBackgroundReduced: boolean
   onTranslucentBackgroundChange: (enabled: boolean) => void
+  vimEnabled: boolean
+  onVimEnabledChange: (enabled: boolean) => void
 }): React.JSX.Element {
   const captureStatus =
     globalCaptureShortcutStatus === null
@@ -192,6 +197,31 @@ export function QuickSettingsPopover({
                 />
               </div>
             ) : null}
+          </div>
+        </section>
+
+        <section className="space-y-2" aria-labelledby="editor-settings-title">
+          <h3
+            id="editor-settings-title"
+            className="px-1 text-xs font-medium tracking-wide text-muted-foreground"
+          >
+            Editor
+          </h3>
+          <div className={surfaceClass}>
+            <div className={rowClass}>
+              <IconKeyboard className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">Vim mode</p>
+                <p className="mt-0.5 text-xs leading-5 text-pretty text-muted-foreground">
+                  Use Vim keybindings when editing notes.
+                </p>
+              </div>
+              <Switch
+                aria-label="Vim mode"
+                checked={vimEnabled}
+                onCheckedChange={onVimEnabledChange}
+              />
+            </div>
           </div>
         </section>
 

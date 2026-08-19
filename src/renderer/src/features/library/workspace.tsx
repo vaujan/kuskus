@@ -98,6 +98,7 @@ import type { NoteMode } from '@/features/items/note-view-mode'
 import { AppToolbar } from '@/features/shell/app-toolbar'
 import { LibrarySidebar, type LibraryDestination } from '@/features/shell/library-sidebar'
 import { useTheme } from '@/hooks/use-theme'
+import { useNoteVim } from '@/hooks/use-note-vim'
 import type { TranslucentBackgroundPreference } from '@/hooks/use-translucent-background'
 import { cn } from '@/lib/utils'
 import type {
@@ -260,6 +261,7 @@ export function Workspace({
   }, [])
   const [itemOperationBusy, setItemOperationBusy] = useState(false)
   const [theme, setTheme] = useTheme()
+  const [vimEnabled, setVimEnabled] = useNoteVim()
   const importRequestId = useRef(0)
   const dragDepth = useRef(0)
   const enrichingUrlIds = useRef(new Set<string>())
@@ -1770,6 +1772,7 @@ export function Workspace({
           focusNoteMode ?? (focusItemEditOnOpenId === focusItem.id ? 'live' : undefined)
         }
         onNoteModeChange={setFocusNoteMode}
+        vimEnabled={vimEnabled}
         expanded={focusNoteExpansionActive}
         onExpandedChange={changeFocusNoteExpanded}
         collections={library.collections}
@@ -1892,6 +1895,8 @@ export function Workspace({
         translucentBackgroundSupported={translucentBackground.supported}
         translucentBackgroundReduced={translucentBackground.reducedTransparency}
         onTranslucentBackgroundChange={translucentBackground.setEnabled}
+        vimEnabled={vimEnabled}
+        onVimEnabledChange={setVimEnabled}
       />
       <SidebarInset>
         {focusWorkspaceOpen ? null : (

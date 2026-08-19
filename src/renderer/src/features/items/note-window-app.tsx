@@ -29,6 +29,7 @@ import {
 import type { NoteDetailMenuOptions } from '@/features/items/item-action-menu'
 import { WindowControls } from '@/features/shell/window-controls'
 import { useAppZoom } from '@/hooks/use-app-zoom'
+import { useNoteVim } from '@/hooks/use-note-vim'
 import { expandLibraryOverview } from '@/features/library/library-overview'
 import type { LibraryDto, LibraryItemDto, NoteItemDto } from '../../../../shared/library-contract'
 
@@ -92,6 +93,7 @@ export function NoteWindowApp({ itemId }: { itemId: string }): React.JSX.Element
   const [library, setLibrary] = useState<LibraryDto | null>(null)
   const [item, setItem] = useState<NoteItemDto | null>(null)
   const [error, setError] = useState('')
+  const [vimEnabled] = useNoteVim()
   useAppZoom()
 
   const refresh = useCallback(async (): Promise<void> => {
@@ -240,6 +242,7 @@ export function NoteWindowApp({ itemId }: { itemId: string }): React.JSX.Element
             collections={library.collections}
             libraryItems={library.items}
             presentation="focus"
+            vimEnabled={vimEnabled}
             expanded
             expandable={false}
             hasPrevious={false}

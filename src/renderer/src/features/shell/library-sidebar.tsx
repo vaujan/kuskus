@@ -537,7 +537,9 @@ export function LibrarySidebar({
   translucentBackgroundEnabled,
   translucentBackgroundSupported,
   translucentBackgroundReduced,
-  onTranslucentBackgroundChange
+  onTranslucentBackgroundChange,
+  vimEnabled,
+  onVimEnabledChange
 }: {
   library: LibraryDto
   theme: Theme
@@ -556,6 +558,8 @@ export function LibrarySidebar({
   translucentBackgroundSupported: boolean | null
   translucentBackgroundReduced: boolean
   onTranslucentBackgroundChange: (enabled: boolean) => void
+  vimEnabled: boolean
+  onVimEnabledChange: (enabled: boolean) => void
 }): React.JSX.Element {
   const { isMobile, setOpenMobile } = useSidebar()
   const [folderDialog, setFolderDialog] = useState<FolderDialogState>(null)
@@ -1019,6 +1023,8 @@ export function LibrarySidebar({
                 translucentBackgroundSupported={translucentBackgroundSupported}
                 translucentBackgroundReduced={translucentBackgroundReduced}
                 onTranslucentBackgroundChange={onTranslucentBackgroundChange}
+                vimEnabled={vimEnabled}
+                onVimEnabledChange={onVimEnabledChange}
               />
             </SidebarMenuItem>
           </SidebarMenu>

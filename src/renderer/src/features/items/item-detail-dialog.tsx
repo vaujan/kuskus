@@ -31,7 +31,6 @@ import {
   IconFileAlert as FileWarning,
   IconFileTypography as FileTypography,
   IconFolderOpen as FolderOpen,
-  IconKeyboard as Keyboard,
   IconLink as Link,
   IconLoader2 as LoaderCircle,
   IconPhotoOff as ImageOff,
@@ -110,6 +109,7 @@ import { partitionRichMarkdownSource } from '@/features/items/rich-markdown-sour
 import { supportsRichMarkdown } from '@/features/items/rich-markdown-syntax'
 import { NoteProperties } from '@/features/items/note-properties'
 import { NoteFind } from '@/features/items/note-find'
+import type { NoteVimMode } from '@/features/items/note-vim-mode'
 import {
   getScrollRatio,
   getScrollTopForRatio,
@@ -126,11 +126,6 @@ import {
   parseNoteReadingWidth,
   type NoteReadingWidth
 } from '@/features/items/note-reading-width'
-import {
-  NOTE_VIM_MODE_STORAGE_KEY,
-  parseNoteVimEnabled,
-  type NoteVimMode
-} from '@/features/items/note-vim-mode'
 import {
   getSplitToggleMode,
   toggleReadLive,
@@ -748,47 +743,6 @@ function NoteModeControls({
     </ButtonGroup>
   )
 }
-function VimControl({
-  enabled,
-  mode,
-  onToggle
-}: {
-  enabled: boolean
-  mode: NoteVimMode | null
-  onToggle: () => void
-}): React.JSX.Element {
-  return (
-    <div className="flex items-center gap-1">
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              className="size-10 text-muted-foreground aria-pressed:bg-muted aria-pressed:text-foreground"
-              aria-label="Vim mode"
-              aria-pressed={enabled}
-              onClick={onToggle}
-            />
-          }
-        >
-          <Keyboard stroke={1.5} aria-hidden="true" />
-        </TooltipTrigger>
-        <TooltipContent>{enabled ? 'Vim mode on' : 'Vim mode off'}</TooltipContent>
-      </Tooltip>
-      {enabled && mode ? (
-        <span
-          role="status"
-          aria-live="polite"
-          className="rounded-lg bg-muted/40 px-2 py-1 font-mono text-xs font-medium text-muted-foreground tabular-nums shadow-sm ring-1 ring-foreground/8"
-        >
-          -- {mode.toUpperCase()} --
-        </span>
-      ) : null}
-    </div>
-  )
-}
 function NoteDocumentBlocks({
   item,
   markdown,
@@ -1067,6 +1021,7 @@ function NoteCanvas({
   readingWidth,
   showInlineTitle,
   vimEnabled,
+  vimMode,
   onVimModeChange,
   onVimWrite,
   onVimQuit,
@@ -1093,6 +1048,7 @@ function NoteCanvas({
   readingWidth: NoteReadingWidth
   showInlineTitle: boolean
   vimEnabled: boolean
+  vimMode: NoteVimMode | null
   onVimModeChange: (mode: NoteVimMode | null) => void
   onVimWrite: () => void
   onVimQuit: () => void
@@ -1596,6 +1552,15 @@ function NoteCanvas({
           </div>
         </div>
       )}
+      {vimEnabled && vimMode && mode !== 'read' && !item.missingContent ? (
+        <div
+          role="status"
+          aria-live="polite"
+          className="flex h-7 shrink-0 items-center border-t bg-popover px-3 font-mono text-xs font-medium text-muted-foreground"
+        >
+          -- {vimMode.toUpperCase()} --
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -1938,6 +1903,7 @@ interface ItemDetailProps {
   expanded?: boolean
   expandable?: boolean
   onExpandedChange?: (expanded: boolean) => void
+  vimEnabled?: boolean
 }
 
 export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
@@ -1963,7 +1929,8 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       expanded = false,
       expandable = true,
       onExpandedChange,
-      presentation = 'dialog'
+      presentation = 'dialog',
+      vimEnabled = false
     },
     ref
   ): React.JSX.Element {
@@ -2023,9 +1990,6 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
     const [showInlineTitle, setShowInlineTitle] = useState(() =>
       parseNoteInlineTitle(localStorage.getItem(NOTE_INLINE_TITLE_STORAGE_KEY))
     )
-    const [vimEnabled, setVimEnabled] = useState(() =>
-      parseNoteVimEnabled(localStorage.getItem(NOTE_VIM_MODE_STORAGE_KEY))
-    )
     const [vimMode, setVimMode] = useState<NoteVimMode | null>(null)
     const [conflictDialogOpen, setConflictDialogOpen] = useState(false)
     const [conflictResolution, setConflictResolution] = useState<'mine' | 'disk' | null>(null)
@@ -2054,9 +2018,6 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
     useEffect(() => {
       localStorage.setItem(NOTE_INLINE_TITLE_STORAGE_KEY, String(showInlineTitle))
     }, [showInlineTitle])
-    useEffect(() => {
-      localStorage.setItem(NOTE_VIM_MODE_STORAGE_KEY, String(vimEnabled))
-    }, [vimEnabled])
     useEffect(() => {
       if (mode !== 'split') previousSingleModeRef.current = mode
     }, [mode])
@@ -2328,11 +2289,6 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
                   onModeChange={changeMode}
                   surface={presentation === 'focus' ? 'caption' : 'toolbar'}
                 />
-                <VimControl
-                  enabled={vimEnabled}
-                  mode={vimMode}
-                  onToggle={() => setVimEnabled((current) => !current)}
-                />
               </>
             ) : undefined
           }
@@ -2395,6 +2351,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
                 sourceActivated={sourceActivated}
                 showInlineTitle={showInlineTitle}
                 vimEnabled={vimEnabled}
+                vimMode={vimMode}
                 onVimModeChange={setVimMode}
                 onVimWrite={() => void coordinator?.flush()}
                 onVimQuit={() => requestGuardedAction(() => onOpenChange(false))}

@@ -4,6 +4,7 @@ import {
   editorViewCtx,
   editorViewOptionsCtx,
   parserCtx,
+  remarkStringifyOptionsCtx,
   rootAttrsCtx,
   rootCtx,
   serializerCtx
@@ -477,6 +478,10 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
       editor.config((ctx) => {
         ctx.set(rootCtx, host)
         ctx.set(defaultValueCtx, prepareRichMarkdown(source.body))
+        ctx.set(remarkStringifyOptionsCtx, {
+          ...ctx.get(remarkStringifyOptionsCtx),
+          bullet: '-'
+        })
         ctx.set(rootAttrsCtx, {
           class: 'typeset kuskus-typeset kuskus-rich-document',
           'data-typeset-presentation': presentation

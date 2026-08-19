@@ -12,6 +12,7 @@ import {
   type TablerIcon
 } from '@tabler/icons-react'
 import { createPortal } from 'react-dom'
+import { useEffect, useRef } from 'react'
 
 import {
   Command,
@@ -47,34 +48,44 @@ export function RichMarkdownSlashMenu({
   onSelect: (id: RichMarkdownSlashCommandId) => void
 }): React.JSX.Element {
   const items = filteredRichMarkdownSlashCommands(state.query)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // The ProseMirror plugin handles arrow keys itself, so cmdk's internal
+  // navigation (which scrolls the selected item into view) never runs.
+  useEffect(() => {
+    containerRef.current
+      ?.querySelector<HTMLElement>('[data-selected="true"]')
+      ?.scrollIntoView({ block: 'nearest' })
+  }, [state.selected])
 
   return createPortal(
-    <Command
-      aria-label="Formatting commands"
-      className="fixed z-50 h-auto w-72 rounded-md shadow-md ring-1 ring-foreground/10"
-      style={{ left: state.left, top: state.top }}
-      shouldFilter={false}
-      value={items[state.selected]?.id}
-      onMouseDown={(event) => event.preventDefault()}
-    >
-      <CommandList className="max-h-80">
-        <CommandEmpty>No formatting commands found.</CommandEmpty>
-        <CommandGroup heading="Format">
-          {items.map(({ id, label, description }) => {
-            const Icon = icons[id]
-            return (
-              <CommandItem key={id} value={id} onSelect={() => onSelect(id)}>
-                <Icon aria-hidden="true" />
-                <span className="flex min-w-0 flex-col">
-                  <span>{label}</span>
-                  <span className="truncate text-xs text-muted-foreground">{description}</span>
-                </span>
-              </CommandItem>
-            )
-          })}
-        </CommandGroup>
-      </CommandList>
-    </Command>,
+    <div ref={containerRef} className="fixed z-50" style={{ left: state.left, top: state.top }}>
+      <Command
+        aria-label="Formatting commands"
+        className="h-auto w-72 rounded-md shadow-md ring-1 ring-foreground/10"
+        shouldFilter={false}
+        value={items[state.selected]?.id}
+        onMouseDown={(event) => event.preventDefault()}
+      >
+        <CommandList className="max-h-80">
+          <CommandEmpty>No formatting commands found.</CommandEmpty>
+          <CommandGroup heading="Format">
+            {items.map(({ id, label, description }) => {
+              const Icon = icons[id]
+              return (
+                <CommandItem key={id} value={id} onSelect={() => onSelect(id)}>
+                  <Icon aria-hidden="true" />
+                  <span className="flex min-w-0 flex-col">
+                    <span>{label}</span>
+                    <span className="truncate text-xs text-muted-foreground">{description}</span>
+                  </span>
+                </CommandItem>
+              )
+            })}
+          </CommandGroup>
+        </CommandList>
+      </Command>
+    </div>,
     document.body
   )
 }
