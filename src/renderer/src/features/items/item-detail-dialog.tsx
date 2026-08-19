@@ -22,6 +22,7 @@ import {
   IconChevronRight as ChevronRight,
   IconCode as Code,
   IconColumns2 as Columns2,
+  IconCopy as Copy,
   IconDimensions as Dimensions,
   IconEye as Eye,
   IconEyeEdit as EyeEdit,
@@ -30,6 +31,7 @@ import {
   IconFileAlert as FileWarning,
   IconFileTypography as FileTypography,
   IconFolderOpen as FolderOpen,
+  IconKeyboard as Keyboard,
   IconLink as Link,
   IconLoader2 as LoaderCircle,
   IconPhotoOff as ImageOff,
@@ -55,6 +57,13 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
+import { ContextMenu as ContextMenuPrimitive } from '@base-ui/react/context-menu'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuShortcut
+} from '@/components/ui/context-menu'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -118,6 +127,11 @@ import {
   type NoteReadingWidth
 } from '@/features/items/note-reading-width'
 import {
+  NOTE_VIM_MODE_STORAGE_KEY,
+  parseNoteVimEnabled,
+  type NoteVimMode
+} from '@/features/items/note-vim-mode'
+import {
   getSplitToggleMode,
   toggleReadLive,
   toggleSourceMode,
@@ -127,7 +141,6 @@ import {
 import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
 import { useImagePreview } from '@/features/items/use-image-preview'
 import { useNoteAttachmentPreviews } from '@/features/items/use-note-attachment-previews'
-import { useTrailingValue } from '@/features/items/use-trailing-value'
 import { useUrlPreview } from '@/features/items/use-url-preview'
 import { WindowControls } from '@/features/shell/window-controls'
 import { cn } from '@/lib/utils'
@@ -735,6 +748,47 @@ function NoteModeControls({
     </ButtonGroup>
   )
 }
+function VimControl({
+  enabled,
+  mode,
+  onToggle
+}: {
+  enabled: boolean
+  mode: NoteVimMode | null
+  onToggle: () => void
+}): React.JSX.Element {
+  return (
+    <div className="flex items-center gap-1">
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="size-10 text-muted-foreground aria-pressed:bg-muted aria-pressed:text-foreground"
+              aria-label="Vim mode"
+              aria-pressed={enabled}
+              onClick={onToggle}
+            />
+          }
+        >
+          <Keyboard stroke={1.5} aria-hidden="true" />
+        </TooltipTrigger>
+        <TooltipContent>{enabled ? 'Vim mode on' : 'Vim mode off'}</TooltipContent>
+      </Tooltip>
+      {enabled && mode ? (
+        <span
+          role="status"
+          aria-live="polite"
+          className="rounded-lg bg-muted/40 px-2 py-1 font-mono text-xs font-medium text-muted-foreground tabular-nums shadow-sm ring-1 ring-foreground/8"
+        >
+          -- {mode.toUpperCase()} --
+        </span>
+      ) : null}
+    </div>
+  )
+}
 function NoteDocumentBlocks({
   item,
   markdown,
@@ -960,6 +1014,50 @@ function UrlCanvas({
   )
 }
 
+function NoteReadContextMenu({ children }: { children: React.ReactNode }): React.JSX.Element {
+  const [selectedText, setSelectedText] = useState('')
+
+  return (
+    <ContextMenu
+      onOpenChange={(open) => {
+        if (open) setSelectedText(window.getSelection()?.toString().trim() ?? '')
+      }}
+    >
+      <ContextMenuPrimitive.Trigger render={<div className="contents" />}>
+        {children}
+      </ContextMenuPrimitive.Trigger>
+      <ContextMenuContent className="w-44">
+        <ContextMenuItem
+          disabled={!selectedText}
+          onSelect={() => {
+            const text = selectedText || (window.getSelection()?.toString().trim() ?? '')
+            if (text) void copyTextToClipboard(text)
+          }}
+        >
+          <Copy aria-hidden="true" />
+          Copy
+          <ContextMenuShortcut>Ctrl+C</ContextMenuShortcut>
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
+  )
+}
+
+async function copyTextToClipboard(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch {
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    textarea.remove()
+  }
+}
+
 function NoteCanvas({
   item,
   mode,
@@ -968,6 +1066,10 @@ function NoteCanvas({
   sourceActivated,
   readingWidth,
   showInlineTitle,
+  vimEnabled,
+  onVimModeChange,
+  onVimWrite,
+  onVimQuit,
   noteTitleRef,
   sourceTitleRef,
   previewTitleRef,
@@ -988,6 +1090,10 @@ function NoteCanvas({
   sourceActivated: boolean
   readingWidth: NoteReadingWidth
   showInlineTitle: boolean
+  vimEnabled: boolean
+  onVimModeChange: (mode: NoteVimMode | null) => void
+  onVimWrite: () => void
+  onVimQuit: () => void
   noteTitleRef: React.Ref<InlineItemTitleHandle>
   sourceTitleRef: React.Ref<InlineItemTitleHandle>
   previewTitleRef: React.Ref<InlineItemTitleHandle>
@@ -1006,6 +1112,7 @@ function NoteCanvas({
   const previewViewportRef = useRef<HTMLDivElement>(null)
   const noteViewportRef = useRef<HTMLDivElement>(null)
   const noteScrollTopRef = useRef(0)
+  const noteScrollDetachRef = useRef<(() => void) | null>(null)
   const previousModeRef = useRef<NoteMode>(mode)
   const activeScrollDriverRef = useRef<'source' | 'preview'>(mode === 'read' ? 'preview' : 'source')
   const pendingScrollDriverRef = useRef<'source' | 'preview' | null>(null)
@@ -1013,8 +1120,7 @@ function NoteCanvas({
   const syncFrameRef = useRef<number | null>(null)
   const releaseSyncFrameRef = useRef<number | null>(null)
   const attachmentPreviews = useNoteAttachmentPreviews(item.id, item.attachments)
-  const deferredDraft = useTrailingValue(snapshot.draft, 200)
-  const richSource = useMemo(() => partitionRichMarkdownSource(deferredDraft), [deferredDraft])
+  const richSource = useMemo(() => partitionRichMarkdownSource(snapshot.draft), [snapshot.draft])
   const richSupported = useMemo(
     () => richSource !== null && supportsRichMarkdown(richSource.body),
     [richSource]
@@ -1038,14 +1144,7 @@ function NoteCanvas({
     onDraftChangeRef.current(value)
   }, [])
   useEffect(() => {
-    const viewport = noteViewportRef.current
-    if (!viewport) return
-    const handleScroll = (): void => {
-      noteScrollTopRef.current = viewport.scrollTop
-    }
-    handleScroll()
-    viewport.addEventListener('scroll', handleScroll, { passive: true })
-    return () => viewport.removeEventListener('scroll', handleScroll)
+    return () => noteScrollDetachRef.current?.()
   }, [])
   const importPastedImage = useCallback(
     async (file: File, insertAtSelection: (src: string) => void): Promise<void> => {
@@ -1239,6 +1338,68 @@ function NoteCanvas({
     event.stopPropagation()
   }
 
+  const readLiveDocument = (
+    <>
+      {mode === 'read' || mode === 'live' ? (
+        <NoteDocumentBlocks
+          item={item}
+          markdown={snapshot.draft}
+          showInlineTitle={showInlineTitle}
+          showProperties
+          propertiesEditable={mode === 'live'}
+          className="mb-8"
+          titleRef={noteTitleRef}
+          onRenameTitle={onRenameTitle}
+          onDraftChange={onDraftChange}
+          onOpenSource={() => onModeChange('markdown')}
+          onError={onError}
+        />
+      ) : null}
+      {mode === 'read' || mode === 'live' ? (
+        mode === 'live' && richSupported ? (
+          <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
+            <RichMarkdownEditor
+              ref={richEditorRef}
+              value={snapshot.draft}
+              editable
+              active
+              options={richOptions}
+              preserveScrollTopRef={noteScrollTopRef}
+              vimEnabled={vimEnabled}
+              onVimModeChange={onVimModeChange}
+              onChange={onDraftChange}
+              onError={onError}
+            />
+          </Suspense>
+        ) : (
+          <>
+            {mode === 'live' ? (
+              <Alert className="mb-6">
+                <AlertTitle>Open Markdown source to edit this note</AlertTitle>
+                <AlertDescription>
+                  Rich editing is unavailable because this note has malformed frontmatter or raw
+                  HTML that must remain exact.
+                </AlertDescription>
+              </Alert>
+            ) : null}
+            <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
+              <MarkdownPreview
+                value={snapshot.draft}
+                itemId={item.id}
+                attachments={item.attachments}
+                attachmentPreviews={attachmentPreviews}
+                presentation="detail"
+                onOpenLink={handlePreviewOpenLink}
+                onOpenVaultLink={handlePreviewOpenVaultLink}
+                onChange={handlePreviewChange}
+              />
+            </Suspense>
+          </>
+        )
+      ) : null}
+    </>
+  )
+
   return (
     <div
       className="relative flex h-full min-w-0 flex-1 flex-col"
@@ -1315,77 +1476,52 @@ function NoteCanvas({
                     }}
                     onPasteImage={importPastedImage}
                     onScroll={() => scheduleScrollSynchronization('source')}
+                    vimEnabled={vimEnabled}
+                    onVimModeChange={onVimModeChange}
+                    onVimWrite={onVimWrite}
+                    onVimQuit={onVimQuit}
                   />
                 </Suspense>
               ) : null}
             </div>
             <ScrollArea
               ref={(root) => {
-                noteViewportRef.current =
+                const viewport =
                   root?.querySelector<HTMLDivElement>('[data-slot="scroll-area-viewport"]') ?? null
+                if (viewport === noteViewportRef.current) return
+                noteScrollDetachRef.current?.()
+                noteScrollDetachRef.current = null
+                noteViewportRef.current = viewport
+                if (viewport) {
+                  const handleScroll = (): void => {
+                    const maxScrollTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight)
+                    if (viewport.scrollTop === 0 && noteScrollTopRef.current > maxScrollTop) {
+                      return
+                    }
+                    noteScrollTopRef.current = viewport.scrollTop
+                  }
+                  handleScroll()
+                  viewport.addEventListener('scroll', handleScroll, { passive: true })
+                  noteScrollDetachRef.current = () =>
+                    viewport.removeEventListener('scroll', handleScroll)
+                }
               }}
               className={cn(
                 'min-h-0 min-w-0',
                 mode === 'read' || mode === 'live' ? 'flex' : 'hidden'
               )}
             >
-              <article className="kuskus-detail-document-frame min-h-full w-full py-8">
-                {mode === 'read' || mode === 'live' ? (
-                  <NoteDocumentBlocks
-                    item={item}
-                    markdown={snapshot.draft}
-                    showInlineTitle={showInlineTitle}
-                    showProperties
-                    propertiesEditable={mode === 'live'}
-                    className="mb-8"
-                    titleRef={noteTitleRef}
-                    onRenameTitle={onRenameTitle}
-                    onDraftChange={onDraftChange}
-                    onOpenSource={() => onModeChange('markdown')}
-                    onError={onError}
-                  />
-                ) : null}
-                {mode === 'read' || mode === 'live' ? (
-                  mode === 'live' && richSupported ? (
-                    <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
-                      <RichMarkdownEditor
-                        ref={richEditorRef}
-                        value={snapshot.draft}
-                        editable
-                        active
-                        options={richOptions}
-                        preserveScrollTopRef={noteScrollTopRef}
-                        onChange={onDraftChange}
-                        onError={onError}
-                      />
-                    </Suspense>
-                  ) : (
-                    <>
-                      {mode === 'live' ? (
-                        <Alert className="mb-6">
-                          <AlertTitle>Open Markdown source to edit this note</AlertTitle>
-                          <AlertDescription>
-                            Rich editing is unavailable because this note has malformed frontmatter
-                            or raw HTML that must remain exact.
-                          </AlertDescription>
-                        </Alert>
-                      ) : null}
-                      <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
-                        <MarkdownPreview
-                          value={deferredDraft}
-                          itemId={item.id}
-                          attachments={item.attachments}
-                          attachmentPreviews={attachmentPreviews}
-                          presentation="detail"
-                          onOpenLink={handlePreviewOpenLink}
-                          onOpenVaultLink={handlePreviewOpenVaultLink}
-                          onChange={handlePreviewChange}
-                        />
-                      </Suspense>
-                    </>
-                  )
-                ) : null}
-              </article>
+              {mode === 'read' ? (
+                <NoteReadContextMenu>
+                  <article className="kuskus-detail-document-frame min-h-full w-full py-8">
+                    {readLiveDocument}
+                  </article>
+                </NoteReadContextMenu>
+              ) : (
+                <article className="kuskus-detail-document-frame min-h-full w-full py-8">
+                  {readLiveDocument}
+                </article>
+              )}
             </ScrollArea>
             <ScrollArea
               ref={(root) => {
@@ -1417,7 +1553,7 @@ function NoteCanvas({
                 {mode === 'split' ? (
                   <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
                     <MarkdownPreview
-                      value={deferredDraft}
+                      value={snapshot.draft}
                       itemId={item.id}
                       attachments={item.attachments}
                       attachmentPreviews={attachmentPreviews}
@@ -1858,6 +1994,10 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
     const [showInlineTitle, setShowInlineTitle] = useState(() =>
       parseNoteInlineTitle(localStorage.getItem(NOTE_INLINE_TITLE_STORAGE_KEY))
     )
+    const [vimEnabled, setVimEnabled] = useState(() =>
+      parseNoteVimEnabled(localStorage.getItem(NOTE_VIM_MODE_STORAGE_KEY))
+    )
+    const [vimMode, setVimMode] = useState<NoteVimMode | null>(null)
     const [conflictDialogOpen, setConflictDialogOpen] = useState(false)
     const [conflictResolution, setConflictResolution] = useState<'mine' | 'disk' | null>(null)
     const [attachmentsOpen, setAttachmentsOpen] = useState(false)
@@ -1885,6 +2025,9 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
     useEffect(() => {
       localStorage.setItem(NOTE_INLINE_TITLE_STORAGE_KEY, String(showInlineTitle))
     }, [showInlineTitle])
+    useEffect(() => {
+      localStorage.setItem(NOTE_VIM_MODE_STORAGE_KEY, String(vimEnabled))
+    }, [vimEnabled])
     useEffect(() => {
       if (mode !== 'split') previousSingleModeRef.current = mode
     }, [mode])
@@ -2148,11 +2291,18 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
           }
           modeControls={
             item.type === 'note' ? (
-              <NoteModeControls
-                mode={mode}
-                onModeChange={changeMode}
-                surface={presentation === 'focus' ? 'caption' : 'toolbar'}
-              />
+              <>
+                <NoteModeControls
+                  mode={mode}
+                  onModeChange={changeMode}
+                  surface={presentation === 'focus' ? 'caption' : 'toolbar'}
+                />
+                <VimControl
+                  enabled={vimEnabled}
+                  mode={vimMode}
+                  onToggle={() => setVimEnabled((current) => !current)}
+                />
+              </>
             ) : undefined
           }
           actions={renderActions?.(
@@ -2213,6 +2363,10 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
                 historyRevision={noteHistoryRevision}
                 sourceActivated={sourceActivated}
                 showInlineTitle={showInlineTitle}
+                vimEnabled={vimEnabled}
+                onVimModeChange={setVimMode}
+                onVimWrite={() => void coordinator?.flush()}
+                onVimQuit={() => requestGuardedAction(() => onOpenChange(false))}
                 noteTitleRef={noteTitleRef}
                 sourceTitleRef={sourceTitleRef}
                 previewTitleRef={previewTitleRef}

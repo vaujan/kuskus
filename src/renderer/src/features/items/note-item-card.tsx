@@ -9,6 +9,7 @@ import {
   ItemCardSurface
 } from '@/features/items/item-card'
 import type { LibraryView } from '@/features/items/item-view'
+import { NoteCardMarkdown } from '@/features/items/note-card-markdown'
 import { noteCardSnippet } from '@/features/items/note-card-snippet'
 import { useNearViewport } from '@/features/items/use-near-viewport'
 import { cn } from '@/lib/utils'
@@ -51,12 +52,7 @@ export function NoteItemCard({
         }}
       />
       <ItemCardSelectionIndicator />
-      <ItemCardSurface
-        className={cn(
-          view === 'grid' ? 'h-64 p-4' : 'max-h-[24rem] p-4',
-          compact && 'max-h-[15rem] p-3.5'
-        )}
-      >
+      <ItemCardSurface className={cn(view === 'grid' ? 'h-64 p-4' : 'p-4', compact && 'p-3.5')}>
         {item.missingContent ? (
           <div className="flex size-full min-h-28 flex-col items-center justify-center gap-2 bg-destructive/8 px-5 text-center text-destructive">
             <FileWarning className="size-5" aria-hidden="true" />
@@ -71,11 +67,12 @@ export function NoteItemCard({
             <span className="text-xs">Empty note</span>
           </div>
         ) : nearViewport ? (
-          <p className="line-clamp-[6] max-h-28 overflow-hidden whitespace-pre-line text-xs leading-relaxed text-muted-foreground">
-            {snippet}
-          </p>
+          <NoteCardMarkdown markdown={snippet} compact={compact} />
         ) : (
-          <div className="size-full min-h-28" aria-hidden="true" />
+          <div
+            className={cn('size-full', compact ? 'min-h-[13rem]' : 'min-h-[20rem]')}
+            aria-hidden="true"
+          />
         )}
       </ItemCardSurface>
       {!item.missingContent && item.body.trim() ? (
