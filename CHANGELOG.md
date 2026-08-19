@@ -13,12 +13,18 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 - Split mode toggle by key code.
 - `F12` devtools toggle.
 - Toast explaining first-open vault indexing.
+- Vim ex-command line (`:w`, `:q`, `:wq`, `:s/old/new/g`) with substitute support.
+- Cursor offset saved and restored when switching between note editing modes.
+- Sticky Vim search bar that stays pinned to the editor viewport.
 
 ### Changed
 
 - Debounced search while keeping results visible as you type.
 - Bound note saving to the changed item.
 - Shortened the pin action label.
+- Refreshed the interface palette around a violet-tinted theme with IBM Plex Sans headings.
+- Rendered heading rules and tuned Acrylic material transparency against the new tokens.
+- Pinned the Vim search and ex-command bars to the bottom of the editor viewport.
 
 ### Performance
 
