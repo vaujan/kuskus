@@ -20,7 +20,6 @@ import {
 import {
   Decoration,
   DecorationSet,
-  drawSelection,
   EditorView,
   highlightActiveLine,
   highlightSpecialChars,
@@ -71,6 +70,8 @@ export interface MarkdownEditorHandle {
   focus: () => void
   getScroller: () => HTMLElement | null
   requestMeasure: () => void
+  getCursorOffset: () => number | null
+  setCursorOffset: (offset: number | null) => void
   redo: () => boolean
   undo: () => boolean
 }
@@ -132,9 +133,6 @@ const editorTheme = EditorView.theme({
   '.cm-markdown-header:not(:empty)': { paddingBottom: '1.5rem' },
   '.cm-kuskus-task-marker': { cursor: 'pointer' },
   // Text selection follows the primary theme instead of the neutral default.
-  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
-    backgroundColor: 'color-mix(in oklch, var(--primary) 25%, transparent)'
-  },
   '&::selection, & ::selection': {
     backgroundColor: 'color-mix(in oklch, var(--primary) 25%, transparent)'
   },
@@ -148,12 +146,12 @@ const editorTheme = EditorView.theme({
 // selection rectangles, so the highlight hugs the glyphs like the other note
 // modes. Both libraries hide native selection via `Prec.highest` themes that
 // are mounted AFTER ours (order is reversed), so these rules must beat them
-// with a higher-specificity selector, not with ordering.
+// with a higher-specificity selector, not with ordering. The `&` keeps the
+// scope class on the same editor element as `cm-kuskus-detail-editor`, since
+// a descendant combinator would never match when both land on `view.dom`.
 const vimModeTheme = Prec.highest(
   EditorView.theme({
-    '.cm-cursor': { borderLeftColor: 'var(--foreground)' },
-    '.cm-vimMode .cm-selectionBackground': { display: 'none' },
-    '.cm-kuskus-detail-editor .cm-vimMode .cm-line::selection, .cm-kuskus-detail-editor .cm-vimMode .cm-line ::selection':
+    '&.cm-kuskus-detail-editor .cm-vimMode .cm-line::selection, &.cm-kuskus-detail-editor .cm-vimMode .cm-line ::selection':
       {
         backgroundColor: 'color-mix(in oklch, var(--primary) 25%, transparent) !important'
       },
@@ -318,6 +316,17 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         },
         getScroller: () => viewRef.current?.scrollDOM ?? null,
         requestMeasure: () => viewRef.current?.requestMeasure(),
+        getCursorOffset: () => viewRef.current?.state.selection.main.head ?? null,
+        setCursorOffset: (offset) => {
+          const view = viewRef.current
+          if (!view || offset == null) return
+          const clamped = Math.max(0, Math.min(offset, view.state.doc.length))
+          view.dispatch({
+            selection: EditorSelection.cursor(clamped),
+            scrollIntoView: true
+          })
+          view.focus()
+        },
         redo: () => (viewRef.current ? redo(viewRef.current) : false),
         undo: () => (viewRef.current ? undo(viewRef.current) : false)
       }),
@@ -336,7 +345,6 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         highlightSpecialChars(),
         highlightActiveLine(),
         highlightSelectionMatches(),
-        drawSelection(),
         EditorView.editorAttributes.of({ class: 'cm-kuskus-detail-editor' }),
         // Keep the cursor roughly four lines above the pane bottom while
         // typing instead of letting it settle at the last line.

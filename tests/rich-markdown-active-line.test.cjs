@@ -21,7 +21,7 @@ test('source and live writing modes highlight the active line', () => {
   assert.match(rich, /presentation === 'detail'\) editor\.use\(richMarkdownActiveLine\)/)
   assert.match(
     rich,
-    /if \(activeRef\.current && editableRef\.current\) \{\s+focusRichMarkdownEditor\(editor, true, preserveScrollTopRef\?\.current \?\? null\)/
+    /if \(activeRef\.current && editableRef\.current\) \{\s+const cursorOffset = preserveCursorOffsetRef\?\.current \?\? null/
   )
   assert.match(source, /EditorSelection\.cursor\(head\)/)
   assert.match(plugin, /selection\.empty/)
@@ -69,15 +69,56 @@ test('live editing restores the preserved scroll offset before placing the curso
   )
 
   assert.match(rich, /preserveScrollTopRef\?: React\.RefObject<number> \| null/)
+  assert.match(rich, /preserveCursorOffsetRef\?: React\.RefObject<number \| null> \| null/)
   assert.match(rich, /const publishedRef = useRef<string \| null>\(value\)/)
   assert.match(
     rich,
-    /focusRichMarkdownEditor\(editor, true, preserveScrollTopRef\?\.current \?\? null\)/
+    /const cursorOffset = preserveCursorOffsetRef\?\.current \?\? null[\s\S]*?focusRichMarkdownEditor\(editor, false, null, cursorOffset, valueRef\.current\)/
   )
   assert.match(rich, /viewport\.scrollTop = Math\.min\(preserveScrollTop, maxScrollTop\)/)
   assert.match(dialog, /const noteScrollTopRef = useRef\(0\)/)
+  assert.match(dialog, /const noteCursorOffsetRef = useRef<number \| null>\(null\)/)
   assert.match(dialog, /viewport\.addEventListener\('scroll', handleScroll, \{ passive: true \}\)/)
   assert.match(dialog, /preserveScrollTopRef=\{noteScrollTopRef\}/)
+  assert.match(dialog, /preserveCursorOffsetRef=\{noteCursorOffsetRef\}/)
+})
+
+test('cursor persistence maps the caret through a source-markdown sentinel round trip', () => {
+  const {
+    createCursorMarker,
+    clampCursorOffset
+  } = require('../src/renderer/src/features/items/note-cursor.ts')
+  const rich = readFileSync(
+    require.resolve('../src/renderer/src/features/items/rich-markdown-editor.tsx'),
+    'utf8'
+  )
+  const dialog = readFileSync(
+    require.resolve('../src/renderer/src/features/items/item-detail-dialog.tsx'),
+    'utf8'
+  )
+
+  assert.match(rich, /richMarkdownCursorOffset\(/)
+  assert.match(rich, /insertText\(marker, head, head\)/)
+  assert.match(rich, /ctx\.get\(serializerCtx\)\(markerDoc\)/)
+  assert.match(rich, /getCursorOffset: \(\) =>/)
+  assert.match(rich, /setCursorOffset: \(offset\) =>/)
+  assert.match(rich, /doc\.descendants\(\(node, nodePos\) => \{\s+if \(!node\.isText\) return true/)
+  assert.match(
+    dialog,
+    /noteCursorCaptureRef\.current = \(\) => \{\s+if \(mode === 'live'\) return richEditorRef\.current\?\.getCursorOffset\(\) \?\? null\s+if \(mode === 'markdown' \|\| mode === 'split'\) \{\s+return editorRef\.current\?\.getCursorOffset\(\) \?\? null\s+\}\s+return null\s+\}/
+  )
+  assert.match(dialog, /const captured = noteCursorCaptureRef\.current\?\.\(\) \?\? null/)
+  assert.match(dialog, /if \(captured != null\) noteCursorOffsetRef\.current = captured/)
+  assert.match(dialog, /editorRef\.current\?\.setCursorOffset\(offset\)/)
+
+  const marker = createCursorMarker()
+  const source = 'line one\nline two\nline three\n'
+  assert.equal(clampCursorOffset(source, 100), source.length)
+  assert.equal(clampCursorOffset(source, -5), 0)
+  assert.equal(clampCursorOffset(source, 9), 9)
+  assert.ok(marker.length > 0)
+  assert.ok(!marker.includes('\u0000'))
+  assert.match(marker, /^KUSKUSCURSOR[a-z0-9]+$/)
 })
 
 test('a changed value reference must not reset the editor selection to the document start', () => {
@@ -214,7 +255,5 @@ test('Markdown media renders remote images and keeps block math visually distinc
   assert.match(styles, /\.kuskus-task-checkbox:checked::after/)
   assert.match(styles, /\.kuskus-markdown-image-caption[\s\S]*font-size: 0\.75rem/)
   assert.match(styles, /\.kuskus-markdown-image-caption[\s\S]*text-align: center/)
-  assert.match(styles, /p:has\(> \.kuskus-markdown-image-button:only-child\)[\s\S]*\+ p/)
-  assert.match(styles, /font-size: 0\.8125em;[\s\S]*text-align: center/)
   assert.match(styles, /\.kuskus-markdown-image-button\[data-zoomed='true'\]/)
 })

@@ -1073,6 +1073,8 @@ function NoteCanvas({
   noteTitleRef,
   sourceTitleRef,
   previewTitleRef,
+  noteCursorCaptureRef,
+  noteCursorOffsetRef,
   onRenameTitle,
   onDraftChange,
   onModeChange,
@@ -1097,6 +1099,8 @@ function NoteCanvas({
   noteTitleRef: React.Ref<InlineItemTitleHandle>
   sourceTitleRef: React.Ref<InlineItemTitleHandle>
   previewTitleRef: React.Ref<InlineItemTitleHandle>
+  noteCursorCaptureRef: React.MutableRefObject<(() => number | null) | null>
+  noteCursorOffsetRef: React.RefObject<number | null>
   onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
   onDraftChange: (value: string) => void
   onModeChange: (mode: NoteMode) => void
@@ -1146,6 +1150,18 @@ function NoteCanvas({
   useEffect(() => {
     return () => noteScrollDetachRef.current?.()
   }, [])
+  useEffect(() => {
+    noteCursorCaptureRef.current = () => {
+      if (mode === 'live') return richEditorRef.current?.getCursorOffset() ?? null
+      if (mode === 'markdown' || mode === 'split') {
+        return editorRef.current?.getCursorOffset() ?? null
+      }
+      return null
+    }
+    return () => {
+      noteCursorCaptureRef.current = null
+    }
+  }, [mode, noteCursorCaptureRef])
   const importPastedImage = useCallback(
     async (file: File, insertAtSelection: (src: string) => void): Promise<void> => {
       try {
@@ -1294,6 +1310,14 @@ function NoteCanvas({
   }, [mode, scheduleScrollSynchronization])
 
   useEffect(() => {
+    if (mode !== 'markdown' && mode !== 'split') return
+    const offset = noteCursorOffsetRef.current
+    if (offset == null) return
+    const frame = requestAnimationFrame(() => editorRef.current?.setCursorOffset(offset))
+    return () => cancelAnimationFrame(frame)
+  }, [mode, noteCursorOffsetRef])
+
+  useEffect(() => {
     if (mode !== 'split') return
     scheduleScrollSynchronization(activeScrollDriverRef.current, false)
   }, [mode, scheduleScrollSynchronization, snapshot.draft])
@@ -1365,8 +1389,11 @@ function NoteCanvas({
               active
               options={richOptions}
               preserveScrollTopRef={noteScrollTopRef}
+              preserveCursorOffsetRef={noteCursorOffsetRef}
               vimEnabled={vimEnabled}
               onVimModeChange={onVimModeChange}
+              onVimWrite={onVimWrite}
+              onVimQuit={onVimQuit}
               onChange={onDraftChange}
               onError={onError}
             />
@@ -1942,6 +1969,8 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
   ): React.JSX.Element {
     const [openedNote] = useState(() => (item?.type === 'note' ? item : null))
     const [noteHistoryRevision, setNoteHistoryRevision] = useState(0)
+    const noteCursorOffsetRef = useRef<number | null>(null)
+    const noteCursorCaptureRef = useRef<(() => number | null) | null>(null)
     const coordinator = useMemo(
       () =>
         openedNote
@@ -2055,6 +2084,8 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
     const changeMode = useCallback(
       (nextMode: NoteMode): void => {
         if (nextMode === mode) return
+        const captured = noteCursorCaptureRef.current?.() ?? null
+        if (captured != null) noteCursorOffsetRef.current = captured
         if (nextMode === 'markdown' || nextMode === 'split') setSourceActivated(true)
         setMode(nextMode)
         setModeHudVisible(true)
@@ -2370,6 +2401,8 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
                 noteTitleRef={noteTitleRef}
                 sourceTitleRef={sourceTitleRef}
                 previewTitleRef={previewTitleRef}
+                noteCursorCaptureRef={noteCursorCaptureRef}
+                noteCursorOffsetRef={noteCursorOffsetRef}
                 onRenameTitle={renameCurrentItem}
                 onDraftChange={handleNoteDraftChange}
                 onModeChange={changeMode}

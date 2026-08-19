@@ -3,8 +3,10 @@ import {
   defaultValueCtx,
   editorViewCtx,
   editorViewOptionsCtx,
+  parserCtx,
   rootAttrsCtx,
-  rootCtx
+  rootCtx,
+  serializerCtx
 } from '@milkdown/core'
 import { history } from '@milkdown/plugin-history'
 import type { Node as ProseNode } from '@milkdown/prose/model'
@@ -51,6 +53,11 @@ import {
   restoreRichMarkdown,
   supportsRichMarkdown
 } from '@/features/items/rich-markdown-syntax'
+import {
+  clampCursorOffset,
+  createCursorMarker,
+  findCursorMarkerOffset
+} from '@/features/items/note-cursor'
 
 export interface RichMarkdownImage {
   src: string | null
@@ -70,6 +77,8 @@ export interface RichMarkdownEditorOptions {
 
 export interface RichMarkdownEditorHandle {
   focus: () => void
+  getCursorOffset: () => number | null
+  setCursorOffset: (offset: number | null) => void
 }
 
 function richMarkdownScrollRestorePoint(view: ProseEditorView): number | null {
@@ -94,10 +103,23 @@ function richMarkdownScrollRestorePoint(view: ProseEditorView): number | null {
 function focusRichMarkdownEditor(
   editor: Editor | null,
   restoreScrollPosition = false,
-  preserveScrollTop: number | null = null
+  preserveScrollTop: number | null = null,
+  cursorOffset: number | null = null,
+  sourceValue: string | null = null
 ): void {
   editor?.action((ctx) => {
     const view = ctx.get(editorViewCtx)
+    if (cursorOffset != null && sourceValue != null) {
+      const target = richMarkdownCursorRestorePoint(ctx.get(parserCtx), cursorOffset, sourceValue)
+      if (target != null) {
+        const max = view.state.doc.content.size
+        const resolved = Math.min(target, max)
+        const selection = Selection.near(view.state.doc.resolve(resolved), 1)
+        view.dispatch(view.state.tr.setSelection(selection).scrollIntoView())
+        view.focus()
+        return
+      }
+    }
     const viewport = view.dom.closest<HTMLElement>('[data-slot="scroll-area-viewport"]')
     if (viewport && preserveScrollTop != null) {
       const maxScrollTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight)
@@ -110,6 +132,51 @@ function focusRichMarkdownEditor(
   })
 }
 
+function richMarkdownCursorOffset(editor: Editor, sourceValue: string): number | null {
+  let offset: number | null = null
+  editor.action((ctx) => {
+    const view = ctx.get(editorViewCtx)
+    const source = partitionRichMarkdownSource(sourceValue)
+    if (!source) return
+    const marker = createCursorMarker()
+    const head = view.state.selection.head
+    let markerDoc: ProseNode
+    try {
+      markerDoc = view.state.tr.insertText(marker, head, head).doc
+    } catch {
+      return
+    }
+    const serialized = ctx.get(serializerCtx)(markerDoc)
+    const published = source.prefix + restoreRichMarkdown(serialized)
+    const index = findCursorMarkerOffset(published, marker)
+    if (index != null) offset = index
+  })
+  return offset
+}
+
+function richMarkdownCursorRestorePoint(
+  parser: (value: string) => ProseNode,
+  offset: number,
+  sourceValue: string
+): number | null {
+  const source = partitionRichMarkdownSource(sourceValue)
+  if (!source) return null
+  const bodyOffset = clampCursorOffset(source.body, offset - source.prefix.length)
+  const marker = createCursorMarker()
+  const bodyWithMarker = source.body.slice(0, bodyOffset) + marker + source.body.slice(bodyOffset)
+  const doc = parser(prepareRichMarkdown(bodyWithMarker))
+  let pos: number | null = null
+  doc.descendants((node, nodePos) => {
+    if (!node.isText) return true
+    const text = node.text ?? ''
+    const index = text.indexOf(marker)
+    if (index < 0) return true
+    pos = nodePos + index
+    return false
+  })
+  return pos
+}
+
 interface RichMarkdownEditorProps {
   value: string
   editable: boolean
@@ -117,9 +184,12 @@ interface RichMarkdownEditorProps {
   options?: RichMarkdownEditorOptions
   presentation?: 'card' | 'detail'
   preserveScrollTopRef?: React.RefObject<number> | null
+  preserveCursorOffsetRef?: React.RefObject<number | null> | null
   className?: string
   vimEnabled?: boolean
   onVimModeChange?: (mode: NoteVimMode | null) => void
+  onVimWrite?: () => void
+  onVimQuit?: () => void
   onChange: (value: string) => void
   onError?: (message: string) => void
 }
@@ -289,9 +359,12 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
       options,
       presentation = 'detail',
       preserveScrollTopRef = null,
+      preserveCursorOffsetRef = null,
       className,
       vimEnabled = false,
       onVimModeChange,
+      onVimWrite,
+      onVimQuit,
       onChange,
       onError
     },
@@ -307,6 +380,8 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
     const onChangeRef = useRef(onChange)
     const onErrorRef = useRef(onError)
     const onVimModeChangeRef = useRef(onVimModeChange)
+    const onVimWriteRef = useRef(onVimWrite)
+    const onVimQuitRef = useRef(onVimQuit)
     const publishedRef = useRef<string | null>(value)
     const [failed, setFailed] = useState(false)
     const [slashState, setSlashState] = useState<RichMarkdownSlashState | null>(null)
@@ -320,7 +395,9 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
       onChangeRef.current = onChange
       onErrorRef.current = onError
       onVimModeChangeRef.current = onVimModeChange
-    }, [active, editable, onChange, onError, onVimModeChange, value])
+      onVimWriteRef.current = onVimWrite
+      onVimQuitRef.current = onVimQuit
+    }, [active, editable, onChange, onError, onVimModeChange, onVimWrite, onVimQuit, value])
 
     useLayoutEffect(() => {
       optionsRef.current = options ?? {}
@@ -329,7 +406,13 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
 
     useImperativeHandle(
       forwardedRef,
-      () => ({ focus: () => focusRichMarkdownEditor(editorRef.current) }),
+      () => ({
+        focus: () => focusRichMarkdownEditor(editorRef.current),
+        getCursorOffset: () =>
+          editorRef.current ? richMarkdownCursorOffset(editorRef.current, valueRef.current) : null,
+        setCursorOffset: (offset) =>
+          focusRichMarkdownEditor(editorRef.current, false, null, offset, valueRef.current)
+      }),
       []
     )
 
@@ -383,7 +466,13 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
         .use(richMarkdownMath)
         .use(publisher)
         .use(history)
-      if (vimEnabled) editor.use(richMarkdownVim((mode) => onVimModeChangeRef.current?.(mode)))
+      if (vimEnabled)
+        editor.use(
+          richMarkdownVim((mode) => onVimModeChangeRef.current?.(mode), {
+            write: () => onVimWriteRef.current?.(),
+            quit: () => onVimQuitRef.current?.()
+          })
+        )
       if (presentation === 'detail') editor.use(richMarkdownActiveLine)
       editor.config((ctx) => {
         ctx.set(rootCtx, host)
@@ -459,7 +548,12 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
             publishedRef.current = current.prefix + current.body
           }
           if (activeRef.current && editableRef.current) {
-            focusRichMarkdownEditor(editor, true, preserveScrollTopRef?.current ?? null)
+            const cursorOffset = preserveCursorOffsetRef?.current ?? null
+            if (cursorOffset != null) {
+              focusRichMarkdownEditor(editor, false, null, cursorOffset, valueRef.current)
+            } else {
+              focusRichMarkdownEditor(editor, true, preserveScrollTopRef?.current ?? null)
+            }
           }
         })
         .catch((error: unknown) => {
@@ -475,7 +569,7 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
         if (editorRef.current === editor) editorRef.current = null
         void editor.destroy()
       }
-    }, [presentation, preserveScrollTopRef, vimEnabled])
+    }, [presentation, preserveScrollTopRef, preserveCursorOffsetRef, vimEnabled])
 
     useEffect(() => {
       const editor = editorRef.current
