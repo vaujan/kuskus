@@ -24,11 +24,13 @@ export function NoteFind({
 }): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [matchCase, setMatchCase] = useState(false)
   const [current, setCurrent] = useState(0)
   const [total, setTotal] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const queryRef = useRef('')
   const currentRef = useRef(0)
+  const matchCaseRef = useRef(false)
   const navigateRef = useRef(false)
   const observerRef = useRef<MutationObserver | null>(null)
   const debounceRef = useRef<number | null>(null)
@@ -44,7 +46,8 @@ export function NoteFind({
   const applyHighlights = useCallback((): void => {
     const scope = scopeRef.current
     if (!scope) return
-    const normalized = queryRef.current.toLocaleLowerCase()
+    const query = queryRef.current
+    const normalized = matchCaseRef.current ? query : query.toLocaleLowerCase()
     observerRef.current?.disconnect()
 
     unwrapFindMarks(scope)
@@ -71,7 +74,8 @@ export function NoteFind({
     for (const textNode of textNodes) {
       const value = textNode.nodeValue ?? ''
       let rest = value
-      let found = rest.toLocaleLowerCase().indexOf(normalized)
+      let searchable = matchCaseRef.current ? rest : rest.toLocaleLowerCase()
+      let found = searchable.indexOf(normalized)
       while (found !== -1) {
         const before = rest.slice(0, found)
         if (before) textNode.parentNode?.insertBefore(document.createTextNode(before), textNode)
@@ -84,7 +88,8 @@ export function NoteFind({
         mark.textContent = rest.slice(found, found + normalized.length)
         textNode.parentNode?.insertBefore(mark, textNode)
         rest = rest.slice(found + normalized.length)
-        found = rest.toLocaleLowerCase().indexOf(normalized)
+        searchable = matchCaseRef.current ? rest : rest.toLocaleLowerCase()
+        found = searchable.indexOf(normalized)
         index += 1
       }
       if (rest) textNode.parentNode?.insertBefore(document.createTextNode(rest), textNode)
@@ -116,6 +121,11 @@ export function NoteFind({
     if (query) requestApply()
     else applyHighlights()
   }, [active, applyHighlights, query, requestApply])
+
+  useEffect(() => {
+    matchCaseRef.current = matchCase
+    if (active) requestApply()
+  }, [active, matchCase, requestApply])
 
   useEffect(() => {
     if (!enabled) return
@@ -180,15 +190,15 @@ export function NoteFind({
 
   return (
     <div
-      className="absolute top-2 right-2 z-40 flex items-center gap-1 rounded-lg border border-border/70 bg-popover/95 p-1 shadow-[0_4px_16px_rgb(0_0_0/0.12)] backdrop-blur-sm"
+      className="absolute top-2 right-2 z-40 flex items-center gap-1.5 rounded-xl border border-border/70 bg-[var(--window-toolbar)] px-3 py-2 shadow-[0_4px_16px_rgb(0_0_0/0.12)]"
       role="group"
       aria-label="Find in note"
     >
-      <IconSearch aria-hidden="true" className="ml-1.5 size-4 shrink-0 text-muted-foreground" />
+      <IconSearch aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
       <input
         ref={inputRef}
         data-kuskus-find-input
-        type="text"
+        type="search"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         onKeyDown={(event) => {
@@ -200,9 +210,9 @@ export function NoteFind({
             changeOpen(false)
           }
         }}
-        placeholder="Find"
+        placeholder="Search"
         aria-label="Find in note"
-        className="h-7 w-40 min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+        className="h-(--control-height-sm) w-40 min-w-0 rounded-xl border border-transparent bg-[color-mix(in_oklch,var(--input)_50%,transparent)] px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-[var(--ring)] focus:shadow-[0_0_0_3px_color-mix(in_oklch,var(--ring)_30%,transparent)]"
       />
       <span
         aria-live="polite"
@@ -212,7 +222,7 @@ export function NoteFind({
       </span>
       <button
         type="button"
-        className="grid size-7 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="grid h-(--control-height-sm) w-7 cursor-pointer place-items-center rounded-xl bg-[var(--secondary)] text-[var(--secondary-foreground)] transition-colors hover:bg-[var(--muted)] disabled:pointer-events-none disabled:opacity-40"
         aria-label="Previous match"
         disabled={total === 0}
         onClick={() => goTo(current - 1)}
@@ -221,16 +231,25 @@ export function NoteFind({
       </button>
       <button
         type="button"
-        className="grid size-7 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="grid h-(--control-height-sm) w-7 cursor-pointer place-items-center rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] transition-colors hover:bg-[color-mix(in_oklch,var(--primary)_80%,var(--foreground))] disabled:pointer-events-none disabled:opacity-40"
         aria-label="Next match"
         disabled={total === 0}
         onClick={() => goTo(current + 1)}
       >
         <IconChevronDown aria-hidden="true" className="size-4" />
       </button>
+      <label className="flex cursor-pointer items-center gap-1 text-xs text-muted-foreground select-none">
+        <input
+          type="checkbox"
+          className="size-3.5 accent-[var(--primary)]"
+          checked={matchCase}
+          onChange={(event) => setMatchCase(event.target.checked)}
+        />
+        Case
+      </label>
       <button
         type="button"
-        className="grid size-7 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="grid size-7 cursor-pointer place-items-center rounded-xl bg-[var(--secondary)] text-[var(--secondary-foreground)] transition-colors hover:bg-[var(--muted)]"
         aria-label="Close find"
         onClick={() => changeOpen(false)}
       >

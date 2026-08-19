@@ -1356,8 +1356,8 @@ test('toggles Markdown emphasis markers while preserving the intended selection'
 test('uses predictable note-mode keyboard transitions', () => {
   assert.equal(toggleReadLive('read'), 'live')
   assert.equal(toggleReadLive('live'), 'read')
-  assert.equal(toggleReadLive('markdown'), 'live')
-  assert.equal(toggleReadLive('split'), 'live')
+  assert.equal(toggleReadLive('markdown'), 'read')
+  assert.equal(toggleReadLive('split'), 'read')
   assert.equal(toggleSourceMode('read'), 'markdown')
   assert.equal(toggleSourceMode('live'), 'markdown')
   assert.equal(toggleSourceMode('markdown'), 'live')

@@ -181,24 +181,24 @@ export const MarkdownPreview = memo(function MarkdownPreview({
     }
   }, [presentation, value])
 
-  let taskIndex = 0
   const components: Components = {
-    input: ({ checked }) => {
-      const index = taskIndex++
-      return (
-        <input
-          type="checkbox"
-          className="kuskus-task-checkbox"
-          checked={Boolean(checked)}
-          disabled={!onChange}
-          aria-label={checked ? 'Completed task' : 'Open task'}
-          onClick={(event) => event.stopPropagation()}
-          onChange={(event) =>
-            onChange?.(setMarkdownTaskChecked(value, index, event.target.checked))
-          }
-        />
-      )
-    },
+    input: ({ checked }) => (
+      <input
+        type="checkbox"
+        className="kuskus-task-checkbox"
+        checked={Boolean(checked)}
+        disabled={!onChange}
+        aria-label={checked ? 'Completed task' : 'Open task'}
+        onClick={(event) => event.stopPropagation()}
+        onChange={(event) => {
+          const root = event.currentTarget.closest('.typeset')
+          const checkboxes = [...(root?.querySelectorAll('.kuskus-task-checkbox') ?? [])]
+          onChange?.(
+            setMarkdownTaskChecked(value, checkboxes.indexOf(event.currentTarget), !checked)
+          )
+        }}
+      />
+    ),
     li: ({ className, children, ...props }) => {
       if (
         !String(className ?? '')
@@ -219,10 +219,14 @@ export const MarkdownPreview = memo(function MarkdownPreview({
           </li>
         )
       }
+      const checked =
+        isValidElement<{ checked?: boolean }>(checkbox) && checkbox.props.checked === true
       return (
         <li className={className} {...props}>
           {checkbox}
-          <div className="kuskus-rich-task-content">{rest}</div>
+          <div className={cn('kuskus-rich-task-content', checked && 'kuskus-task-checked')}>
+            {rest}
+          </div>
         </li>
       )
     },

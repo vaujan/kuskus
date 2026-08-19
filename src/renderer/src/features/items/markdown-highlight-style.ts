@@ -2,50 +2,67 @@ import { HighlightStyle } from '@codemirror/language'
 import { tags } from '@lezer/highlight'
 
 export const markdownHighlightStyle = HighlightStyle.define([
+  // Headings keep a readable outline. The hash markers below share the
+  // Markdown accent, so the document structure reads at a glance.
   {
     tag: tags.heading1,
-    color: 'var(--foreground)',
     fontSize: '1.375rem',
     lineHeight: '2rem',
     fontWeight: '600'
   },
   {
     tag: tags.heading2,
-    color: 'var(--foreground)',
     fontSize: '1.1875rem',
     lineHeight: '1.75rem',
     fontWeight: '600'
   },
   {
     tag: tags.heading3,
-    color: 'var(--foreground)',
     fontSize: '1.0625rem',
     lineHeight: '1.625rem',
     fontWeight: '600'
   },
   {
     tag: [tags.heading4, tags.heading5, tags.heading6],
-    color: 'var(--foreground)',
     fontWeight: '600'
   },
-  { tag: tags.strong, color: 'var(--foreground)', fontWeight: '600' },
-  { tag: tags.emphasis, color: 'var(--foreground)', fontStyle: 'italic' },
+
+  // Inline emphasis.
+  { tag: tags.strong, fontWeight: '600' },
+  { tag: tags.emphasis, fontStyle: 'italic' },
   {
-    tag: [tags.link, tags.url],
-    color: 'var(--foreground)',
-    textDecoration: 'underline',
-    textDecorationColor: 'color-mix(in oklab, currentColor 35%, transparent)'
+    tag: tags.strikethrough,
+    color: 'var(--muted-foreground)',
+    textDecoration: 'line-through'
   },
+
+  // Links: the label takes the primary accent, the destination stays muted.
+  { tag: tags.link, color: 'var(--primary)' },
+  { tag: tags.url, color: 'var(--muted-foreground)' },
+
+  // Inline code and fenced-code language labels.
   {
     tag: tags.monospace,
-    color: 'var(--foreground)',
-    backgroundColor: 'var(--muted)',
+    backgroundColor: 'var(--code-background)',
     borderRadius: '0.25rem'
   },
+  { tag: tags.labelName, color: 'oklch(0.7 0.13 210)', fontWeight: '500' },
+
+  // Blocks.
   { tag: tags.quote, color: 'var(--muted-foreground)', fontStyle: 'italic' },
-  { tag: tags.list, color: 'var(--muted-foreground)' },
+
+  // Leading YAML frontmatter reads as subdued metadata, not headings.
+  { tag: tags.meta, color: 'var(--muted-foreground)', fontWeight: '400' },
+
+  // GFM task checkboxes read as interactive markers.
+  { tag: tags.atom, color: 'var(--primary)' },
+
+  // Markdown punctuation sits last so the accent wins on marker nodes that
+  // also carry a structural tag (heading, strong, link, quote, …).
+  // lezer-markdown tags every markup mark (header, list, quote, emphasis,
+  // code, link, strike) as processingInstruction/contentSeparator.
   {
-    tag: [tags.meta, tags.punctuation, tags.contentSeparator],
-    color: 'color-mix(in oklab, var(--muted-foreground) 78%, transparent)'
+    tag: [tags.processingInstruction, tags.contentSeparator],
+    color: 'color-mix(in oklch, var(--primary) 62%, var(--foreground) 38%)'
   }
 ])

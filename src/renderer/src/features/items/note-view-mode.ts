@@ -2,7 +2,7 @@ export type NoteMode = 'read' | 'live' | 'markdown' | 'split'
 export type SinglePaneNoteMode = Exclude<NoteMode, 'split'>
 
 export function toggleReadLive(mode: NoteMode): SinglePaneNoteMode {
-  return mode === 'live' ? 'read' : 'live'
+  return mode === 'read' ? 'live' : 'read'
 }
 
 export function toggleSourceMode(mode: NoteMode): SinglePaneNoteMode {

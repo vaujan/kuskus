@@ -9,7 +9,7 @@
     --typeset-muted: var(--muted-foreground);
     --typeset-rule: color-mix(in oklch, var(--foreground) 30%, transparent);
     --typeset-body-color: color-mix(in oklch, var(--foreground) 85%, transparent);
-    --typeset-code-background: var(--muted);
+    --typeset-code-background: var(--code-background);
     --typeset-image-outline: rgb(0 0 0 / 10%);
   }
 
@@ -28,6 +28,18 @@
 
   .kuskus-typeset[data-typeset-presentation='detail'] {
     --typeset-size: 16px;
+  }
+
+  .kuskus-typeset[data-typeset-presentation='snippet'] {
+    --typeset-size: 13px;
+  }
+
+  .kuskus-typeset[data-typeset-presentation='snippet-compact'] {
+    --typeset-size: 12px;
+  }
+
+  .kuskus-typeset :not(pre) > code {
+    background-color: var(--typeset-code-background);
   }
 
   .kuskus-detail-document-frame,
@@ -170,10 +182,14 @@
     margin-block-start: 0.375rem;
     flex: none;
     appearance: none;
-    border: 1px solid var(--input);
+    border: 1px solid color-mix(in oklch, var(--foreground) 40%, transparent);
     border-radius: 4px;
-    background: transparent;
+    background: color-mix(in oklch, var(--foreground) 10%, transparent);
     cursor: pointer;
+  }
+
+  .kuskus-task-checkbox:hover {
+    border-color: color-mix(in oklch, var(--foreground) 52%, transparent);
   }
 
   .kuskus-task-checkbox:checked {
@@ -224,6 +240,16 @@
 
   .kuskus-rich-task-content > :first-child {
     margin-block-start: 0;
+  }
+
+  .kuskus-rich-task-content.kuskus-task-checked {
+    color: var(--typeset-muted);
+    text-decoration-line: line-through;
+    text-decoration-color: color-mix(in oklab, currentColor 45%, transparent);
+  }
+
+  .kuskus-rich-task-content.kuskus-task-checked :where(h1, h2, h3, h4, h5, h6) {
+    color: inherit;
   }
 
   .kuskus-rich-image-wrap {
@@ -401,37 +427,105 @@
   .tok-controlKeyword,
   .tok-definitionKeyword,
   .tok-moduleKeyword {
-    color: oklch(0.65 0.16 280);
+    color: oklch(0.5 0.21 292);
   }
 
   .tok-string,
   .tok-string2,
   .tok-special\:tok-string {
-    color: oklch(0.7 0.14 150);
+    color: oklch(0.49 0.17 150);
   }
 
   .tok-typeName,
   .tok-className {
-    color: oklch(0.7 0.13 210);
+    color: oklch(0.48 0.17 210);
   }
 
   .tok-variableName.tok-definition,
   .tok-propertyName {
-    color: oklch(0.68 0.14 250);
+    color: oklch(0.5 0.17 250);
   }
 
   .tok-number,
   .tok-bool,
   .tok-null {
-    color: oklch(0.72 0.15 55);
+    color: oklch(0.52 0.18 55);
   }
 
   .tok-comment {
+    color: oklch(0.49 0 0);
+    font-style: italic;
+  }
+
+  .dark .tok-keyword,
+  .dark .tok-operator,
+  .dark .tok-controlKeyword,
+  .dark .tok-definitionKeyword,
+  .dark .tok-moduleKeyword {
+    color: oklch(0.7 0.16 280);
+  }
+
+  .dark .tok-string,
+  .dark .tok-string2,
+  .dark .tok-special\:tok-string {
+    color: oklch(0.78 0.13 150);
+  }
+
+  .dark .tok-typeName,
+  .dark .tok-className {
+    color: oklch(0.78 0.12 210);
+  }
+
+  .dark .tok-variableName.tok-definition,
+  .dark .tok-propertyName {
+    color: oklch(0.72 0.13 250);
+  }
+
+  .dark .tok-number,
+  .dark .tok-bool,
+  .dark .tok-null {
+    color: oklch(0.8 0.13 55);
+  }
+
+  .dark .tok-comment {
     color: var(--typeset-muted);
     font-style: italic;
   }
 
   .dark .kuskus-typeset {
     --typeset-image-outline: rgb(255 255 255 / 10%);
+  }
+
+  @media (prefers-contrast: more) {
+    .kuskus-typeset {
+      --typeset-code-background: oklch(0.8 0 0);
+    }
+
+    .dark .kuskus-typeset {
+      --typeset-code-background: oklch(0.4 0 0);
+    }
+
+    .kuskus-task-checkbox {
+      border-color: color-mix(in oklch, var(--foreground) 65%, transparent);
+    }
+  }
+
+  @media (forced-colors: active) {
+    .kuskus-task-checkbox {
+      border: 1px solid CanvasText;
+      background: ButtonFace;
+    }
+
+    .kuskus-task-checkbox:checked {
+      background: Highlight;
+    }
+
+    .kuskus-task-checkbox:checked::after {
+      border-color: HighlightText;
+    }
+
+    .kuskus-code-block {
+      border: 1px solid CanvasText;
+    }
   }
 }
