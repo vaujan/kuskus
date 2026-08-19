@@ -36,6 +36,13 @@ import {
   runRichMarkdownSlashCommand,
   type RichMarkdownSlashState
 } from '@/features/items/rich-markdown-slash-menu-plugin'
+import {
+  richMarkdownTableToolbar,
+  runRichMarkdownTableAction,
+  type RichMarkdownTableAction,
+  type RichMarkdownTableToolbarState
+} from '@/features/items/rich-markdown-table-toolbar-plugin'
+import { RichMarkdownTableToolbar } from '@/features/items/rich-markdown-table-toolbar'
 import { partitionRichMarkdownSource } from '@/features/items/rich-markdown-source'
 import {
   prepareRichMarkdown,
@@ -296,6 +303,8 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
     const publishedRef = useRef<string | null>(value)
     const [failed, setFailed] = useState(false)
     const [slashState, setSlashState] = useState<RichMarkdownSlashState | null>(null)
+    const [tableToolbarState, setTableToolbarState] =
+      useState<RichMarkdownTableToolbarState | null>(null)
 
     useLayoutEffect(() => {
       valueRef.current = value
@@ -352,15 +361,17 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
         setSlashState,
         (state, id) =>
           editorRef.current?.action((ctx) =>
-            runRichMarkdownSlashCommand(ctx.get(editorViewCtx), state, id)
+            runRichMarkdownSlashCommand(ctx, ctx.get(editorViewCtx), state, id)
           ),
         () => editableRef.current
       )
+      const tableToolbar = richMarkdownTableToolbar(setTableToolbarState, () => editableRef.current)
       const editor = Editor.make()
         .use(commonmark)
         .use(gfm)
         .use(richMarkdownCode)
         .use(slashMenu)
+        .use(tableToolbar)
         .use(richMarkdownMath)
         .use(publisher)
         .use(history)
@@ -494,7 +505,17 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
             state={slashState}
             onSelect={(id) =>
               editorRef.current?.action((ctx) =>
-                runRichMarkdownSlashCommand(ctx.get(editorViewCtx), slashState, id)
+                runRichMarkdownSlashCommand(ctx, ctx.get(editorViewCtx), slashState, id)
+              )
+            }
+          />
+        ) : null}
+        {tableToolbarState && editable ? (
+          <RichMarkdownTableToolbar
+            state={tableToolbarState}
+            onAction={(action: RichMarkdownTableAction) =>
+              editorRef.current?.action((ctx) =>
+                runRichMarkdownTableAction(ctx.get(editorViewCtx), ctx, action)
               )
             }
           />

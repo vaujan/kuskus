@@ -1,3 +1,4 @@
+import { commandsCtx, type Editor } from '@milkdown/core'
 import { setBlockType, wrapIn } from '@milkdown/prose/commands'
 import { wrapInList } from '@milkdown/prose/schema-list'
 import type { EditorState } from '@milkdown/prose/state'
@@ -25,7 +26,8 @@ export const richMarkdownSlashCommands = [
   { id: 'numbered-list', label: 'Numbered list', description: 'Create an ordered list' },
   { id: 'quote', label: 'Quote', description: 'Capture a quotation' },
   { id: 'code', label: 'Code block', description: 'Add a fenced code block' },
-  { id: 'divider', label: 'Divider', description: 'Separate sections' }
+  { id: 'divider', label: 'Divider', description: 'Separate sections' },
+  { id: 'table', label: 'Table', description: 'Insert a table' }
 ] as const
 
 export type RichMarkdownSlashCommandId = (typeof richMarkdownSlashCommands)[number]['id']
@@ -51,7 +53,10 @@ function currentSlashState(
   return { query, from: cursor.pos - query.length - 1, to: cursor.pos }
 }
 
+type MilkdownCtx = Parameters<Parameters<Editor['action']>[0]>[0]
+
 export function runRichMarkdownSlashCommand(
+  ctx: MilkdownCtx,
   view: EditorView,
   state: RichMarkdownSlashState,
   id: RichMarkdownSlashCommandId
@@ -66,6 +71,11 @@ export function runRichMarkdownSlashCommand(
     return
   }
   view.dispatch(view.state.tr.delete(state.from, state.to))
+  if (id === 'table') {
+    ctx.get(commandsCtx).call('InsertTable', { row: 3, col: 3 })
+    view.focus()
+    return
+  }
   const { schema } = view.state
   const command =
     id === 'text'

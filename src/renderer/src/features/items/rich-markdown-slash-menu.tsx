@@ -8,6 +8,7 @@ import {
   IconPilcrow,
   IconQuote,
   IconSeparator,
+  IconTable,
   type TablerIcon
 } from '@tabler/icons-react'
 import { createPortal } from 'react-dom'
@@ -34,7 +35,8 @@ const icons: Record<RichMarkdownSlashCommandId, TablerIcon> = {
   'numbered-list': IconListNumbers,
   quote: IconQuote,
   code: IconCode,
-  divider: IconSeparator
+  divider: IconSeparator,
+  table: IconTable
 }
 
 export function RichMarkdownSlashMenu({
