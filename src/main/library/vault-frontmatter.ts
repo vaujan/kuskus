@@ -3,6 +3,7 @@ import { dirname, relative, resolve } from 'node:path'
 import { isMap, parseDocument } from 'yaml'
 
 import {
+  encodeMarkdownPath,
   normalizeMarkdownImageTarget,
   parseMarkdownImageReferences,
   rewriteMarkdownImageDestinations
@@ -204,17 +205,7 @@ export function resolveVaultReferencePath(
 function encodedRelativePath(fromFile: string, toFile: string): string {
   const value = relative(dirname(fromFile), toFile).replace(/\\/g, '/')
   const portable = value.startsWith('.') ? value : `./${value}`
-  return portable
-    .split('/')
-    .map((segment) =>
-      segment === '.' || segment === '..'
-        ? segment
-        : encodeURIComponent(segment).replace(
-            /[!'()*]/g,
-            (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`
-          )
-    )
-    .join('/')
+  return encodeMarkdownPath(portable)
 }
 
 function safeDecodeURIComponent(value: string): string {

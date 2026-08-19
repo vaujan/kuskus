@@ -116,8 +116,8 @@ export function markdownImageTargetKey(value: string): string {
   return normalizeMarkdownImageTarget(value).replace(/^\.\//, '').toLocaleLowerCase()
 }
 
-export function encodeMarkdownImageTarget(value: string): string {
-  return normalizeMarkdownImageTarget(value)
+export function encodeMarkdownPath(path: string): string {
+  return path
     .split('/')
     .map((segment) =>
       segment === '.' || segment === '..'
@@ -128,6 +128,10 @@ export function encodeMarkdownImageTarget(value: string): string {
           )
     )
     .join('/')
+}
+
+export function encodeMarkdownImageTarget(value: string): string {
+  return encodeMarkdownPath(normalizeMarkdownImageTarget(value))
 }
 
 export function rewriteMarkdownImageDestinations(

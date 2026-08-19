@@ -1,25 +1,13 @@
 import { dirname, join, relative, resolve, sep } from 'node:path'
 
+import { encodeMarkdownPath } from '../../shared/markdown-image-references'
+
 export type AttachmentPlacementPolicy = { kind: 'same-folder' }
 
 export const DEFAULT_ATTACHMENT_PLACEMENT: AttachmentPlacementPolicy = { kind: 'same-folder' }
 
 function slash(path: string): string {
   return path.replace(/\\/g, '/')
-}
-
-function encodeMarkdownPath(path: string): string {
-  return path
-    .split('/')
-    .map((segment) =>
-      segment === '.' || segment === '..'
-        ? segment
-        : encodeURIComponent(segment).replace(
-            /[!'()*]/g,
-            (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`
-          )
-    )
-    .join('/')
 }
 
 export interface ResolvedAttachmentPlacement {
