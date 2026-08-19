@@ -1,0 +1,46 @@
+/* Theme overrides for vim-prosemirror (the live/rich editor). The library's
+   vim-mode.css is injected with the lazy editor chunk, so these rules are
+   scoped with higher specificity to win regardless of stylesheet order. */
+
+.ProseMirror .vim-block-cursor,
+.ProseMirror .vim-block-cursor-eol {
+  background: var(--foreground);
+  color: var(--background);
+  border-radius: 2px;
+}
+
+.ProseMirror .vim-visual-selection,
+.ProseMirror .vim-visual-selection-line {
+  background: color-mix(in oklch, var(--primary) 25%, transparent);
+}
+
+/* Search bar follows the editor surface instead of the library's light default. */
+.milkdown .vim-search-bar {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  background: var(--popover);
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  min-height: 28px;
+}
+
+.milkdown .vim-search-prefix {
+  color: var(--muted-foreground);
+}
+
+.milkdown .vim-search-input,
+.milkdown .vim-search-cursor {
+  color: var(--foreground);
+}
+
+.milkdown .vim-search-match {
+  background: color-mix(in oklch, var(--primary) 25%, transparent);
+  border-radius: 1px;
+}
+
+.milkdown .vim-search-match-current {
+  background: color-mix(in oklch, var(--primary) 55%, transparent);
+  border-radius: 1px;
+}

@@ -8,10 +8,19 @@ import {
 } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
 import { bracketMatching, syntaxHighlighting, syntaxTree } from '@codemirror/language'
-import { EditorSelection, EditorState, RangeSetBuilder, Transaction } from '@codemirror/state'
+import {
+  EditorSelection,
+  EditorState,
+  Prec,
+  RangeSetBuilder,
+  StateEffect,
+  Transaction,
+  type Extension
+} from '@codemirror/state'
 import {
   Decoration,
   DecorationSet,
+  drawSelection,
   EditorView,
   highlightActiveLine,
   highlightSpecialChars,
@@ -49,6 +58,14 @@ import { markdownTableGuides } from '@/features/items/markdown-table-guides'
 import { cn } from '@/lib/utils'
 import { markdownCodeLanguage } from '@/features/items/markdown-code'
 import { markdownSearchTheme } from '@/features/items/markdown-search-theme'
+import {
+  markdownVim,
+  registerMarkdownVimActions,
+  unregisterMarkdownVimActions,
+  unwireMarkdownVimMode,
+  wireMarkdownVimMode
+} from '@/features/items/markdown-vim'
+import type { NoteVimMode } from '@/features/items/note-vim-mode'
 
 export interface MarkdownEditorHandle {
   focus: () => void
@@ -66,6 +83,10 @@ interface MarkdownEditorProps {
   onChange: (value: string) => void
   onPasteImage?: (file: File, insertAtSelection: (src: string) => void) => void
   onScroll?: (scroller: HTMLElement) => void
+  vimEnabled?: boolean
+  onVimModeChange?: (mode: NoteVimMode | null) => void
+  onVimWrite?: () => void
+  onVimQuit?: () => void
 }
 
 const editorTheme = EditorView.theme({
@@ -110,11 +131,44 @@ const editorTheme = EditorView.theme({
   },
   '.cm-markdown-header:not(:empty)': { paddingBottom: '1.5rem' },
   '.cm-kuskus-task-marker': { cursor: 'pointer' },
+  // Text selection follows the primary theme instead of the neutral default.
+  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
+    backgroundColor: 'color-mix(in oklch, var(--primary) 25%, transparent)'
+  },
+  '&::selection, & ::selection': {
+    backgroundColor: 'color-mix(in oklch, var(--primary) 25%, transparent)'
+  },
   '&.cm-kuskus-detail-editor.cm-focused .cm-activeLine': {
     backgroundColor: 'color-mix(in oklab, var(--foreground) 7%, transparent)',
     borderRadius: '0.25rem'
   }
 })
+
+// Vim mode reuses the native text selection instead of CodeMirror's padded
+// selection rectangles, so the highlight hugs the glyphs like the other note
+// modes. Both libraries hide native selection via `Prec.highest` themes that
+// are mounted AFTER ours (order is reversed), so these rules must beat them
+// with a higher-specificity selector, not with ordering.
+const vimModeTheme = Prec.highest(
+  EditorView.theme({
+    '.cm-cursor': { borderLeftColor: 'var(--foreground)' },
+    '.cm-vimMode .cm-selectionBackground': { display: 'none' },
+    '.cm-kuskus-detail-editor .cm-vimMode .cm-line::selection, .cm-kuskus-detail-editor .cm-vimMode .cm-line ::selection':
+      {
+        backgroundColor: 'color-mix(in oklch, var(--primary) 25%, transparent) !important'
+      },
+    '.cm-vimMode .cm-fat-cursor': {
+      background: 'var(--foreground)',
+      color: 'var(--background) !important',
+      border: 'none'
+    },
+    '.cm-editor:not(.cm-focused) .cm-vimMode .cm-fat-cursor': {
+      background: 'none',
+      outlineColor: 'var(--foreground)',
+      color: 'transparent !important'
+    }
+  })
+)
 
 class MarkdownHeaderWidget extends WidgetType {
   toDOM(): HTMLElement {
@@ -215,7 +269,19 @@ function markerCommand(marker: '*' | '**'): (view: EditorView) => boolean {
 
 export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(
   function MarkdownEditor(
-    { value, active, className, header, onChange, onPasteImage, onScroll },
+    {
+      value,
+      active,
+      className,
+      header,
+      onChange,
+      onPasteImage,
+      onScroll,
+      vimEnabled,
+      onVimModeChange,
+      onVimWrite,
+      onVimQuit
+    },
     forwardedRef
   ): React.JSX.Element {
     const hostRef = useRef<HTMLDivElement>(null)
@@ -226,10 +292,18 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     const onChangeRef = useRef(onChange)
     const onPasteImageRef = useRef(onPasteImage)
     const onScrollRef = useRef(onScroll)
+    const onVimModeChangeRef = useRef(onVimModeChange)
+    const onVimWriteRef = useRef(onVimWrite)
+    const onVimQuitRef = useRef(onVimQuit)
+    const baseExtensionsRef = useRef<Extension[]>([])
+    const vimActiveRef = useRef(false)
     useLayoutEffect(() => {
       onChangeRef.current = onChange
       onPasteImageRef.current = onPasteImage
       onScrollRef.current = onScroll
+      onVimModeChangeRef.current = onVimModeChange
+      onVimWriteRef.current = onVimWrite
+      onVimQuitRef.current = onVimQuit
     })
 
     useImperativeHandle(
@@ -254,116 +328,121 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       const host = hostRef.current
       if (!host) return
 
+      const baseExtensions: Extension[] = [
+        history(),
+        EditorView.lineWrapping,
+        markdown({ extensions: [GFM, markdownFrontmatter], codeLanguages: markdownCodeLanguage }),
+        bracketMatching(),
+        highlightSpecialChars(),
+        highlightActiveLine(),
+        highlightSelectionMatches(),
+        drawSelection(),
+        EditorView.editorAttributes.of({ class: 'cm-kuskus-detail-editor' }),
+        // Keep the cursor roughly four lines above the pane bottom while
+        // typing instead of letting it settle at the last line.
+        EditorView.scrollMargins.of(() => ({ bottom: 112 })),
+        markdownHeader,
+        taskMarkerPlugin,
+        markdownTableGuides,
+        editorTheme,
+        vimModeTheme,
+        markdownSearchTheme,
+        syntaxHighlighting(markdownHighlightStyle),
+        keymap.of([
+          { key: 'Mod-b', preventDefault: true, run: markerCommand('**') },
+          { key: 'Mod-i', preventDefault: true, run: markerCommand('*') },
+          { key: 'Mod-Shift-T', preventDefault: true, run: insertMarkdownTable },
+          { key: 'Mod-Alt-T', preventDefault: true, run: formatMarkdownTable },
+          { key: 'Tab', run: (view) => moveTableCursor(view, 1) },
+          { key: 'Shift-Tab', run: (view) => moveTableCursor(view, -1) },
+          { key: 'Enter', run: continueTable },
+          { key: 'Ctrl-Enter', run: insertTableRowBelow },
+          { key: 'Alt-ArrowUp', run: (view) => moveTableRow(view, -1) },
+          { key: 'Alt-ArrowDown', run: (view) => moveTableRow(view, 1) },
+          indentWithTab,
+          ...defaultKeymap,
+          ...historyKeymap,
+          ...searchKeymap
+        ]),
+        EditorView.contentAttributes.of({
+          'aria-label': 'Markdown editor',
+          autocapitalize: 'off',
+          autocomplete: 'off',
+          spellcheck: 'true'
+        }),
+        EditorView.domEventHandlers({
+          mousedown: (event, editor) => {
+            if (event.button !== 0) return false
+            const position = editor.posAtCoords({ x: event.clientX, y: event.clientY })
+            if (position === null) return false
+            const marker = taskMarkerAt(editor, position)
+            if (marker === -1) return false
+            event.preventDefault()
+            toggleTaskCheckbox(editor, marker)
+            return true
+          },
+          paste: (event, editor) => {
+            const file = Array.from(event.clipboardData?.items ?? [])
+              .find((entry) => entry.type.startsWith('image/'))
+              ?.getAsFile()
+            const pasteImage = onPasteImageRef.current
+            if (file && pasteImage) {
+              event.preventDefault()
+              const { from, to } = editor.state.selection.main
+              const pastedInto = editor.state.doc
+              pasteImage(file, (src) => {
+                if (viewRef.current !== editor) return
+                const range =
+                  editor.state.doc === pastedInto ? { from, to } : editor.state.selection.main
+                const image = `![image](${src})`
+                editor.dispatch({
+                  changes: { from: range.from, to: range.to, insert: image },
+                  selection: { anchor: range.from + image.length },
+                  userEvent: 'input.paste'
+                })
+                editor.focus()
+              })
+              return true
+            }
+            const text = event.clipboardData?.getData('text/plain') ?? ''
+            const table = convertTablePaste(text)
+            if (!table) return false
+            event.preventDefault()
+            const { from, to } = editor.state.selection.main
+            const prefix =
+              from > 0 && editor.state.doc.sliceString(from - 1, from) !== '\n' ? '\n' : ''
+            const suffix =
+              to < editor.state.doc.length && editor.state.doc.sliceString(to, to + 1) !== '\n'
+                ? '\n'
+                : ''
+            const insert = `${prefix}${table}${suffix}`
+            editor.dispatch({
+              changes: { from, to, insert },
+              selection: { anchor: from + prefix.length },
+              userEvent: 'input.paste'
+            })
+            editor.focus()
+            return true
+          }
+        }),
+        EditorView.updateListener.of((update) => {
+          const markdownChange = getPublishedMarkdownChange(
+            update.docChanged,
+            update.state.doc.toString()
+          )
+          if (markdownChange !== null) {
+            publishedRef.current = markdownChange
+            onChangeRef.current(markdownChange)
+          }
+        })
+      ]
+      baseExtensionsRef.current = baseExtensions
+
       const view = new EditorView({
         parent: host,
         state: EditorState.create({
           doc: initialValueRef.current,
-          extensions: [
-            history(),
-            EditorView.lineWrapping,
-            markdown({ extensions: [GFM, markdownFrontmatter], codeLanguages: markdownCodeLanguage }),
-            bracketMatching(),
-            highlightSpecialChars(),
-            highlightActiveLine(),
-            highlightSelectionMatches(),
-            EditorView.editorAttributes.of({ class: 'cm-kuskus-detail-editor' }),
-            // Keep the cursor roughly four lines above the pane bottom while
-            // typing instead of letting it settle at the last line.
-            EditorView.scrollMargins.of(() => ({ bottom: 112 })),
-            markdownHeader,
-            taskMarkerPlugin,
-            markdownTableGuides,
-            editorTheme,
-            markdownSearchTheme,
-            syntaxHighlighting(markdownHighlightStyle),
-            keymap.of([
-              { key: 'Mod-b', preventDefault: true, run: markerCommand('**') },
-              { key: 'Mod-i', preventDefault: true, run: markerCommand('*') },
-              { key: 'Mod-Shift-T', preventDefault: true, run: insertMarkdownTable },
-              { key: 'Mod-Alt-T', preventDefault: true, run: formatMarkdownTable },
-              { key: 'Tab', run: (view) => moveTableCursor(view, 1) },
-              { key: 'Shift-Tab', run: (view) => moveTableCursor(view, -1) },
-              { key: 'Enter', run: continueTable },
-              { key: 'Ctrl-Enter', run: insertTableRowBelow },
-              { key: 'Alt-ArrowUp', run: (view) => moveTableRow(view, -1) },
-              { key: 'Alt-ArrowDown', run: (view) => moveTableRow(view, 1) },
-              indentWithTab,
-              ...defaultKeymap,
-              ...historyKeymap,
-              ...searchKeymap
-            ]),
-            EditorView.contentAttributes.of({
-              'aria-label': 'Markdown editor',
-              autocapitalize: 'off',
-              autocomplete: 'off',
-              spellcheck: 'true'
-            }),
-            EditorView.domEventHandlers({
-              mousedown: (event, editor) => {
-                if (event.button !== 0) return false
-                const position = editor.posAtCoords({ x: event.clientX, y: event.clientY })
-                if (position === null) return false
-                const marker = taskMarkerAt(editor, position)
-                if (marker === -1) return false
-                event.preventDefault()
-                toggleTaskCheckbox(editor, marker)
-                return true
-              },
-              paste: (event, editor) => {
-                const file = Array.from(event.clipboardData?.items ?? [])
-                  .find((entry) => entry.type.startsWith('image/'))
-                  ?.getAsFile()
-                const pasteImage = onPasteImageRef.current
-                if (file && pasteImage) {
-                  event.preventDefault()
-                  const { from, to } = editor.state.selection.main
-                  const pastedInto = editor.state.doc
-                  pasteImage(file, (src) => {
-                    if (viewRef.current !== editor) return
-                    const range =
-                      editor.state.doc === pastedInto ? { from, to } : editor.state.selection.main
-                    const image = `![image](${src})`
-                    editor.dispatch({
-                      changes: { from: range.from, to: range.to, insert: image },
-                      selection: { anchor: range.from + image.length },
-                      userEvent: 'input.paste'
-                    })
-                    editor.focus()
-                  })
-                  return true
-                }
-                const text = event.clipboardData?.getData('text/plain') ?? ''
-                const table = convertTablePaste(text)
-                if (!table) return false
-                event.preventDefault()
-                const { from, to } = editor.state.selection.main
-                const prefix =
-                  from > 0 && editor.state.doc.sliceString(from - 1, from) !== '\n' ? '\n' : ''
-                const suffix =
-                  to < editor.state.doc.length && editor.state.doc.sliceString(to, to + 1) !== '\n'
-                    ? '\n'
-                    : ''
-                const insert = `${prefix}${table}${suffix}`
-                editor.dispatch({
-                  changes: { from, to, insert },
-                  selection: { anchor: from + prefix.length },
-                  userEvent: 'input.paste'
-                })
-                editor.focus()
-                return true
-              }
-            }),
-            EditorView.updateListener.of((update) => {
-              const markdownChange = getPublishedMarkdownChange(
-                update.docChanged,
-                update.state.doc.toString()
-              )
-              if (markdownChange !== null) {
-                publishedRef.current = markdownChange
-                onChangeRef.current(markdownChange)
-              }
-            })
-          ]
+          extensions: baseExtensions
         })
       })
       viewRef.current = view
@@ -374,10 +453,35 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
 
       return () => {
         view.scrollDOM.removeEventListener('scroll', handleScroll)
+        unwireMarkdownVimMode(view)
+        unregisterMarkdownVimActions(view)
         view.destroy()
         viewRef.current = null
       }
     }, [])
+
+    useEffect(() => {
+      const view = viewRef.current
+      if (!view || vimEnabled === vimActiveRef.current) return
+      if (!vimEnabled) {
+        unwireMarkdownVimMode(view)
+        unregisterMarkdownVimActions(view)
+        onVimModeChangeRef.current?.(null)
+        view.dispatch({ effects: StateEffect.reconfigure.of(baseExtensionsRef.current) })
+        vimActiveRef.current = false
+        return
+      }
+      registerMarkdownVimActions(view, {
+        write: () => onVimWriteRef.current?.(),
+        quit: () => onVimQuitRef.current?.()
+      })
+      view.dispatch({
+        effects: StateEffect.reconfigure.of([markdownVim, ...baseExtensionsRef.current])
+      })
+      wireMarkdownVimMode(view, (mode) => onVimModeChangeRef.current?.(mode))
+      onVimModeChangeRef.current?.('normal')
+      vimActiveRef.current = true
+    }, [vimEnabled])
 
     useEffect(() => {
       const view = viewRef.current

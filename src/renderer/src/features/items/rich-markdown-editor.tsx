@@ -30,6 +30,8 @@ import { richMarkdownActiveLine } from '@/features/items/rich-markdown-active-li
 import { richMarkdownCode } from '@/features/items/rich-markdown-code'
 import { richMarkdownMath } from '@/features/items/rich-markdown-math'
 import { richMarkdownPublisher } from '@/features/items/rich-markdown-publisher'
+import { richMarkdownVim } from '@/features/items/rich-markdown-vim'
+import type { NoteVimMode } from '@/features/items/note-vim-mode'
 import { RichMarkdownSlashMenu } from '@/features/items/rich-markdown-slash-menu'
 import {
   richMarkdownSlashMenu,
@@ -116,6 +118,8 @@ interface RichMarkdownEditorProps {
   presentation?: 'card' | 'detail'
   preserveScrollTopRef?: React.RefObject<number> | null
   className?: string
+  vimEnabled?: boolean
+  onVimModeChange?: (mode: NoteVimMode | null) => void
   onChange: (value: string) => void
   onError?: (message: string) => void
 }
@@ -286,6 +290,8 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
       presentation = 'detail',
       preserveScrollTopRef = null,
       className,
+      vimEnabled = false,
+      onVimModeChange,
       onChange,
       onError
     },
@@ -300,6 +306,7 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
     const imageRefreshersRef = useRef(new Set<() => void>())
     const onChangeRef = useRef(onChange)
     const onErrorRef = useRef(onError)
+    const onVimModeChangeRef = useRef(onVimModeChange)
     const publishedRef = useRef<string | null>(value)
     const [failed, setFailed] = useState(false)
     const [slashState, setSlashState] = useState<RichMarkdownSlashState | null>(null)
@@ -312,7 +319,8 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
       editableRef.current = editable
       onChangeRef.current = onChange
       onErrorRef.current = onError
-    }, [active, editable, onChange, onError, value])
+      onVimModeChangeRef.current = onVimModeChange
+    }, [active, editable, onChange, onError, onVimModeChange, value])
 
     useLayoutEffect(() => {
       optionsRef.current = options ?? {}
@@ -375,6 +383,7 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
         .use(richMarkdownMath)
         .use(publisher)
         .use(history)
+      if (vimEnabled) editor.use(richMarkdownVim((mode) => onVimModeChangeRef.current?.(mode)))
       if (presentation === 'detail') editor.use(richMarkdownActiveLine)
       editor.config((ctx) => {
         ctx.set(rootCtx, host)
@@ -466,7 +475,7 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
         if (editorRef.current === editor) editorRef.current = null
         void editor.destroy()
       }
-    }, [presentation, preserveScrollTopRef])
+    }, [presentation, preserveScrollTopRef, vimEnabled])
 
     useEffect(() => {
       const editor = editorRef.current
