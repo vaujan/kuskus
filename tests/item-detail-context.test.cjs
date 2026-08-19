@@ -195,9 +195,9 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.match(focusWorkspaceSource, /expanded && 'hidden'/)
   assert.match(focusWorkspaceSource, /split && !expanded/)
   assert.match(focusWorkspaceSource, /data-focus-expanded={expanded}/)
-  assert.doesNotMatch(
+  assert.match(
     windowMaterialStyles,
-    /\.focus-detail-surface\[data-focus-expanded='true'\] \{[^}]*background-color:/
+    /\.focus-detail-surface\[data-focus-expanded='true'\] \{[^}]*background-color: transparent;/
   )
   assert.match(
     windowMaterialStyles,
