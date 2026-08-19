@@ -14,6 +14,7 @@ import {
   revealWindow,
   type GlobalCaptureWindowTarget
 } from './window/global-capture-shortcut'
+import { installApplicationMenu } from './window/app-menu'
 import { WINDOW_CHANNELS } from '../shared/window-contract'
 import { CAPTURE_CHANNELS } from '../shared/capture-contract'
 import { QuickCaptureWindowController } from './window/quick-capture-window'
@@ -121,6 +122,7 @@ if (!hasSingleInstanceLock) {
 
   void app.whenReady().then(async () => {
     electronApp.setAppUserModelId('app.kuskus.desktop')
+    installApplicationMenu()
 
     libraryService = new LibraryService(join(app.getPath('userData'), 'kuskus-settings.json'))
     await libraryService.initialize()
