@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import {
   codeLanguageLabel,
   copyMarkdownCode,
+  ensureCodeLanguageLoaded,
   highlightedCodeRanges,
   isMermaidLanguage
 } from '@/features/items/markdown-code'
@@ -18,8 +19,24 @@ export function MarkdownCodeBlock({
   diagrams?: boolean
 }): React.JSX.Element {
   const [copied, setCopied] = useState(false)
+  const [grammarTick, setGrammarTick] = useState(0)
+
+  // Registry languages lazy-load their grammar; re-highlight once it arrives.
+  useEffect(() => {
+    const loading = ensureCodeLanguageLoaded(language)
+    if (!loading) return
+    let cancelled = false
+    void loading.then(() => {
+      if (!cancelled) setGrammarTick((tick) => tick + 1)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [language])
 
   const highlighted = useMemo(() => {
+    // Re-runs when a lazy registry grammar finishes loading.
+    void grammarTick
     const nodes: React.ReactNode[] = []
     let position = 0
     for (const range of highlightedCodeRanges(code, language)) {
@@ -33,7 +50,7 @@ export function MarkdownCodeBlock({
     }
     if (position < code.length) nodes.push(code.slice(position))
     return nodes
-  }, [code, language])
+  }, [code, language, grammarTick])
 
   if (diagrams && isMermaidLanguage(language)) return <MarkdownMermaid code={code} />
 

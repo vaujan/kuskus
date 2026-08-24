@@ -22,8 +22,10 @@ import {
   DecorationSet,
   EditorView,
   highlightActiveLine,
+  highlightActiveLineGutter,
   highlightSpecialChars,
   keymap,
+  lineNumbers,
   ViewPlugin,
   type ViewUpdate,
   WidgetType
@@ -55,6 +57,7 @@ import {
   moveTableRow
 } from '@/features/items/markdown-table'
 import { markdownTableGuides } from '@/features/items/markdown-table-guides'
+import { indentationMarkers } from '@replit/codemirror-indentation-markers'
 import { cn } from '@/lib/utils'
 import { markdownCodeLanguage } from '@/features/items/markdown-code'
 import { markdownSearchTheme } from '@/features/items/markdown-search-theme'
@@ -129,6 +132,19 @@ const editorTheme = EditorView.theme({
     caretColor: 'currentColor'
   },
   '.cm-line': { padding: '0' },
+  // Line-number gutter follows the document surface: no panel background or
+  // border, just quiet numbers that step aside for the active line.
+  '.cm-gutters': {
+    backgroundColor: 'transparent',
+    border: 'none',
+    fontFamily: 'var(--font-mono)',
+    fontSize: '0.8125rem',
+    color: 'color-mix(in oklch, var(--muted-foreground) 60%, transparent)'
+  },
+  '.cm-activeLineGutter': {
+    backgroundColor: 'transparent',
+    color: 'var(--muted-foreground)'
+  },
   '.cm-markdown-header': {
     width: '100%',
     whiteSpace: 'normal',
@@ -466,10 +482,28 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         history(),
         EditorView.lineWrapping,
         indentUnit.of('    '),
+        // Multi-range selections power the vim plugin's visual block mode and
+        // Alt-click extra cursors; CodeMirror clamps to one range without it.
+        EditorState.allowMultipleSelections.of(true),
         markdown({ extensions: [GFM, markdownFrontmatter], codeLanguages: markdownCodeLanguage }),
         bracketMatching(),
         highlightSpecialChars(),
         highlightActiveLine(),
+        highlightActiveLineGutter(),
+        lineNumbers(),
+        // Quiet guides along nested indentation (lists, code blocks). CSS
+        // variables keep them on the app theme in both light and dark.
+        indentationMarkers({
+          markerType: 'codeOnly',
+          highlightActiveBlock: true,
+          thickness: 1,
+          colors: {
+            light: 'color-mix(in oklch, var(--border) 80%, transparent)',
+            dark: 'color-mix(in oklch, var(--border) 80%, transparent)',
+            activeLight: 'color-mix(in oklch, var(--muted-foreground) 55%, transparent)',
+            activeDark: 'color-mix(in oklch, var(--muted-foreground) 55%, transparent)'
+          }
+        }),
         highlightSelectionMatches(),
         EditorView.editorAttributes.of({ class: 'cm-kuskus-detail-editor' }),
         // Keep the cursor roughly four lines above the pane bottom while
