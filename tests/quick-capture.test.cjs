@@ -4,20 +4,7 @@ const { mkdtemp, rm } = require('node:fs/promises')
 const { tmpdir } = require('node:os')
 const { join } = require('node:path')
 const test = require('node:test')
-const ts = require('typescript')
-
-require.extensions['.ts'] = (module, filename) => {
-  const source = readFileSync(filename, 'utf8')
-  const output = ts.transpileModule(source, {
-    compilerOptions: {
-      target: ts.ScriptTarget.ES2022,
-      module: ts.ModuleKind.CommonJS,
-      esModuleInterop: true
-    },
-    fileName: filename
-  })
-  module._compile(output.outputText, filename)
-}
+require('./helpers/install-ts-require.cjs')()
 
 const {
   calculateQuickCaptureBounds,

@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { createReadStream, type Stats } from 'node:fs'
-import { access, cp, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { access, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, resolve, sep } from 'node:path'
 
 import type {
@@ -23,26 +23,13 @@ import {
   rewriteMarkdownImageDestinations,
   stagedAttachmentAliases
 } from '../../../shared/markdown-image-references'
-import {
-  isCaptureSubmissionRecord,
-  normalizeCaptureSubmissionRecord,
-  type CaptureSubmissionRecord
-} from '../../capture/capture-submission-record'
-import {
-  FILE_DRAFT_DIRECTORY,
-  FILE_DRAFT_MANIFEST,
-  IMAGE_EXTENSIONS,
-  ITEM_ID_PATTERN,
-  NOTE_DRAFT_DIRECTORY,
-  NOTE_DRAFT_MANIFEST,
-  URL_PREVIEW_DIRECTORY
-} from '../constants'
+import type { CaptureSubmissionRecord } from '../../capture/capture-submission-record'
+import { IMAGE_EXTENSIONS, ITEM_ID_PATTERN, URL_PREVIEW_DIRECTORY } from '../constants'
 import { createImageMetadata, detectImage, toImageDto } from '../items/image-item'
 import { createNoteMetadata, toNoteDto } from '../items/note-item'
 import { createUrlMetadata, toUrlDto } from '../items/url-item'
 import {
   isPersistedItem,
-  isPersistedNoteAttachment,
   isPersistedLibrary,
   isCollectionIconKey,
   toCollectionDto,
@@ -66,14 +53,13 @@ import {
 import { URL_PREVIEW_EXTENSIONS } from '../url-preview'
 import { readJson, writeJsonAtomic } from './json-file'
 import { kuskusPath, resolveInsideVault } from './vault-paths'
+import * as captureStore from './capture-store'
 
 const KUSKUS_DIRECTORY = '.kuskus'
 const LIBRARY_FILENAME = 'library.json'
 const RECORDS_DIRECTORY = 'records'
 const COLLECTION_RECORDS_DIRECTORY = 'collections'
 const TRASH_DIRECTORY = 'trash'
-const CAPTURE_QUEUE_DIRECTORY = 'capture-queue'
-const CAPTURE_SUBMISSION_MANIFEST = 'submission.json'
 const INDEX_DIRECTORY = 'index'
 const LIBRARY_INDEX_FILENAME = 'library-v1.json'
 const DEFAULT_ARCHIVE_DIRECTORY = 'Archive'
@@ -161,41 +147,11 @@ function attachmentsEqual(
   )
 }
 
-function normalizeDraftManifestAttachments(value: unknown): PersistedNoteAttachment[] {
-  if (!value || typeof value !== 'object') return []
-  const manifest = value as Record<string, unknown>
-  const attachments = Array.isArray(manifest.attachments)
-    ? manifest.attachments.filter(isPersistedNoteAttachment)
-    : []
-  if (manifest.schemaVersion !== 1) return attachments
-  return attachments.map((attachment) =>
-    markdownImageTargetKey(attachment.relativePath) ===
-    markdownImageTargetKey(`./assets/${attachment.filename}`)
-      ? { ...attachment, relativePath: `./${encodeMarkdownImageTarget(attachment.filename)}` }
-      : attachment
-  )
-}
-
 export interface PersistedCaptureDraftFile {
   id: string
   filename: string
   mediaType: string
   size: number
-}
-
-function isPersistedCaptureDraftFile(value: unknown): value is PersistedCaptureDraftFile {
-  if (!value || typeof value !== 'object') return false
-  const candidate = value as Record<string, unknown>
-  return (
-    typeof candidate.id === 'string' &&
-    ITEM_ID_PATTERN.test(candidate.id) &&
-    typeof candidate.filename === 'string' &&
-    candidate.filename.length > 0 &&
-    typeof candidate.mediaType === 'string' &&
-    typeof candidate.size === 'number' &&
-    Number.isSafeInteger(candidate.size) &&
-    candidate.size > 0
-  )
 }
 
 export interface ResolvedLibraryItem {
@@ -1981,117 +1937,37 @@ export class LibraryStore {
     }
   }
 
-  private captureDraftDirectory(libraryPath: string): string {
-    return kuskusPath(libraryPath, 'temp', NOTE_DRAFT_DIRECTORY)
-  }
-
-  private captureDraftFileDirectory(libraryPath: string): string {
-    return kuskusPath(libraryPath, 'temp', FILE_DRAFT_DIRECTORY)
-  }
-
-  private captureQueueDirectory(libraryPath: string): string {
-    return kuskusPath(libraryPath, 'temp', CAPTURE_QUEUE_DIRECTORY)
-  }
-
-  private captureSubmissionDirectory(libraryPath: string, submissionId: string): string {
-    if (!ITEM_ID_PATTERN.test(submissionId)) throw new Error('The capture submission is invalid.')
-    return join(this.captureQueueDirectory(libraryPath), submissionId)
-  }
-
   async prepareCaptureSubmission(
     libraryPath: string,
     record: CaptureSubmissionRecord
   ): Promise<void> {
-    const destination = this.captureSubmissionDirectory(libraryPath, record.id)
-    try {
-      const existing = await readJson<unknown>(join(destination, CAPTURE_SUBMISSION_MANIFEST))
-      if (isCaptureSubmissionRecord(existing)) return
-    } catch {
-      // Continue with a clean prepared directory.
-    }
-    const preparing = join(this.captureQueueDirectory(libraryPath), `.${record.id}.preparing`)
-    await rm(preparing, { recursive: true, force: true })
-    await mkdir(preparing, { recursive: true })
-    const noteDraft = this.captureDraftDirectory(libraryPath)
-    const fileDraft = this.captureDraftFileDirectory(libraryPath)
-    if (await this.pathExists(noteDraft)) {
-      await cp(noteDraft, join(preparing, NOTE_DRAFT_DIRECTORY), { recursive: true })
-    }
-    if (await this.pathExists(fileDraft)) {
-      await cp(fileDraft, join(preparing, FILE_DRAFT_DIRECTORY), { recursive: true })
-    }
-    await writeJsonAtomic(join(preparing, CAPTURE_SUBMISSION_MANIFEST), record)
-    await mkdir(this.captureQueueDirectory(libraryPath), { recursive: true })
-    await rename(preparing, destination)
+    return captureStore.prepareCaptureSubmission(libraryPath, record)
   }
 
   async listCaptureSubmissions(libraryPath: string): Promise<CaptureSubmissionRecord[]> {
-    let entries: string[]
-    try {
-      entries = await readdir(this.captureQueueDirectory(libraryPath))
-    } catch {
-      return []
-    }
-    return (
-      await mapWithConcurrency(entries, 32, async (entry) => {
-        if (!ITEM_ID_PATTERN.test(entry)) return null
-        try {
-          const value = await readJson<unknown>(
-            join(this.captureSubmissionDirectory(libraryPath, entry), CAPTURE_SUBMISSION_MANIFEST)
-          )
-          return isCaptureSubmissionRecord(value) ? normalizeCaptureSubmissionRecord(value) : null
-        } catch {
-          // Malformed recovery data stays on disk for manual inspection.
-          return null
-        }
-      })
-    ).filter((record): record is CaptureSubmissionRecord => record !== null)
+    return captureStore.listCaptureSubmissions(libraryPath)
   }
 
   async readCaptureSubmission(
     libraryPath: string,
     submissionId: string
   ): Promise<CaptureSubmissionRecord> {
-    const value = await readJson<unknown>(
-      join(this.captureSubmissionDirectory(libraryPath, submissionId), CAPTURE_SUBMISSION_MANIFEST)
-    )
-    if (!isCaptureSubmissionRecord(value)) throw new Error('The capture submission is invalid.')
-    return normalizeCaptureSubmissionRecord(value)
+    return captureStore.readCaptureSubmission(libraryPath, submissionId)
   }
 
   async writeCaptureSubmission(
     libraryPath: string,
     record: CaptureSubmissionRecord
   ): Promise<void> {
-    await writeJsonAtomic(
-      join(this.captureSubmissionDirectory(libraryPath, record.id), CAPTURE_SUBMISSION_MANIFEST),
-      normalizeCaptureSubmissionRecord(record)
-    )
+    return captureStore.writeCaptureSubmission(libraryPath, record)
   }
 
   async discardCaptureSubmission(libraryPath: string, submissionId: string): Promise<void> {
-    await rm(this.captureSubmissionDirectory(libraryPath, submissionId), {
-      recursive: true,
-      force: true
-    })
+    return captureStore.discardCaptureSubmission(libraryPath, submissionId)
   }
 
   async restoreCaptureSubmissionDraft(libraryPath: string, submissionId: string): Promise<void> {
-    const directory = this.captureSubmissionDirectory(libraryPath, submissionId)
-    const noteDraft = join(directory, NOTE_DRAFT_DIRECTORY)
-    const fileDraft = join(directory, FILE_DRAFT_DIRECTORY)
-    if (
-      (await this.pathExists(this.captureDraftDirectory(libraryPath))) ||
-      (await this.pathExists(this.captureDraftFileDirectory(libraryPath)))
-    ) {
-      throw new Error('Save or discard the current staged draft first.')
-    }
-    if (await this.pathExists(noteDraft)) {
-      await cp(noteDraft, this.captureDraftDirectory(libraryPath), { recursive: true })
-    }
-    if (await this.pathExists(fileDraft)) {
-      await cp(fileDraft, this.captureDraftFileDirectory(libraryPath), { recursive: true })
-    }
+    return captureStore.restoreCaptureSubmissionDraft(libraryPath, submissionId)
   }
 
   async readCaptureSubmissionAttachment(
@@ -2099,15 +1975,7 @@ export class LibraryStore {
     submissionId: string,
     attachmentId: string
   ): Promise<{ attachment: PersistedNoteAttachment; bytes: Buffer }> {
-    const directory = join(
-      this.captureSubmissionDirectory(libraryPath, submissionId),
-      NOTE_DRAFT_DIRECTORY
-    )
-    const manifest = await readJson<unknown>(join(directory, NOTE_DRAFT_MANIFEST))
-    const attachments = normalizeDraftManifestAttachments(manifest)
-    const attachment = attachments.find((entry) => entry.id === attachmentId)
-    if (!attachment) throw new Error('The submitted image no longer exists.')
-    return { attachment, bytes: await readFile(join(directory, attachment.filename)) }
+    return captureStore.readCaptureSubmissionAttachment(libraryPath, submissionId, attachmentId)
   }
 
   async readCaptureSubmissionFile(
@@ -2115,26 +1983,11 @@ export class LibraryStore {
     submissionId: string,
     fileId: string
   ): Promise<{ file: PersistedCaptureDraftFile; bytes: Buffer }> {
-    const directory = join(
-      this.captureSubmissionDirectory(libraryPath, submissionId),
-      FILE_DRAFT_DIRECTORY
-    )
-    const value = await readJson<unknown>(join(directory, FILE_DRAFT_MANIFEST))
-    if (!isPersistedCaptureDraftFile(value) || value.id !== fileId) {
-      throw new Error('The submitted file no longer exists.')
-    }
-    return { file: value, bytes: await readFile(join(directory, value.filename)) }
+    return captureStore.readCaptureSubmissionFile(libraryPath, submissionId, fileId)
   }
 
   async readCaptureDraftFile(libraryPath: string): Promise<PersistedCaptureDraftFile | null> {
-    try {
-      const value = await readJson<unknown>(
-        join(this.captureDraftFileDirectory(libraryPath), FILE_DRAFT_MANIFEST)
-      )
-      return isPersistedCaptureDraftFile(value) ? value : null
-    } catch {
-      return null
-    }
+    return captureStore.readCaptureDraftFile(libraryPath)
   }
 
   async stageCaptureDraftFile(
@@ -2142,38 +1995,22 @@ export class LibraryStore {
     file: PersistedCaptureDraftFile,
     bytes: Uint8Array
   ): Promise<void> {
-    const directory = this.captureDraftFileDirectory(libraryPath)
-    await rm(directory, { recursive: true, force: true })
-    await mkdir(directory, { recursive: true })
-    await writeFile(join(directory, file.filename), bytes)
-    await writeJsonAtomic(join(directory, FILE_DRAFT_MANIFEST), file)
+    return captureStore.stageCaptureDraftFile(libraryPath, file, bytes)
   }
 
   async readCaptureDraftFileBytes(
     libraryPath: string,
     fileId: string
   ): Promise<{ file: PersistedCaptureDraftFile; bytes: Buffer }> {
-    const file = await this.readCaptureDraftFile(libraryPath)
-    if (!file || file.id !== fileId) throw new Error('The staged file no longer exists.')
-    return {
-      file,
-      bytes: await readFile(join(this.captureDraftFileDirectory(libraryPath), file.filename))
-    }
+    return captureStore.readCaptureDraftFileBytes(libraryPath, fileId)
   }
 
   async discardCaptureDraftFile(libraryPath: string): Promise<void> {
-    await rm(this.captureDraftFileDirectory(libraryPath), { recursive: true, force: true })
+    return captureStore.discardCaptureDraftFile(libraryPath)
   }
 
   async readCaptureDraftAttachments(libraryPath: string): Promise<PersistedNoteAttachment[]> {
-    try {
-      const value = await readJson<unknown>(
-        join(this.captureDraftDirectory(libraryPath), NOTE_DRAFT_MANIFEST)
-      )
-      return normalizeDraftManifestAttachments(value)
-    } catch {
-      return []
-    }
+    return captureStore.readCaptureDraftAttachments(libraryPath)
   }
 
   async stageCaptureDraftAttachment(
@@ -2181,14 +2018,7 @@ export class LibraryStore {
     attachment: PersistedNoteAttachment,
     bytes: Uint8Array
   ): Promise<void> {
-    const directory = this.captureDraftDirectory(libraryPath)
-    await mkdir(directory, { recursive: true })
-    await writeFile(join(directory, attachment.filename), bytes)
-    const attachments = await this.readCaptureDraftAttachments(libraryPath)
-    await writeJsonAtomic(join(directory, NOTE_DRAFT_MANIFEST), {
-      schemaVersion: 2,
-      attachments: [...attachments.filter((entry) => entry.id !== attachment.id), attachment]
-    })
+    return captureStore.stageCaptureDraftAttachment(libraryPath, attachment, bytes)
   }
 
   async renameCaptureDraftAttachment(
@@ -2196,64 +2026,22 @@ export class LibraryStore {
     attachmentId: string,
     filename: string
   ): Promise<PersistedNoteAttachment> {
-    const directory = this.captureDraftDirectory(libraryPath)
-    const attachments = await this.readCaptureDraftAttachments(libraryPath)
-    const current = attachments.find((entry) => entry.id === attachmentId)
-    if (!current) throw new Error('The staged image no longer exists.')
-    if (attachments.some((entry) => entry.id !== attachmentId && entry.filename === filename)) {
-      throw new Error('Another staged image already uses that name.')
-    }
-    if (current.filename === filename) return current
-    const source = join(directory, current.filename)
-    const destination = join(directory, filename)
-    const renamed = {
-      ...current,
-      filename,
-      relativePath: `./${encodeMarkdownImageTarget(filename)}`,
-      sourceFilename: filename
-    }
-    await rename(source, destination)
-    try {
-      await writeJsonAtomic(join(directory, NOTE_DRAFT_MANIFEST), {
-        schemaVersion: 2,
-        attachments: attachments.map((entry) => (entry.id === attachmentId ? renamed : entry))
-      })
-      return renamed
-    } catch (error) {
-      await rename(destination, source)
-      throw error
-    }
+    return captureStore.renameCaptureDraftAttachment(libraryPath, attachmentId, filename)
   }
 
   async removeCaptureDraftAttachment(libraryPath: string, attachmentId: string): Promise<void> {
-    const directory = this.captureDraftDirectory(libraryPath)
-    const attachments = await this.readCaptureDraftAttachments(libraryPath)
-    const removed = attachments.find((entry) => entry.id === attachmentId)
-    if (removed) await rm(join(directory, removed.filename), { force: true })
-    const remaining = attachments.filter((entry) => entry.id !== attachmentId)
-    if (remaining.length === 0) return this.discardCaptureDraft(libraryPath)
-    await writeJsonAtomic(join(directory, NOTE_DRAFT_MANIFEST), {
-      schemaVersion: 2,
-      attachments: remaining
-    })
+    return captureStore.removeCaptureDraftAttachment(libraryPath, attachmentId)
   }
 
   async discardCaptureDraft(libraryPath: string): Promise<void> {
-    await rm(this.captureDraftDirectory(libraryPath), { recursive: true, force: true })
+    return captureStore.discardCaptureDraft(libraryPath)
   }
 
   async readCaptureDraftAttachment(
     libraryPath: string,
     attachmentId: string
   ): Promise<{ attachment: PersistedNoteAttachment; bytes: Buffer }> {
-    const attachment = (await this.readCaptureDraftAttachments(libraryPath)).find(
-      (entry) => entry.id === attachmentId
-    )
-    if (!attachment) throw new Error('The staged image no longer exists.')
-    return {
-      attachment,
-      bytes: await readFile(join(this.captureDraftDirectory(libraryPath), attachment.filename))
-    }
+    return captureStore.readCaptureDraftAttachment(libraryPath, attachmentId)
   }
 
   async finalizeInboxItem(

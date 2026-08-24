@@ -39,7 +39,11 @@ import { SavedItemCard } from '@/features/items/saved-item-card'
 import type { LibraryView } from '@/features/items/item-view'
 import type { RichMarkdownEditorOptions } from '@/features/items/rich-markdown-editor'
 import type { ComposerRichMarkdownEditorHandle } from '@/features/capture/composer-rich-markdown-editor'
-import { composeMarkdownCapture, detectCaptureKind } from '@/features/capture/capture-detection'
+import {
+  composeMarkdownCapture,
+  detectCaptureKind,
+  extractWebUrl
+} from '@/features/capture/capture-detection'
 import { useCaptureSession } from '@/features/capture/use-capture-session'
 import { useCaptureQueue } from '@/features/capture/use-capture-queue'
 import { cn } from '@/lib/utils'
@@ -598,8 +602,14 @@ export function AddItemComposer({
         ? wait(LINK_SAVE_MINIMUM_MS)
         : Promise.resolve()
     const linkTimeout = kind === 'link' ? wait(LINK_SAVE_TIMEOUT_MS) : Promise.resolve()
+    let linkUrl: string | null = null
     if (kind === 'link') {
-      let domain = draft.trim()
+      // The editor can serialize a pasted URL into a Markdown link, autolink, or an escaped
+      // link-mark destination; store the unwrapped URL so the submission reaches link
+      // processing as a bare web address.
+      linkUrl = extractWebUrl(draft)
+      if (linkUrl && linkUrl !== draft) setDraft(linkUrl)
+      let domain = linkUrl ?? draft.trim()
       try {
         domain = new URL(domain).hostname
       } catch {
@@ -640,7 +650,7 @@ export function AddItemComposer({
         return
       }
 
-      if (kind === 'link') setSavingLink({ domain: draft.trim(), phase: 'preview' })
+      if (kind === 'link') setSavingLink({ domain: linkUrl ?? draft.trim(), phase: 'preview' })
       const result = await window.capture.waitForSubmission(submitted.data.id)
       if (!result.ok) {
         setSavingLink(null)
