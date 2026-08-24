@@ -32,6 +32,7 @@ import { GFM } from '@lezer/markdown'
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search'
 import {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useLayoutEffect,
@@ -60,8 +61,10 @@ import { markdownSearchTheme } from '@/features/items/markdown-search-theme'
 import {
   markdownVim,
   registerMarkdownVimActions,
+  unwireMarkdownVimCommandLine,
   unregisterMarkdownVimActions,
   unwireMarkdownVimMode,
+  wireMarkdownVimCommandLine,
   wireMarkdownVimMode
 } from '@/features/items/markdown-vim'
 import type { NoteVimMode } from '@/features/items/note-vim-mode'
@@ -88,6 +91,7 @@ interface MarkdownEditorProps {
   onVimModeChange?: (mode: NoteVimMode | null) => void
   onVimWrite?: () => void
   onVimQuit?: () => void
+  vimCommandLineHost?: React.RefObject<HTMLElement | null>
 }
 
 const editorTheme = EditorView.theme({
@@ -352,7 +356,8 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       vimEnabled,
       onVimModeChange,
       onVimWrite,
-      onVimQuit
+      onVimQuit,
+      vimCommandLineHost
     },
     forwardedRef
   ): React.JSX.Element {
@@ -367,8 +372,12 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     const onVimModeChangeRef = useRef(onVimModeChange)
     const onVimWriteRef = useRef(onVimWrite)
     const onVimQuitRef = useRef(onVimQuit)
+    const vimCommandLineHostRef = useRef<React.RefObject<HTMLElement | null> | null>(
+      vimCommandLineHost ?? null
+    )
     const baseExtensionsRef = useRef<Extension[]>([])
     const vimActiveRef = useRef(false)
+    const initialVimEnabledRef = useRef(vimEnabled === true)
     useLayoutEffect(() => {
       onChangeRef.current = onChange
       onPasteImageRef.current = onPasteImage
@@ -376,7 +385,27 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       onVimModeChangeRef.current = onVimModeChange
       onVimWriteRef.current = onVimWrite
       onVimQuitRef.current = onVimQuit
+      vimCommandLineHostRef.current = vimCommandLineHost ?? null
     })
+
+    // Single activation path for vim, used both when the editor is created
+    // (so a freshly mounted source pane is born in vim mode — StrictMode's
+    // simulated remounts recreate the view, and a post-mount activation guard
+    // would leave the new view without vim) and when the setting is toggled
+    // while the editor is open.
+    const activateMarkdownVim = useCallback((view: EditorView): void => {
+      registerMarkdownVimActions(view, {
+        write: () => onVimWriteRef.current?.(),
+        quit: () => onVimQuitRef.current?.()
+      })
+      view.dispatch({
+        effects: StateEffect.reconfigure.of([markdownVim, ...baseExtensionsRef.current])
+      })
+      wireMarkdownVimMode(view, (mode) => onVimModeChangeRef.current?.(mode))
+      wireMarkdownVimCommandLine(view, vimCommandLineHostRef.current)
+      onVimModeChangeRef.current?.('normal')
+      vimActiveRef.current = true
+    }, [])
 
     useImperativeHandle(
       forwardedRef,
@@ -529,6 +558,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         })
       })
       viewRef.current = view
+      if (initialVimEnabledRef.current) activateMarkdownVim(view)
       setHeaderHost(view.dom.querySelector<HTMLElement>('.cm-markdown-header'))
 
       const handleScroll = (): void => onScrollRef.current?.(view.scrollDOM)
@@ -537,17 +567,23 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       return () => {
         view.scrollDOM.removeEventListener('scroll', handleScroll)
         unwireMarkdownVimMode(view)
+        unwireMarkdownVimCommandLine(view)
         unregisterMarkdownVimActions(view)
         view.destroy()
         viewRef.current = null
+        // The flag describes vim state of THIS view; StrictMode's simulated
+        // remount destroys and recreates the view while keeping refs, so the
+        // re-run activation effect must see vim as off for the new view.
+        vimActiveRef.current = false
       }
-    }, [])
+    }, [activateMarkdownVim])
 
     useEffect(() => {
       const view = viewRef.current
       if (!view || vimEnabled === vimActiveRef.current) return
       if (!vimEnabled) {
         unwireMarkdownVimMode(view)
+        unwireMarkdownVimCommandLine(view)
         unregisterMarkdownVimActions(view)
         onVimModeChangeRef.current?.(null)
         view.dispatch({ effects: StateEffect.reconfigure.of(baseExtensionsRef.current) })
@@ -562,6 +598,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         effects: StateEffect.reconfigure.of([markdownVim, ...baseExtensionsRef.current])
       })
       wireMarkdownVimMode(view, (mode) => onVimModeChangeRef.current?.(mode))
+      wireMarkdownVimCommandLine(view, vimCommandLineHostRef.current)
       onVimModeChangeRef.current?.('normal')
       vimActiveRef.current = true
     }, [vimEnabled])
