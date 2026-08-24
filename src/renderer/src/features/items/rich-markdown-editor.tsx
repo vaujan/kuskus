@@ -624,6 +624,7 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
       presentation,
       preserveScrollTopRef,
       preserveCursorOffsetRef,
+      findTarget,
       vimEnabled,
       vimCommandLineHost
     ])

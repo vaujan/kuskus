@@ -19,8 +19,7 @@ interface FindState {
 const EMPTY_FIND: FindState = { query: '', matchCase: false, matches: [], current: 0 }
 
 type FindMeta =
-  | { type: 'search'; query: string; matchCase: boolean }
-  | { type: 'move'; delta: 1 | -1 }
+  { type: 'search'; query: string; matchCase: boolean } | { type: 'move'; delta: 1 | -1 }
 
 function collectMatches(
   doc: ProseNode,
@@ -51,9 +50,7 @@ function findDecorations(state: { doc: ProseNode }, find: FindState): Decoration
     find.matches.map((match, index) =>
       Decoration.inline(match.from, match.to, {
         class:
-          index === find.current
-            ? 'rich-find-match rich-find-match-current'
-            : 'rich-find-match'
+          index === find.current ? 'rich-find-match rich-find-match-current' : 'rich-find-match'
       })
     )
   )
@@ -121,8 +118,7 @@ export function richMarkdownFind(target: NoteFindTargetRef): ReturnType<typeof $
           if (meta?.type === 'move' && value.matches.length) {
             return {
               ...value,
-              current:
-                (value.current + meta.delta + value.matches.length) % value.matches.length
+              current: (value.current + meta.delta + value.matches.length) % value.matches.length
             }
           }
           if (tr.docChanged && value.query) {

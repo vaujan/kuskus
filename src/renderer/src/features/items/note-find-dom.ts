@@ -1,3 +1,5 @@
+import type { RefObject } from 'react'
+
 import type { NoteFindResult, NoteFindTarget } from '@/features/items/note-editor'
 
 const MARK_ATTRIBUTE = 'data-kuskus-find-result'
@@ -16,14 +18,14 @@ function unwrapMarks(scope: HTMLElement): void {
  * Find target for static rendered HTML (read-mode preview). Highlights are plain
  * <mark> elements — safe here because nothing owns this DOM.
  */
-export function createDomFindTarget(getScope: () => HTMLElement | null): NoteFindTarget {
+export function createDomFindTarget(scopeRef: RefObject<HTMLElement | null>): NoteFindTarget {
   let current = 0
   let total = 0
   let query = ''
   let matchCase = false
 
   const highlight = (query: string, matchCase: boolean): NoteFindResult => {
-    const scope = getScope()
+    const scope = scopeRef.current
     if (!scope) return { current: 0, total: 0 }
     unwrapMarks(scope)
     const normalized = matchCase ? query : query.toLocaleLowerCase()
@@ -65,9 +67,7 @@ export function createDomFindTarget(getScope: () => HTMLElement | null): NoteFin
     current = Math.min(current, Math.max(0, index - 1))
     total = index
     if (index > 0) {
-      scope
-        .querySelector(`[${MARK_ATTRIBUTE}][data-current]`)
-        ?.scrollIntoView({ block: 'center' })
+      scope.querySelector(`[${MARK_ATTRIBUTE}][data-current]`)?.scrollIntoView({ block: 'center' })
     }
     return { current: index ? current + 1 : 0, total: index }
   }

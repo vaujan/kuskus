@@ -1073,9 +1073,12 @@ function NoteCanvas({
 }): React.JSX.Element {
   const noteEditorRef = useRef<SourceNoteHandle>(null)
   const richFindTargetRef = useRef<NoteFindTarget | null>(null)
-  const previewFindTarget = useMemo(() => createDomFindTarget(() => noteViewportRef.current), [])
+  const previewFindTargetRef = useRef<NoteFindTarget | null>(null)
   const previewViewportRef = useRef<HTMLDivElement>(null)
   const noteViewportRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    previewFindTargetRef.current ??= createDomFindTarget(noteViewportRef)
+  }, [])
   const noteScrollTopRef = useRef(0)
   const noteScrollDetachRef = useRef<(() => void) | null>(null)
   const previousModeRef = useRef<NoteMode>(mode)
@@ -1399,7 +1402,7 @@ function NoteCanvas({
     >
       <NoteFind
         enabled={mode === 'read' || mode === 'live'}
-        target={mode === 'live' ? richFindTargetRef : { current: previewFindTarget }}
+        target={mode === 'live' ? richFindTargetRef : previewFindTargetRef}
       />
       {item.missingContent ? (
         <div className="flex min-h-0 flex-1 items-center justify-center">

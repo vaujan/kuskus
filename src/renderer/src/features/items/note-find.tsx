@@ -95,8 +95,7 @@ export function NoteFind({
         onChange={(event) => {
           setQuery(event.target.value)
           const target = targetRef.current
-          if (target && active)
-            setResult(target.search(event.target.value, matchCase))
+          if (target && active) setResult(target.search(event.target.value, matchCase))
         }}
         onKeyDown={(event) => {
           if (event.key === 'Enter') {
