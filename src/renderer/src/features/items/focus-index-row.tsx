@@ -69,7 +69,7 @@ export function FocusIndexRow({
   return (
     <div
       {...rest}
-      className="group/focus-index-row group/saved-item relative min-h-[88px] min-w-0 overflow-hidden border-b border-border/45 bg-transparent outline-none [content-visibility:auto] [contain-intrinsic-size:96px] transition-[background-color,opacity,box-shadow] [transition-duration:var(--motion-duration-ui)] [transition-timing-function:var(--motion-ease-out)] before:pointer-events-none before:absolute before:inset-y-2.5 before:left-0 before:z-10 before:w-0.5 before:rounded-r-full before:bg-primary before:opacity-0 hover:bg-muted/45 data-[active=true]:bg-primary/9 data-[active=true]:before:opacity-100 data-[dragging=true]:opacity-40 data-[selected=true]:shadow-[inset_0_0_0_1px_var(--primary)]"
+      className="group/focus-index-row group/saved-item relative min-h-[88px] min-w-0 overflow-hidden border-b border-border/45 bg-transparent outline-none [content-visibility:auto] [contain-intrinsic-size:96px] transition-[background-color,opacity,box-shadow] [transition-duration:var(--motion-duration-ui)] [transition-timing-function:var(--motion-ease-out)] before:pointer-events-none before:absolute before:inset-y-2.5 before:left-0 before:z-10 before:w-0.5 before:rounded-r-full before:bg-primary before:opacity-0 hover:bg-muted/45 data-[active=true]:bg-primary/9 data-[active=true]:before:opacity-100 data-[dragging=true]:opacity-40 data-[selected=true]:bg-accent/10"
       data-item-id={item.id}
       data-active={active || undefined}
       data-selected={selected || undefined}
