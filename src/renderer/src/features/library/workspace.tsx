@@ -264,7 +264,8 @@ export function Workspace({
       const item = library.items.find((candidate) => candidate.id === itemId)
       setFocusNoteExpanded((current) => (item?.type === 'note' ? current : false))
       setFocusItemEditOnOpenId(null)
-      setFocusNoteMode(null)
+      // focusNoteMode intentionally survives navigation: it is the last note
+      // mode the user used, and every newly opened note starts in it.
       setFocusItemId(itemId)
     },
     [library.items]
@@ -275,7 +276,6 @@ export function Workspace({
       const apply = (): void => {
         setComposerOpen(false)
         setFocusNoteExpanded(false)
-        setFocusNoteMode(null)
         setFocusWorkspaceOpen(true)
         setFocusItemId(itemId)
         setFocusItemEditOnOpenId(edit ? itemId : null)
@@ -518,7 +518,6 @@ export function Workspace({
         resolveInitialFocusItemId(visibleItemIdList, current)
       )
     })
-    if (!library.items.some((item) => item.id === focusItemId)) setFocusNoteMode(null)
     previousVisibleItemIdsRef.current = [...visibleItemIdList]
   }, [focusItemId, library.items, visibleItemIdList])
   const selectPreviousFocusItem = useCallback((): void => {
@@ -1323,7 +1322,7 @@ export function Workspace({
         presentation="focus"
         item={focusItem}
         initialNoteMode={
-          focusNoteMode ?? (focusItemEditOnOpenId === focusItem.id ? 'live' : undefined)
+          focusItemEditOnOpenId === focusItem.id ? 'live' : (focusNoteMode ?? undefined)
         }
         onNoteModeChange={setFocusNoteMode}
         vimEnabled={vimEnabled}

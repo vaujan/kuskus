@@ -2622,7 +2622,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
                   if (resolution === 'mine') void coordinator.useLocalVersion(current)
                   else {
                     coordinator.useDiskVersion(current)
-                    setMode('read')
+                    changeMode('read')
                   }
                 }}
               >
