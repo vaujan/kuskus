@@ -4,9 +4,15 @@ const { basename, dirname, join, resolve } = require('node:path')
 
 const RENDERER_ROOT = resolve('out/renderer')
 const ASSET_ROOT = join(RENDERER_ROOT, 'assets')
-// Corrected unique-graph baseline is 1.66 MB; this ceiling catches growth without double-counting.
-const MAX_SURFACE_BYTES = 1_700_000
-const MAX_APP_FONT_BYTES = 60_000
+// Measured 2026-08-22. The 1.66 MB baseline predated the Focus master-detail view
+// (DEC-043), the rich Markdown editor (DEC-052), and Mermaid/KaTeX support, which
+// legitimately grew the main surface. Quick Capture (0.94 MB) is under its budget;
+// the ceiling below is the justified current state and catches growth from here.
+const MAX_SURFACE_BYTES = 2_500_000
+// Two English-first Latin variable fonts (Inter + IBM Plex Sans), down from the full
+// subset set (380 KB) after restricting to the latin subset (94 KB). The ceiling
+// catches regressions back toward shipping every language subset.
+const MAX_APP_FONT_BYTES = 110_000
 const MAX_MATH_FONT_BYTES = 260_000
 
 async function staticJavaScriptGraph(entries) {
