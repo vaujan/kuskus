@@ -1,0 +1,9 @@
+/* Overrides for the ProseMirror base stylesheet imported by rich-markdown-editor.tsx.
+   Kept in the same lazy chunk, after prosemirror.css, so these win the equal-specificity
+   cascade against it. */
+
+/* prosemirror.css sets .ProseMirror pre to pre-wrap; the app keeps code blocks
+   non-wrapping with horizontal scrolling (typeset.css overflow-x: auto). */
+.kuskus-rich-document pre {
+  white-space: pre;
+}

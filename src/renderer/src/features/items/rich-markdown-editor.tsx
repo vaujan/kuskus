@@ -10,6 +10,11 @@ import {
   serializerCtx
 } from '@milkdown/core'
 import { history } from '@milkdown/plugin-history'
+// ProseMirror's base stylesheet. Without it, generic img rules (Tailwind preflight
+// sets display: block) turn the ProseMirror-separator img into a line-breaking block,
+// which renders a stray empty line next to the caret at every vim end-of-line widget.
+import '@milkdown/prose/view/style/prosemirror.css'
+import '../../assets/rich-markdown-editor.css'
 import type { Node as ProseNode } from '@milkdown/prose/model'
 import { Selection } from '@milkdown/prose/state'
 import type {
