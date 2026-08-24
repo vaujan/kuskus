@@ -63,7 +63,7 @@ export function RichMarkdownSlashMenu({
     <div ref={containerRef} className="fixed z-50" style={{ left: state.left, top: state.top }}>
       <Command
         aria-label="Formatting commands"
-        className="h-auto w-72 rounded-md shadow-md ring-1 ring-foreground/10"
+        className="h-auto w-72 origin-top-left overflow-hidden rounded-3xl shadow-lg ring-1 ring-foreground/5 duration-100 animate-in fade-in-0 zoom-in-95 slide-in-from-top-1 animate-none! relative bg-popover/70 before:pointer-events-none before:absolute before:inset-0 before:-z-1 before:rounded-[inherit] before:backdrop-blur-2xl before:backdrop-saturate-150"
         shouldFilter={false}
         value={items[state.selected]?.id}
         onMouseDown={(event) => event.preventDefault()}
@@ -71,15 +71,20 @@ export function RichMarkdownSlashMenu({
         <CommandList className="max-h-80">
           <CommandEmpty>No formatting commands found.</CommandEmpty>
           <CommandGroup heading="Format">
-            {items.map(({ id, label, description }) => {
+            {items.map(({ id, label, syntax }) => {
               const Icon = icons[id]
               return (
-                <CommandItem key={id} value={id} onSelect={() => onSelect(id)}>
+                <CommandItem
+                  key={id}
+                  value={id}
+                  onSelect={() => onSelect(id)}
+                  className="rounded-[calc(var(--radius-3xl)-6px)] transition-transform active:scale-[0.96]"
+                >
                   <Icon aria-hidden="true" />
-                  <span className="flex min-w-0 flex-col">
-                    <span>{label}</span>
-                    <span className="truncate text-xs text-muted-foreground">{description}</span>
-                  </span>
+                  <span className="flex-1">{label}</span>
+                  {syntax && (
+                    <span className="font-mono text-xs text-muted-foreground">{syntax}</span>
+                  )}
                 </CommandItem>
               )
             })}

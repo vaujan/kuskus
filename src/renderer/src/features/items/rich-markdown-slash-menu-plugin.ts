@@ -18,16 +18,16 @@ export interface RichMarkdownSlashState {
 }
 
 export const richMarkdownSlashCommands = [
-  { id: 'text', label: 'Text', description: 'Plain paragraph' },
-  { id: 'heading-1', label: 'Heading 1', description: 'Large section heading' },
-  { id: 'heading-2', label: 'Heading 2', description: 'Medium section heading' },
-  { id: 'heading-3', label: 'Heading 3', description: 'Small section heading' },
-  { id: 'bullet-list', label: 'Bulleted list', description: 'Create a simple list' },
-  { id: 'numbered-list', label: 'Numbered list', description: 'Create an ordered list' },
-  { id: 'quote', label: 'Quote', description: 'Capture a quotation' },
-  { id: 'code', label: 'Code block', description: 'Add a fenced code block' },
-  { id: 'divider', label: 'Divider', description: 'Separate sections' },
-  { id: 'table', label: 'Table', description: 'Insert a table' }
+  { id: 'text', label: 'Text', syntax: null },
+  { id: 'heading-1', label: 'Heading 1', syntax: '#' },
+  { id: 'heading-2', label: 'Heading 2', syntax: '##' },
+  { id: 'heading-3', label: 'Heading 3', syntax: '###' },
+  { id: 'bullet-list', label: 'Bulleted list', syntax: '-' },
+  { id: 'numbered-list', label: 'Numbered list', syntax: '1.' },
+  { id: 'quote', label: 'Quote', syntax: '>' },
+  { id: 'code', label: 'Code block', syntax: '```' },
+  { id: 'divider', label: 'Divider', syntax: '---' },
+  { id: 'table', label: 'Table', syntax: null }
 ] as const
 
 export type RichMarkdownSlashCommandId = (typeof richMarkdownSlashCommands)[number]['id']
@@ -36,9 +36,7 @@ export function filteredRichMarkdownSlashCommands(
   query: string
 ): (typeof richMarkdownSlashCommands)[number][] {
   const normalized = query.toLowerCase()
-  return richMarkdownSlashCommands.filter(({ label, description }) =>
-    `${label} ${description}`.toLowerCase().includes(normalized)
-  )
+  return richMarkdownSlashCommands.filter(({ label }) => label.toLowerCase().includes(normalized))
 }
 
 function currentSlashState(
