@@ -252,10 +252,24 @@ function markdownListDepth(node: MarkdownSyntaxParent): number {
   return Math.max(0, depth - 1)
 }
 
-function markdownListMarkerWidth(line: string): number | null {
+// Prefix widths are measured in visual columns (tabs jump to the state's tab
+// stops, which CodeMirror also emits as the tab-size CSS it applies).
+function visualColumns(text: string, tabSize: number): number {
+  let columns = 0
+  for (const char of text) {
+    if (char === '\t') columns += tabSize - (columns % tabSize)
+    else columns += 1
+  }
+  return columns
+}
+
+function markdownListMarkerWidth(line: string, tabSize: number): number | null {
   const marker = /^(\s*)(?:[*+-]|\d+[.)])\s+(?:\[[ xX]\]\s+)?/.exec(line)
   if (!marker) return null
-  return marker[0].length - marker[1].length
+  // The hanging indent must span the whole prefix, leading indentation
+  // included, so wrapped lines align under the item text. Measuring only the
+  // marker would align nested items' wraps under their marker instead.
+  return visualColumns(marker[0], tabSize)
 }
 
 function taskMarkerDecorations(view: EditorView): DecorationSet {
@@ -275,7 +289,7 @@ function taskMarkerDecorations(view: EditorView): DecorationSet {
           })
         })
         const line = view.state.doc.lineAt(marker.from)
-        const width = markdownListMarkerWidth(line.text)
+        const width = markdownListMarkerWidth(line.text, view.state.tabSize)
         if (width !== null) listLines.set(line.from, width)
         return true
       }
@@ -313,11 +327,19 @@ function taskMarkerDecorations(view: EditorView): DecorationSet {
 const taskMarkerPlugin = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet
+    private tree: ReturnType<typeof syntaxTree>
     constructor(view: EditorView) {
+      this.tree = syntaxTree(view.state)
       this.decorations = taskMarkerDecorations(view)
     }
     update(update: ViewUpdate): void {
-      if (update.docChanged || update.viewportChanged) {
+      // The Lezer parse advances asynchronously, so decorations must also
+      // refresh when the tree object changes — list lines far from the last
+      // edit would otherwise keep missing hanging indents after a note is
+      // opened, until some unrelated edit happened to re-run this.
+      const tree = syntaxTree(update.state)
+      if (update.docChanged || update.viewportChanged || tree !== this.tree) {
+        this.tree = tree
         this.decorations = taskMarkerDecorations(update.view)
       }
     }
