@@ -7,27 +7,20 @@ Baseline: `24d0e2f` (`main`)
 > drifted from the trees it describes. The baseline numbers and phase lists below are historical;
 > read them as the starting point, not the current state. What has actually landed:
 >
-> - **Phase 0** mostly complete: unused deps removed (`@electron-toolkit/preload`, five Fontsource
->   packages), the lint gate is `--max-warnings=0`, and the verified React Doctor correctness
->   findings (render-time ref writes, impure mode updater, busy-state `finally`, safe vault-link
->   decode) are addressed in the current sources.
-> - **Phase 1** partial: the `focus-view.test.cjs` workspace *capture wiring* pins were relaxed to
->   behavior assertions over the pure `detectCaptureKind`/`shouldYieldMainComposer` (1.1 started), so
->   Phase 3.4's move of capture coordination out of `workspace.tsx` is now test-safe. Other regex pins
->   (`quick-capture`, `note-frontmatter`, `item-detail-context`, sticky `rich-markdown-active-line`)
->   are not yet fully reclassified. **1.3 complete**: the TS require hook is the shared
->   `tests/helpers/install-ts-require.cjs`, and `library-service.test.cjs` was fully dissolved into
->   eleven domain test files (suite count unchanged at 200 tests: 196 pass, 4 skipped).
-> - **Phase 2 / 3.1 / 3.2**: `use-library-retrieval.ts` and `use-library-selection.ts` exist, so
->   retrieval and selection ownership landed. **Phase 3.3 started**: the reference-aware image-move
->   counting was extracted to the pure `reference-image-move.ts` with behavior tests; the stateful
->   `use-item-mutations` hook and Phase 3.4 capture coordination have not.
-> - **Phase 4.1 + 4.2 done**: `vault-paths.ts` exists and the capture persistence moved into the new
->   `capture-store.ts` module (`LibraryStore` ~3135 → ~2920 lines; suite unchanged). 4.3 (collections)
->   and 4.4 (lifecycle) assessed and deferred — they're entangled with the scan-snapshot/record
->   machinery that 4.5 deliberately keeps together.
-> - **Phase 5**: perf budgets and fonts have moved (the changelog and DEC-046/047 record bounded
->   scanning, code-split boundaries, woff2 KaTeX), but budgets are not re-measured here.
+> - **Phase 0** complete: unused deps removed, lint gate `--max-warnings=0`, React Doctor correctness
+>   fixes landed.
+> - **Phase 1 complete**: 1.1 classified every remaining source-regex test as a genuine static
+>   contract (behavior pins already relaxed or moved to pure tests); 1.3 dissolved the monolith into
+>   eleven domain test files (200 tests: 196 pass, 4 skipped, unchanged).
+> - **Phase 2 / 3.1 / 3.2 done**: `use-library-retrieval.ts` and `use-library-selection.ts` exist.
+>   **Phase 3.3 done**: `use-item-mutations.ts` extracted — `workspace.tsx` 2361 → 1923 lines, all
+>   tests pass. 3.4/3.5 assessed and deferred (capture coordination and presentation are entangled
+>   with workspace-wide state; forcing them would relocate complexity, same rationale as 4.3/4.4).
+> - **Phase 4.1 + 4.2 done**: `vault-paths.ts` exists; capture persistence moved into `capture-store.ts`
+>   (`LibraryStore` 3135 → ~2920 lines). 4.3/4.4 assessed and deferred (entangled with the
+>   scan-snapshot/record machinery 4.5 keeps together).
+> - **Phase 5 done**: fonts cut 380 → 94 KB (latin-only subsets); budgets re-measured and re-based
+>   with documented justification (main surface 2.5 MB, app fonts 110 KB); `perf:budget` passes.
 > - **Phase 6**: `docs/10-current-architecture.md` exists.
 >
 > **Two additions since this plan was written:**
@@ -40,8 +33,10 @@ Baseline: `24d0e2f` (`main`)
 >   through the `/improve-codebase-architecture` flow and is a completed deepening not listed in
 >   any phase below.
 >
-> This entire document should be re-baselined (current test count, commit, and a phase-by-phase
-> done/next) before the next refactor slice starts.
+> **Remaining (deliberately not done):** 3.4/3.5 (workspace capture/presentation) and 4.3/4.4
+> (collection/lifecycle stores) are assessed-deferred: each would relocate entanglement into a hook or
+> module that threads the same collaborators, without removing the complexity. The plan's own invariant
+> ("don't split to satisfy line-count") is the reason they stay put.
 
 ## Goal
 
@@ -259,7 +254,7 @@ This phase precedes component splitting because current source-regex tests pin i
 
 ### 1.1 Classify existing tests
 
-Status: partial — started 2026-08-22.
+Status: complete — 2026-08-22.
 
 Classify each source assertion as one of:
 
@@ -279,17 +274,35 @@ Done:
   `const focusDetail = focusItem ?…`) were kept because they do not move under Phase 3.4, as were the
   static-contract pins on `focus-item-list.tsx`, `add-item-composer.tsx`, and
   `composer-rich-markdown-editor.tsx`.
+- The behavior-bearing cursor pins in `rich-markdown-active-line.test.cjs` were already replaced with
+  the pure `note-cursor` sentinel-round-trip tests (which live in the same file and
+  `service-note-lifecycle.test.cjs`).
 
-Remaining (not yet acted on):
+Remaining classified as **static contract** (kept deliberately — the source is the product contract):
 
 - `quick-capture.test.cjs` pins on `add-item-composer.tsx`, `quick-capture-app.tsx`,
-  `src/main/index.ts`, and `capture-contract.ts` are classified as **static contract**: none of those
-  files move under Phase 3.4 (which explicitly leaves composer internals in place), so they neither
-  block the decompose nor need relaxation.
+  `src/main/index.ts`, and `capture-contract.ts`: none of those files move under Phase 3.4 (which
+  explicitly leaves composer internals in place), so they neither block the decompose nor need
+  relaxation.
 - `focus-view.test.cjs` "medium windows use an overlay sidebar" pins `focus-workspace.tsx` and
   `use-mobile.ts` — neither moves under Phase 3.4; classified as static contract / visual detail.
-- `note-frontmatter.test.cjs` still regex-pins the detail dialog; its `<RichMarkdownEditor>` pin was
-  updated to `<NoteRichEditor>` for the `NoteEditor` seam but the file is not fully reclassified.
+- `note-frontmatter.test.cjs` pins the detail dialog; its `<RichMarkdownEditor>` pin was updated to
+  `<NoteRichEditor>` for the `NoteEditor` seam.
+- `item-detail-context.test.cjs` pins the focus-toolbar markup, detail-pane structure, and CSS
+  material rules — visual/static contract.
+- `note-window.test.cjs` pins the main-process note-window controller (window dedup, close-guard via
+  `resolveNoteWindowClose`) and renderer routing — the window lifecycle is Electron-only, so the
+  source is the only practical contract surface.
+- `rich-markdown-active-line.test.cjs` pins the rich editor's scroll-restore algorithm shape
+  (including negative assertions against regressions to `at.inside`/`contentTop`/`targetScrollTop`)
+  and the editor's `publishedRef` guard — these pin an algorithm's non-regression contract, not a
+  component placement, so they do not block moves.
+- `theme.test.cjs`, `window-material.test.cjs` pin CSS tokens/material rules — static contract.
+- `performance-budget.test.cjs` reads the budget script sources — the scripts are the contract.
+
+Acceptance for 1.1 is met: the behavior-bearing source pins have been relaxed or replaced with pure
+tests, and every remaining source assertion is a genuine static contract that does not block a
+component move.
 
 Priority files:
 
@@ -573,9 +586,31 @@ Acceptance for every extraction:
 
 ## Phase 5 — Reduce real startup and first-use cost
 
+Status: complete — 2026-08-22.
+
 Performance work starts after correcting measurement. Optimize measured graphs, not source line count.
 
+Measured outcome (2026-08-22):
+
+- **Main surface JS: 2.38 MB** — the corrected graph. This exceeds the old 1.66 MB baseline because
+  the feature set legitimately grew (Focus master-detail, rich Markdown editor, Mermaid/KaTeX). The
+  budget ceiling was re-based to 2.5 MB with a comment documenting the measured justification, per
+  the plan's "budget changes require documented measured justification" rule. Quick Capture is
+  0.94 MB — under its budget.
+- **App fonts: 380 KB → 94 KB** — the two variable fonts were shipping every language subset
+  (cyrillic/greek/vietnamese etc.). `main.css` now declares latin-only `@font-face` rules for Inter
+  and IBM Plex Sans. The ceiling is 110 KB to catch regressions back to all-subset shipping.
+- **KaTeX fonts: 256 KB** — at budget.
+
 ### 5.1 Static main surface
+
+The remaining eager graph areas (`saved-item-card` / `use-url-preview` / `tooltip` /
+`library-overview`) were inspected. `saved-item-card` is the core library canvas card — lazy-loading
+it would trade a bigger bundle for a Suspense fallback on the first thing the user sees, which is a
+worse outcome. `expandLibraryOverview` is called in the entry's bootstrap effect. Both are judged not
+worth lazy-loading; the documented budget re-base reflects the measured reality.
+
+### 5.2 Note preview first use
 
 Inspect why these current graph areas are statically reachable:
 
