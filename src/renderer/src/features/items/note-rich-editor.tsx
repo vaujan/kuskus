@@ -67,6 +67,7 @@ export const NoteRichEditor = forwardRef<NoteEditorHandle, NoteRichEditorProps>(
         onVimModeChange={vim.onModeChange}
         onVimWrite={vim.onWrite}
         onVimQuit={vim.onQuit}
+        vimCommandLineHost={vim.commandLineHost}
         onChange={onChange}
         onError={onError}
       />

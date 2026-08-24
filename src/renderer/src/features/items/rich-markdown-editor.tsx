@@ -197,9 +197,14 @@ interface RichMarkdownEditorProps {
   onVimModeChange?: (mode: NoteVimMode | null) => void
   onVimWrite?: () => void
   onVimQuit?: () => void
+  vimCommandLineHost?: React.RefObject<HTMLElement | null>
   onChange: (value: string) => void
   onError?: (message: string) => void
 }
+
+// Stand-in host for vim-enabled surfaces that render no status bar (the mirror
+// simply no-ops); keeps the vim handler contract total without optionality.
+const detachedCommandLineHost: React.RefObject<HTMLElement | null> = { current: null }
 
 function decodeVaultTarget(value: string): string | null {
   const separator = value.indexOf(':')
@@ -372,6 +377,7 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
       onVimModeChange,
       onVimWrite,
       onVimQuit,
+      vimCommandLineHost,
       onChange,
       onError
     },
@@ -475,10 +481,16 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
         .use(history)
       if (vimEnabled)
         editor.use(
-          richMarkdownVim((mode) => onVimModeChangeRef.current?.(mode), {
-            write: () => onVimWriteRef.current?.(),
-            quit: () => onVimQuitRef.current?.()
-          })
+          richMarkdownVim(
+            {
+              onModeChange: (mode) => onVimModeChangeRef.current?.(mode),
+              commandLineHost: vimCommandLineHost ?? detachedCommandLineHost
+            },
+            {
+              write: () => onVimWriteRef.current?.(),
+              quit: () => onVimQuitRef.current?.()
+            }
+          )
         )
       if (presentation === 'detail') editor.use(richMarkdownActiveLine)
       editor.config((ctx) => {
@@ -602,7 +614,13 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
         if (editorRef.current === editor) editorRef.current = null
         void editor.destroy()
       }
-    }, [presentation, preserveScrollTopRef, preserveCursorOffsetRef, vimEnabled])
+    }, [
+      presentation,
+      preserveScrollTopRef,
+      preserveCursorOffsetRef,
+      vimEnabled,
+      vimCommandLineHost
+    ])
 
     useEffect(() => {
       const editor = editorRef.current

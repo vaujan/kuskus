@@ -1157,8 +1157,14 @@ function NoteCanvas({
     }
   }, [attachmentPreviews, importPastedImage, mode, noteAttachments])
 
+  const vimCommandLineHostRef = useRef<HTMLDivElement | null>(null)
   const noteVimContract = useMemo<NoteEditorVimContract>(
-    () => ({ onModeChange: onVimModeChange, onWrite: onVimWrite, onQuit: onVimQuit }),
+    () => ({
+      onModeChange: onVimModeChange,
+      onWrite: onVimWrite,
+      onQuit: onVimQuit,
+      commandLineHost: vimCommandLineHostRef
+    }),
     [onVimModeChange, onVimQuit, onVimWrite]
   )
 
@@ -1548,9 +1554,12 @@ function NoteCanvas({
         <div
           role="status"
           aria-live="polite"
-          className="flex h-7 shrink-0 items-center border-t border-border/50  px-3 font-mono text-xs font-medium text-muted-foreground"
+          className="flex h-7 shrink-0 items-center border-t border-border/50 px-3 font-mono text-xs font-medium text-muted-foreground"
         >
-          -- {vimMode.toUpperCase()} --
+          {/* Both editors mount their '/' and ':' command line here; while it
+              has content it takes the line over from the mode indicator. */}
+          <div ref={vimCommandLineHostRef} className="vim-cmdline-host" />
+          <span className="vim-mode-indicator">-- {vimMode.toUpperCase()} --</span>
         </div>
       ) : null}
     </div>

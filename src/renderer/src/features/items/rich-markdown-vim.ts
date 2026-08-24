@@ -4,6 +4,7 @@ import type { EditorView } from '@milkdown/prose/view'
 import { undo, redo } from '@milkdown/prose/history'
 import { sinkListItem, liftListItem } from '@milkdown/prose/schema-list'
 import { $prose } from '@milkdown/utils'
+import type { RefObject } from 'react'
 import { createVimPlugin, getVimStateFromEditorState } from 'vim-prosemirror'
 import 'vim-prosemirror/style.css'
 import type { NoteVimMode } from '@/features/items/note-vim-mode'
@@ -11,6 +12,11 @@ import type { NoteVimMode } from '@/features/items/note-vim-mode'
 export interface RichMarkdownVimActions {
   write: () => void
   quit: () => void
+}
+
+export interface RichMarkdownVimHandlers {
+  onModeChange: (mode: NoteVimMode | null) => void
+  commandLineHost: RefObject<HTMLElement | null>
 }
 
 interface Substitution {
@@ -131,19 +137,91 @@ function executeSubstitute(view: EditorView, command: string): string {
   return ''
 }
 
+/**
+ * Renders the live editor's vim command line ('/' search prompt, ':' ex prompt,
+ * transient status messages) into the status-bar host element owned by the note
+ * detail surface. The library's own in-document search bar stays hidden; this
+ * mirror is the only visible prompt. `owner` keeps the ex plugin and the
+ * per-transaction search/status sync from clobbering each other's rows.
+ */
+function createCommandLineMirror(hostRef: RefObject<HTMLElement | null>): {
+  prompt: (owner: 'search' | 'ex', promptText: string, value: string) => void
+  message: (owner: 'search' | 'ex', text: string) => void
+  clear: (owner: 'search' | 'ex') => void
+} {
+  let owner: 'search' | 'ex' | null = null
+  let promptRow: HTMLDivElement | null = null
+  let promptText: HTMLSpanElement | null = null
+  let promptValue: HTMLSpanElement | null = null
+  let messageRow: HTMLSpanElement | null = null
+
+  const ensurePromptRow = (): HTMLDivElement => {
+    if (promptRow) return promptRow
+    promptRow = document.createElement('div')
+    promptRow.className = 'kuskus-vim-cmdline'
+    promptText = document.createElement('span')
+    promptText.className = 'kuskus-vim-cmdline-prompt'
+    promptValue = document.createElement('span')
+    promptValue.className = 'kuskus-vim-cmdline-input'
+    const cursor = document.createElement('span')
+    cursor.className = 'kuskus-vim-cmdline-cursor'
+    cursor.textContent = '\u2588'
+    promptRow.append(promptText, promptValue, cursor)
+    return promptRow
+  }
+
+  const ensureMessageRow = (): HTMLSpanElement => {
+    if (messageRow) return messageRow
+    messageRow = document.createElement('span')
+    messageRow.className = 'kuskus-vim-cmdline-message'
+    return messageRow
+  }
+
+  return {
+    prompt(nextOwner, prompt, value): void {
+      const host = hostRef.current
+      if (!host) return
+      owner = nextOwner
+      const row = ensurePromptRow()
+      if (promptText!.textContent !== prompt) promptText!.textContent = prompt
+      if (promptValue!.textContent !== value) promptValue!.textContent = value
+      host.replaceChildren(row)
+    },
+    message(nextOwner, text): void {
+      const host = hostRef.current
+      if (!host) return
+      owner = nextOwner
+      const row = ensureMessageRow()
+      if (row.textContent !== text) row.textContent = text
+      host.replaceChildren(row)
+    },
+    clear(nextOwner): void {
+      if (owner !== nextOwner) return
+      owner = null
+      hostRef.current?.replaceChildren()
+    }
+  }
+}
+
 export function richMarkdownVim(
-  onModeChange: (mode: NoteVimMode | null) => void,
+  handlers: RichMarkdownVimHandlers,
   actions: RichMarkdownVimActions
 ): Array<ReturnType<typeof $prose>> {
   const holder: { view: EditorView | null } = { view: null }
+  const mirror = createCommandLineMirror(handlers.commandLineHost)
   let lastMode: NoteVimMode | null = null
 
   const publish = (view: EditorView): void => {
     const vim = getVimStateFromEditorState(view.state)
     const mode: NoteVimMode | null = vim ? vim.mode : null
-    if (mode === lastMode) return
-    lastMode = mode
-    onModeChange(mode)
+    if (mode !== lastMode) {
+      lastMode = mode
+      handlers.onModeChange(mode)
+    }
+    if (!vim) return
+    if (vim.searchActive) mirror.prompt('search', '/', vim.searchQuery)
+    else if (vim.statusMessage) mirror.message('search', vim.statusMessage)
+    else mirror.clear('search')
   }
 
   const commands = {
@@ -170,7 +248,7 @@ export function richMarkdownVim(
   }
 
   return [
-    $prose(() => createVimExModePlugin(actions)),
+    $prose(() => createVimExModePlugin(actions, mirror)),
     $prose(() => createVimPlugin(commands)),
     $prose(
       () =>
@@ -183,6 +261,7 @@ export function richMarkdownVim(
               destroy: () => {
                 holder.view = null
                 lastMode = null
+                mirror.clear('search')
               }
             }
           }
@@ -191,24 +270,18 @@ export function richMarkdownVim(
   ]
 }
 
-function createVimExModePlugin(actions: RichMarkdownVimActions): Plugin {
+function createVimExModePlugin(
+  actions: RichMarkdownVimActions,
+  mirror: ReturnType<typeof createCommandLineMirror>
+): Plugin {
   let active = false
   let buffer = ':'
   let message = ''
-  let bar: HTMLDivElement | null = null
-  let inputEl: HTMLSpanElement | null = null
 
   const render = (): void => {
-    if (!bar || !inputEl) return
-    if (active) {
-      bar.style.display = 'flex'
-      inputEl.textContent = buffer.slice(1)
-    } else if (message) {
-      bar.style.display = 'flex'
-      inputEl.textContent = message
-    } else {
-      bar.style.display = 'none'
-    }
+    if (active) mirror.prompt('ex', ':', buffer.slice(1))
+    else if (message) mirror.message('ex', message)
+    else mirror.clear('ex')
   }
 
   const execute = (view: EditorView, command: string): void => {
@@ -239,29 +312,13 @@ function createVimExModePlugin(actions: RichMarkdownVimActions): Plugin {
   }
 
   return new Plugin({
-    view: (view) => {
-      bar = document.createElement('div')
-      bar.className = 'vim-ex-bar'
-      bar.style.display = 'none'
-      const prefix = document.createElement('span')
-      prefix.className = 'vim-ex-prefix'
-      prefix.textContent = ':'
-      inputEl = document.createElement('span')
-      inputEl.className = 'vim-ex-input'
-      const cursor = document.createElement('span')
-      cursor.className = 'vim-ex-cursor'
-      cursor.textContent = '\u2588'
-      bar.append(prefix, inputEl, cursor)
-      view.dom.parentNode?.insertBefore(bar, view.dom.nextSibling)
-      return {
-        update: () => render(),
-        destroy: () => {
-          bar?.remove()
-          bar = null
-          inputEl = null
-        }
+    view: () => ({
+      destroy: () => {
+        active = false
+        message = ''
+        mirror.clear('ex')
       }
-    },
+    }),
     props: {
       handleKeyDown(view, event) {
         const vim = getVimStateFromEditorState(view.state)
@@ -270,11 +327,13 @@ function createVimExModePlugin(actions: RichMarkdownVimActions): Plugin {
             active = true
             buffer = ':'
             message = ''
+            vim.statusMessage = ''
             render()
             return true
           }
           if (message && (event.key === 'Escape' || (event.ctrlKey && event.key === 'c'))) {
             message = ''
+            if (vim) vim.statusMessage = ''
             render()
             return true
           }

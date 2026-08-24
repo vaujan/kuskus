@@ -51,6 +51,7 @@ export const NoteSourceEditor = forwardRef<SourceNoteHandle, NoteSourceEditorPro
         onVimModeChange={vim.onModeChange}
         onVimWrite={vim.onWrite}
         onVimQuit={vim.onQuit}
+        vimCommandLineHost={vim.commandLineHost}
       />
     )
   }

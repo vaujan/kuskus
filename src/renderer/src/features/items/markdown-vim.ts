@@ -1,6 +1,7 @@
 import type { Extension } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { getCM, Vim, vim } from '@replit/codemirror-vim'
+import type { RefObject } from 'react'
 import type { NoteVimMode } from '@/features/items/note-vim-mode'
 import { parseNoteVimMode } from '@/features/items/note-vim-mode'
 
@@ -49,4 +50,111 @@ export function wireMarkdownVimMode(
 export function unwireMarkdownVimMode(view: EditorView): void {
   modeListenerCleanups.get(view)?.()
   modeListenerCleanups.delete(view)
+}
+
+interface VimDialogOptions {
+  value?: string
+  selectValueOnOpen?: boolean
+  closeOnEnter?: boolean
+  closeOnBlur?: boolean
+  onClose?: (dialog: Element) => void
+  onKeyDown?: (
+    event: KeyboardEvent,
+    value: string,
+    close: (newVal?: string) => void
+  ) => boolean | void
+  onKeyUp?: (event: KeyboardEvent, value: string, close: (newVal?: string) => void) => void
+  onInput?: (event: Event, value: string, close: (newVal?: string) => void) => void
+}
+
+type OpenDialog = (
+  template: Element,
+  callback: ((value: string) => void) | undefined,
+  options: VimDialogOptions | undefined
+) => (newVal?: string) => void
+
+const commandLinePatches = new WeakMap<EditorView, () => void>()
+
+/**
+ * Redirects the CodeMirror vim prompts ('/', '?', ':' and message dialogs like
+ * "recording @q") from the editor's bottom cm-vim-panel into the status-bar
+ * host element, so both note engines render their command line on the vim
+ * status line. The patched openDialog keeps the original contract: the
+ * template (a prompt element wrapping a real, focused <input>) is mounted
+ * as-is, Enter invokes the callback, `close(value)` pre-fills the input
+ * (search history), and close refocuses the editor.
+ */
+export function wireMarkdownVimCommandLine(
+  view: EditorView,
+  commandLineHost: RefObject<HTMLElement | null> | null
+): void {
+  if (commandLinePatches.has(view)) return
+  const cm = getCM(view)
+  if (!cm) return
+  const originalOpenDialog = cm.openDialog.bind(cm) as OpenDialog
+  let activeClose: ((newVal?: string) => void) | null = null
+
+  cm.openDialog = ((template, callback, options) => {
+    const host = commandLineHost?.current
+    if (!host) return originalOpenDialog(template, callback, options)
+    activeClose?.()
+    host.replaceChildren(template)
+    const input = template.getElementsByTagName('input')[0] as HTMLInputElement | null
+    let closed = false
+    const close = (newVal?: string): void => {
+      if (typeof newVal === 'string') {
+        if (input) input.value = newVal
+        return
+      }
+      if (closed) return
+      closed = true
+      activeClose = null
+      template.remove()
+      options?.onClose?.(template)
+      if (!host.firstChild) cm.focus()
+    }
+    activeClose = close
+    if (input) {
+      if (options?.value) {
+        input.value = options.value
+        if (options.selectValueOnOpen !== false) input.select()
+      }
+      input.addEventListener('keydown', (event) => {
+        if (options?.onKeyDown?.(event, input.value, close)) return
+        if (event.keyCode === 13) callback?.(input.value)
+        if (event.keyCode === 27 || (options?.closeOnEnter !== false && event.keyCode === 13)) {
+          event.preventDefault()
+          event.stopPropagation()
+          input.blur()
+          close()
+        }
+      })
+      if (options?.onInput) {
+        input.addEventListener('input', (event) => options.onInput?.(event, input.value, close))
+      }
+      if (options?.onKeyUp) {
+        input.addEventListener('keyup', (event) => options.onKeyUp?.(event, input.value, close))
+      }
+      if (options?.closeOnBlur !== false) {
+        input.addEventListener('blur', () => {
+          window.setTimeout(() => {
+            if (document.activeElement === input) return
+            close()
+          })
+        })
+      }
+      input.focus()
+    }
+    return close
+  }) as OpenDialog
+
+  commandLinePatches.set(view, () => {
+    activeClose?.()
+    cm.openDialog = originalOpenDialog
+    commandLinePatches.delete(view)
+  })
+}
+
+export function unwireMarkdownVimCommandLine(view: EditorView): void {
+  commandLinePatches.get(view)?.()
 }

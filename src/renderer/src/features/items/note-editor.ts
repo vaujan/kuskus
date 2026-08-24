@@ -1,3 +1,5 @@
+import type { RefObject } from 'react'
+
 import type { NoteVimMode } from '@/features/items/note-vim-mode'
 
 /**
@@ -14,11 +16,15 @@ export interface NoteEditorHandle {
 /**
  * The single Vim contract both engines drive into. Each adapter owns how its own
  * engine (CodeMirror vim or vim-prosemirror) produces these callbacks.
+ * `commandLineHost` is the status-bar element where engines mount their '/'
+ * and ':' command-line UI, so the prompt always renders on the vim status line
+ * instead of riding inside the scrolled document.
  */
 export interface NoteEditorVimContract {
   onModeChange: (mode: NoteVimMode | null) => void
   onWrite: () => void
   onQuit: () => void
+  commandLineHost: RefObject<HTMLElement | null>
 }
 
 /**
@@ -41,5 +47,6 @@ export interface NoteEditorProps {
   onChange: (value: string) => void
   className?: string
 }
+
 
 export type { NoteVimMode }

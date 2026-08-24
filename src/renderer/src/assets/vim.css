@@ -4,9 +4,8 @@
 
 .ProseMirror .vim-block-cursor,
 .ProseMirror .vim-block-cursor-eol {
-  background: var(--foreground);
+  background: var(--primary);
   color: var(--background);
-  border-radius: 2px;
 }
 
 .ProseMirror .vim-visual-selection,
@@ -14,73 +13,93 @@
   background: color-mix(in oklch, var(--primary) 25%, transparent);
 }
 
-/* Search bar follows the editor surface instead of the library's light default.
-   The library inserts it after the whole ProseMirror document, so without this it
-   lands at the very bottom of the note and scrolls out of view. Sticky keeps it
-   pinned to the bottom of the scroll viewport (nearest scrollable ancestor). */
-.milkdown .vim-search-bar {
-  display: flex;
-  align-items: center;
-  padding: 4px 8px;
-  background: var(--popover);
-  border-top: 1px solid var(--border);
-  font-family: var(--font-mono);
-  font-size: 0.8125rem;
-  min-height: 28px;
-  position: sticky;
-  bottom: 0;
-  z-index: 20;
-  box-shadow: 0 -4px 12px rgb(0 0 0 / 0.08);
-}
-
-.milkdown .vim-search-prefix {
-  color: var(--muted-foreground);
-}
-
-.milkdown .vim-search-input,
-.milkdown .vim-search-cursor {
-  color: var(--foreground);
-}
-
-.milkdown .vim-search-match {
+.ProseMirror .vim-search-match {
   background: color-mix(in oklch, var(--primary) 25%, transparent);
   border-radius: 1px;
 }
 
-.milkdown .vim-search-match-current {
+.ProseMirror .vim-search-match-current {
   background: color-mix(in oklch, var(--primary) 55%, transparent);
   border-radius: 1px;
 }
 
-/* Ex command line (:w, :q, :s/.../.../) is inserted after the document like the
-   search bar, so it needs the same sticky treatment to stay pinned to the
-   bottom of the scroll viewport instead of riding at the end of the note. */
-.milkdown .vim-ex-bar {
-  display: flex;
-  align-items: center;
-  padding: 4px 8px;
-  background: var(--popover);
-  border-top: 1px solid var(--border);
-  font-family: var(--font-mono);
-  font-size: 0.8125rem;
-  min-height: 28px;
-  position: sticky;
-  bottom: 0;
-  z-index: 20;
-  box-shadow: 0 -4px 12px rgb(0 0 0 / 0.08);
+/* The library inserts its own search bar after the whole ProseMirror document,
+   which rides at the end of the note and scrolls out of view. The status-bar
+   command line below is the only visible prompt, so the library's bar is
+   hidden outright (!important beats the inline display it sets on update). */
+.kuskus-rich-document .vim-search-bar {
+  display: none !important;
 }
 
-.milkdown .vim-ex-prefix {
+/* ── Vim status-bar command line ────────────────────────────────────────────
+   Both engines mount their '/' and ':' UI into .vim-cmdline-host, rendered
+   inside the vim status bar. While the host has content it stretches across
+   the line and the mode indicator steps aside, like vim's command line
+   replacing the status line. The host sits first so the sibling selector
+   works without :has(). */
+
+.vim-cmdline-host:not(:empty) {
+  flex: 1 1 0%;
+  min-width: 0;
+}
+
+.vim-cmdline-host:not(:empty) ~ .vim-mode-indicator {
+  display: none;
+}
+
+/* Live editor mirror rows (rich-markdown-vim.ts). */
+.kuskus-vim-cmdline {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+
+.kuskus-vim-cmdline-prompt {
   color: var(--muted-foreground);
   margin-right: 2px;
 }
 
-.milkdown .vim-ex-input {
+.kuskus-vim-cmdline-input {
   color: var(--foreground);
   white-space: pre;
+  overflow: hidden;
 }
 
-.milkdown .vim-ex-cursor {
+.kuskus-vim-cmdline-cursor {
   color: var(--foreground);
-  animation: vim-cursor-blink 1s step-end infinite;
+  animation: kuskus-vim-cursor-blink 1s step-end infinite;
+}
+
+.kuskus-vim-cmdline-message {
+  color: var(--muted-foreground);
+  white-space: pre;
+  overflow: hidden;
+}
+
+@keyframes kuskus-vim-cursor-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* CodeMirror prompt templates (from @replit/codemirror-vim) mounted into the
+   host: a flex wrapper holding the prompt prefix text and a real <input>. */
+.vim-cmdline-host {
+  color: var(--muted-foreground);
+}
+
+.vim-cmdline-host input {
+  flex: 1 1 0%;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+}
+
+.vim-cmdline-host .cm-vim-message {
+  color: var(--muted-foreground);
 }
