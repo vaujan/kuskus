@@ -3,8 +3,9 @@ import './assets/vim.css'
 
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { applyTheme, resolveTheme } from './hooks/use-theme'
+import { applyTheme, resolveTheme } from './hooks/theme'
 import { initializeTranslucentBackground } from './hooks/use-translucent-background'
+import { SettingsProvider } from './settings/settings-context'
 
 performance.mark('kuskus:renderer-entry')
 
@@ -32,7 +33,9 @@ if (isQuickCapture) {
     performance.mark('kuskus:surface-module-loaded')
     root.render(
       <StrictMode>
-        <QuickCaptureApp />
+        <SettingsProvider>
+          <QuickCaptureApp />
+        </SettingsProvider>
       </StrictMode>
     )
   })
@@ -41,7 +44,9 @@ if (isQuickCapture) {
     performance.mark('kuskus:surface-module-loaded')
     root.render(
       <StrictMode>
-        <NoteWindowApp itemId={searchParams.get('itemId') ?? ''} />
+        <SettingsProvider>
+          <NoteWindowApp itemId={searchParams.get('itemId') ?? ''} />
+        </SettingsProvider>
       </StrictMode>
     )
   })
@@ -50,7 +55,9 @@ if (isQuickCapture) {
     performance.mark('kuskus:surface-module-loaded')
     root.render(
       <StrictMode>
-        <App />
+        <SettingsProvider>
+          <App />
+        </SettingsProvider>
       </StrictMode>
     )
   })

@@ -32,7 +32,8 @@ export default defineConfig(
     files: [
       'src/renderer/src/components/ui/**/*.tsx',
       'src/renderer/src/features/shell/app-sidebar.tsx',
-      'src/renderer/src/features/shell/app-toaster.tsx'
+      'src/renderer/src/features/shell/app-toaster.tsx',
+      'src/renderer/src/settings/settings-context.tsx'
     ],
     rules: {
       '@typescript-eslint/explicit-function-return-type': 'off',

@@ -5,12 +5,14 @@ import {
   IconLayoutGrid,
   IconMoon,
   IconPalette,
+  IconSettings,
   IconSun,
   type TablerIcon
 } from '@tabler/icons-react'
 import type { ReactElement } from 'react'
 
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import {
   Popover,
@@ -49,7 +51,8 @@ export function QuickSettingsPopover({
   translucentBackgroundReduced,
   onTranslucentBackgroundChange,
   vimEnabled,
-  onVimEnabledChange
+  onVimEnabledChange,
+  onOpenFullSettings
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -65,6 +68,7 @@ export function QuickSettingsPopover({
   onTranslucentBackgroundChange: (enabled: boolean) => void
   vimEnabled: boolean
   onVimEnabledChange: (enabled: boolean) => void
+  onOpenFullSettings: () => void
 }): React.JSX.Element {
   const captureStatus =
     globalCaptureShortcutStatus === null
@@ -97,9 +101,24 @@ export function QuickSettingsPopover({
         className="max-h-[calc(100vh-1rem)] w-[min(21rem,calc(100vw-1rem))] gap-5 overflow-y-auto rounded-xl p-4 shadow-xl"
       >
         <PopoverHeader className="gap-1 px-1">
-          <PopoverTitle className="font-heading text-lg font-semibold text-balance">
-            Quick settings
-          </PopoverTitle>
+          <div className="flex items-start justify-between gap-3">
+            <PopoverTitle className="font-heading text-lg font-semibold text-balance">
+              Quick settings
+            </PopoverTitle>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="shrink-0 gap-1.5 rounded-lg text-muted-foreground"
+              onClick={() => {
+                onOpenChange(false)
+                onOpenFullSettings()
+              }}
+            >
+              <IconSettings aria-hidden="true" className="size-3.5" />
+              All settings
+            </Button>
+          </div>
           <PopoverDescription className="text-sm text-pretty">
             Personalize your workspace without leaving the library.
           </PopoverDescription>

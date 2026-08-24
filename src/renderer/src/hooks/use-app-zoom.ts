@@ -19,6 +19,7 @@ export interface AppZoom {
   zoomIn: () => void
   zoomOut: () => void
   resetZoom: () => void
+  setFactor: (factor: number) => void
 }
 
 export function useAppZoom(): AppZoom {
@@ -41,6 +42,14 @@ export function useAppZoom(): AppZoom {
 
   const resetZoom = useCallback(() => setFactor(DEFAULT_ZOOM_FACTOR), [])
 
+  const setFactorExplicit = useCallback((nextFactor: number) => {
+    setFactor(
+      APP_ZOOM_FACTORS.includes(nextFactor as (typeof APP_ZOOM_FACTORS)[number])
+        ? nextFactor
+        : DEFAULT_ZOOM_FACTOR
+    )
+  }, [])
+
   useEffect(() => {
     localStorage.setItem(ZOOM_STORAGE_KEY, String(factor))
     void window.electron.window.setZoomFactor(factor).catch(() => undefined)
@@ -60,6 +69,7 @@ export function useAppZoom(): AppZoom {
     canZoomOut: factorIndex > 0,
     zoomIn,
     zoomOut,
-    resetZoom
+    resetZoom,
+    setFactor: setFactorExplicit
   }
 }

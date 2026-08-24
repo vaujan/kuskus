@@ -1,27 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 
-export type Theme = 'dark' | 'light'
+import { useSetting } from '@/settings/settings-context'
+import { applyTheme, type Theme } from '@/hooks/theme'
 
-export function resolveTheme(value: string | null): Theme {
-  return value === 'light' ? 'light' : 'dark'
-}
-
-export function applyTheme(
-  theme: Theme,
-  root: Pick<HTMLElement, 'classList' | 'style'> = document.documentElement
-): void {
-  root.classList.toggle('dark', theme === 'dark')
-  root.style.colorScheme = theme
-}
+export type { Theme }
 
 export function useTheme(): [Theme, (theme: Theme) => void] {
-  const [theme, setTheme] = useState<Theme>(() =>
-    resolveTheme(localStorage.getItem('kuskus-theme'))
-  )
+  const [theme, setTheme] = useSetting<Theme>('theme')
 
   useEffect(() => {
     applyTheme(theme)
-    localStorage.setItem('kuskus-theme', theme)
   }, [theme])
 
   return [theme, setTheme]
