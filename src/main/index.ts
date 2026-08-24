@@ -18,6 +18,7 @@ import { installApplicationMenu } from './window/app-menu'
 import { WINDOW_CHANNELS } from '../shared/window-contract'
 import { CAPTURE_CHANNELS } from '../shared/capture-contract'
 import { QuickCaptureWindowController } from './window/quick-capture-window'
+import { CaptureShortcutStore } from './window/capture-shortcut-store'
 import { NoteWindowController } from './window/note-window'
 import { startPerformanceReporter } from './performance-reporter'
 import { trackPerformanceIpcTimings } from './performance-log'
@@ -154,12 +155,26 @@ if (!hasSingleInstanceLock) {
     })
     globalCaptureShortcut = new GlobalCaptureShortcutController(
       globalShortcut,
-      globalCaptureWindowTarget
+      globalCaptureWindowTarget,
+      (accelerator) => {
+        const store = new CaptureShortcutStore(
+          join(app.getPath('userData'), 'capture-shortcut.json')
+        )
+        void store.save(accelerator)
+      }
     )
+    const persistedAccelerator = await new CaptureShortcutStore(
+      join(app.getPath('userData'), 'capture-shortcut.json')
+    ).load()
     const noteWindows = new NoteWindowController(libraryService)
     registerWindowIpc(
       () =>
         globalCaptureShortcut?.getStatus() ?? {
+          accelerator: 'Ctrl+Shift+Space',
+          registered: false
+        },
+      (accelerator) =>
+        globalCaptureShortcut?.setAccelerator(accelerator) ?? {
           accelerator: 'Ctrl+Shift+Space',
           registered: false
         },
@@ -189,7 +204,7 @@ if (!hasSingleInstanceLock) {
 
     const window = ensureMainWindow()
     startPerformanceReporter(window, libraryService)
-    globalCaptureShortcut.start()
+    globalCaptureShortcut.start(persistedAccelerator ?? undefined)
 
     app.on('activate', () => {
       revealWindow(ensureMainWindow())

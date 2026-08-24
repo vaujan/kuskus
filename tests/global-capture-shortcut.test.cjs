@@ -1,23 +1,10 @@
 const assert = require('node:assert/strict')
-const { readFileSync } = require('node:fs')
 const test = require('node:test')
-const ts = require('typescript')
-
-require.extensions['.ts'] = (module, filename) => {
-  const source = readFileSync(filename, 'utf8')
-  const output = ts.transpileModule(source, {
-    compilerOptions: {
-      target: ts.ScriptTarget.ES2022,
-      module: ts.ModuleKind.CommonJS,
-      esModuleInterop: true
-    },
-    fileName: filename
-  })
-  module._compile(output.outputText, filename)
-}
+require('./helpers/install-ts-require.cjs')()
 
 const {
   GLOBAL_CAPTURE_ACCELERATOR,
+  GLOBAL_CAPTURE_SHORTCUT_LABEL,
   GlobalCaptureShortcutController,
   revealWindow
 } = require('../src/main/window/global-capture-shortcut.ts')
@@ -25,13 +12,14 @@ const {
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function createRegistrar(result = true) {
   return {
+    result,
     callback: null,
     registrations: [],
     unregistrations: [],
     register(accelerator, callback) {
       this.registrations.push(accelerator)
       this.callback = callback
-      return result
+      return this.result
     },
     unregister(accelerator) {
       this.unregistrations.push(accelerator)
@@ -82,6 +70,57 @@ test('reports a registration collision without unregistering an unowned shortcut
   assert.equal(controller.start().registered, false)
   controller.stop()
   assert.deepEqual(registrar.unregistrations, [])
+})
+
+test('re-registers a new accelerator and persists it on success', () => {
+  const registrar = createRegistrar()
+  const persisted = []
+  const controller = new GlobalCaptureShortcutController(
+    registrar,
+    () => createTarget(),
+    (accelerator) => persisted.push(accelerator)
+  )
+  controller.start()
+
+  const status = controller.setAccelerator('Control+Alt+P')
+
+  assert.equal(status.accelerator, 'Control+Alt+P')
+  assert.equal(status.registered, true)
+  assert.deepEqual(registrar.registrations, [GLOBAL_CAPTURE_ACCELERATOR, 'Control+Alt+P'])
+  assert.deepEqual(registrar.unregistrations, [GLOBAL_CAPTURE_ACCELERATOR])
+  assert.deepEqual(persisted, ['Control+Alt+P'])
+})
+
+test('rolls back to the previous accelerator when the new one collides', () => {
+  const registrar = createRegistrar()
+  const controller = new GlobalCaptureShortcutController(registrar, () => createTarget())
+  controller.start()
+
+  // Second registration (the new accelerator) fails.
+  registrar.result = false
+  const status = controller.setAccelerator('Control+Alt+P')
+
+  assert.equal(status.accelerator, GLOBAL_CAPTURE_SHORTCUT_LABEL)
+  assert.equal(status.registered, true)
+  // The previous shortcut is re-registered after the collision.
+  assert.deepEqual(registrar.registrations, [
+    GLOBAL_CAPTURE_ACCELERATOR,
+    'Control+Alt+P',
+    GLOBAL_CAPTURE_ACCELERATOR
+  ])
+  assert.deepEqual(registrar.unregistrations, [GLOBAL_CAPTURE_ACCELERATOR])
+})
+
+test('starts with a persisted accelerator when provided', () => {
+  const registrar = createRegistrar()
+  const controller = new GlobalCaptureShortcutController(registrar, () => createTarget())
+
+  const status = controller.start('Control+Alt+K')
+
+  assert.equal(status.accelerator, 'Control+Alt+K')
+  assert.deepEqual(registrar.registrations, ['Control+Alt+K'])
+  controller.stop()
+  assert.deepEqual(registrar.unregistrations, ['Control+Alt+K'])
 })
 
 test('reveals the window and sends every request after the renderer is ready', () => {

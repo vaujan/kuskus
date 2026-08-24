@@ -23,6 +23,7 @@ function windowFromEvent(event: IpcMainEvent | IpcMainInvokeEvent): BrowserWindo
 
 export function registerWindowIpc(
   getGlobalCaptureShortcutStatus: () => GlobalCaptureShortcutStatus,
+  setGlobalCaptureShortcut: (accelerator: string) => GlobalCaptureShortcutStatus,
   openNoteWindow: (itemId: string) => Promise<void>,
   resolveNoteWindowClose: (sender: WebContents, approved: boolean) => void
 ): void {
@@ -66,6 +67,12 @@ export function registerWindowIpc(
   ipcMain.handle(WINDOW_CHANNELS.getGlobalCaptureShortcutStatus, () =>
     getGlobalCaptureShortcutStatus()
   )
+  ipcMain.handle(WINDOW_CHANNELS.setGlobalCaptureShortcut, (_event, accelerator: unknown) => {
+    if (typeof accelerator !== 'string' || !accelerator) {
+      throw new Error('The capture shortcut is invalid.')
+    }
+    return setGlobalCaptureShortcut(accelerator)
+  })
   ipcMain.handle(WINDOW_CHANNELS.openNoteWindow, async (_event, itemId: unknown) => {
     if (typeof itemId !== 'string' || !itemId) throw new Error('The note identifier is invalid.')
     await openNoteWindow(itemId)

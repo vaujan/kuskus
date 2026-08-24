@@ -81,6 +81,8 @@ const windowApi: ElectronWindowApi = {
   },
   getGlobalCaptureShortcutStatus: (): Promise<GlobalCaptureShortcutStatus> =>
     ipcRenderer.invoke(WINDOW_CHANNELS.getGlobalCaptureShortcutStatus),
+  setGlobalCaptureShortcut: (accelerator): Promise<GlobalCaptureShortcutStatus> =>
+    ipcRenderer.invoke(WINDOW_CHANNELS.setGlobalCaptureShortcut, accelerator),
   onGlobalCaptureRequested: (callback: () => void): (() => void) => {
     globalCaptureCallbacks.add(callback)
     if (globalCaptureRequestPending) {

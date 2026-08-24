@@ -34,30 +34,61 @@ export function revealWindow(window: RevealableWindow): void {
 export class GlobalCaptureShortcutController {
   private registered = false
   private readonly pendingTargets = new WeakSet<GlobalCaptureWindowTarget>()
+  private accelerator = GLOBAL_CAPTURE_ACCELERATOR
+  private label = GLOBAL_CAPTURE_SHORTCUT_LABEL
 
   constructor(
     private readonly registrar: CaptureShortcutRegistrar,
-    private readonly getWindowTarget: () => GlobalCaptureWindowTarget
+    private readonly getWindowTarget: () => GlobalCaptureWindowTarget,
+    private readonly persistAccelerator?: (accelerator: string) => void
   ) {}
 
-  start(): GlobalCaptureShortcutStatus {
+  start(initialAccelerator?: string): GlobalCaptureShortcutStatus {
+    if (initialAccelerator) {
+      this.accelerator = initialAccelerator
+      this.label = initialAccelerator
+    }
     if (!this.registered) {
-      this.registered = this.registrar.register(GLOBAL_CAPTURE_ACCELERATOR, () => this.activate())
+      this.registered = this.registrar.register(this.accelerator, () => this.activate())
     }
     return this.getStatus()
   }
 
   stop(): void {
     if (!this.registered) return
-    this.registrar.unregister(GLOBAL_CAPTURE_ACCELERATOR)
+    this.registrar.unregister(this.accelerator)
     this.registered = false
   }
 
   getStatus(): GlobalCaptureShortcutStatus {
     return {
-      accelerator: GLOBAL_CAPTURE_SHORTCUT_LABEL,
+      accelerator: this.label,
       registered: this.registered
     }
+  }
+
+  setAccelerator(accelerator: string): GlobalCaptureShortcutStatus {
+    const previousAccelerator = this.accelerator
+    const previousLabel = this.label
+    const previousRegistered = this.registered
+
+    if (previousRegistered) this.registrar.unregister(previousAccelerator)
+
+    this.accelerator = accelerator
+    this.label = accelerator
+    this.registered = this.registrar.register(accelerator, () => this.activate())
+
+    if (!this.registered && previousRegistered) {
+      // The new accelerator collides with another app's shortcut — roll back so
+      // the previous shortcut stays live instead of silently losing capture.
+      this.registrar.register(previousAccelerator, () => this.activate())
+      this.accelerator = previousAccelerator
+      this.label = previousLabel
+      this.registered = true
+    }
+
+    if (this.registered) this.persistAccelerator?.(this.accelerator)
+    return this.getStatus()
   }
 
   private activate(): void {
