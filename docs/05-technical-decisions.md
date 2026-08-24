@@ -1670,3 +1670,37 @@ unsupported syntax must never be silently serialized.
   hatch remain unchanged.
 - Rich editing is unavailable for malformed or not-yet-supported Markdown rather than risking data
   loss.
+
+## DEC-053: Share a mode-agnostic note-editor seam across both note engines
+
+Date: 2026-08-22
+Status: Accepted
+
+### Context
+
+DEC-052 keeps the Milkdown rich editor for structured Read and Live while keeping CodeMirror for exact
+Markdown and Split source, and lets the two synchronize through Markdown when ownership changes. The
+detail dialog consequently addresses two different editor handles and branches on note mode to reach
+the active one. The same mode-agnostic concerns — focusing the writing surface, capturing and restoring
+the caret, and exposing a Vim mode contract — are re-wired twice against two engine-specific shapes,
+and the split source + rich details stay coupled to whichever engine is mounted.
+
+### Decision
+
+Introduce one `NoteEditor` seam behind which both engines sit as adapters. The seam exposes only
+mode-agnostic operations: `focus`, `getCursorOffset`/`setCursorOffset` (both defined as an offset into
+the Markdown source string, which both engines already produce), and the single `NoteVimMode` +
+`{ onModeChange, write, quit }` contract. The detail dialog owns one active adapter selected by note
+mode and stops knowing which engine is mounted for those concerns.
+
+Concerns that are inherently engine-specific stay local to their surface: split scroll synchronization
+(which bridges the CodeMirror source scroller and the rendered preview), undo/redo, properties, inline
+title editing, and conflict review are not moved behind the seam.
+
+### Consequences
+
+- The dialog wires focus, caret persistence, and Vim once instead of twice against two handle shapes.
+- A later switch of either backing engine touches one adapter and leaves the dialog seam unchanged.
+- Cursor persistence across note modes keeps its tested meaning: offsets are positions in the Markdown
+  source string in both directions.
+- Split scroll, undo/redo, and note-save behaviour remain unchanged.

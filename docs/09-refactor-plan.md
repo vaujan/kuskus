@@ -1,7 +1,47 @@
 # Refactor and Maintainability Plan
 
-Status: Proposed
+Status: In progress
 Baseline: `24d0e2f` (`main`)
+
+> **Current status (2026-08-22, HEAD `b7bfb7c`, 141 commits past baseline).** This plan has
+> drifted from the trees it describes. The baseline numbers and phase lists below are historical;
+> read them as the starting point, not the current state. What has actually landed:
+>
+> - **Phase 0** mostly complete: unused deps removed (`@electron-toolkit/preload`, five Fontsource
+>   packages), the lint gate is `--max-warnings=0`, and the verified React Doctor correctness
+>   findings (render-time ref writes, impure mode updater, busy-state `finally`, safe vault-link
+>   decode) are addressed in the current sources.
+> - **Phase 1** partial: the `focus-view.test.cjs` workspace *capture wiring* pins were relaxed to
+>   behavior assertions over the pure `detectCaptureKind`/`shouldYieldMainComposer` (1.1 started), so
+>   Phase 3.4's move of capture coordination out of `workspace.tsx` is now test-safe. Other regex pins
+>   (`quick-capture`, `note-frontmatter`, `item-detail-context`, sticky `rich-markdown-active-line`)
+>   are not yet fully reclassified. **1.3 complete**: the TS require hook is the shared
+>   `tests/helpers/install-ts-require.cjs`, and `library-service.test.cjs` was fully dissolved into
+>   eleven domain test files (suite count unchanged at 200 tests: 196 pass, 4 skipped).
+> - **Phase 2 / 3.1 / 3.2**: `use-library-retrieval.ts` and `use-library-selection.ts` exist, so
+>   retrieval and selection ownership landed. **Phase 3.3 started**: the reference-aware image-move
+>   counting was extracted to the pure `reference-image-move.ts` with behavior tests; the stateful
+>   `use-item-mutations` hook and Phase 3.4 capture coordination have not.
+> - **Phase 4.1 + 4.2 done**: `vault-paths.ts` exists and the capture persistence moved into the new
+>   `capture-store.ts` module (`LibraryStore` ~3135 → ~2920 lines; suite unchanged). 4.3 (collections)
+>   and 4.4 (lifecycle) assessed and deferred — they're entangled with the scan-snapshot/record
+>   machinery that 4.5 deliberately keeps together.
+> - **Phase 5**: perf budgets and fonts have moved (the changelog and DEC-046/047 record bounded
+>   scanning, code-split boundaries, woff2 KaTeX), but budgets are not re-measured here.
+> - **Phase 6**: `docs/10-current-architecture.md` exists.
+>
+> **Two additions since this plan was written:**
+>
+> - **DEC-052** (2026-08-10) reintroduced the Milkdown/ProseMirror rich editor for Read and Live,
+>   keeping CodeMirror for exact Markdown and Split source. This changes the editor surface the
+>   plan's Phase 1/2 "note mode" language assumed and is not captured in the phases below.
+> - **DEC-053 and the `NoteEditor` seam** (2026-08-22) introduced a mode-agnostic seam over both
+>   editors (`features/items/note-editor.ts` plus source/rich adapters). That work was driven
+>   through the `/improve-codebase-architecture` flow and is a completed deepening not listed in
+>   any phase below.
+>
+> This entire document should be re-baselined (current test count, commit, and a phase-by-phase
+> done/next) before the next refactor slice starts.
 
 ## Goal
 
@@ -35,7 +75,7 @@ Every phase must preserve these constraints:
 
 ## Baseline
 
-At the start of this plan:
+At the start of this plan (`24d0e2f`):
 
 - Typecheck passes.
 - Production build passes.
@@ -46,6 +86,20 @@ At the start of this plan:
   0.93 MB for Quick Capture.
 - Emitted fonts total approximately 304 KB.
 - `workspace.tsx`, `library-service.ts`, and `library-store.ts` are the primary concentration points.
+
+**Re-baseline (2026-08-22, HEAD `b7bfb7c`):**
+
+- Typecheck passes.
+- `pnpm lint` runs with `--max-warnings=0` (gate enforced; pre-existing prettier warnings remain in
+  files such as `components/ui/tooltip.tsx`).
+- 195 tests total: 191 pass, 4 skipped.
+- `workspace.tsx` is 2361 lines, `library-service.ts` 1779, `library-store.ts` 3135, and
+  `item-detail-dialog.tsx` 2628 — the primary concentration points are unchanged, plus the dialog and
+  the `NoteEditor` seam work recently thinned its editor-bridging.
+- The perf budget script exists (`scripts/check-performance-budget.cjs`); budgets are not re-measured
+  here and the current pass/fail state is unverified.
+- Fonts: `@fontsource-variable/inter` and `@fontsource-variable/ibm-plex-sans` remain (Inter body,
+  IBM Plex Sans headings); KaTeX is woff2-only per DEC-047.
 
 ### React Doctor verification
 
@@ -89,7 +143,11 @@ Verified non-findings or items that need measurement before change:
 The React Doctor score is therefore an investigation input, not a release gate. Existing typecheck,
 lint, tests, build, and measured performance budgets remain authoritative.
 
-## Phase 0 — Make the gates trustworthy
+## Phase 0 — Make the gates trustworthy [done]
+
+_All sub-phases landed. The lint gate is `--max-warnings=0`, unused packages are removed, and the
+verified React Doctor correctness findings are addressed in current sources. Item 0.5.6 (pnpm
+`minimumReleaseAge`/`trustPolicy`) was intentionally deferred and remains open.
 
 ### 0.1 Remove dependency residue
 
@@ -201,12 +259,37 @@ This phase precedes component splitting because current source-regex tests pin i
 
 ### 1.1 Classify existing tests
 
+Status: partial — started 2026-08-22.
+
 Classify each source assertion as one of:
 
 - **Behavior:** replace with a pure-function, service, controller, or rendered-output assertion.
 - **Static contract:** keep only where the source itself is the product contract, such as forbidden
   CSS color literals or preload exposure.
 - **Visual detail:** move out of correctness tests; verify through the existing UI audit/demo flow.
+
+Done:
+
+- `focus-view.test.cjs`: the "Detail capture stays in the rail" test's `workspaceSource` *capture
+  wiring* pins — `openComposer`, `window.capture.onMainItemRequested`, `handleNewItemShortcut`,
+  the `composer={composerOpen || showExternalDropShadow …}` slot, `openDetail(nextItem.id, true)` —
+  were replaced with behavior assertions over the already-extracted pure `detectCaptureKind` and
+  `shouldYieldMainComposer`. These were the pins that would break once Phase 3.4 moves capture
+  coordination out of `workspace.tsx`. Non-capture workspace pins (`presentation="card"`,
+  `const focusDetail = focusItem ?…`) were kept because they do not move under Phase 3.4, as were the
+  static-contract pins on `focus-item-list.tsx`, `add-item-composer.tsx`, and
+  `composer-rich-markdown-editor.tsx`.
+
+Remaining (not yet acted on):
+
+- `quick-capture.test.cjs` pins on `add-item-composer.tsx`, `quick-capture-app.tsx`,
+  `src/main/index.ts`, and `capture-contract.ts` are classified as **static contract**: none of those
+  files move under Phase 3.4 (which explicitly leaves composer internals in place), so they neither
+  block the decompose nor need relaxation.
+- `focus-view.test.cjs` "medium windows use an overlay sidebar" pins `focus-workspace.tsx` and
+  `use-mobile.ts` — neither moves under Phase 3.4; classified as static contract / visual detail.
+- `note-frontmatter.test.cjs` still regex-pins the detail dialog; its `<RichMarkdownEditor>` pin was
+  updated to `<NoteRichEditor>` for the `NoteEditor` seam but the file is not fully reclassified.
 
 Priority files:
 
@@ -232,20 +315,34 @@ class names.
 
 ### 1.3 Split the test monolith by domain
 
-Split `tests/library-service.test.cjs` along existing behavior boundaries without changing fixtures:
+Status: complete — 2026-08-22.
 
-- vault initialization and migration
-- capture and staging
-- notes and attachments
-- collections and lifecycle
-- URL enrichment and network safety
-- reconciliation, cache, and performance behavior
+The repeated TypeScript require hook is now one shared helper, `tests/helpers/install-ts-require.cjs`,
+used by all 18 `tests/*.test.cjs` files that previously copy-pasted it. End behavior is unchanged.
 
-Extract the repeated TypeScript require hook into one test helper. Keep shared binary fixtures in one
-fixture module. Update the test script so every `*.test.cjs` file is discovered automatically rather
-than maintained in a manual list.
+`tests/library-service.test.cjs` (originally ~2800 lines / 72 tests) has been fully dissolved into
+domain files, all preserving the suite count (200 tests: 196 pass, 4 skipped):
 
-Acceptance:
+- `folder-tree.test.cjs` — folder-tree pure tests.
+- `url-metadata.test.cjs` — URL enrichment / item metadata / Internet-Shortcut pure tests.
+- `capture-markdown.test.cjs` — capture-kind / staged-image Markdown reference / attachment placement
+  pure tests.
+- `rich-markdown-interop.test.cjs` — Markdown formatting, note-mode, rich Markdown interchange,
+  frontmatter partitioning, code-change publication, scroll-mapping pure tests.
+- `service-capture.test.cjs` — `LibraryService`-backed capture/attachment-staging integration tests.
+- `service-collections.test.cjs` — folder/collection and item-lifecycle integration tests.
+- `service-note-lifecycle.test.cjs` — note create/persist/reopen, missing-content, attachment
+  reference, note update validation, autosave coordinator integration tests.
+- `service-obsidian.test.cjs` — Obsidian vault init, legacy embeds, schema-v1 migration, identity
+  rename, frontmatter removal, bookmark conversion integration tests.
+- `service-url.test.cjs` — URL creation, enrichment, preview cache, image validation integration.
+- `service-reconciliation.test.cjs` — cached snapshot, dirty reconcile, corrupt snapshot, bounded
+  payload, demo seeding integration tests.
+- `service-storage.test.cjs` — storage transaction/recovery integration tests plus the legacy-v1
+  recovery `test.skip` cases.
+
+Acceptance for 1.3 is met: no test was lost, pass/skip counts are intentionally accounted for, and
+moving a React component between files no longer breaks a correctness test by pinning the monolith.
 
 - No test is lost; pass and skip counts are intentionally accounted for.
 - Moving a React component between files does not break a correctness test.
@@ -340,6 +437,20 @@ Reuse `item-shortcuts.ts`; do not duplicate target resolution.
 
 ### 3.3 Item mutations
 
+Status: partial — started 2026-08-22.
+
+First slice landed: the reference-aware image-move counting that was duplicated inline in
+`moveItemIds`, `archiveItemIds`, and `unarchiveItemIds` was extracted into the pure module
+`src/renderer/src/features/library/reference-image-move.ts` (`countReferencedImageChanges`) with 5
+behavior tests in `tests/reference-image-move.test.cjs`. Each workspace mutation now calls that one
+module instead of re-implementing the same before/after path comparison three times.
+
+Remaining: move the concrete operations (`moveItemIds`, `archiveItemIds`, `unarchiveItemIds`,
+`trashItemIds`, `restoreItemIds`, `renameItemTitle`, permanent-delete, and the rename/delete/trash
+dialog state) into `use-item-mutations.ts`. These are statefully entangled with `applyLibraryResult`,
+focus transitions, notification callbacks, and `itemOperationBusy`, so each should move only once it
+can carry its behavior tests rather than as a single large move.
+
 Group the existing concrete operations without creating a generic command system:
 
 - move/archive/unarchive
@@ -391,33 +502,35 @@ Acceptance:
 
 ## Phase 4 — Separate vault persistence by responsibility
 
-Do this only after the renderer phases are stable. Preserve `LibraryService` as the application
-facade and `LibraryStore` as a temporary concrete facade while methods move; this is not a backwards
-compatibility layer, because it remains the single internal persistence boundary.
+Status: in progress — started 2026-08-22.
+
+Preserve `LibraryService` as the application facade and `LibraryStore` as a temporary concrete facade
+while methods move; this is not a backwards compatibility layer, because it remains the single
+internal persistence boundary.
 
 ### 4.1 Extract shared vault path safety
 
-Move canonical path containment, hidden-directory paths, normalized relative paths, and safe filename
-logic into one main-process module. All storage modules must use it; no module may implement its own
-containment check.
-
-Suggested file:
-
-- `src/main/library/storage/vault-paths.ts`
-
-Security tests must cover sibling-prefix paths, traversal, case behavior on Windows, hidden Trash,
-and symlink/non-following guarantees.
+Done: `src/main/library/storage/vault-paths.ts` exists and the security tests pass.
 
 ### 4.2 Extract capture persistence
 
-Move draft file/image staging, capture queue manifests, submission assets, restore, and discard into:
-
-- `src/main/library/storage/capture-store.ts`
-
-Keep submission orchestration in `capture-submission-service.ts`; this module owns filesystem state
-only.
+Done — 2026-08-22: the 18 capture-persistence methods (draft file/image staging, capture queue
+manifests, submission assets, restore, discard) moved out of `LibraryStore` into
+`src/main/library/storage/capture-store.ts` as standalone functions, with `LibraryStore` delegating.
+`LibraryStore` went from ~3135 to ~2920 lines; `capture-store.ts` is ~380 lines. Typecheck, lint, and
+the full suite (200 tests: 196 pass, 4 skipped) pass unchanged, including the queued-destination
+path semantics (`temp/capture-queue`). Submission orchestration stays in `capture-submission-service.ts`;
+this module owns filesystem state only.
 
 ### 4.3 Extract collection persistence
+
+Assessed — deferred (2026-08-22). Unlike capture persistence, the collection methods
+(`createCollection`, `updateCollection`, `moveCollection`, `deleteCollection`) are woven into the
+record-reconciliation machinery: `moveCollection` rewrites descendant item/collection records, and
+`deleteCollection` mutates the in-memory scan snapshot. Extracting them would require passing the
+record readers/writers and snapshot as collaborators, restructuring the scanner rather than moving a
+self-contained block. Per 4.5 ("do not split scanner internals solely to reduce line count"), this is
+deferred rather than forced.
 
 Move collection records and validated directory operations into:
 
@@ -426,6 +539,12 @@ Move collection records and validated directory operations into:
 Collection moves must retain current ancestry validation, descendant record updates, and rollback.
 
 ### 4.4 Extract lifecycle transactions
+
+Assessed — deferred (2026-08-22). Same entanglement as 4.3: the item-lifecycle methods
+(`finalizeInboxItem`, `updateItem`, `updateNote`, `moveItems`, `permanentlyDeleteItems`,
+`inspectItemDeletion`) depend on `resolveItem`, the scan snapshot, record readers/writers, and the
+`buildDto` pipeline. Extracting them as standalone functions would duplicate or thread that shared
+state. Deferred until the scanner/reconciler boundary is stable, per 4.5.
 
 Move item resolution, move/archive/Trash/restore/permanent-delete transactions and inbound reference
 rewrites into:
