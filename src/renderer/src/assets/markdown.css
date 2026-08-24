@@ -136,18 +136,17 @@
     min-height: 100%;
   }
 
-  .kuskus-rich-document.ProseMirror,
+  /* milkdown applies kuskus-rich-document to its wrapper div, so the ProseMirror
+     element is always a descendant — never the same element. */
   .kuskus-rich-document .ProseMirror {
     min-height: 100%;
     outline: none;
   }
 
-  .kuskus-rich-document.ProseMirror[contenteditable='true'],
   .kuskus-rich-document .ProseMirror[contenteditable='true'] {
     caret-color: currentColor;
   }
 
-  .kuskus-rich-document.ProseMirror:focus .kuskus-rich-active-line,
   .kuskus-rich-document .ProseMirror:focus .kuskus-rich-active-line {
     border-radius: 0.25rem;
     background: color-mix(in oklab, var(--foreground) 7%, transparent);

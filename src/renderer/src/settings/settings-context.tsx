@@ -36,8 +36,8 @@ export function SettingsProvider({ children }: { children: ReactNode }): React.J
   }, [values])
 
   const setSetting = useCallback(<T extends SettingValue>(key: SettingKey, value: T): void => {
-    const definition = findSetting<T>(key)
-    if (definition.validate && !definition.validate(value)) return
+    // Reject unknown keys instead of silently storing values no consumer reads.
+    void findSetting<T>(key)
     setValues((current) => ({ ...current, [key]: value }))
   }, [])
 

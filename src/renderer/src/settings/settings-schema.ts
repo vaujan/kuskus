@@ -30,7 +30,6 @@ export interface SettingDefinition<T extends SettingValue = SettingValue> {
   storageKey: string
   default: T
   parse: (stored: string | null) => T
-  validate?: (value: T) => boolean
 }
 
 export const SETTINGS_SCHEMA: readonly SettingDefinition[] = [
