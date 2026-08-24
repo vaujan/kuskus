@@ -107,7 +107,7 @@ test('Focus Index uses text-first rows with previews and distinct active and sel
   assert.match(source, /pr-14 pl-4/)
   assert.match(source, /\[&_\[data-slot=button\]\]:bg-transparent/)
   assert.match(source, /data-\[active=true\].*before:opacity-100/)
-  assert.match(source, /data-\[selected=true\]:shadow-/)
+  assert.match(source, /data-\[selected=true\]:bg-accent\/10/)
   assert.doesNotMatch(source, /aria-hidden="true">·/)
 })
 
