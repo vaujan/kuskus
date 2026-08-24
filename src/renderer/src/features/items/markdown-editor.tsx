@@ -7,7 +7,7 @@ import {
   undo
 } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
-import { bracketMatching, syntaxHighlighting, syntaxTree } from '@codemirror/language'
+import { bracketMatching, indentUnit, syntaxHighlighting, syntaxTree } from '@codemirror/language'
 import {
   EditorSelection,
   EditorState,
@@ -131,7 +131,23 @@ const editorTheme = EditorView.theme({
     fontFamily: 'var(--font-sans)'
   },
   '.cm-markdown-header:not(:empty)': { paddingBottom: '1.5rem' },
-  '.cm-kuskus-task-marker': { cursor: 'pointer' },
+  '.cm-kuskus-task-marker': {
+    cursor: 'pointer',
+    color: 'var(--primary)',
+    fontWeight: '500'
+  },
+  '.cm-kuskus-list-level-0': {
+    color: 'color-mix(in oklch, var(--primary) 78%, var(--foreground))'
+  },
+  '.cm-kuskus-list-level-1': {
+    color: 'color-mix(in oklch, var(--primary) 58%, var(--foreground))'
+  },
+  '.cm-kuskus-list-level-2': {
+    color: 'color-mix(in oklch, var(--primary) 42%, var(--foreground))'
+  },
+  '.cm-kuskus-list-level-3': {
+    color: 'color-mix(in oklch, var(--primary) 30%, var(--foreground))'
+  },
   // Text selection follows the primary theme instead of the neutral default.
   '&::selection, & ::selection': {
     backgroundColor: 'color-mix(in oklch, var(--primary) 25%, transparent)'
@@ -217,18 +233,76 @@ function taskMarkerAt(view: EditorView, position: number): number {
   return marker
 }
 
+type MarkdownSyntaxParent = {
+  name: string
+  parent: MarkdownSyntaxParent | null
+}
+
+function markdownListDepth(node: MarkdownSyntaxParent): number {
+  let depth = 0
+  let parent = node.parent
+  while (parent) {
+    if (parent.name === 'BulletList' || parent.name === 'OrderedList') depth += 1
+    parent = parent.parent
+  }
+  return Math.max(0, depth - 1)
+}
+
+function markdownListMarkerWidth(line: string): number | null {
+  const marker = /^(\s*)(?:[*+-]|\d+[.)])\s+(?:\[[ xX]\]\s+)?/.exec(line)
+  if (!marker) return null
+  return marker[0].length - marker[1].length
+}
+
 function taskMarkerDecorations(view: EditorView): DecorationSet {
-  const builder = new RangeSetBuilder<Decoration>()
+  const ranges: Array<{ from: number; to: number; decoration: Decoration }> = []
+  const listLines = new Map<number, number>()
   syntaxTree(view.state).iterate({
     enter: (node) => {
-      if (node.name !== 'Task') return true
-      const marker = node.node.firstChild
-      if (marker && marker.name === 'TaskMarker') {
-        builder.add(marker.from, marker.to, Decoration.mark({ class: 'cm-kuskus-task-marker' }))
+      if (node.name === 'ListItem') {
+        const marker = node.node.firstChild
+        if (!marker || marker.name !== 'ListMark') return true
+        const depth = markdownListDepth(node.node)
+        ranges.push({
+          from: marker.from,
+          to: marker.to,
+          decoration: Decoration.mark({
+            class: 'cm-kuskus-list-mark cm-kuskus-list-level-' + Math.min(depth, 3)
+          })
+        })
+        const line = view.state.doc.lineAt(marker.from)
+        const width = markdownListMarkerWidth(line.text)
+        if (width !== null) listLines.set(line.from, width)
+        return true
       }
-      return false
+      if (node.name === 'TaskMarker') {
+        const depth = markdownListDepth(node.node)
+        ranges.push({
+          from: node.from,
+          to: node.to,
+          decoration: Decoration.mark({
+            class: 'cm-kuskus-task-marker cm-kuskus-list-level-' + Math.min(depth, 3)
+          })
+        })
+      }
+      return true
     }
   })
+  for (const [from, width] of listLines) {
+    ranges.push({
+      from,
+      to: from,
+      decoration: Decoration.line({
+        attributes: {
+          class: 'cm-kuskus-list-line',
+          style: 'padding-inline-start: ' + width + 'ch; text-indent: -' + width + 'ch'
+        }
+      })
+    })
+  }
+  ranges.sort((left, right) => left.from - right.from || left.to - right.to)
+  const builder = new RangeSetBuilder<Decoration>()
+  for (const range of ranges) builder.add(range.from, range.to, range.decoration)
   return builder.finish()
 }
 
@@ -340,6 +414,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       const baseExtensions: Extension[] = [
         history(),
         EditorView.lineWrapping,
+        indentUnit.of('    '),
         markdown({ extensions: [GFM, markdownFrontmatter], codeLanguages: markdownCodeLanguage }),
         bracketMatching(),
         highlightSpecialChars(),
