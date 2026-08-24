@@ -1,5 +1,6 @@
 import { Fragment } from '@milkdown/prose/model'
 import { nodeRule } from '@milkdown/prose'
+import type { MilkdownPlugin } from '@milkdown/ctx'
 import { $ctx, $inputRule, $nodeSchema, $remark } from '@milkdown/utils'
 import katex, { type KatexOptions } from 'katex'
 import remarkMath from 'remark-math'
@@ -85,7 +86,7 @@ const mathInlineInputRule = $inputRule((ctx) =>
   })
 )
 
-export const richMarkdownMath = [
+export const richMarkdownMath: MilkdownPlugin[] = [
   remarkMathPlugin,
   richMarkdownKatexOptions,
   mathInlineSchema,
