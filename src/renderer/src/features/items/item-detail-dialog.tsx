@@ -100,11 +100,8 @@ import {
   reduceInlineTitleEdit,
   resolveInlineTitleSubmission
 } from '@/features/items/item-title-edit'
-import type { MarkdownEditorHandle } from '@/features/items/markdown-editor'
-import type {
-  RichMarkdownEditorHandle,
-  RichMarkdownEditorOptions
-} from '@/features/items/rich-markdown-editor'
+import type { NoteEditorVimContract, SourceNoteHandle } from '@/features/items/note-editor'
+import type { RichMarkdownEditorOptions } from '@/features/items/rich-markdown-editor'
 import { partitionRichMarkdownSource } from '@/features/items/rich-markdown-source'
 import { supportsRichMarkdown } from '@/features/items/rich-markdown-syntax'
 import { NoteProperties } from '@/features/items/note-properties'
@@ -150,17 +147,19 @@ import {
 } from '../../../../shared/markdown-image-references'
 import { parseNoteFrontmatter } from '../../../../shared/note-frontmatter'
 
-const MarkdownEditor = lazy(() =>
-  import('@/features/items/markdown-editor').then((module) => ({ default: module.MarkdownEditor }))
+const NoteSourceEditor = lazy(() =>
+  import('@/features/items/note-source-editor').then((module) => ({
+    default: module.NoteSourceEditor
+  }))
 )
 const MarkdownPreview = lazy(() =>
   import('@/features/items/markdown-preview').then((module) => ({
     default: module.MarkdownPreview
   }))
 )
-const RichMarkdownEditor = lazy(() =>
-  import('@/features/items/rich-markdown-editor').then((module) => ({
-    default: module.RichMarkdownEditor
+const NoteRichEditor = lazy(() =>
+  import('@/features/items/note-rich-editor').then((module) => ({
+    default: module.NoteRichEditor
   }))
 )
 
@@ -1067,8 +1066,7 @@ function NoteCanvas({
   onMoveToTrash: (itemId: string) => void
   onError: (message: string) => void
 }): React.JSX.Element {
-  const editorRef = useRef<MarkdownEditorHandle>(null)
-  const richEditorRef = useRef<RichMarkdownEditorHandle>(null)
+  const noteEditorRef = useRef<SourceNoteHandle>(null)
   const previewViewportRef = useRef<HTMLDivElement>(null)
   const noteViewportRef = useRef<HTMLDivElement>(null)
   const noteScrollTopRef = useRef(0)
@@ -1107,17 +1105,11 @@ function NoteCanvas({
     return () => noteScrollDetachRef.current?.()
   }, [])
   useEffect(() => {
-    noteCursorCaptureRef.current = () => {
-      if (mode === 'live') return richEditorRef.current?.getCursorOffset() ?? null
-      if (mode === 'markdown' || mode === 'split') {
-        return editorRef.current?.getCursorOffset() ?? null
-      }
-      return null
-    }
+    noteCursorCaptureRef.current = () => noteEditorRef.current?.getCursorOffset() ?? null
     return () => {
       noteCursorCaptureRef.current = null
     }
-  }, [mode, noteCursorCaptureRef])
+  }, [noteCursorCaptureRef])
   const importPastedImage = useCallback(
     async (file: File, insertAtSelection: (src: string) => void): Promise<void> => {
       try {
@@ -1165,6 +1157,11 @@ function NoteCanvas({
     }
   }, [attachmentPreviews, importPastedImage, mode, noteAttachments])
 
+  const noteVimContract = useMemo<NoteEditorVimContract>(
+    () => ({ onModeChange: onVimModeChange, onWrite: onVimWrite, onQuit: onVimQuit }),
+    [onVimModeChange, onVimQuit, onVimWrite]
+  )
+
   const scheduleScrollSynchronization = useCallback(
     (driver: 'source' | 'preview', recordDriver = true): void => {
       if (mode !== 'split') return
@@ -1180,7 +1177,7 @@ function NoteCanvas({
         syncFrameRef.current = null
         const pendingDriver = pendingScrollDriverRef.current
         pendingScrollDriverRef.current = null
-        const source = editorRef.current?.getScroller()
+        const source = noteEditorRef.current?.getScroller()
         const preview = previewViewportRef.current
         if (!pendingDriver || !source || !preview) return
 
@@ -1226,9 +1223,8 @@ function NoteCanvas({
   }, [scheduleScrollSynchronization])
 
   const focusWritingSurface = useCallback((): void => {
-    if (mode === 'live') richEditorRef.current?.focus()
-    else if (mode === 'markdown' || mode === 'split') editorRef.current?.focus()
-  }, [mode])
+    noteEditorRef.current?.focus()
+  }, [])
 
   useLayoutEffect(() => {
     if (mode === 'read') {
@@ -1255,7 +1251,7 @@ function NoteCanvas({
     const previousMode = previousModeRef.current
     previousModeRef.current = mode
     const frame = requestAnimationFrame(() => {
-      editorRef.current?.requestMeasure()
+      noteEditorRef.current?.requestMeasure()
       if (mode === 'split' && previousMode !== 'split') {
         const driver = previousMode === 'read' ? 'preview' : 'source'
         activeScrollDriverRef.current = driver
@@ -1269,7 +1265,7 @@ function NoteCanvas({
     if (mode !== 'markdown' && mode !== 'split') return
     const offset = noteCursorOffsetRef.current
     if (offset == null) return
-    const frame = requestAnimationFrame(() => editorRef.current?.setCursorOffset(offset))
+    const frame = requestAnimationFrame(() => noteEditorRef.current?.setCursorOffset(offset))
     return () => cancelAnimationFrame(frame)
   }, [mode, noteCursorOffsetRef])
 
@@ -1280,12 +1276,12 @@ function NoteCanvas({
 
   useEffect(() => {
     if (mode !== 'split') return
-    const source = editorRef.current?.getScroller()
+    const source = noteEditorRef.current?.getScroller()
     const preview = previewViewportRef.current
     if (!source || !preview) return
 
     const observer = new ResizeObserver(() => {
-      editorRef.current?.requestMeasure()
+      noteEditorRef.current?.requestMeasure()
       scheduleScrollSynchronization(activeScrollDriverRef.current, false)
     })
     observer.observe(source)
@@ -1312,7 +1308,7 @@ function NoteCanvas({
     const target = event.target as HTMLElement | null
     if (target?.closest('input:not([readonly]), textarea:not([readonly]), select')) return
     const redo = key === 'y' || event.shiftKey
-    const handled = redo ? editorRef.current?.redo() : editorRef.current?.undo()
+    const handled = redo ? noteEditorRef.current?.redo() : noteEditorRef.current?.undo()
     if (!handled) return
     event.preventDefault()
     event.stopPropagation()
@@ -1338,8 +1334,8 @@ function NoteCanvas({
       {mode === 'read' || mode === 'live' ? (
         mode === 'live' && richSupported ? (
           <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
-            <RichMarkdownEditor
-              ref={richEditorRef}
+            <NoteRichEditor
+              ref={noteEditorRef}
               value={snapshot.draft}
               editable
               active
@@ -1347,9 +1343,7 @@ function NoteCanvas({
               preserveScrollTopRef={noteScrollTopRef}
               preserveCursorOffsetRef={noteCursorOffsetRef}
               vimEnabled={vimEnabled}
-              onVimModeChange={onVimModeChange}
-              onVimWrite={onVimWrite}
-              onVimQuit={onVimQuit}
+              vim={noteVimContract}
               onChange={onDraftChange}
               onError={onError}
             />
@@ -1436,9 +1430,9 @@ function NoteCanvas({
             >
               {sourceActivated ? (
                 <Suspense fallback={<div className="min-h-48 flex-1 animate-pulse bg-muted/20" />}>
-                  <MarkdownEditor
+                  <NoteSourceEditor
                     key={historyRevision}
-                    ref={editorRef}
+                    ref={noteEditorRef}
                     value={snapshot.draft}
                     active={mode === 'markdown' || mode === 'split'}
                     className="flex-1"
@@ -1460,9 +1454,7 @@ function NoteCanvas({
                     onPasteImage={importPastedImage}
                     onScroll={() => scheduleScrollSynchronization('source')}
                     vimEnabled={vimEnabled}
-                    onVimModeChange={onVimModeChange}
-                    onVimWrite={onVimWrite}
-                    onVimQuit={onVimQuit}
+                    vim={noteVimContract}
                   />
                 </Suspense>
               ) : null}
@@ -1556,7 +1548,7 @@ function NoteCanvas({
         <div
           role="status"
           aria-live="polite"
-          className="flex h-7 shrink-0 items-center border-t bg-popover px-3 font-mono text-xs font-medium text-muted-foreground"
+          className="flex h-7 shrink-0 items-center border-t border-border/50  px-3 font-mono text-xs font-medium text-muted-foreground"
         >
           -- {vimMode.toUpperCase()} --
         </div>

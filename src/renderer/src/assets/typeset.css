@@ -356,9 +356,10 @@
       font-size: 1em;
       line-height: 1.5;
       font-variant-numeric: tabular-nums;
+      background: color-mix(in oklch, var(--foreground) 3%, transparent);
       border-collapse: separate;
       border-spacing: 0;
-      border: 1px solid var(--typeset-rule);
+      border: 1px solid color-mix(in oklch, var(--foreground) 28%, transparent);
       border-radius: calc(var(--radius) * 1.4);
       overflow: hidden;
       margin-block-start: var(--typeset-flow);
@@ -384,21 +385,25 @@
       text-align: start;
       white-space: nowrap;
       padding: 0.65em 1em;
+      border-block-end: 1px solid color-mix(in oklch, var(--foreground) 22%, transparent);
     }
     &:where(:is(tbody, tfoot) :is(td, th)) {
       padding: 0.75em 1em;
       text-align: start;
       vertical-align: top;
-      border-block-start: 1px solid var(--typeset-rule);
+      border-block-start: 1px solid color-mix(in oklch, var(--foreground) 18%, transparent);
     }
     &:where(tbody th, tfoot th) {
       font-weight: 500;
     }
     &:where(th:not(:last-child), td:not(:last-child)) {
-      border-inline-end: 1px solid var(--typeset-rule);
+      border-inline-end: 1px solid color-mix(in oklch, var(--foreground) 22%, transparent);
     }
     &:where(th:first-child, td:first-child) {
-      padding-inline-start: 0;
+      padding-inline-start: 1em;
+    }
+    &:where(th:last-child, td:last-child) {
+      padding-inline-end: 1em;
     }
     &:where(th[align='center'], td[align='center']) {
       text-align: center;

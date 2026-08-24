@@ -12,7 +12,7 @@ import {
   type TablerIcon
 } from '@tabler/icons-react'
 import { createPortal } from 'react-dom'
-import { useEffect, useRef } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 
 import {
   Command,
@@ -50,11 +50,12 @@ export function RichMarkdownSlashMenu({
   const items = filteredRichMarkdownSlashCommands(state.query)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // The ProseMirror plugin handles arrow keys itself, so cmdk's internal
-  // navigation (which scrolls the selected item into view) never runs.
-  useEffect(() => {
+  // The ProseMirror plugin owns arrow-key selection, so cmdk's own keyboard
+  // navigation never gets a chance to scroll the selected item.
+  useLayoutEffect(() => {
     containerRef.current
-      ?.querySelector<HTMLElement>('[data-selected="true"]')
+      ?.querySelectorAll<HTMLElement>('[data-slot="command-item"]')
+      .item(state.selected)
       ?.scrollIntoView({ block: 'nearest' })
   }, [state.selected])
 

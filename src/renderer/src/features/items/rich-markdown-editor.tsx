@@ -73,6 +73,7 @@ export interface RichMarkdownEditorOptions {
   onOpenLink?: (url: string) => void
   onOpenVaultLink?: (target: string) => void
   onPasteImage?: (file: File, insertAtSelection: (src: string) => void) => void
+  plainUrlPaste?: boolean
   tasksEditable?: boolean
 }
 
@@ -501,6 +502,28 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
             const file = Array.from(event.clipboardData?.items ?? [])
               .find((entry) => entry.type.startsWith('image/'))
               ?.getAsFile()
+            if (optionsRef.current.plainUrlPaste) {
+              // A URL copied from an address bar or rich document arrives as an <a> tag,
+              // which would enter the document as a link mark and serialize to a Markdown
+              // link instead of the bare URL capture detection expects. Paste it as plain
+              // text so the draft keeps exactly what the user copied.
+              const text = event.clipboardData?.getData('text/plain').trim() ?? ''
+              try {
+                const url = new URL(text)
+                if (
+                  ['http:', 'https:'].includes(url.protocol) &&
+                  (url.href === text || url.href === `${text}/`)
+                ) {
+                  event.preventDefault()
+                  const transaction = view.state.tr
+                  transaction.replaceSelectionWith(view.state.schema.text(text))
+                  view.dispatch(transaction.scrollIntoView())
+                  return true
+                }
+              } catch {
+                // Not a bare URL; fall through to the default paste handling.
+              }
+            }
             const onPasteImage = optionsRef.current.onPasteImage
             if (!file || !onPasteImage) return false
             event.preventDefault()

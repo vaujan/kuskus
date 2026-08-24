@@ -1,20 +1,7 @@
 const assert = require('node:assert/strict')
 const { readFileSync } = require('node:fs')
 const test = require('node:test')
-const ts = require('typescript')
-
-require.extensions['.ts'] = (module, filename) => {
-  const source = readFileSync(filename, 'utf8')
-  const output = ts.transpileModule(source, {
-    compilerOptions: {
-      target: ts.ScriptTarget.ES2022,
-      module: ts.ModuleKind.CommonJS,
-      esModuleInterop: true
-    },
-    fileName: filename
-  })
-  module._compile(output.outputText, filename)
-}
+require('./helpers/install-ts-require.cjs')()
 
 const {
   formatItemUpdatedAt,
@@ -251,7 +238,7 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.match(detailSource, /showInlineTitle/)
   assert.match(
     detailSource,
-    /<MarkdownEditor[\s\S]*?header=\{[\s\S]*?showInlineTitle \? \([\s\S]*?<InlineItemTitle/
+    /<NoteSourceEditor[\s\S]*?header=\{[\s\S]*?showInlineTitle \? \([\s\S]*?<InlineItemTitle/
   )
   assert.match(
     editorSource,

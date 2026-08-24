@@ -105,11 +105,11 @@ test('cursor persistence maps the caret through a source-markdown sentinel round
   assert.match(rich, /doc\.descendants\(\(node, nodePos\) => \{\s+if \(!node\.isText\) return true/)
   assert.match(
     dialog,
-    /noteCursorCaptureRef\.current = \(\) => \{\s+if \(mode === 'live'\) return richEditorRef\.current\?\.getCursorOffset\(\) \?\? null\s+if \(mode === 'markdown' \|\| mode === 'split'\) \{\s+return editorRef\.current\?\.getCursorOffset\(\) \?\? null\s+\}\s+return null\s+\}/
+    /noteCursorCaptureRef\.current = \(\) => noteEditorRef\.current\?\.getCursorOffset\(\) \?\? null/
   )
   assert.match(dialog, /const captured = noteCursorCaptureRef\.current\?\.\(\) \?\? null/)
   assert.match(dialog, /if \(captured != null\) noteCursorOffsetRef\.current = captured/)
-  assert.match(dialog, /editorRef\.current\?\.setCursorOffset\(offset\)/)
+  assert.match(dialog, /noteEditorRef\.current\?\.setCursorOffset\(offset\)/)
 
   const marker = createCursorMarker()
   const source = 'line one\nline two\nline three\n'
@@ -256,4 +256,24 @@ test('Markdown media renders remote images and keeps block math visually distinc
   assert.match(styles, /\.kuskus-markdown-image-caption[\s\S]*font-size: 0\.75rem/)
   assert.match(styles, /\.kuskus-markdown-image-caption[\s\S]*text-align: center/)
   assert.match(styles, /\.kuskus-markdown-image-button\[data-zoomed='true'\]/)
+})
+
+test('list hierarchy and slash selection stay visible in editor surfaces', () => {
+  const slash = readFileSync(
+    require.resolve('../src/renderer/src/features/items/rich-markdown-slash-menu.tsx'),
+    'utf8'
+  )
+  const source = readFileSync(
+    require.resolve('../src/renderer/src/features/items/markdown-editor.tsx'),
+    'utf8'
+  )
+  const styles = readFileSync(require.resolve('../src/renderer/src/assets/markdown.css'), 'utf8')
+
+  assert.match(slash, /useLayoutEffect/)
+  assert.ok(slash.includes('querySelectorAll<HTMLElement>(\'[data-slot="command-item"]\')'))
+  assert.ok(slash.includes('.item(state.selected)'))
+  assert.match(source, /node.name === 'ListItem'/)
+  assert.match(source, /Decoration.line/)
+  assert.match(source, /cm-kuskus-list-level-/)
+  assert.ok(styles.includes('padding-inline-start: var(--typeset-list-indent)'))
 })

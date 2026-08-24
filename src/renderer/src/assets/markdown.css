@@ -155,7 +155,14 @@
 
   .kuskus-rich-document ul:has(> li[data-item-type='task']) {
     list-style-type: none;
-    padding-inline-start: 0.25em;
+    padding-inline-start: 0;
+  }
+
+  .kuskus-rich-document
+    li[data-item-type='task']
+    > .kuskus-rich-task-content
+    > ul:has(> li[data-item-type='task']) {
+    padding-inline-start: var(--typeset-list-indent);
   }
 
   .kuskus-typeset li.task-list-item {
@@ -236,6 +243,7 @@
   .kuskus-rich-task-content {
     min-width: 0;
     flex: 1;
+    overflow-wrap: break-word;
   }
 
   .kuskus-rich-task-content > :first-child {

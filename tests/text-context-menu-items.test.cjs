@@ -1,15 +1,6 @@
 const assert = require('node:assert/strict')
-const { readFileSync } = require('node:fs')
 const test = require('node:test')
-const ts = require('typescript')
-
-require.extensions['.ts'] = (module, filename) => {
-  const output = ts.transpileModule(readFileSync(filename, 'utf8'), {
-    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
-    fileName: filename
-  })
-  module._compile(output.outputText, filename)
-}
+require('./helpers/install-ts-require.cjs')()
 
 const { createTextContextMenuItems } = require('../src/main/window/text-context-menu-items.ts')
 

@@ -1,20 +1,7 @@
 const assert = require('node:assert/strict')
 const { readFileSync } = require('node:fs')
 const test = require('node:test')
-const ts = require('typescript')
-
-require.extensions['.ts'] = (module, filename) => {
-  const source = readFileSync(filename, 'utf8')
-  const output = ts.transpileModule(source, {
-    compilerOptions: {
-      target: ts.ScriptTarget.ES2022,
-      module: ts.ModuleKind.CommonJS,
-      esModuleInterop: true
-    },
-    fileName: filename
-  })
-  module._compile(output.outputText, filename)
-}
+require('./helpers/install-ts-require.cjs')()
 
 const {
   editNoteFrontmatter,
@@ -121,7 +108,7 @@ test('note detail uses inline document blocks and detail-only view settings', ()
   assert.doesNotMatch(detail, /NoteIdentityControls|NoteMetadataControls/)
   assert.doesNotMatch(detail, /Wide reading width/)
   assert.match(detail, /<NoteDocumentBlocks/)
-  assert.match(detail, /<RichMarkdownEditor/)
+  assert.match(detail, /<NoteRichEditor/)
   assert.match(detail, /NOTE_INLINE_TITLE_STORAGE_KEY/)
   assert.match(menu, /Readable line length/)
   assert.match(menu, /Inline title/)

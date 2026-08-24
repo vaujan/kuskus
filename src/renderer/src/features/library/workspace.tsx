@@ -59,8 +59,6 @@ import { SavedItemCard } from '@/features/items/saved-item-card'
 import { FocusItemList } from '@/features/items/focus-item-list'
 import { FocusListHeader } from '@/features/items/focus-list-header'
 import {
-  FOCUS_RAIL_DENSITY_STORAGE_KEY,
-  parseFocusRailDensity,
   parseFocusListWidth,
   resolveFocusAfterRemoval,
   resolveInitialFocusItemId,
@@ -82,21 +80,19 @@ import { readAppSession, writeAppSession } from '@/features/library/session-rest
 import { expandLibraryOverview } from '@/features/library/library-overview'
 import { useLibraryRetrieval } from '@/features/library/use-library-retrieval'
 import { useLibrarySelection } from '@/features/library/use-library-selection'
+import { countReferencedImageChanges } from '@/features/library/reference-image-move'
 import {
   ItemActionMenu,
   ItemContextMenu,
   type ItemActionHandlers
 } from '@/features/items/item-action-menu'
-import {
-  ITEM_SORT_STORAGE_KEY,
-  parseItemSort,
-  sortItems,
-  type ItemSort
-} from '@/features/items/item-sort'
-import { parseLibraryView, type ItemTypeFilter, type LibraryView } from '@/features/items/item-view'
+import { sortItems, type ItemSort } from '@/features/items/item-sort'
+import { type ItemTypeFilter, type LibraryView } from '@/features/items/item-view'
 import type { NoteMode } from '@/features/items/note-view-mode'
 import { AppToolbar } from '@/features/shell/app-toolbar'
 import { LibrarySidebar, type LibraryDestination } from '@/features/shell/library-sidebar'
+import { SettingsDialog } from '@/features/settings/settings-dialog'
+import { useSetting } from '@/settings/settings-context'
 import { useTheme } from '@/hooks/use-theme'
 import { useNoteVim } from '@/hooks/use-note-vim'
 import type { TranslucentBackgroundPreference } from '@/hooks/use-translucent-background'
@@ -196,24 +192,19 @@ export function Workspace({
   const [composerOwnedItemId, setComposerOwnedItemId] = useState<string | null>(null)
   const [globalCaptureShortcutStatus, setGlobalCaptureShortcutStatus] =
     useState<GlobalCaptureShortcutStatus | null>(null)
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [draggedItemIds, setDraggedItemIds] = useState<ReadonlySet<string>>(() => new Set())
   const [search, setSearch] = useState(() => initialSession?.search ?? '')
   const [typeFilters, setTypeFilters] = useState<ItemTypeFilter[]>(
     () => initialSession?.typeFilters ?? []
   )
-  const [sort, setSort] = useState<ItemSort>(() =>
-    parseItemSort(localStorage.getItem(ITEM_SORT_STORAGE_KEY))
-  )
-  const [view, setView] = useState<LibraryView>(() => {
-    return parseLibraryView(localStorage.getItem('kuskus-library-view'))
-  })
+  const [sort, setSort] = useSetting<ItemSort>('itemSort')
+  const [view, setView] = useSetting<LibraryView>('libraryView')
   const [focusListWidth, setFocusListWidth] = useState(() =>
     parseFocusListWidth(localStorage.getItem('kuskus-focus-list-width'))
   )
-  const [focusRailDensity, setFocusRailDensity] = useState<FocusRailDensity>(() =>
-    parseFocusRailDensity(localStorage.getItem(FOCUS_RAIL_DENSITY_STORAGE_KEY))
-  )
+  const [focusRailDensity, setFocusRailDensity] = useSetting<FocusRailDensity>('railDensity')
   const [focusWorkspaceOpen, setFocusWorkspaceOpen] = useState(
     () => initialSession !== null && initialSession.focusItemId !== null
   )
@@ -343,20 +334,8 @@ export function Workspace({
   }, [sidebarWidth])
 
   useEffect(() => {
-    localStorage.setItem('kuskus-library-view', view)
-  }, [view])
-
-  useEffect(() => {
     localStorage.setItem('kuskus-focus-list-width', String(Math.round(focusListWidth)))
   }, [focusListWidth])
-
-  useEffect(() => {
-    localStorage.setItem(FOCUS_RAIL_DENSITY_STORAGE_KEY, focusRailDensity)
-  }, [focusRailDensity])
-
-  useEffect(() => {
-    localStorage.setItem(ITEM_SORT_STORAGE_KEY, sort)
-  }, [sort])
 
   useEffect(() => {
     localStorage.setItem('kuskus-show-referenced-attachments', String(showReferencedAttachments))
@@ -600,7 +579,7 @@ export function Workspace({
     [clearSelectionSilently, focusItemId, requestFocusTransition]
   )
 
-  const changeView = useCallback((next: LibraryView): void => setView(next), [])
+  const changeView = useCallback((next: LibraryView): void => setView(next), [setView])
 
   const returnToMasonry = useCallback((): void => {
     setView('visual')
@@ -608,7 +587,7 @@ export function Workspace({
     setFocusItemId(null)
     setFocusDetailOpen(false)
     setFocusNoteExpanded(false)
-  }, [])
+  }, [setView])
 
   const handleFocusSplitChange = useCallback((split: boolean): void => {
     if (split) setFocusDetailOpen(true)
@@ -718,13 +697,6 @@ export function Workspace({
   const moveItemIds = useCallback(
     async (itemIds: string[], nextDestination: ActiveItemLocation): Promise<void> => {
       const requested = new Set(itemIds)
-      const selectedNotes = library.items.filter(
-        (item): item is Extract<LibraryItemDto, { type: 'note' }> =>
-          requested.has(item.id) && item.type === 'note'
-      )
-      const referencedImageIds = new Set(
-        selectedNotes.flatMap((note) => note.attachments.map((attachment) => attachment.id))
-      )
       const explicitlyMovedReferencedImages = library.items.filter(
         (item) =>
           requested.has(item.id) &&
@@ -740,18 +712,7 @@ export function Workspace({
         const result = await window.kuskus.moveItems({ itemIds, destination: nextDestination })
         const nextLibrary = applyLibraryResult(result)
         if (!nextLibrary) return
-        const movedImages = [...referencedImageIds].filter((imageId) => {
-          if (requested.has(imageId)) return false
-          const before = library.items.find((item) => item.id === imageId)
-          const after = nextLibrary.items.find((item) => item.id === imageId)
-          return before?.relativePath !== after?.relativePath
-        }).length
-        const retainedImages = [...referencedImageIds].filter((imageId) => {
-          if (requested.has(imageId)) return false
-          const before = library.items.find((item) => item.id === imageId)
-          const after = nextLibrary.items.find((item) => item.id === imageId)
-          return before && after && before.relativePath === after.relativePath
-        }).length
+        const changes = countReferencedImageChanges(requested, library.items, nextLibrary.items)
         const updatedNotes = new Set(
           explicitlyMovedReferencedImages.flatMap((image) =>
             library.items.flatMap((candidate) =>
@@ -762,8 +723,12 @@ export function Workspace({
             )
           )
         ).size
-        if (movedImages + retainedImages + updatedNotes > 0) {
-          notifyReferenceAwareMove({ movedImages, retainedImages, updatedNotes })
+        if (changes.movedImages + changes.retainedImages + updatedNotes > 0) {
+          notifyReferenceAwareMove({
+            movedImages: changes.movedImages,
+            retainedImages: changes.retainedImages,
+            updatedNotes
+          })
         }
       } finally {
         setItemOperationBusy(false)
@@ -810,13 +775,6 @@ export function Workspace({
   const archiveItemIds = useCallback(
     async (itemIds: string[], showUndo = true): Promise<void> => {
       const requested = new Set(itemIds)
-      const referencedImageIds = new Set(
-        library.items.flatMap((item) =>
-          requested.has(item.id) && item.type === 'note'
-            ? item.attachments.map((attachment) => attachment.id)
-            : []
-        )
-      )
       const explicitlyMovedImageIds = new Set(
         library.items.flatMap((item) =>
           requested.has(item.id) && item.type === 'image' ? [item.id] : []
@@ -827,12 +785,7 @@ export function Workspace({
         const result = await window.kuskus.archiveItems({ itemIds })
         const nextLibrary = applyLibraryResult(result)
         if (!nextLibrary) return
-        const movedImages = [...referencedImageIds].filter((imageId) => {
-          if (requested.has(imageId)) return false
-          const before = library.items.find((item) => item.id === imageId)
-          const after = nextLibrary.items.find((item) => item.id === imageId)
-          return before?.relativePath !== after?.relativePath
-        }).length
+        const changes = countReferencedImageChanges(requested, library.items, nextLibrary.items)
         const updatedNotes = library.items.filter(
           (item) =>
             item.type === 'note' &&
@@ -847,8 +800,8 @@ export function Workspace({
                 .then((undoResult) => applyLibraryResult(undoResult))
             },
             [
-              movedImages > 0
-                ? `${movedImages} ${movedImages === 1 ? 'image was' : 'images were'} archived with the note.`
+              changes.movedImages > 0
+                ? `${changes.movedImages} ${changes.movedImages === 1 ? 'image was' : 'images were'} archived with the note.`
                 : '',
               updatedNotes > 0
                 ? `${updatedNotes} ${updatedNotes === 1 ? 'note reference was' : 'note references were'} updated.`
@@ -882,19 +835,7 @@ export function Workspace({
         const nextLibrary = applyLibraryResult(result)
         if (!nextLibrary) return
         const requested = new Set(itemIds)
-        const referencedImageIds = new Set(
-          library.items.flatMap((item) =>
-            requested.has(item.id) && item.type === 'note'
-              ? item.attachments.map((attachment) => attachment.id)
-              : []
-          )
-        )
-        const movedImages = [...referencedImageIds].filter((imageId) => {
-          if (requested.has(imageId)) return false
-          const before = library.items.find((item) => item.id === imageId)
-          const after = nextLibrary.items.find((item) => item.id === imageId)
-          return before?.relativePath !== after?.relativePath
-        }).length
+        const changes = countReferencedImageChanges(requested, library.items, nextLibrary.items)
         if (notify) {
           notifyUnarchived(
             itemIds.length,
@@ -902,8 +843,8 @@ export function Workspace({
               missingPreviousFolder
                 ? 'A previous folder was unavailable, so the item was returned to Inbox.'
                 : '',
-              movedImages > 0
-                ? `${movedImages} ${movedImages === 1 ? 'image was' : 'images were'} restored with the note.`
+              changes.movedImages > 0
+                ? `${changes.movedImages} ${changes.movedImages === 1 ? 'image was' : 'images were'} restored with the note.`
                 : ''
             ]
               .filter(Boolean)
@@ -1201,6 +1142,17 @@ export function Workspace({
   ])
 
   useEffect(() => {
+    const handleSettingsShortcut = (event: KeyboardEvent): void => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === ',') {
+        event.preventDefault()
+        setSettingsDialogOpen(true)
+      }
+    }
+    window.addEventListener('keydown', handleSettingsShortcut)
+    return () => window.removeEventListener('keydown', handleSettingsShortcut)
+  }, [])
+
+  useEffect(() => {
     const clearSelectionOnEscape = (event: KeyboardEvent): void => {
       if (
         event.defaultPrevented ||
@@ -1440,7 +1392,10 @@ export function Workspace({
       if (!text) return
       try {
         const url = new URL(text)
-        if (['http:', 'https:'].includes(url.protocol) && url.toString() === text) {
+        if (
+          ['http:', 'https:'].includes(url.protocol) &&
+          (url.href === text || url.href === `${text}/`)
+        ) {
           event.preventDefault()
           requestUrlCapture(text)
           return
@@ -1897,6 +1852,7 @@ export function Workspace({
         onTranslucentBackgroundChange={translucentBackground.setEnabled}
         vimEnabled={vimEnabled}
         onVimEnabledChange={setVimEnabled}
+        onOpenFullSettings={() => setSettingsDialogOpen(true)}
       />
       <SidebarInset>
         {focusWorkspaceOpen ? null : (
@@ -2354,6 +2310,13 @@ export function Workspace({
             setFocusNoteExpanded(false)
             setComposerFocusRequest((request) => request + 1)
           }}
+        />
+        <SettingsDialog
+          open={settingsDialogOpen}
+          onOpenChange={setSettingsDialogOpen}
+          translucentBackground={translucentBackground}
+          globalCaptureShortcutStatus={globalCaptureShortcutStatus}
+          onGlobalCaptureShortcutStatusChange={setGlobalCaptureShortcutStatus}
         />
       </SidebarInset>
     </SidebarProvider>

@@ -30,7 +30,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-heading: 'IBM Plex Sans Variable', 'Inter Variable', sans-serif;
+  --font-heading: 'Inter Variable', sans-serif;
   --font-sans: 'Inter Variable', sans-serif;
   --font-mono: 'JetBrainsMono NF', monospace;
   --font-serif: Georgia, serif;

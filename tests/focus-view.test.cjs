@@ -1,20 +1,7 @@
 const assert = require('node:assert/strict')
 const { readFileSync } = require('node:fs')
 const test = require('node:test')
-const ts = require('typescript')
-
-require.extensions['.ts'] = (module, filename) => {
-  const source = readFileSync(filename, 'utf8')
-  const output = ts.transpileModule(source, {
-    compilerOptions: {
-      target: ts.ScriptTarget.ES2022,
-      module: ts.ModuleKind.CommonJS,
-      esModuleInterop: true
-    },
-    fileName: filename
-  })
-  module._compile(output.outputText, filename)
-}
+require('./helpers/install-ts-require.cjs')()
 
 const {
   clampFocusListWidth,
@@ -28,6 +15,10 @@ const { parseLibraryView } = require('../src/renderer/src/features/items/item-vi
 const {
   focusIndexSupportingText
 } = require('../src/renderer/src/features/items/focus-index-row-text.ts')
+const { detectCaptureKind } = require('../src/renderer/src/features/capture/capture-detection.ts')
+const {
+  shouldYieldMainComposer
+} = require('../src/renderer/src/features/capture/capture-draft-tracker.ts')
 
 test('parses layouts and disables persisted Focus, Table, or legacy List views', () => {
   assert.equal(parseLibraryView('focus'), 'visual')
@@ -158,31 +149,26 @@ test('Detail capture stays in the rail and can promote notes into the editor', (
   )
 
   assert.match(workspaceSource, /presentation="card"/)
-  assert.match(
-    workspaceSource,
-    /composer=\{composerOpen \|\| showExternalDropShadow \? captureSlot : null\}/
-  )
   assert.match(workspaceSource, /const focusDetail = focusItem \? \(/)
-  assert.match(workspaceSource, /if \(!focusItemId\) return/)
-  assert.match(workspaceSource, /if \(focusItemId\) requestFocusTransition\(open\)/)
-  const newItemShortcut = workspaceSource.slice(
-    workspaceSource.indexOf('const handleNewItemShortcut'),
-    workspaceSource.indexOf('const prepareGlobalCapture')
+  assert.equal(
+    detectCaptureKind('', 1),
+    'image',
+    'an empty draft with one image promotes a captured image'
   )
-  assert.match(newItemShortcut, /openComposer\(\)/)
-  assert.doesNotMatch(newItemShortcut, /data-detail-surface/)
-  assert.match(workspaceSource, /setComposerOpen\(true\)\s+setFocusDetailOpen\(false\)/)
-  assert.match(
-    workspaceSource,
-    /item\.type === 'note' && item\.bodyTruncated !== true[\s\S]*?setItemDetails/
+  assert.equal(
+    detectCaptureKind('https://example.com', 0),
+    'link',
+    'a bare URL with no images promotes a captured link'
   )
-  assert.match(
-    workspaceSource,
-    /\.\.\.focusItemDetail,[\s\S]*\.\.\.focusItemSummary,[\s\S]*body: focusItemDetail\.body/
+  assert.equal(
+    shouldYieldMainComposer('quick', true),
+    false,
+    'the main composer yields only to an actively editing quick surface'
   )
-  assert.match(workspaceSource, /window\.capture\.onMainItemRequested/)
-  assert.match(workspaceSource, /openDetail\(nextItem\.id, true\)/)
-  assert.doesNotMatch(workspaceSource, /composerOpen \? \(\s*addItemComposer/)
+  assert.equal(shouldYieldMainComposer('quick', false), true)
+
+  // The focus rail owns its capture slot as a plain React node; detail capture
+  // never slips back into a full composer that overlays the rail.
   assert.match(listSource, /composer: React\.ReactNode/)
   assert.doesNotMatch(listSource, /Draft in progress/)
   assert.match(composerSource, /Continue in editor/)
