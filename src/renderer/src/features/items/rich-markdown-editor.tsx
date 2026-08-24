@@ -36,6 +36,8 @@ import {
 import { cn } from '@/lib/utils'
 import { richMarkdownActiveLine } from '@/features/items/rich-markdown-active-line'
 import { richMarkdownCode } from '@/features/items/rich-markdown-code'
+import { richMarkdownFind } from '@/features/items/rich-markdown-find'
+import type { NoteFindTargetRef } from '@/features/items/note-editor'
 import { richMarkdownMath } from '@/features/items/rich-markdown-math'
 import { richMarkdownPublisher } from '@/features/items/rich-markdown-publisher'
 import { richMarkdownVim } from '@/features/items/rich-markdown-vim'
@@ -194,6 +196,7 @@ interface RichMarkdownEditorProps {
   preserveCursorOffsetRef?: React.RefObject<number | null> | null
   className?: string
   vimEnabled?: boolean
+  findTarget?: NoteFindTargetRef
   onVimModeChange?: (mode: NoteVimMode | null) => void
   onVimWrite?: () => void
   onVimQuit?: () => void
@@ -374,6 +377,7 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
       preserveCursorOffsetRef = null,
       className,
       vimEnabled = false,
+      findTarget,
       onVimModeChange,
       onVimWrite,
       onVimQuit,
@@ -470,12 +474,14 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
         () => editableRef.current
       )
       const tableToolbar = richMarkdownTableToolbar(setTableToolbarState, () => editableRef.current)
+      const find = richMarkdownFind(findTarget ?? { current: null })
       const editor = Editor.make()
         .use(commonmark)
         .use(gfm)
         .use(richMarkdownCode)
         .use(slashMenu)
         .use(tableToolbar)
+        .use(find)
         .use(richMarkdownMath)
         .use(publisher)
         .use(history)

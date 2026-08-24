@@ -48,5 +48,23 @@ export interface NoteEditorProps {
   className?: string
 }
 
+export interface NoteFindResult {
+  current: number
+  total: number
+}
+
+/**
+ * Find backend for one note surface. ProseMirror implements it with
+ * decorations; static previews wrap text nodes directly.
+ */
+export interface NoteFindTarget {
+  search(query: string, matchCase: boolean): NoteFindResult
+  next(): NoteFindResult
+  prev(): NoteFindResult
+}
+
+export interface NoteFindTargetRef {
+  current: NoteFindTarget | null
+}
 
 export type { NoteVimMode }

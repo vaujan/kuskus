@@ -6,6 +6,7 @@ import {
   type RichMarkdownEditorOptions
 } from '@/features/items/rich-markdown-editor'
 import type { NoteEditorHandle, NoteEditorProps } from '@/features/items/note-editor'
+import type { NoteFindTargetRef } from '@/features/items/note-editor'
 import { cn } from '@/lib/utils'
 
 interface NoteRichEditorProps extends NoteEditorProps {
@@ -14,6 +15,7 @@ interface NoteRichEditorProps extends NoteEditorProps {
   presentation?: 'card' | 'detail'
   preserveScrollTopRef?: React.RefObject<number> | null
   preserveCursorOffsetRef?: React.RefObject<number | null> | null
+  findTarget?: NoteFindTargetRef
   onError?: (message: string) => void
 }
 
@@ -36,7 +38,8 @@ export const NoteRichEditor = forwardRef<NoteEditorHandle, NoteRichEditorProps>(
       options,
       presentation = 'detail',
       preserveScrollTopRef,
-      preserveCursorOffsetRef
+      preserveCursorOffsetRef,
+      findTarget
     },
     forwardedRef
   ): React.JSX.Element {
@@ -62,6 +65,7 @@ export const NoteRichEditor = forwardRef<NoteEditorHandle, NoteRichEditorProps>(
         presentation={presentation}
         preserveScrollTopRef={preserveScrollTopRef}
         preserveCursorOffsetRef={preserveCursorOffsetRef}
+        findTarget={findTarget}
         className={cn(className)}
         vimEnabled={vimEnabled}
         onVimModeChange={vim.onModeChange}

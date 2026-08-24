@@ -100,7 +100,12 @@ import {
   reduceInlineTitleEdit,
   resolveInlineTitleSubmission
 } from '@/features/items/item-title-edit'
-import type { NoteEditorVimContract, SourceNoteHandle } from '@/features/items/note-editor'
+import type {
+  NoteEditorVimContract,
+  NoteFindTarget,
+  SourceNoteHandle
+} from '@/features/items/note-editor'
+import { createDomFindTarget } from '@/features/items/note-find-dom'
 import type { RichMarkdownEditorOptions } from '@/features/items/rich-markdown-editor'
 import { partitionRichMarkdownSource } from '@/features/items/rich-markdown-source'
 import { supportsRichMarkdown } from '@/features/items/rich-markdown-syntax'
@@ -1067,6 +1072,8 @@ function NoteCanvas({
   onError: (message: string) => void
 }): React.JSX.Element {
   const noteEditorRef = useRef<SourceNoteHandle>(null)
+  const richFindTargetRef = useRef<NoteFindTarget | null>(null)
+  const previewFindTarget = useMemo(() => createDomFindTarget(() => noteViewportRef.current), [])
   const previewViewportRef = useRef<HTMLDivElement>(null)
   const noteViewportRef = useRef<HTMLDivElement>(null)
   const noteScrollTopRef = useRef(0)
@@ -1348,6 +1355,7 @@ function NoteCanvas({
               options={richOptions}
               preserveScrollTopRef={noteScrollTopRef}
               preserveCursorOffsetRef={noteCursorOffsetRef}
+              findTarget={richFindTargetRef}
               vimEnabled={vimEnabled}
               vim={noteVimContract}
               onChange={onDraftChange}
@@ -1389,7 +1397,10 @@ function NoteCanvas({
       data-reading-width={readingWidth}
       onKeyDownCapture={handleUndo}
     >
-      <NoteFind enabled={mode === 'read' || mode === 'live'} scopeRef={noteViewportRef} />
+      <NoteFind
+        enabled={mode === 'read' || mode === 'live'}
+        target={mode === 'live' ? richFindTargetRef : { current: previewFindTarget }}
+      />
       {item.missingContent ? (
         <div className="flex min-h-0 flex-1 items-center justify-center">
           <MissingContent type="note" onMoveToTrash={() => onMoveToTrash(item.id)} />

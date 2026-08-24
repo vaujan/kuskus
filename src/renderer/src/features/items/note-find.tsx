@@ -1,131 +1,42 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { IconChevronDown, IconChevronUp, IconSearch, IconX } from '@tabler/icons-react'
+import {
+  IconChevronDown,
+  IconChevronUp,
+  IconLetterCase,
+  IconSearch,
+  IconX
+} from '@tabler/icons-react'
 
-const FIND_RESULT_ATTRIBUTE = 'data-kuskus-find-result'
-
-function unwrapFindMarks(scope: HTMLElement): void {
-  scope.querySelectorAll(`[${FIND_RESULT_ATTRIBUTE}]`).forEach((node) => {
-    const parent = node.parentNode
-    if (!parent) return
-    while (node.firstChild) parent.insertBefore(node.firstChild, node)
-    parent.removeChild(node)
-    parent.normalize()
-  })
-}
+import type { NoteFindTargetRef } from '@/features/items/note-editor'
 
 export function NoteFind({
   enabled,
-  scopeRef,
+  target: targetRef,
   onOpenChange
 }: {
   enabled: boolean
-  scopeRef: React.RefObject<HTMLDivElement | null>
+  target: NoteFindTargetRef
   onOpenChange?: (open: boolean) => void
 }): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [matchCase, setMatchCase] = useState(false)
-  const [current, setCurrent] = useState(0)
-  const [total, setTotal] = useState(0)
+  const [result, setResult] = useState({ current: 0, total: 0 })
   const inputRef = useRef<HTMLInputElement>(null)
-  const queryRef = useRef('')
-  const currentRef = useRef(0)
-  const matchCaseRef = useRef(false)
-  const navigateRef = useRef(false)
-  const observerRef = useRef<MutationObserver | null>(null)
-  const debounceRef = useRef<number | null>(null)
 
   const changeOpen = useCallback(
     (next: boolean): void => {
       setOpen(next)
+      if (!next) {
+        targetRef.current?.search('', false)
+        setResult({ current: 0, total: 0 })
+      }
       onOpenChange?.(next)
     },
-    [onOpenChange]
+    [onOpenChange, targetRef]
   )
 
-  const applyHighlights = useCallback((): void => {
-    const scope = scopeRef.current
-    if (!scope) return
-    const query = queryRef.current
-    const normalized = matchCaseRef.current ? query : query.toLocaleLowerCase()
-    observerRef.current?.disconnect()
-
-    unwrapFindMarks(scope)
-    if (!normalized) {
-      setTotal(0)
-      setCurrent(0)
-      currentRef.current = 0
-      return
-    }
-
-    const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT, {
-      acceptNode: (node) => {
-        if (!node.nodeValue) return NodeFilter.FILTER_REJECT
-        const parent = node.parentNode as HTMLElement | null
-        if (!parent || parent.closest(`[${FIND_RESULT_ATTRIBUTE}]`)) return NodeFilter.FILTER_REJECT
-        return NodeFilter.FILTER_ACCEPT
-      }
-    })
-    const textNodes: Text[] = []
-    while (walker.nextNode()) textNodes.push(walker.currentNode as Text)
-
-    let index = 0
-    let currentMark: HTMLElement | null = null
-    for (const textNode of textNodes) {
-      const value = textNode.nodeValue ?? ''
-      let rest = value
-      let searchable = matchCaseRef.current ? rest : rest.toLocaleLowerCase()
-      let found = searchable.indexOf(normalized)
-      while (found !== -1) {
-        const before = rest.slice(0, found)
-        if (before) textNode.parentNode?.insertBefore(document.createTextNode(before), textNode)
-        const mark = document.createElement('mark')
-        mark.setAttribute(FIND_RESULT_ATTRIBUTE, '')
-        if (index === currentRef.current) {
-          mark.dataset.current = 'true'
-          currentMark = mark
-        }
-        mark.textContent = rest.slice(found, found + normalized.length)
-        textNode.parentNode?.insertBefore(mark, textNode)
-        rest = rest.slice(found + normalized.length)
-        searchable = matchCaseRef.current ? rest : rest.toLocaleLowerCase()
-        found = searchable.indexOf(normalized)
-        index += 1
-      }
-      if (rest) textNode.parentNode?.insertBefore(document.createTextNode(rest), textNode)
-      textNode.parentNode?.removeChild(textNode)
-    }
-
-    const clamped = Math.min(currentRef.current, Math.max(0, index - 1))
-    if (clamped !== currentRef.current) {
-      currentRef.current = clamped
-      setCurrent(clamped)
-    }
-    setTotal(index)
-    if (navigateRef.current && currentMark) {
-      navigateRef.current = false
-      requestAnimationFrame(() => currentMark?.scrollIntoView({ block: 'center' }))
-    }
-  }, [scopeRef])
-
-  const requestApply = useCallback((): void => {
-    if (debounceRef.current !== null) window.clearTimeout(debounceRef.current)
-    debounceRef.current = window.setTimeout(applyHighlights, 120)
-  }, [applyHighlights])
-
   const active = enabled && open
-
-  useEffect(() => {
-    queryRef.current = query
-    if (!active) return
-    if (query) requestApply()
-    else applyHighlights()
-  }, [active, applyHighlights, query, requestApply])
-
-  useEffect(() => {
-    matchCaseRef.current = matchCase
-    if (active) requestApply()
-  }, [active, matchCase, requestApply])
 
   useEffect(() => {
     if (!enabled) return
@@ -153,104 +64,101 @@ export function NoteFind({
     inputRef.current?.select()
   }, [active])
 
-  useEffect(() => {
-    if (!active) return
-    const scope = scopeRef.current
-    if (!scope) return
-    const observer = new MutationObserver(requestApply)
-    observerRef.current = observer
-    observer.observe(scope, { subtree: true, childList: true, characterData: true })
-    return () => {
-      observer.disconnect()
-      observerRef.current = null
-    }
-  }, [active, requestApply, scopeRef])
-
-  useEffect(() => {
-    if (active) return
-    queryRef.current = ''
-    currentRef.current = 0
-    observerRef.current?.disconnect()
-    const scope = scopeRef.current
-    if (scope) unwrapFindMarks(scope)
-  }, [active, scopeRef])
-
   const goTo = useCallback(
-    (next: number): void => {
-      if (total === 0) return
-      currentRef.current = ((next % total) + total) % total
-      setCurrent(currentRef.current)
-      navigateRef.current = true
-      applyHighlights()
+    (delta: 1 | -1): void => {
+      const target = targetRef.current
+      if (!target) return
+      if (delta === 1) setResult(target.next())
+      else setResult(target.prev())
     },
-    [applyHighlights, total]
+    [targetRef]
   )
 
-  if (!active) return <span hidden />
+  const iconButton =
+    'relative z-1 grid size-8 cursor-pointer place-items-center rounded-[calc(var(--radius-3xl)-6px)] text-muted-foreground transition-[background-color,scale] hover:bg-foreground/10 active:scale-[0.96] disabled:pointer-events-none disabled:opacity-40'
 
   return (
     <div
-      className="absolute top-2 right-2 z-40 flex items-center gap-1.5 rounded-xl border border-border/70 bg-[var(--window-toolbar)] px-3 py-2 shadow-[0_4px_16px_rgb(0_0_0/0.12)]"
+      className={`absolute top-2 right-2 z-40 flex origin-top-right items-center gap-0.5 rounded-[var(--radius-3xl)] bg-popover/70 p-1.5 shadow-lg ring-1 ring-foreground/5 focus-within:ring-ring/40 before:pointer-events-none before:absolute before:inset-0 before:-z-1 before:rounded-[inherit] before:backdrop-blur-2xl before:backdrop-saturate-150 duration-100 animate-in fade-in-0 zoom-in-95 ${active ? '' : 'hidden'}`}
       role="group"
       aria-label="Find in note"
     >
-      <IconSearch aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+      <IconSearch
+        aria-hidden="true"
+        className="relative z-1 ml-1.5 size-4 shrink-0 text-muted-foreground"
+      />
       <input
         ref={inputRef}
         data-kuskus-find-input
         type="search"
         value={query}
-        onChange={(event) => setQuery(event.target.value)}
+        onChange={(event) => {
+          setQuery(event.target.value)
+          const target = targetRef.current
+          if (target && active)
+            setResult(target.search(event.target.value, matchCase))
+        }}
         onKeyDown={(event) => {
           if (event.key === 'Enter') {
             event.preventDefault()
-            goTo(event.shiftKey ? current - 1 : current + 1)
+            goTo(event.shiftKey ? -1 : 1)
           } else if (event.key === 'Escape') {
             event.preventDefault()
             changeOpen(false)
           }
         }}
-        placeholder="Search"
+        placeholder="Find"
         aria-label="Find in note"
-        className="h-(--control-height-sm) w-40 min-w-0 rounded-xl border border-transparent bg-[color-mix(in_oklch,var(--input)_50%,transparent)] px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-[var(--ring)] focus:shadow-[0_0_0_3px_color-mix(in_oklch,var(--ring)_30%,transparent)]"
+        className="relative z-1 h-8 w-36 min-w-0 rounded-full bg-transparent px-1.5 text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
       />
       <span
         aria-live="polite"
-        className="min-w-9 text-center text-xs tabular-nums text-muted-foreground"
+        className={`relative z-1 min-w-9 px-1 text-center text-xs tabular-nums ${query && result.total === 0 ? 'text-destructive' : 'text-muted-foreground'}`}
       >
-        {total === 0 ? '0/0' : `${current + 1}/${total}`}
+        {`${result.total === 0 ? 0 : result.current}/${result.total}`}
       </span>
       <button
         type="button"
-        className="grid h-(--control-height-sm) w-7 cursor-pointer place-items-center rounded-xl bg-[var(--secondary)] text-[var(--secondary-foreground)] transition-colors hover:bg-[var(--muted)] disabled:pointer-events-none disabled:opacity-40"
+        className={iconButton}
+        data-active={matchCase}
+        aria-label="Match case"
+        aria-pressed={matchCase}
+        title="Match case"
+        onClick={() => {
+          const next = !matchCase
+          setMatchCase(next)
+          const target = targetRef.current
+          if (target && active && query) setResult(target.search(query, next))
+        }}
+      >
+        <IconLetterCase aria-hidden="true" className="size-4" />
+      </button>
+      <button
+        type="button"
+        className={iconButton}
         aria-label="Previous match"
-        disabled={total === 0}
-        onClick={() => goTo(current - 1)}
+        title="Previous match (Shift+Enter)"
+        disabled={result.total === 0}
+        onClick={() => goTo(-1)}
       >
         <IconChevronUp aria-hidden="true" className="size-4" />
       </button>
       <button
         type="button"
-        className="grid h-(--control-height-sm) w-7 cursor-pointer place-items-center rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] transition-colors hover:bg-[color-mix(in_oklch,var(--primary)_80%,var(--foreground))] disabled:pointer-events-none disabled:opacity-40"
+        className={iconButton}
         aria-label="Next match"
-        disabled={total === 0}
-        onClick={() => goTo(current + 1)}
+        title="Next match (Enter)"
+        disabled={result.total === 0}
+        onClick={() => goTo(1)}
       >
         <IconChevronDown aria-hidden="true" className="size-4" />
       </button>
-      <label className="flex cursor-pointer items-center gap-1 text-xs text-muted-foreground select-none">
-        <input
-          type="checkbox"
-          className="size-3.5 accent-[var(--primary)]"
-          checked={matchCase}
-          onChange={(event) => setMatchCase(event.target.checked)}
-        />
-        Case
-      </label>
+      <div className="relative z-1 mx-0.5 h-5 w-px bg-border/50" aria-hidden="true" />
       <button
         type="button"
-        className="grid size-7 cursor-pointer place-items-center rounded-xl bg-[var(--secondary)] text-[var(--secondary-foreground)] transition-colors hover:bg-[var(--muted)]"
+        className={iconButton}
         aria-label="Close find"
+        title="Close (Escape)"
         onClick={() => changeOpen(false)}
       >
         <IconX aria-hidden="true" className="size-4" />
