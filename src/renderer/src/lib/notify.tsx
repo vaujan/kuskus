@@ -288,3 +288,12 @@ export function notifyVaultIndexingStarted(): void {
 export function dismissVaultIndexing(): void {
   toast.dismiss('vault-indexing')
 }
+
+export function notifyRichEditingUnavailable(): void {
+  toast.info('Switched to Markdown source', {
+    description:
+      'Live mode is unavailable for this note — it contains raw HTML that cannot be represented exactly in the rich editor.',
+    duration: 6000,
+    id: 'rich-editing-unavailable'
+  })
+}

@@ -145,8 +145,12 @@ test('preserves Kuskus wikilinks through the rich Markdown interchange format', 
   assert.equal(restoreRichMarkdown(prepareRichMarkdown(markdown)), markdown)
   assert.equal(restoreRichMarkdown('<https://example.com>'), 'https://example.com')
   assert.equal(supportsRichMarkdown(markdown), true)
-  assert.equal(supportsRichMarkdown('line<br />next'), true)
-  assert.equal(prepareRichMarkdown('line<br />next'), 'line  \nnext')
+  assert.equal(supportsRichMarkdown('<https://example.com/path#frag>'), true)
+  assert.equal(supportsRichMarkdown('<mailto:a@b.com>'), true)
+  assert.equal(supportsRichMarkdown('<a@b.com>'), true)
+  assert.equal(supportsRichMarkdown('see <https://x.com> and <details>x</details>'), false)
+  assert.equal(supportsRichMarkdown('line<br />next'), false)
+  assert.equal(prepareRichMarkdown('line<br />next'), 'line<br />next')
   assert.equal(
     prepareObsidianMarkdown('line<br/>next\n`literal <br/>`', []),
     'line  \nnext\n`literal <br/>`'

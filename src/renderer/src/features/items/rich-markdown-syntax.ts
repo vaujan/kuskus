@@ -2,6 +2,10 @@ const WIKILINK = /(!?)\[\[([^\]|\n]+?)(?:\|([^\]\n]+))?\]\]/g
 const RICH_LINK = /(!?)\[([^\]\n]*)\]\(kuskus-(wiki|embed):([^\s)]+)\)/g
 const RAW_HTML = /<\/?[A-Za-z][^>]*>/
 const HTML_BREAK = /<br\s*\/?>/gi
+// CommonMark autolinks: <scheme:...> and <email@domain>. Milkdown round-trips
+// these byte-identically, so they must not be mistaken for raw HTML.
+const AUTOLINK =
+  /<(?:[a-z][a-z0-9+.-]*:[^>\s<>]+|[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*)>/gi
 
 function transformProse(value: string, transform: (prose: string) => string): string {
   const lines = value.split(/(?<=\n)/)
@@ -36,14 +40,14 @@ export function normalizeHtmlBreaks(value: string): string {
 export function supportsRichMarkdown(value: string): boolean {
   let supported = true
   transformProse(value, (prose) => {
-    if (RAW_HTML.test(prose.replace(HTML_BREAK, ''))) supported = false
+    if (RAW_HTML.test(prose.replace(AUTOLINK, ''))) supported = false
     return prose
   })
   return supported
 }
 
 export function prepareRichMarkdown(value: string): string {
-  return transformProse(normalizeHtmlBreaks(value), (prose) =>
+  return transformProse(value, (prose) =>
     prose.replace(WIKILINK, (_match, bang: string, rawTarget: string, rawAlias?: string) => {
       const target = rawTarget.trim()
       const alias = rawAlias?.trim() || target

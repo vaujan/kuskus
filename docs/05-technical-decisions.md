@@ -1669,7 +1669,9 @@ unsupported syntax must never be silently serialized.
 - Existing autosave, conflict detection, storage, IPC, attachment safety, and exact-source escape
   hatch remain unchanged.
 - Rich editing is unavailable for malformed or not-yet-supported Markdown rather than risking data
-  loss.
+  loss: such notes open in Markdown source automatically, with a non-blocking toast explaining why.
+  CommonMark autolinks (`<https://…>`, `<mailto:…>`, `<user@…>`) are recognized as rich-editable
+  since they round-trip byte-identically; raw HTML (including `<br />`) is never silently rewritten.
 
 ## DEC-053: Share a mode-agnostic note-editor seam across both note engines
 

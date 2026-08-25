@@ -140,6 +140,7 @@ import { useImagePreview } from '@/features/items/use-image-preview'
 import { useNoteAttachmentPreviews } from '@/features/items/use-note-attachment-previews'
 import { useUrlPreview } from '@/features/items/use-url-preview'
 import { WindowControls } from '@/features/shell/window-controls'
+import { notifyRichEditingUnavailable } from '@/lib/notify'
 import { cn } from '@/lib/utils'
 import type {
   ActiveItemLocation,
@@ -1093,6 +1094,15 @@ function NoteCanvas({
     () => richSource !== null && supportsRichMarkdown(richSource.body),
     [richSource]
   )
+  const onModeChangeRef = useRef(onModeChange)
+  useEffect(() => {
+    onModeChangeRef.current = onModeChange
+  }, [onModeChange])
+  useEffect(() => {
+    if (mode !== 'live' || richSupported) return
+    notifyRichEditingUnavailable()
+    onModeChangeRef.current('markdown')
+  }, [mode, richSupported])
   const noteAttachments = item.attachments
   const onOpenVaultLinkRef = useRef(onOpenVaultLink)
   useEffect(() => {
@@ -1366,29 +1376,18 @@ function NoteCanvas({
             />
           </Suspense>
         ) : (
-          <>
-            {mode === 'live' ? (
-              <Alert className="mb-6">
-                <AlertTitle>Open Markdown source to edit this note</AlertTitle>
-                <AlertDescription>
-                  Rich editing is unavailable because this note has malformed frontmatter or raw
-                  HTML that must remain exact.
-                </AlertDescription>
-              </Alert>
-            ) : null}
-            <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
-              <MarkdownPreview
-                value={snapshot.draft}
-                itemId={item.id}
-                attachments={item.attachments}
-                attachmentPreviews={attachmentPreviews}
-                presentation="detail"
-                onOpenLink={handlePreviewOpenLink}
-                onOpenVaultLink={handlePreviewOpenVaultLink}
-                onChange={handlePreviewChange}
-              />
-            </Suspense>
-          </>
+          <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
+            <MarkdownPreview
+              value={snapshot.draft}
+              itemId={item.id}
+              attachments={item.attachments}
+              attachmentPreviews={attachmentPreviews}
+              presentation="detail"
+              onOpenLink={handlePreviewOpenLink}
+              onOpenVaultLink={handlePreviewOpenVaultLink}
+              onChange={handlePreviewChange}
+            />
+          </Suspense>
         )
       ) : null}
     </>
