@@ -15,3 +15,7 @@ trustPolicyExclude:
   - semver@5.7.2
   - semver@6.3.1
   - undici-types@6.21.0
+# pnpm/pnpm#10622: false-positive "high-risk trust downgrade" for long-established
+# versions (semver@6.3.1) that the exclude above doesn't cover. Skip the check for
+# anything published over 7 days ago; newer releases are still fully vetted.
+trustPolicyIgnoreAfter: 10080
