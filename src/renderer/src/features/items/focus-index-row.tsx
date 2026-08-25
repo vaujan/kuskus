@@ -69,7 +69,7 @@ export function FocusIndexRow({
   return (
     <div
       {...rest}
-      className="group/focus-index-row group/saved-item relative min-h-[88px] min-w-0 overflow-hidden border-b border-border/45 bg-transparent outline-none [content-visibility:auto] [contain-intrinsic-size:96px] transition-[background-color,opacity,box-shadow] [transition-duration:var(--motion-duration-ui)] [transition-timing-function:var(--motion-ease-out)] before:pointer-events-none before:absolute before:inset-y-2.5 before:left-0 before:z-10 before:w-0.5 before:rounded-r-full before:bg-primary before:opacity-0 hover:bg-muted/45 data-[active=true]:bg-primary/9 data-[active=true]:before:opacity-100 data-[dragging=true]:opacity-40 data-[selected=true]:bg-accent/10"
+      className="group/focus-index-row group/saved-item relative min-h-[88px] min-w-0 overflow-hidden data-[active=true]:border-b border-border/30 bg-transparent outline-none [content-visibility:auto] [contain-intrinsic-size:96px] transition-[background-color,opacity,box-shadow] [transition-duration:var(--motion-duration-ui)] [transition-timing-function:var(--motion-ease-out)] before:pointer-events-none before:absolute before:inset-y-2.5 before:left-0 before:z-10 before:w-0.5 before:rounded-r-full before:bg-primary before:opacity-0 hover:bg-muted/45 data-[active=true]:bg-primary/9 data-[active=true]:before:opacity-100 data-[dragging=true]:opacity-40 data-[selected=true]:bg-accent/10"
       data-item-id={item.id}
       data-active={active || undefined}
       data-selected={selected || undefined}
@@ -94,7 +94,7 @@ export function FocusIndexRow({
       />
 
       <div className="pointer-events-none flex min-w-0 flex-col py-2.5 pr-14 pl-4">
-        <span className="line-clamp-2 text-sm leading-5 font-semibold text-pretty text-foreground">
+        <span className="line-clamp-2 text-sm leading-5 font-medium text-pretty text-foreground">
           {item.title}
         </span>
         <span className="mt-1 flex min-w-0 items-center gap-2.5 text-[0.6875rem] leading-4 text-muted-foreground">
