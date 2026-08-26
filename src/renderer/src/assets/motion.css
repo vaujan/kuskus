@@ -27,19 +27,24 @@
   transition: none !important;
 }
 
+/* Toast surface mirrors the dropdown menu's translucent recipe: popover at
+   70% over a backdrop blur, hairline foreground ring instead of a border. */
 [data-sonner-toaster] [data-sonner-toast].cn-toast[data-styled='true'] {
   padding: 12px;
   gap: 10px;
   border: 0;
-  border-radius: calc(var(--radius) + 5px);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(24px) saturate(150%);
   box-shadow:
-    0 0 0 1px rgb(0 0 0 / 6%),
+    0 0 0 1px color-mix(in oklch, var(--foreground) 5%, transparent),
     0 1px 2px -1px rgb(0 0 0 / 6%),
     0 8px 24px -12px rgb(0 0 0 / 18%);
 }
 
 [data-sonner-toaster][data-sonner-theme='dark'] [data-sonner-toast].cn-toast[data-styled='true'] {
-  box-shadow: 0 0 0 1px rgb(255 255 255 / 8%);
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--foreground) 10%, transparent),
+    0 8px 24px -12px rgb(0 0 0 / 24%);
 }
 
 [data-sonner-toaster] [data-sonner-toast].cn-toast [data-content] {
@@ -62,7 +67,7 @@
 [data-sonner-toaster] [data-sonner-toast].cn-toast [data-icon] {
   width: 28px;
   height: 28px;
-  align-self: center;
+  align-self: flex-start;
   justify-content: center;
   margin: 0;
   border-radius: 8px;
