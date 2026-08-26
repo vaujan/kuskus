@@ -1,11 +1,13 @@
 import { commandsCtx, type Editor } from '@milkdown/core'
 import { setBlockType, wrapIn } from '@milkdown/prose/commands'
+import { TextSelection } from '@milkdown/prose/state'
 import { wrapInList } from '@milkdown/prose/schema-list'
 import type { EditorState } from '@milkdown/prose/state'
 import { Plugin } from '@milkdown/prose/state'
 import type { EditorView } from '@milkdown/prose/view'
 import { $prose } from '@milkdown/utils'
 
+import { buildCodeBlockNode } from '@/features/items/rich-markdown-code-schema'
 import { findRichMarkdownSlashQuery } from '@/features/items/rich-markdown-slash'
 
 export interface RichMarkdownSlashState {
@@ -53,6 +55,19 @@ function currentSlashState(
 
 type MilkdownCtx = Parameters<Parameters<Editor['action']>[0]>[0]
 
+/** Swaps the current textblock for a full code block and selects inside the code. */
+function insertCodeBlock(state: EditorState, dispatch?: (tr: EditorState['tr']) => void): boolean {
+  const block = buildCodeBlockNode(state.schema, '')
+  if (!block) return false
+  const { $from } = state.selection
+  const blockPos = $from.start($from.depth) - 1
+  const tr = state.tr.replaceWith(blockPos, blockPos + $from.parent.nodeSize, block)
+  if (!tr.docChanged) return false
+  tr.setSelection(TextSelection.create(tr.doc, blockPos + 1 + block.child(0).nodeSize + 1))
+  dispatch?.(tr.scrollIntoView())
+  return true
+}
+
 export function runRichMarkdownSlashCommand(
   ctx: MilkdownCtx,
   view: EditorView,
@@ -87,7 +102,7 @@ export function runRichMarkdownSlashCommand(
             : id === 'quote'
               ? wrapIn(schema.nodes.blockquote)
               : id === 'code'
-                ? setBlockType(schema.nodes.code_block)
+                ? insertCodeBlock
                 : null
 
   if (command) command(view.state, view.dispatch, view)

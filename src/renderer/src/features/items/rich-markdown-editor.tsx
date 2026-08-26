@@ -35,7 +35,20 @@ import {
 } from 'react'
 import { cn } from '@/lib/utils'
 import { richMarkdownActiveLine } from '@/features/items/rich-markdown-active-line'
+import {
+  codeBlockNodeView,
+  richMarkdownCodeBoundary,
+  richMarkdownCodeFocus,
+  richMarkdownCodeFenceSync,
+  richMarkdownVimCodeCursor,
+  richMarkdownVimCodePerLine
+} from '@/features/items/rich-markdown-code-block'
 import { richMarkdownCode } from '@/features/items/rich-markdown-code'
+import {
+  codeFenceNode,
+  codeLineNode,
+  richMarkdownCodeBlock
+} from '@/features/items/rich-markdown-code-schema'
 import { richMarkdownFind } from '@/features/items/rich-markdown-find'
 import type { NoteFindTargetRef } from '@/features/items/note-editor'
 import { richMarkdownMath } from '@/features/items/rich-markdown-math'
@@ -456,6 +469,7 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
           typeof getPos === 'function' ? getPos : () => undefined,
           () => optionsRef.current
         )
+      const codeBlockView: NodeViewConstructor = (node) => codeBlockNodeView(node)
 
       const publisher = richMarkdownPublisher((markdown) => {
         const current = partitionRichMarkdownSource(valueRef.current)
@@ -478,13 +492,20 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
       const editor = Editor.make()
         .use(commonmark)
         .use(gfm)
+        .use(codeFenceNode)
+        .use(codeLineNode)
+        .use(richMarkdownCodeBlock)
         .use(richMarkdownCode)
+        .use(richMarkdownCodeFenceSync)
+        .use(richMarkdownCodeBoundary)
+        .use(richMarkdownCodeFocus)
         .use(slashMenu)
         .use(tableToolbar)
         .use(find)
         .use(richMarkdownMath)
         .use(publisher)
         .use(history)
+      if (vimEnabled) editor.use(richMarkdownVimCodePerLine).use(richMarkdownVimCodeCursor)
       if (vimEnabled)
         editor.use(
           richMarkdownVim(
@@ -512,7 +533,7 @@ export const RichMarkdownEditor = forwardRef<RichMarkdownEditorHandle, RichMarkd
         })
         ctx.set(editorViewOptionsCtx, {
           editable: () => editableRef.current,
-          nodeViews: { image: imageView, list_item: taskView },
+          nodeViews: { image: imageView, list_item: taskView, code_block: codeBlockView },
           // Start scrolling before the cursor touches the pane edge and keep
           // it roughly four lines above the bottom while typing.
           scrollThreshold: { top: 0, right: 0, bottom: 24, left: 0 },

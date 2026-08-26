@@ -31,6 +31,7 @@ import {
   WidgetType
 } from '@codemirror/view'
 import { GFM } from '@lezer/markdown'
+import { classHighlighter } from '@lezer/highlight'
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search'
 import {
   forwardRef,
@@ -45,6 +46,7 @@ import { createPortal } from 'react-dom'
 
 import { getPublishedMarkdownChange } from '@/features/items/markdown-editor-change'
 import { toggleMarkdownMarker } from '@/features/items/markdown-formatting'
+import { markdownCodeSpellcheck } from '@/features/items/markdown-code-spellcheck'
 import { markdownFrontmatter } from '@/features/items/markdown-frontmatter'
 import { markdownHighlightStyle } from '@/features/items/markdown-highlight-style'
 import {
@@ -511,10 +513,15 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         EditorView.scrollMargins.of(() => ({ bottom: 112 })),
         markdownHeader,
         taskMarkerPlugin,
+        markdownCodeSpellcheck,
         markdownTableGuides,
         editorTheme,
         vimModeTheme,
         markdownSearchTheme,
+        // Token classes for fenced code (tok-keyword, tok-string, …) shared with
+        // the live editor and preview; the app's markdownHighlightStyle still
+        // wins for Markdown markup itself.
+        syntaxHighlighting(classHighlighter),
         syntaxHighlighting(markdownHighlightStyle),
         keymap.of([
           { key: 'Mod-b', preventDefault: true, run: markerCommand('**') },

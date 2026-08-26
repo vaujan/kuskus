@@ -13,6 +13,9 @@ export const richMarkdownActiveLine = $prose(
           let depth = cursor.depth
           while (depth > 0 && !cursor.node(depth).isTextblock) depth -= 1
           if (depth === 0) return null
+          for (let above = depth; above > 0; above -= 1) {
+            if (cursor.node(above).type.name === 'code_block') return null
+          }
           return DecorationSet.create(state.doc, [
             Decoration.node(cursor.before(depth), cursor.after(depth), {
               class: 'kuskus-rich-active-line'

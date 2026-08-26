@@ -4,6 +4,7 @@ import { Decoration, DecorationSet } from '@milkdown/prose/view'
 import { $prose } from '@milkdown/utils'
 
 import { highlightedCodeRanges } from '@/features/items/markdown-code'
+import { parseCodeFenceInfo } from '@/features/items/rich-markdown-code-schema'
 
 const key = new PluginKey<DecorationSet>('rich-markdown-code')
 
@@ -11,12 +12,14 @@ function codeDecorations(doc: ProseNode): DecorationSet {
   const decorations: Decoration[] = []
   doc.descendants((node, position) => {
     if (node.type.name !== 'code_block') return
-    for (const range of highlightedCodeRanges(
-      node.textContent,
-      String(node.attrs.language ?? '')
-    )) {
+    const open = node.maybeChild(0)
+    const line = node.maybeChild(1)
+    if (!line) return
+    const linePos = position + 1 + (open?.nodeSize ?? 0)
+    const { lang } = parseCodeFenceInfo(open?.textContent ?? '')
+    for (const range of highlightedCodeRanges(line.textContent, lang)) {
       decorations.push(
-        Decoration.inline(position + 1 + range.from, position + 1 + range.to, {
+        Decoration.inline(linePos + 1 + range.from, linePos + 1 + range.to, {
           class: range.classes
         })
       )
