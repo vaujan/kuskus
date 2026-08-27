@@ -132,37 +132,8 @@
     content: none;
   }
 
-  .kuskus-rich-editor {
-    min-height: 100%;
-  }
-
-  /* milkdown applies kuskus-rich-document to its wrapper div, so the ProseMirror
-     element is always a descendant — never the same element. */
-  .kuskus-rich-document .ProseMirror {
-    min-height: 100%;
-    outline: none;
-  }
-
-  .kuskus-rich-document .ProseMirror[contenteditable='true'] {
-    caret-color: currentColor;
-  }
-
-  .kuskus-rich-document .ProseMirror:focus .kuskus-rich-active-line {
-    border-radius: 0.25rem;
-    background: color-mix(in oklab, var(--foreground) 7%, transparent);
-  }
-
-  .kuskus-rich-document ul:has(> li[data-item-type='task']) {
-    list-style-type: none;
-    padding-inline-start: 0;
-  }
-
-  .kuskus-rich-document
-    li[data-item-type='task']
-    > .kuskus-rich-task-content
-    > ul:has(> li[data-item-type='task']) {
-    padding-inline-start: var(--typeset-list-indent);
-  }
+  /* The Read renderer's task rows use kuskus-rich-task-content; the
+     Milkdown-specific document selectors were removed with the engine. */
 
   .kuskus-typeset li.task-list-item {
     display: flex;
@@ -173,13 +144,6 @@
 
   .kuskus-typeset li.task-list-item > input[type='checkbox'] {
     margin-inline-end: 0;
-  }
-
-  .kuskus-rich-document li[data-item-type='task'] {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.5em;
-    padding-inline-start: 0;
   }
 
   .kuskus-task-checkbox {
@@ -224,19 +188,12 @@
     opacity: 1;
   }
 
-  .kuskus-typeset .katex-display,
-  .kuskus-rich-document [data-rich-math='block'] {
+  .kuskus-typeset .katex-display {
     overflow-x: auto;
     margin-block: var(--typeset-flow) 0;
     border-radius: var(--radius);
     background: var(--typeset-code-background);
     padding: 0.875rem 1rem;
-  }
-
-  .kuskus-rich-document [data-rich-math='block'] .katex-display {
-    margin: 0;
-    padding: 0;
-    background: transparent;
   }
 
   .kuskus-rich-task-content {

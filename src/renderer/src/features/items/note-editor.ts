@@ -55,8 +55,8 @@ export interface NoteFindResult {
 }
 
 /**
- * Find backend for one note surface. ProseMirror implements it with
- * decorations; static previews wrap text nodes directly.
+ * Find backend for one note surface. The CM6 live editor implements it
+ * with match decorations; static previews wrap text nodes directly.
  */
 export interface NoteFindTarget {
   search(query: string, matchCase: boolean): NoteFindResult

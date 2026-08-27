@@ -1,8 +1,9 @@
 export type CaptureKind = 'empty' | 'image' | 'link' | 'note'
 
 function unescapeMarkdownUrl(value: string): string {
-  // milkdown/remark escapes link destinations and URL characters when serializing
-  // a link mark: `https\://...` and `...\&hl=id`. Undo those escapes before matching.
+  // remark escapes link destinations and URL characters when the Read
+  // renderer or legacy serializers round-trip a link mark:
+  // `https\://...` and `...\&hl=id`. Undo those escapes before matching.
   return value.replace(/\\([\\!"#$%&'()*+,./:;<=>?@[\]^_`{|}~-])/g, '$1')
 }
 
