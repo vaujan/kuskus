@@ -355,7 +355,10 @@ const kuskusLiveField = StateField.define<DecorationSet>({
       !transaction.startState.selection.eq(transaction.state.selection) ||
       treeGrew(transaction)
     ) {
-      return buildKuskusLiveDecorations(transaction.state, transaction.state.facet(liveOptionsFacet))
+      return buildKuskusLiveDecorations(
+        transaction.state,
+        transaction.state.facet(liveOptionsFacet)
+      )
     }
     return value
   },

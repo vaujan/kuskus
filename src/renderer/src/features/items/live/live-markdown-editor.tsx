@@ -393,7 +393,7 @@ export const LiveMarkdownEditor = forwardRef<SourceNoteHandle, LiveMarkdownEdito
         viewRef.current = null
         vimActiveRef.current = false
       }
-    }, [activateMarkdownVim])
+    }, [activateMarkdownVim, preserveScrollTopRef])
 
     useEffect(() => {
       const view = viewRef.current

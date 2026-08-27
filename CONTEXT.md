@@ -20,8 +20,13 @@ not yet have a name.
 - **Note mode** — the renderer-local editing presentation of a note: `read`, `live`, `markdown`, or
   `split`. Read shows a rendered document; live is the writable rich (ProseMirror) surface; markdown
   and split use the exact CodeMirror source editor.
-- **Rich editor** — the Milkdown/ProseMirror structured surface for Read and Live. Markdown is the
-  persisted authority; rich and source modes synchronize through Markdown when ownership changes.
+- **Rich editor** — the Milkdown/ProseMirror structured surface for Read and Live (the default live engine).
+  Markdown is the persisted authority; rich and source modes synchronize through Markdown when
+  ownership changes.
+- **Live editor (CodeMirror)** — the atomic-style CM6 decoration surface for Live mode, selectable
+  through the live-engine preference. One editor instance serves both live and source modes; the
+  live compartment adds only preview decorations, so selection, undo, find, cursor offsets, and Vim
+  are identical surfaces rather than separate engines.
 - **Source editor** — the CodeMirror 6 surface for exact Markdown and Split source.
 - **Note-editor seam** — the mode-agnostic surface both editors present: focus, cursor offset into the
   Markdown source string, and the shared Vim mode/action contract. Consumers address one active
