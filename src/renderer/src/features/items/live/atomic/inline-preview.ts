@@ -241,10 +241,19 @@ function linkDestinationUrl(link: SyntaxNode, doc: Text): SyntaxNode | null {
   return link.getChildren('URL').find((url) => url.from >= labelClose.to) ?? null
 }
 
+// Kuskus fork: bullets follow the Read renderer's list-style-type
+// ladder — disc at depth 0, circle at depth 1, square at depth 2+.
+const BULLET_GLYPHS = ['•', '○', '▪']
+
 class BulletWidget extends WidgetType {
-  eq(): boolean {
-    return true
+  constructor(private readonly depth: number) {
+    super()
   }
+
+  eq(other: BulletWidget): boolean {
+    return other.depth === this.depth
+  }
+
   toDOM(): HTMLElement {
     // The `.cm-atomic-list-marker` class is what forces the
     // uniform 1.2em inline-block alcove shared by bullets, task
@@ -252,15 +261,14 @@ class BulletWidget extends WidgetType {
     // layers on bullet-specific color / weight.
     const span = document.createElement('span')
     span.className = 'cm-atomic-list-marker cm-atomic-bullet'
-    span.textContent = '•'
+    span.textContent = BULLET_GLYPHS[Math.min(this.depth, BULLET_GLYPHS.length - 1)]
     return span
   }
+
   ignoreEvent(): boolean {
     return false
   }
 }
-
-const BULLET_WIDGET = new BulletWidget()
 
 class TaskCheckboxWidget extends WidgetType {
   constructor(readonly checked: boolean) {
@@ -344,9 +352,14 @@ function pushReplace(
   }
 }
 
-const LIST_BASE_EM = 0.8
+// Kuskus fork: matches the Read renderer's typeset list geometry.
+// Read mode: ul/ol padding-inline-start 1.5em per level + li
+// padding-inline-start 0.4em → content starts at 1.9em + 1.5em/depth.
+// Atomic default was 0.8/1.2/0.6 (2.0em + 0.6em/depth), which read as
+// a different indentation scale.
+const LIST_BASE_EM = 0.7
 const LIST_ALCOVE_EM = 1.2
-const LIST_LEVEL_EM = 0.6
+const LIST_LEVEL_EM = 1.5
 
 function nearestListItem(node: SyntaxNode | null): SyntaxNode | null {
   for (let current = node; current; current = current.parent) {
@@ -570,8 +583,10 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         // otherwise they would be added on top of the tree-derived
         // padding and ordered/odd indentation would still drift.
         const listItem = nearestListItem(node.node)
+        let bulletDepth = 0
         if (listItem) {
           const depth = listItemDepth(listItem)
+          bulletDepth = depth
           const padding = LIST_BASE_EM + LIST_ALCOVE_EM + depth * LIST_LEVEL_EM
           const firstLine = doc.lineAt(listItem.from)
           const lastLine = doc.lineAt(listItem.to)
@@ -619,7 +634,9 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
             // Bullet: substitute with the fixed-width marker
             // widget, swallowing the trailing space so content
             // starts precisely at padding-left.
-            pushReplace(ranges, doc, node.from, markEnd, { widget: BULLET_WIDGET })
+            pushReplace(ranges, doc, node.from, markEnd, {
+              widget: new BulletWidget(bulletDepth)
+            })
           } else {
             // Ordered list (or anything else with a non-standard
             // mark text like `1.`, `42.`): keep the text visible

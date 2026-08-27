@@ -8,7 +8,6 @@ import {
   type Transaction
 } from '@codemirror/state'
 import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view'
-import katex from 'katex'
 
 import { inlinePreview } from './atomic/inline-preview'
 import { tables } from './atomic/table-widget'
@@ -45,33 +44,6 @@ function isCodePosition(state: EditorState, position: number): boolean {
     const parent = node.parent
     if (!parent) return false
     node = parent
-  }
-}
-
-class MathWidget extends WidgetType {
-  constructor(
-    private readonly tex: string,
-    private readonly display: boolean
-  ) {
-    super()
-  }
-
-  eq(other: MathWidget): boolean {
-    return other.tex === this.tex && other.display === this.display
-  }
-
-  toDOM(): HTMLElement {
-    const element = document.createElement(this.display ? 'div' : 'span')
-    element.className = this.display ? 'cm-kuskus-math is-block' : 'cm-kuskus-math'
-    try {
-      element.innerHTML = katex.renderToString(this.tex, {
-        displayMode: this.display,
-        throwOnError: false
-      })
-    } catch {
-      element.textContent = this.tex
-    }
-    return element
   }
 }
 
@@ -208,7 +180,6 @@ class KuskusLiveDecorationBuilder {
   private readonly replaces: ReplaceEntry[] = []
   private readonly marks: MarkEntry[] = []
   private readonly lines: LineEntry[] = []
-  private readonly consumedLines = new Set<number>()
 
   constructor(
     private readonly state: EditorState,
@@ -245,7 +216,6 @@ class KuskusLiveDecorationBuilder {
         this.handleNode(node.node)
       }
     })
-    this.scanBlockMath()
     this.scanInlineSegments()
     this.scanBlankLines()
     return Decoration.set(
@@ -276,92 +246,16 @@ class KuskusLiveDecorationBuilder {
     // Only Kuskus-specific constructs beyond atomic's inline preview.
     // Atomic owns headings, lists, links, emphasis, inline code,
     // fenced code, tasks, horizontal rules, and tables. The build()
-    // walk still visits nodes so block math can find their lines.
+    // walk still visits nodes so wikilink/blank-line scans can see them.
     void node
-  }
-
-  private scanBlockMath(): void {
-    const lineCount = this.state.doc.lines
-    for (let line = 1; line <= lineCount; line += 1) {
-      if (this.consumedLines.has(line)) continue
-      const { from: lineFrom, text } = this.state.doc.line(line)
-      const opening = /^ {0,3}\$\$(.*)$/.exec(text)
-      if (!opening) continue
-      if (isCodePosition(this.state, lineFrom)) continue
-
-      const inlineClose = opening[1].trimEnd()
-      if (inlineClose.endsWith('$$') && inlineClose.length > 2) {
-        const tex = inlineClose.slice(0, -2).trim()
-        if (tex && !this.isLineActive(line)) {
-          this.addReplace(
-            lineFrom,
-            lineFrom + text.length,
-            Decoration.replace({ widget: new MathWidget(tex, true), block: true })
-          )
-          this.consumedLines.add(line)
-        }
-        continue
-      }
-
-      let closeLine = -1
-      for (let candidate = line + 1; candidate <= lineCount; candidate += 1) {
-        if (/^ {0,3}\$\$/.test(this.state.doc.line(candidate).text)) {
-          closeLine = candidate
-          break
-        }
-      }
-      if (closeLine < 0) continue
-
-      let active = false
-      for (let covered = line; covered <= closeLine; covered += 1) {
-        if (this.isLineActive(covered)) {
-          active = true
-          break
-        }
-      }
-      const blockFrom = lineFrom
-      const blockTo = this.state.doc.line(closeLine).to
-      if (!active && !this.overlapsReplace(blockFrom, blockTo)) {
-        const tex = this.state
-          .sliceDoc(lineFrom + text.length, this.state.doc.line(closeLine).from)
-          .replace(/^\n/, '')
-          .replace(/\n$/, '')
-        if (
-          this.addReplace(
-            blockFrom,
-            blockTo,
-            Decoration.replace({ widget: new MathWidget(tex, true), block: true })
-          )
-        ) {
-          for (let consumed = line; consumed <= closeLine; consumed += 1) {
-            this.consumedLines.add(consumed)
-          }
-        }
-      }
-      line = closeLine
-    }
   }
 
   private scanInlineSegments(): void {
     const lineCount = this.state.doc.lines
     for (let line = 1; line <= lineCount; line += 1) {
-      if (this.consumedLines.has(line)) continue
       const { from: lineFrom, text } = this.state.doc.line(line)
       if (this.isLineActive(line)) continue
-      this.scanInlineMath(lineFrom, text)
       this.scanWikilinks(lineFrom, text)
-    }
-  }
-
-  private scanInlineMath(lineFrom: number, text: string): void {
-    const pattern = /\$([^$\s][^$\n]*?[^$\s]|[^$\s])\$/g
-    let match: RegExpExecArray | null
-    while ((match = pattern.exec(text)) !== null) {
-      const start = lineFrom + match.index
-      const end = start + match[0].length
-      if (text.charAt(match.index - 1) === '$' || text.charAt(end - lineFrom) === '$') continue
-      if (isCodePosition(this.state, start)) continue
-      this.addReplace(start, end, Decoration.replace({ widget: new MathWidget(match[1], false) }))
     }
   }
 

@@ -57,21 +57,19 @@ function createState(doc) {
   return EditorState.create({ doc, extensions: [markdown({ extensions: GFM })] })
 }
 
-test('renders inline math and block math as widgets', () => {
+test('keeps math as source instead of replacing it with KaTeX widgets', () => {
   const state = createState(
     ['Cursor', '', 'Intro $x^2$ text', '', '$$', '\\int_0^1 x \\, dx', '$$'].join('\n')
   )
-  const decorations = []
+  // No widget may cover the math ranges — the user asked for source math
+  // in live mode (no hidden KaTeX, no forced scrollbar).
+  let widgetCount = 0
   buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
-    if (value.spec.widget) decorations.push({ from, to, widget: value.spec.widget.constructor.name })
+    if (value.spec.widget) widgetCount += 1
+    void from
+    void to
   })
-  const math = decorations.filter((entry) => entry.widget === 'MathWidget')
-  assert.equal(math.length, 2)
-  assert.equal(state.doc.sliceString(math[0].from, math[0].to), '$x^2$')
-  assert.equal(
-    state.doc.sliceString(math[1].from, math[1].to),
-    ['$$', '\\int_0^1 x \\, dx', '$$'].join('\n')
-  )
+  assert.equal(widgetCount, 0)
 })
 
 test('renders wikilinks with a linked mark and hides brackets', () => {

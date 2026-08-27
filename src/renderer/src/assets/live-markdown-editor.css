@@ -56,11 +56,13 @@
 /* Headings — typeset rhythm ported to line padding (CM6 doesn't measure
  * margins, only padding-in-box). Read mode: h2 margin-top 1.4×flow with
  * the blank line above collapsed; live: blank line (1×flow) + the
- * remainder as padding. Border-bottom comes from typeset.css. */
+ * remainder as padding. Border-bottom comes from typeset.css. Also
+ * resets atomic's h1 letter-spacing. */
 .cm-kuskus-live .cm-line.cm-atomic-h1 {
   font-family: var(--typeset-font-heading);
   font-size: 1.75em;
   font-weight: 400;
+  letter-spacing: normal;
   line-height: 1.3;
   color: var(--foreground);
   border-bottom: 1px solid var(--typeset-rule);
@@ -70,6 +72,7 @@
   font-family: var(--typeset-font-heading);
   font-size: 1.25em;
   font-weight: 400;
+  letter-spacing: normal;
   line-height: 1.4;
   padding-top: calc(var(--typeset-flow) * 0.4);
   color: var(--foreground);
@@ -80,6 +83,7 @@
   font-family: var(--typeset-font-heading);
   font-size: 1.125em;
   font-weight: 400;
+  letter-spacing: normal;
   line-height: 1.45;
   color: var(--foreground);
   border-bottom: 1px solid var(--typeset-rule);
@@ -133,11 +137,12 @@
   padding-left: 1em;
 }
 
-/* Fenced code — keep the app's code-block backdrop. */
+/* Fenced code — flat typeset-code background with NO rail or radius.
+ * Each physical line carries its own background (CM measures lines,
+ * not blocks); removing the rail/radius makes adjacent lines read as
+ * one continuous block instead of stacked rounded pills. */
 .cm-kuskus-live .cm-line.cm-atomic-fenced-code {
   background: var(--typeset-code-background);
-  border-radius: var(--radius);
-  box-shadow: inset 2px 0 0 var(--typeset-rule);
   color: var(--typeset-body-color);
   font-family: var(--typeset-font-mono);
   font-size: 0.875em;
@@ -289,20 +294,6 @@
 .cm-kuskus-live .cm-atomic-table td:focus-within {
   outline: 2px solid var(--primary);
   outline-offset: -2px;
-}
-
-/* Math (Kuskus layer). */
-.cm-kuskus-live .cm-kuskus-math.is-block {
-  display: block;
-  background: var(--typeset-code-background);
-  border-radius: var(--radius);
-  margin-block-start: var(--typeset-flow);
-  overflow-x: auto;
-  padding: 0.875rem 1rem;
-}
-.cm-kuskus-live .cm-kuskus-math.is-block .katex-display {
-  margin: 0;
-  padding: 0;
 }
 
 /* Wikilinks render with `:has()` anchor support. */
