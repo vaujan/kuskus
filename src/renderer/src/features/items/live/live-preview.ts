@@ -243,11 +243,29 @@ class KuskusLiveDecorationBuilder {
   }
 
   private handleNode(node: MarkdownSyntaxNode): void {
-    // Only Kuskus-specific constructs beyond atomic's inline preview.
     // Atomic owns headings, lists, links, emphasis, inline code,
-    // fenced code, tasks, horizontal rules, and tables. The build()
-    // walk still visits nodes so wikilink/blank-line scans can see them.
-    void node
+    // fenced code, tasks, horizontal rules, and tables. This layer
+    // only extends it: first/last fenced-code lines get corner classes
+    // so the block reads as one rounded container like read mode's
+    // .kuskus-code-block (per-line radius made it look like stacked
+    // pills).
+    if (node.name === 'FencedCode') {
+      const marks = node.getChildren('CodeMark')
+      if (marks.length >= 2) {
+        const openLine = this.state.doc.lineAt(marks[0].from)
+        const closeLine = this.state.doc.lineAt(marks[marks.length - 1].from)
+        this.addLine(
+          openLine.from,
+          Decoration.line({ class: 'cm-kuskus-code-first' })
+        )
+        if (closeLine.number !== openLine.number) {
+          this.addLine(
+            closeLine.from,
+            Decoration.line({ class: 'cm-kuskus-code-last' })
+          )
+        }
+      }
+    }
   }
 
   private scanInlineSegments(): void {

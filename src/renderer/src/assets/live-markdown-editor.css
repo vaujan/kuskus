@@ -137,10 +137,10 @@
   padding-left: 1em;
 }
 
-/* Fenced code — flat typeset-code background with NO rail or radius.
- * Each physical line carries its own background (CM measures lines,
- * not blocks); removing the rail/radius makes adjacent lines read as
- * one continuous block instead of stacked rounded pills. */
+/* Fenced code — one rounded container like read mode's .kuskus-code-block.
+ * Corners on the first/last lines; the opening/closing fence marks are
+ * hidden on inactive lines, so the visual block reads as a single
+ * rounded card. Horizontal overflow scrolls only when needed. */
 .cm-kuskus-live .cm-line.cm-atomic-fenced-code {
   background: var(--typeset-code-background);
   color: var(--typeset-body-color);
@@ -149,6 +149,16 @@
   line-height: 1.5;
   padding-left: 0.75rem;
   padding-right: 0.75rem;
+}
+.cm-kuskus-live .cm-line.cm-atomic-fenced-code.cm-kuskus-code-first {
+  border-start-start-radius: var(--radius);
+  border-start-end-radius: var(--radius);
+  padding-top: 0.75rem;
+}
+.cm-kuskus-live .cm-line.cm-atomic-fenced-code.cm-kuskus-code-last {
+  border-end-start-radius: var(--radius);
+  border-end-end-radius: var(--radius);
+  padding-bottom: 0.875rem;
 }
 
 /* Emphasis, code, strike — typeset colors. */
@@ -198,13 +208,23 @@
 
 /* Lists — hanging indent computed by atomic; override alcove spacing
  * to the typeset list rhythm. Item-start lines (those carrying a
- * marker) take the read renderer's 0.5em inter-item gap. */
+ * marker) take the read renderer's 0.5em inter-item gap. The ordered
+ * or source marker text must be muted (read mode ::marker color) and
+ * left-aligned (read mode numbers sit at the content edge, not
+ * right-aligned like a right tab). */
 .cm-kuskus-live .cm-line .cm-atomic-list-marker {
   color: var(--typeset-muted);
+  text-align: left;
 }
 .cm-kuskus-live .cm-atomic-bullet {
   color: var(--typeset-muted);
   font-weight: 400;
+  font-size: 1em;
+}
+.cm-kuskus-live .cm-atomic-source-marker {
+  color: var(--typeset-muted);
+  font-family: var(--font-mono);
+  font-size: 0.85em;
 }
 .cm-kuskus-live .cm-line:has(> .cm-atomic-list-marker),
 .cm-kuskus-live .cm-line:has(> span.cm-atomic-list-marker),

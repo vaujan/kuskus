@@ -270,6 +270,31 @@ class BulletWidget extends WidgetType {
   }
 }
 
+// Kuskus fork: active-line source reveal without layout shift. When
+// the cursor sits on a bullet/task line the rendered glyph is replaced
+// by the raw source marker (`-`, `*`, `+`, `[ ]`, `[x]`) rendered in
+// the same fixed-width alcove, so the line geometry never changes.
+class ListSourceMarkerWidget extends WidgetType {
+  constructor(private readonly text: string) {
+    super()
+  }
+
+  eq(other: ListSourceMarkerWidget): boolean {
+    return other.text === this.text
+  }
+
+  toDOM(): HTMLElement {
+    const span = document.createElement('span')
+    span.className = 'cm-atomic-list-marker cm-atomic-source-marker'
+    span.textContent = this.text
+    return span
+  }
+
+  ignoreEvent(): boolean {
+    return false
+  }
+}
+
 class TaskCheckboxWidget extends WidgetType {
   constructor(readonly checked: boolean) {
     super()
@@ -625,17 +650,25 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         const hasTrailingSpace = doc.sliceString(node.to, node.to + 1) === ' '
         const markEnd = hasTrailingSpace ? node.to + 1 : node.to
 
+        const lineNumber = line.number
+        const sourceReveal = activeLines.has(lineNumber)
         if (taskFrom !== undefined) {
-          // Hide `- ` (ListMark through the space before `[`).
-          pushReplace(ranges, doc, node.from, taskFrom)
+          // Hide `- ` (ListMark through the space before `[`), or on
+          // active lines show `- ` itself in the alcove (source reveal).
+          pushReplace(ranges, doc, node.from, taskFrom, {
+            ...(sourceReveal ? { widget: new ListSourceMarkerWidget('- ') } : {})
+          })
         } else {
           const markText = doc.sliceString(node.from, node.to)
           if (markText === '-' || markText === '*' || markText === '+') {
             // Bullet: substitute with the fixed-width marker
             // widget, swallowing the trailing space so content
-            // starts precisely at padding-left.
+            // starts precisely at padding-left. On active lines the
+            // source marker replaces the glyph — no layout shift.
             pushReplace(ranges, doc, node.from, markEnd, {
-              widget: new BulletWidget(bulletDepth)
+              widget: sourceReveal
+                ? new ListSourceMarkerWidget(markText + (hasTrailingSpace ? ' ' : ''))
+                : new BulletWidget(bulletDepth)
             })
           } else {
             // Ordered list (or anything else with a non-standard
@@ -705,11 +738,16 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         const hasTrailingSpace =
           node.to < doc.length && doc.sliceString(node.to, node.to + 1) === ' '
         const replaceTo = hasTrailingSpace ? node.to + 1 : node.to
+        const lineNum = doc.lineAt(node.from).number
+        // Active-line source reveal: the raw `[ ]` / `[x]` shows in the
+        // alcove instead of the checkbox glyph — no layout shift.
+        const sourceReveal = activeLines.has(lineNum)
         pushReplace(ranges, doc, node.from, replaceTo, {
-          widget: new TaskCheckboxWidget(checked)
+          widget: sourceReveal
+            ? new ListSourceMarkerWidget(markText)
+            : new TaskCheckboxWidget(checked)
         })
-        if (checked) {
-          const lineNum = doc.lineAt(node.from).number
+        if (checked && !sourceReveal) {
           const line = doc.line(lineNum)
           ranges.push(Decoration.line({ class: 'cm-atomic-task-done' }).range(line.from))
         }
