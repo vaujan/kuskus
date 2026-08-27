@@ -25,6 +25,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import type { LibraryView } from '@/features/items/item-view'
+import type { LiveEngine } from '@/features/items/live-engine'
 import type { Theme } from '@/hooks/use-theme'
 import type { GlobalCaptureShortcutStatus } from '../../../../shared/window-contract'
 
@@ -52,6 +53,8 @@ export function QuickSettingsPopover({
   onTranslucentBackgroundChange,
   vimEnabled,
   onVimEnabledChange,
+  liveEngine,
+  onLiveEngineChange,
   onOpenFullSettings
 }: {
   open: boolean
@@ -68,6 +71,8 @@ export function QuickSettingsPopover({
   onTranslucentBackgroundChange: (enabled: boolean) => void
   vimEnabled: boolean
   onVimEnabledChange: (enabled: boolean) => void
+  liveEngine: LiveEngine
+  onLiveEngineChange: (engine: LiveEngine) => void
   onOpenFullSettings: () => void
 }): React.JSX.Element {
   const captureStatus =
@@ -239,6 +244,22 @@ export function QuickSettingsPopover({
                 aria-label="Vim mode"
                 checked={vimEnabled}
                 onCheckedChange={onVimEnabledChange}
+              />
+            </div>
+            <div className={rowClass}>
+              <IconKeyboard className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">Live engine</p>
+                <p className="mt-0.5 text-xs leading-5 text-pretty text-muted-foreground">
+                  Use the CodeMirror live preview instead of Milkdown.
+                </p>
+              </div>
+              <Switch
+                aria-label="Live engine (CodeMirror)"
+                checked={liveEngine === 'codemirror'}
+                onCheckedChange={(checked) =>
+                  onLiveEngineChange(checked ? 'codemirror' : 'milkdown')
+                }
               />
             </div>
           </div>

@@ -90,6 +90,7 @@ import { SettingsDialog } from '@/features/settings/settings-dialog'
 import { useSetting } from '@/settings/settings-context'
 import { useTheme } from '@/hooks/use-theme'
 import { useNoteVim } from '@/hooks/use-note-vim'
+import { useLiveEnginePreference } from '@/features/items/live-engine'
 import type { TranslucentBackgroundPreference } from '@/hooks/use-translucent-background'
 import { cn } from '@/lib/utils'
 import type {
@@ -224,6 +225,7 @@ export function Workspace({
   )
   const [theme, setTheme] = useTheme()
   const [vimEnabled, setVimEnabled] = useNoteVim()
+  const [liveEngine, setLiveEngine] = useLiveEnginePreference()
   const importRequestId = useRef(0)
   const dragDepth = useRef(0)
   const enrichingUrlIds = useRef(new Set<string>())
@@ -1450,6 +1452,8 @@ export function Workspace({
         onTranslucentBackgroundChange={translucentBackground.setEnabled}
         vimEnabled={vimEnabled}
         onVimEnabledChange={setVimEnabled}
+        liveEngine={liveEngine}
+        onLiveEngineChange={setLiveEngine}
         onOpenFullSettings={() => setSettingsDialogOpen(true)}
       />
       <SidebarInset>

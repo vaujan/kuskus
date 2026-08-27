@@ -1,0 +1,285 @@
+/*
+ * Live (CodeMirror) markdown surface.
+ *
+ * Two sources compose here:
+ *  - Atomic's inline-preview classes (`.cm-atomic-*`) are mapped onto the
+ *    Kuskus typeset tokens so the live surface reads like Read mode.
+ *  - Kuskus legacy classes (`.cm-kuskus-*`) style math, wikilinks, images,
+ *    checkboxes, and code blocks.
+ */
+
+@layer components {
+  .cm-kuskus-live .cm-content {
+    color: var(--typeset-body-color);
+    font-family: var(--typeset-font-body);
+    font-size: var(--typeset-size);
+    line-height: var(--typeset-leading);
+    text-wrap: pretty;
+  }
+
+  /* Headings — typeset rhythm, no borders (live strips the header marks). */
+  .cm-kuskus-live .cm-line.cm-atomic-h1 {
+    font-family: var(--typeset-font-heading);
+    font-size: 1.75em;
+    font-weight: 400;
+    line-height: 1.3;
+    padding-top: calc(var(--typeset-flow) * 1.4);
+    padding-bottom: 0.1em;
+    color: var(--foreground);
+    text-wrap: balance;
+  }
+  .cm-kuskus-live .cm-line.cm-atomic-h2 {
+    font-family: var(--typeset-font-heading);
+    font-size: 1.25em;
+    font-weight: 400;
+    line-height: 1.4;
+    padding-top: calc(var(--typeset-flow) * 1.2);
+    padding-bottom: 0.1em;
+    color: var(--foreground);
+    text-wrap: balance;
+  }
+  .cm-kuskus-live .cm-line.cm-atomic-h3 {
+    font-family: var(--typeset-font-heading);
+    font-size: 1.125em;
+    font-weight: 400;
+    line-height: 1.45;
+    padding-top: var(--typeset-flow);
+    color: var(--foreground);
+    text-wrap: balance;
+  }
+  .cm-kuskus-live .cm-line.cm-atomic-h4 {
+    font-family: var(--typeset-font-heading);
+    font-size: 1em;
+    font-weight: 400;
+    line-height: 1.5;
+    padding-top: var(--typeset-flow);
+    color: var(--foreground);
+  }
+  .cm-kuskus-live .cm-line.cm-atomic-h5 {
+    font-size: 0.875em;
+    font-weight: 500;
+    line-height: 1.5;
+    padding-top: var(--typeset-flow);
+    color: var(--typeset-muted);
+  }
+  .cm-kuskus-live .cm-line.cm-atomic-h6 {
+    font-size: 0.8125em;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding-top: var(--typeset-flow);
+    color: var(--typeset-muted);
+  }
+
+  /* Quotes. */
+  .cm-kuskus-live .cm-line.cm-atomic-blockquote {
+    border-left: 2px solid var(--typeset-rule);
+    color: var(--typeset-muted);
+    padding-left: 1em;
+  }
+
+  /* Fenced code — keep the app's code-block backdrop. */
+  .cm-kuskus-live .cm-line.cm-atomic-fenced-code {
+    background: var(--typeset-code-background);
+    border-radius: var(--radius);
+    box-shadow: inset 2px 0 0 var(--typeset-rule);
+    color: var(--typeset-body-color);
+    font-family: var(--typeset-font-mono);
+    font-size: 0.875em;
+    line-height: 1.5;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  /* Emphasis, code, strike — typeset colors. */
+  .cm-kuskus-live .cm-atomic-strong {
+    color: var(--foreground);
+    font-weight: 600;
+  }
+  .cm-kuskus-live .cm-atomic-em {
+    font-style: italic;
+  }
+  .cm-kuskus-live .cm-atomic-inline-code {
+    background-color: var(--typeset-code-background);
+    border-radius: min(calc(var(--radius) * 0.6), 0.35em);
+    color: var(--typeset-body-color);
+    font-family: var(--typeset-font-mono);
+    font-size: 0.85em;
+    padding: 0.125em 0.3em;
+    word-break: break-word;
+  }
+  .cm-kuskus-live .cm-atomic-strike {
+    color: var(--typeset-muted);
+    text-decoration: line-through;
+  }
+
+  /* Links — typeset link treatment, muted icon. */
+  .cm-kuskus-live .cm-atomic-link,
+  .cm-kuskus-live .cm-kuskus-wikilink {
+    color: inherit;
+    font-weight: 500;
+    text-decoration-line: underline;
+    text-decoration-color: color-mix(in oklab, currentColor 30%, transparent);
+    text-underline-offset: 0.1875rem;
+  }
+  .cm-kuskus-live .cm-atomic-link:hover,
+  .cm-kuskus-live .cm-kuskus-wikilink:hover {
+    text-decoration-color: currentColor;
+  }
+  .cm-kuskus-live .cm-atomic-link::after,
+  .cm-kuskus-live .cm-atomic-link-icon {
+    background-color: var(--typeset-muted);
+  }
+  .cm-kuskus-live .cm-atomic-link:hover::after,
+  .cm-kuskus-live .cm-atomic-link-icon:hover {
+    background-color: var(--typeset-muted);
+  }
+
+  /* Lists — hanging indent computed by atomic; override alcove spacing
+   * to the typeset list rhythm. */
+  .cm-kuskus-live .cm-line .cm-atomic-list-marker {
+    color: var(--typeset-muted);
+  }
+  .cm-kuskus-live .cm-atomic-bullet {
+    color: var(--typeset-muted);
+    font-weight: 400;
+  }
+
+  /* Task checkbox — reuse the app task-checkbox look. */
+  .cm-kuskus-live .cm-atomic-task-checkbox {
+    border-color: color-mix(in oklch, var(--foreground) 40%, transparent);
+    border-radius: 4px;
+    background: color-mix(in oklch, var(--foreground) 10%, transparent);
+  }
+  .cm-kuskus-live .cm-atomic-task-checkbox:hover {
+    border-color: color-mix(in oklch, var(--foreground) 52%, transparent);
+  }
+  .cm-kuskus-live .cm-atomic-task-checkbox:checked {
+    background: var(--primary);
+    border-color: var(--primary);
+  }
+  .cm-kuskus-live .cm-atomic-task-checkbox::after {
+    border-color: var(--primary-foreground);
+  }
+  .cm-kuskus-live .cm-atomic-task-checkbox:focus-visible {
+    outline: 3px solid color-mix(in oklch, var(--ring) 50%, transparent);
+    outline-offset: 1px;
+    box-shadow: none;
+  }
+  .cm-kuskus-live .cm-line.cm-atomic-task-done {
+    color: var(--typeset-muted);
+    text-decoration-color: color-mix(in oklab, currentColor 45%, transparent);
+  }
+
+  /* Horizontal rule. */
+  .cm-kuskus-live .cm-line.cm-atomic-hr {
+    border-top: 1px solid var(--typeset-rule);
+    margin-top: calc(var(--typeset-flow) * 2.4);
+    margin-bottom: 0;
+    width: 100%;
+  }
+
+  /* Tables — typeset table treatment: rounded, bordered, header bottom
+   * rule, first-column start alignment. */
+  .cm-kuskus-live .cm-atomic-table {
+    padding: var(--typeset-flow) 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+  .cm-kuskus-live .cm-atomic-table table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: color-mix(in oklch, var(--foreground) 3%, transparent);
+    border: 1px solid color-mix(in oklch, var(--foreground) 28%, transparent);
+    font-family: var(--typeset-font-body);
+    border-radius: calc(var(--radius) * 1.4);
+    overflow: hidden;
+  }
+  .cm-kuskus-live .cm-atomic-table th,
+  .cm-kuskus-live .cm-atomic-table td {
+    border: 0;
+    border-block-start: 1px solid color-mix(in oklch, var(--foreground) 18%, transparent);
+    border-inline-end: 1px solid color-mix(in oklch, var(--foreground) 18%, transparent);
+    padding: 0.75em 1em;
+    text-align: start;
+    vertical-align: top;
+    min-width: 2em;
+    min-height: 1.5em;
+    font-variant-numeric: tabular-nums;
+  }
+  .cm-kuskus-live .cm-atomic-table th {
+    font-weight: 500;
+    background: transparent;
+    border-block-end: 1px solid color-mix(in oklch, var(--foreground) 22%, transparent);
+  }
+  .cm-kuskus-live .cm-atomic-table th:first-child,
+  .cm-kuskus-live .cm-atomic-table td:first-child {
+    padding-inline-start: 1em;
+  }
+  .cm-kuskus-live .cm-atomic-table th:last-child,
+  .cm-kuskus-live .cm-atomic-table td:last-child {
+    padding-inline-end: 1em;
+    border-inline-end: 0;
+  }
+  .cm-kuskus-live .cm-atomic-table th:focus-within,
+  .cm-kuskus-live .cm-atomic-table td:focus-within {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
+  }
+
+  /* Math (Kuskus layer). */
+  .cm-kuskus-live .cm-kuskus-math.is-block {
+    display: block;
+    background: var(--typeset-code-background);
+    border-radius: var(--radius);
+    margin-block-start: var(--typeset-flow);
+    overflow-x: auto;
+    padding: 0.875rem 1rem;
+  }
+  .cm-kuskus-live .cm-kuskus-math.is-block .katex-display {
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Wikilinks render with `:has()` anchor support. */
+  .cm-kuskus-live .cm-kuskus-wikilink {
+    cursor: pointer;
+  }
+  .cm-kuskus-live .cm-kuskus-wikilink:hover {
+    text-decoration-color: currentColor;
+  }
+
+  /* Images + chips. */
+  .cm-kuskus-live .cm-kuskus-image {
+    border-radius: var(--radius-lg);
+    display: block;
+    margin-block-start: var(--typeset-flow);
+    max-height: 32rem;
+    max-width: 100%;
+    object-fit: contain;
+    outline: 1px solid var(--typeset-image-outline);
+    outline-offset: -1px;
+  }
+  .cm-kuskus-live .cm-kuskus-image-wrap {
+    display: block;
+  }
+  .cm-kuskus-live .cm-kuskus-chip {
+    border-radius: 0.5rem;
+    background: var(--muted);
+    color: var(--muted-foreground);
+    display: inline-flex;
+    font-size: 0.75rem;
+    line-height: 1rem;
+    margin-block: 0.375rem;
+    max-width: 100%;
+    padding: 0.5rem 0.75rem;
+  }
+
+  /* Focus-visible on interactive widgets. */
+  .cm-kuskus-live .cm-kuskus-checkbox:focus-visible {
+    outline: 3px solid color-mix(in oklch, var(--ring) 50%, transparent);
+    outline-offset: 1px;
+  }
+}

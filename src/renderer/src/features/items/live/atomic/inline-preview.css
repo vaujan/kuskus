@@ -112,7 +112,8 @@
  * quotes even though each line is an independent DOM element. */
 .cm-line.cm-atomic-blockquote {
   padding-left: 1rem;
-  border-left: 3px solid var(--atomic-editor-accent-soft, color-mix(in srgb, #7c3aed 72%, white 28%));
+  border-left: 3px solid
+    var(--atomic-editor-accent-soft, color-mix(in srgb, #7c3aed 72%, white 28%));
   color: var(--atomic-editor-fg-muted, #888);
 }
 
@@ -126,7 +127,14 @@
   font-size: 0.92em;
   background: var(--atomic-editor-code-bg, color-mix(in srgb, #2d2d2d 88%, black 12%));
   box-shadow: inset 2px 0 0
-    var(--atomic-editor-code-rail, color-mix(in srgb, var(--atomic-editor-accent, #7c3aed) 45%, var(--atomic-editor-border, #3d3d3d) 55%));
+    var(
+      --atomic-editor-code-rail,
+      color-mix(
+        in srgb,
+        var(--atomic-editor-accent, #7c3aed) 45%,
+        var(--atomic-editor-border, #3d3d3d) 55%
+      )
+    );
   padding-left: 0.75rem;
   padding-right: 0.75rem;
 }
@@ -135,10 +143,7 @@
  * would cover it. A selection-only inline decoration mirrors the same token
  * above the block background while leaving syntax-highlighted text on top. */
 .cm-atomic-fenced-selection {
-  background-color: var(
-    --atomic-editor-selection-bg,
-    color-mix(in srgb, #7c3aed 28%, #1e1e1e 72%)
-  );
+  background-color: var(--atomic-editor-selection-bg, color-mix(in srgb, #7c3aed 28%, #1e1e1e 72%));
 }
 
 /* Inline content marks — applied on the text inside **…**, *…*, `…`,
@@ -242,7 +247,7 @@
 }
 
 .cm-atomic-link::after {
-  content: "";
+  content: '';
 }
 
 /* The real in-cell icon must be clickable but never selectable / part
@@ -304,7 +309,7 @@
 }
 
 .cm-line.cm-atomic-hr::after {
-  content: "";
+  content: '';
   position: absolute;
   left: 0;
   right: 0;
@@ -378,7 +383,7 @@
 }
 
 .cm-atomic-task-checkbox::after {
-  content: "";
+  content: '';
   width: 0.26em;
   height: 0.5em;
   border-right: 0.12em solid #ffffff;
@@ -398,7 +403,8 @@
 
 .cm-atomic-task-checkbox:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--atomic-editor-accent, #7c3aed) 28%, transparent 72%);
+  box-shadow: 0 0 0 2px
+    color-mix(in srgb, var(--atomic-editor-accent, #7c3aed) 28%, transparent 72%);
 }
 
 /* Forced-colors mode removes box shadows, so retain a visible keyboard
@@ -663,7 +669,9 @@
   font: inherit;
   font-size: 0.875rem;
   outline: none;
-  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
 }
 
 .cm-atomic-search-input:focus {
@@ -697,7 +705,10 @@
   border-radius: var(--atomic-editor-radius, 6px);
   color: var(--atomic-editor-fg-muted, #888);
   cursor: pointer;
-  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease,
+    border-color 0.12s ease;
 }
 
 .cm-atomic-search-btn:hover {
@@ -772,7 +783,7 @@
  * Code-highlight colors swap from Material Palenight to a set tuned for
  * light backgrounds — the palette ideas come from GitHub's light theme
  * and the original Solarized Light. */
-[data-theme="light"] .atomic-cm-editor {
+[data-theme='light'] .atomic-cm-editor {
   --atomic-editor-fg: #24292f;
   --atomic-editor-fg-muted: #57606a;
   --atomic-editor-fg-faint: #8c959f;

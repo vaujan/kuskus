@@ -22,7 +22,7 @@ const { GFM } = require('@lezer/markdown')
 const {
   buildLivePreviewDecorations,
   codeBlockEntryPosition
-} = require('../src/renderer/src/features/items/markdown-live-preview.ts')
+} = require('../src/renderer/src/features/items/live/legacy/live-preview-legacy.ts')
 
 test('builds live-preview block decorations outside a view plugin', () => {
   const state = EditorState.create({

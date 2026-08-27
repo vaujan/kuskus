@@ -135,6 +135,7 @@ import {
   type NoteMode,
   type SinglePaneNoteMode
 } from '@/features/items/note-view-mode'
+import { useLiveEnginePreference } from '@/features/items/live-engine'
 import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
 import { useImagePreview } from '@/features/items/use-image-preview'
 import { useNoteAttachmentPreviews } from '@/features/items/use-note-attachment-previews'
@@ -166,6 +167,11 @@ const MarkdownPreview = lazy(() =>
 const NoteRichEditor = lazy(() =>
   import('@/features/items/note-rich-editor').then((module) => ({
     default: module.NoteRichEditor
+  }))
+)
+const NoteLiveEditor = lazy(() =>
+  import('@/features/items/note-live-editor').then((module) => ({
+    default: module.NoteLiveEditor
   }))
 )
 
@@ -1089,20 +1095,23 @@ function NoteCanvas({
   const syncFrameRef = useRef<number | null>(null)
   const releaseSyncFrameRef = useRef<number | null>(null)
   const attachmentPreviews = useNoteAttachmentPreviews(item.id, item.attachments)
+  const frontmatter = useMemo(() => parseNoteFrontmatter(snapshot.draft), [snapshot.draft])
+  const hasProperties = frontmatter.status === 'valid' && frontmatter.properties.length > 0
   const richSource = useMemo(() => partitionRichMarkdownSource(snapshot.draft), [snapshot.draft])
+  const [liveEngine] = useLiveEnginePreference()
   const richSupported = useMemo(
-    () => richSource !== null && supportsRichMarkdown(richSource.body),
-    [richSource]
+    () => liveEngine === 'milkdown' && richSource !== null && supportsRichMarkdown(richSource.body),
+    [liveEngine, richSource]
   )
   const onModeChangeRef = useRef(onModeChange)
   useEffect(() => {
     onModeChangeRef.current = onModeChange
   }, [onModeChange])
   useEffect(() => {
-    if (mode !== 'live' || richSupported) return
+    if (mode !== 'live' || richSupported || liveEngine === 'codemirror') return
     notifyRichEditingUnavailable()
     onModeChangeRef.current('markdown')
-  }, [mode, richSupported])
+  }, [mode, richSupported, liveEngine])
   const noteAttachments = item.attachments
   const onOpenVaultLinkRef = useRef(onOpenVaultLink)
   useEffect(() => {
@@ -1358,23 +1367,60 @@ function NoteCanvas({
         />
       ) : null}
       {mode === 'read' || mode === 'live' ? (
-        mode === 'live' && richSupported ? (
-          <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
-            <NoteRichEditor
-              ref={noteEditorRef}
-              value={snapshot.draft}
-              editable
-              active
-              options={richOptions}
-              preserveScrollTopRef={noteScrollTopRef}
-              preserveCursorOffsetRef={noteCursorOffsetRef}
-              findTarget={richFindTargetRef}
-              vimEnabled={vimEnabled}
-              vim={noteVimContract}
-              onChange={onDraftChange}
-              onError={onError}
-            />
-          </Suspense>
+        mode === 'live' && (richSupported || liveEngine === 'codemirror') ? (
+          liveEngine === 'codemirror' ? (
+            <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
+              <NoteLiveEditor
+                ref={noteEditorRef}
+                value={snapshot.draft}
+                editable
+                active
+                liveOptions={richOptions}
+                topContent={
+                  showInlineTitle || hasProperties ? (
+                    <NoteDocumentBlocks
+                      item={item}
+                      markdown={snapshot.draft}
+                      showInlineTitle={showInlineTitle}
+                      showProperties
+                      propertiesEditable
+                      className="pb-8"
+                      titleRef={noteTitleRef}
+                      onRenameTitle={onRenameTitle}
+                      onDraftChange={onDraftChange}
+                      onOpenSource={() => onModeChange('markdown')}
+                      onError={onError}
+                    />
+                  ) : undefined
+                }
+                hiddenRange={
+                  frontmatter.status === 'valid' ? { from: 0, to: frontmatter.endOffset } : null
+                }
+                preserveScrollTopRef={noteScrollTopRef}
+                findTarget={richFindTargetRef}
+                vimEnabled={vimEnabled}
+                vim={noteVimContract}
+                onChange={onDraftChange}
+              />
+            </Suspense>
+          ) : (
+            <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
+              <NoteRichEditor
+                ref={noteEditorRef}
+                value={snapshot.draft}
+                editable
+                active
+                options={richOptions}
+                preserveScrollTopRef={noteScrollTopRef}
+                preserveCursorOffsetRef={noteCursorOffsetRef}
+                findTarget={richFindTargetRef}
+                vimEnabled={vimEnabled}
+                vim={noteVimContract}
+                onChange={onDraftChange}
+                onError={onError}
+              />
+            </Suspense>
+          )
         ) : (
           <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
             <MarkdownPreview

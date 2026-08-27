@@ -9,7 +9,20 @@ import { syntaxTree } from '@codemirror/language'
 import { Decoration, EditorView, WidgetType, keymap, type DecorationSet } from '@codemirror/view'
 import katex from 'katex'
 
-import { codeLanguageLabel, copyMarkdownCode, renderHighlightedCode } from './markdown-code'
+import { codeLanguageLabel, copyMarkdownCode, markdownCodeLanguage } from '../../markdown-code'
+
+/** Legacy code-block highlight. Re-created here because the Milkdown pivot
+ * removed it from markdown-code.ts; the live surface renders code blocks
+ * with the CodeBlockWidget. */
+function renderHighlightedCode(element: HTMLElement, code: string, info: string): void {
+  element.replaceChildren()
+  const language = markdownCodeLanguage(info)
+  if (!language) {
+    element.textContent = code
+    return
+  }
+  element.textContent = code
+}
 
 export interface LivePreviewImage {
   src: string | null

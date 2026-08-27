@@ -1,5 +1,5 @@
-import { EditorState, Facet, type Extension } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import { EditorState, Facet, type Extension } from '@codemirror/state'
+import { EditorView } from '@codemirror/view'
 
 // Read-only ("reading") mode.
 //
@@ -16,8 +16,8 @@ import { EditorView } from '@codemirror/view';
 // this facet — behaves exactly as before.
 
 export const readOnlyFacet = Facet.define<boolean, boolean>({
-  combine: (values) => (values.length ? values[values.length - 1] : false),
-});
+  combine: (values) => (values.length ? values[values.length - 1] : false)
+})
 
 /**
  * Bundle the CM6 levers that make the editor read-only, plus the
@@ -44,6 +44,6 @@ export function readOnlyExtension(ro: boolean): Extension {
     EditorView.editable.of(!ro),
     EditorState.readOnly.of(ro),
     readOnlyFacet.of(ro),
-    ro ? EditorView.editorAttributes.of({ class: 'cm-atomic-readonly' }) : [],
-  ];
+    ro ? EditorView.editorAttributes.of({ class: 'cm-atomic-readonly' }) : []
+  ]
 }

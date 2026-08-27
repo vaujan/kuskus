@@ -1,0 +1,95 @@
+const assert = require('node:assert/strict')
+const { readFileSync } = require('node:fs')
+const test = require('node:test')
+const ts = require('typescript')
+
+require.extensions['.ts'] = (module, filename) => {
+  const source = readFileSync(filename, 'utf8')
+  const output = ts.transpileModule(source, {
+    compilerOptions: {
+      target: ts.ScriptTarget.ES2022,
+      module: ts.ModuleKind.CommonJS,
+      esModuleInterop: true
+    },
+    fileName: filename
+  })
+  module._compile(output.outputText, filename)
+}
+
+const { markdown } = require('@codemirror/lang-markdown')
+const { EditorState } = require('@codemirror/state')
+const { GFM } = require('@lezer/markdown')
+const {
+  buildKuskusLiveDecorations
+} = require('../src/renderer/src/features/items/live/live-preview.ts')
+
+function createState(doc) {
+  return EditorState.create({ doc, extensions: [markdown({ extensions: GFM })] })
+}
+
+test('renders inline math and block math as widgets', () => {
+  const state = createState(
+    ['Cursor', '', 'Intro $x^2$ text', '', '$$', '\\int_0^1 x \\, dx', '$$'].join('\n')
+  )
+  const decorations = []
+  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
+    if (value.spec.widget) decorations.push({ from, to, widget: value.spec.widget.constructor.name })
+  })
+  const math = decorations.filter((entry) => entry.widget === 'MathWidget')
+  assert.equal(math.length, 2)
+  assert.equal(state.doc.sliceString(math[0].from, math[0].to), '$x^2$')
+  assert.equal(
+    state.doc.sliceString(math[1].from, math[1].to),
+    ['$$', '\\int_0^1 x \\, dx', '$$'].join('\n')
+  )
+})
+
+test('renders wikilinks with a linked mark and hides brackets', () => {
+  const state = createState('Cursor\n\nSee [[Target note]] and [[Other|Alias]]')
+  const decorations = []
+  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
+    if (value.spec.class || value.spec.widget) {
+      decorations.push({
+        from,
+        to,
+        className: value.spec.class,
+        widget: value.spec.widget?.constructor.name
+      })
+    }
+  })
+  assert.equal(decorations.some((entry) => entry.className === 'cm-kuskus-wikilink'), true)
+  const aliasMark = decorations.find(
+    (entry) => entry.className === 'cm-kuskus-wikilink' && entry.from > 30
+  )
+  assert.equal(aliasMark.from, state.doc.toString().indexOf('Alias'))
+})
+
+test('embeds resolved images as widgets through options', () => {
+  const state = createState('Cursor\n\n![[image file.png]]')
+  const decorations = []
+  buildKuskusLiveDecorations(state, {
+    resolveImage: () => ({
+      src: 'file:///image.png',
+      missing: false,
+      label: 'image file.png',
+      width: 100,
+      height: 100
+    })
+  }).between(0, state.doc.length, (from, to, value) => {
+    if (value.spec.widget) decorations.push({ from, to, widget: value.spec.widget.constructor.name })
+  })
+  assert.equal(decorations[0]?.widget, 'WikilinkImageWidget')
+  assert.equal(decorations[0]?.from, state.doc.toString().indexOf('![[image'))
+})
+
+test('does not duplicate replacement ranges owned by atomic preview', () => {
+  // Horizontal rules, headings, lists, tasks are atomic's; the Kuskus
+  // layer only adds math, wikilinks, and embed images. Replacing the
+  // same ranges twice would make CM6 throw.
+  const state = createState(['Cursor', '', '---', '', '## Heading', '', '- [ ] Task'].join('\n'))
+  const decorations = []
+  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
+    if (value.spec.replace) decorations.push({ from, to })
+  })
+  assert.deepEqual(decorations, [])
+})

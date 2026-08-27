@@ -1,18 +1,13 @@
-import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
+import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
 import {
   StateField,
   type EditorState,
   type Extension,
   type Range,
-  type Transaction,
-} from '@codemirror/state';
-import {
-  Decoration,
-  EditorView,
-  WidgetType,
-  type DecorationSet,
-} from '@codemirror/view';
-import { treeGrowthEffect, treeProgressPlugin } from './tree-progress';
+  type Transaction
+} from '@codemirror/state'
+import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view'
+import { treeGrowthEffect, treeProgressPlugin } from './tree-progress'
 
 // Image blocks.
 //
@@ -46,24 +41,27 @@ import { treeGrowthEffect, treeProgressPlugin } from './tree-progress';
 // that just grew taller pushes content down against the motion).
 // Setting `width` and `height` attrs from this cache pins the
 // aspect ratio on mount, so there's no grow-after-mount event.
-const dimensionCache = new Map<string, { w: number; h: number }>();
+const dimensionCache = new Map<string, { w: number; h: number }>()
 
 class ImageWidget extends WidgetType {
-  constructor(readonly src: string, readonly alt: string) {
-    super();
+  constructor(
+    readonly src: string,
+    readonly alt: string
+  ) {
+    super()
   }
 
   eq(other: ImageWidget): boolean {
-    return other.src === this.src && other.alt === this.alt;
+    return other.src === this.src && other.alt === this.alt
   }
 
   toDOM(view: EditorView): HTMLElement {
-    const wrap = document.createElement('div');
-    wrap.className = 'cm-atomic-image';
-    const img = document.createElement('img');
-    img.src = this.src;
-    img.alt = this.alt;
-    img.loading = 'lazy';
+    const wrap = document.createElement('div')
+    wrap.className = 'cm-atomic-image'
+    const img = document.createElement('img')
+    img.src = this.src
+    img.alt = this.alt
+    img.loading = 'lazy'
     // Set intrinsic dims from the cache so the widget reserves the
     // right box before the image decodes — prevents the remount +
     // resize cycle that halts iOS momentum scroll. On first-ever
@@ -71,21 +69,21 @@ class ImageWidget extends WidgetType {
     // the natural dims so subsequent remounts come up pre-sized.
     // CSS (`max-width: 100%; height: auto` on the img) still lets
     // the browser scale the attributes to the content column.
-    const cached = dimensionCache.get(this.src);
+    const cached = dimensionCache.get(this.src)
     if (cached) {
-      img.width = cached.w;
-      img.height = cached.h;
+      img.width = cached.w
+      img.height = cached.h
     } else {
       img.addEventListener('load', () => {
         if (img.naturalWidth > 0 && img.naturalHeight > 0) {
           dimensionCache.set(this.src, {
             w: img.naturalWidth,
-            h: img.naturalHeight,
-          });
+            h: img.naturalHeight
+          })
         }
-      });
+      })
     }
-    wrap.appendChild(img);
+    wrap.appendChild(img)
 
     // Clicking the image should land the caret on the source line
     // (where the `![alt](url)` markdown lives) so the reveal happens
@@ -95,30 +93,30 @@ class ImageWidget extends WidgetType {
     // the widget's doc position via posAtDOM, step back into the
     // preceding line (the source), and dispatch an explicit selection.
     const onPointer = (event: MouseEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const pos = view.posAtDOM(wrap);
-      if (pos < 0) return;
-      const target = Math.max(0, pos - 1);
-      view.focus();
+      event.preventDefault()
+      event.stopPropagation()
+      const pos = view.posAtDOM(wrap)
+      if (pos < 0) return
+      const target = Math.max(0, pos - 1)
+      view.focus()
       view.dispatch({
         selection: { anchor: target },
-        scrollIntoView: false,
-      });
-    };
-    wrap.addEventListener('mousedown', onPointer);
-    return wrap;
+        scrollIntoView: false
+      })
+    }
+    wrap.addEventListener('mousedown', onPointer)
+    return wrap
   }
 
   // Block CM6's own mouse handling so our listener above is the sole
   // thing deciding where the caret goes.
   ignoreEvent(event: Event): boolean {
-    return event.type === 'mousedown' || event.type === 'click';
+    return event.type === 'mousedown' || event.type === 'click'
   }
 }
 
 function buildImageBlocks(state: EditorState): DecorationSet {
-  const ranges: Range<Decoration>[] = [];
+  const ranges: Range<Decoration>[] = []
   // Push the parser to cover the whole doc so image nodes in
   // regions CM6 hasn't yet parsed get widgetized. Without this, for
   // moderately long atoms the initial parse doesn't reach the
@@ -126,19 +124,18 @@ function buildImageBlocks(state: EditorState): DecorationSet {
   // `![alt](url)` text forever — the StateField only rebuilds on
   // doc change, not on parser advance. 200ms is a generous
   // upper bound; typical atoms finish in well under 10ms.
-  const tree =
-    ensureSyntaxTree(state, state.doc.length, 200) ?? syntaxTree(state);
+  const tree = ensureSyntaxTree(state, state.doc.length, 200) ?? syntaxTree(state)
 
   tree.iterate({
     enter: (node) => {
-      if (node.name !== 'Image') return;
+      if (node.name !== 'Image') return
       // Skip Images inside tables — the table widget renders them
       // as inline `<img>` elements in their cells. Emitting a
       // block widget below the table row would double-render and
       // the source it points at is hidden behind the table's
       // block-replace anyway.
       for (let p = node.node.parent; p; p = p.parent) {
-        if (p.name === 'Table') return;
+        if (p.name === 'Table') return
       }
       // Slice the whole image source and regex out src / alt. This
       // handles the common shapes — `![alt](url)` and
@@ -146,26 +143,26 @@ function buildImageBlocks(state: EditorState): DecorationSet {
       // for each piece. We don't go to heroic lengths on edge cases
       // (escaped parens etc.); the regex fails safely by skipping
       // the widget.
-      const raw = state.doc.sliceString(node.from, node.to);
-      const match = raw.match(/^!\[([^\]]*)\]\(([^\s)"']+)(?:\s+["'][^)]*["'])?\)$/);
-      if (!match) return;
-      const [, alt, src] = match;
-      if (!src) return;
+      const raw = state.doc.sliceString(node.from, node.to)
+      const match = raw.match(/^!\[([^\]]*)\]\(([^\s)"']+)(?:\s+["'][^)]*["'])?\)$/)
+      if (!match) return
+      const [, alt, src] = match
+      if (!src) return
 
-      const line = state.doc.lineAt(node.from);
+      const line = state.doc.lineAt(node.from)
       ranges.push(
         Decoration.widget({
           widget: new ImageWidget(src, alt),
           block: true,
           // side: 1 places the block widget after the line's content,
           // so the image appears below its source line.
-          side: 1,
-        }).range(line.to),
-      );
-    },
-  });
+          side: 1
+        }).range(line.to)
+      )
+    }
+  })
 
-  return Decoration.set(ranges, true);
+  return Decoration.set(ranges, true)
 }
 
 // Detect whether a doc change could have added, removed, or modified
@@ -183,29 +180,29 @@ function buildImageBlocks(state: EditorState): DecorationSet {
 // is what we want for an unaffected edit. Turns per-keystroke cost
 // from O(doc) to O(change size) on plain-prose edits of large atoms.
 function changeAffectsImages(tr: Transaction, existing: DecorationSet): boolean {
-  let affected = false;
+  let affected = false
   tr.changes.iterChanges((fromA, toA) => {
-    if (affected) return;
+    if (affected) return
     existing.between(fromA, toA, () => {
-      affected = true;
-      return false;
-    });
-  });
-  if (affected) return true;
+      affected = true
+      return false
+    })
+  })
+  if (affected) return true
 
-  const state = tr.state;
+  const state = tr.state
   tr.changes.iterChanges((_fromA, _toA, fromB, toB) => {
-    if (affected) return;
-    const startLine = state.doc.lineAt(fromB);
-    const endLine = toB > startLine.to ? state.doc.lineAt(toB) : startLine;
+    if (affected) return
+    const startLine = state.doc.lineAt(fromB)
+    const endLine = toB > startLine.to ? state.doc.lineAt(toB) : startLine
     for (let n = startLine.number; n <= endLine.number; n++) {
       if (state.doc.line(n).text.includes('![')) {
-        affected = true;
-        break;
+        affected = true
+        break
       }
     }
-  });
-  return affected;
+  })
+  return affected
 }
 
 const imageBlocksField = StateField.define<DecorationSet>({
@@ -215,23 +212,23 @@ const imageBlocksField = StateField.define<DecorationSet>({
     // region that wasn't parsed when we last built. Rebuild so any
     // newly-visible Image nodes get their widget.
     for (const effect of tr.effects) {
-      if (effect.is(treeGrowthEffect)) return buildImageBlocks(tr.state);
+      if (effect.is(treeGrowthEffect)) return buildImageBlocks(tr.state)
     }
     // Selection and viewport changes don't affect the widget set
     // (though they do affect whether the surrounding markdown is
     // shown, which is handled by the inline-preview ViewPlugin).
-    if (!tr.docChanged) return deco;
+    if (!tr.docChanged) return deco
     // Most keystrokes on a large atom are in plain prose with no
     // image nearby. Map existing decorations through the change and
     // skip the full-doc walk unless the change actually touches an
     // image.
-    const mapped = deco.map(tr.changes);
-    if (!changeAffectsImages(tr, deco)) return mapped;
-    return buildImageBlocks(tr.state);
+    const mapped = deco.map(tr.changes)
+    if (!changeAffectsImages(tr, deco)) return mapped
+    return buildImageBlocks(tr.state)
   },
-  provide: (f) => EditorView.decorations.from(f),
-});
+  provide: (f) => EditorView.decorations.from(f)
+})
 
 export function imageBlocks(): Extension {
-  return [imageBlocksField, treeProgressPlugin];
+  return [imageBlocksField, treeProgressPlugin]
 }

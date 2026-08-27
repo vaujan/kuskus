@@ -1,5 +1,5 @@
-import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
-import type { SyntaxNode } from '@lezer/common';
+import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
+import type { SyntaxNode } from '@lezer/common'
 import {
   EditorSelection,
   Prec,
@@ -7,8 +7,8 @@ import {
   StateField,
   type Extension,
   type Range,
-  type Text,
-} from '@codemirror/state';
+  type Text
+} from '@codemirror/state'
 import {
   Decoration,
   EditorView,
@@ -16,10 +16,10 @@ import {
   WidgetType,
   keymap,
   type DecorationSet,
-  type ViewUpdate,
-} from '@codemirror/view';
-import { treeGrowthEffect, treeProgressPlugin } from './tree-progress';
-import { readOnlyFacet } from './read-only';
+  type ViewUpdate
+} from '@codemirror/view'
+import { treeGrowthEffect, treeProgressPlugin } from './tree-progress'
+import { readOnlyFacet } from './read-only'
 
 // Inline preview — the Obsidian "Live Preview" model.
 //
@@ -45,67 +45,67 @@ export interface InlinePreviewConfig {
    * their own opener so links route through the host's external-URL
    * mechanism.
    */
-  onLinkClick?: (url: string) => void;
+  onLinkClick?: (url: string) => void
 }
 
 function defaultOnLinkClick(url: string): void {
   try {
-    window.open(url, '_blank', 'noopener,noreferrer');
+    window.open(url, '_blank', 'noopener,noreferrer')
   } catch {
     // window.open can throw in sandboxed iframes etc. — silent failure
     // is fine; the caller can supply an opener that handles this.
   }
 }
 
-const FREEZE_TAIL_MS = 100;
+const FREEZE_TAIL_MS = 100
 
 // ---- freeze plumbing -----------------------------------------------------
 
-const setFrozen = StateEffect.define<boolean>();
+const setFrozen = StateEffect.define<boolean>()
 
 const previewFrozenField = StateField.define<boolean>({
   create: () => false,
   update(prev, tr) {
     for (const effect of tr.effects) {
-      if (effect.is(setFrozen)) return effect.value;
+      if (effect.is(setFrozen)) return effect.value
     }
-    return prev;
-  },
-});
+    return prev
+  }
+})
 
 function linkIconHitTarget(event: MouseEvent, root?: HTMLElement): HTMLElement | null {
-  const target = event.target;
-  if (!(target instanceof Element)) return null;
-  const linkEl = target.closest<HTMLElement>('.cm-atomic-link');
-  if (!linkEl || (root && !root.contains(linkEl))) return null;
+  const target = event.target
+  if (!(target instanceof Element)) return null
+  const linkEl = target.closest<HTMLElement>('.cm-atomic-link')
+  if (!linkEl || (root && !root.contains(linkEl))) return null
 
   // The icon is a `::after` pseudo-element, so it doesn't have its own
   // event target. Compute the same trailing hit-zone used by the click
   // opener and treat pointerdown in that zone as "on the icon", not
   // "inside editable link text".
-  const rects = Array.from(linkEl.getClientRects());
-  if (rects.length === 0) return null;
-  const lastRect = rects[rects.length - 1];
-  const emSize = parseFloat(window.getComputedStyle(linkEl).fontSize);
-  const iconZone = emSize * 1.25;
+  const rects = Array.from(linkEl.getClientRects())
+  if (rects.length === 0) return null
+  const lastRect = rects[rects.length - 1]
+  const emSize = parseFloat(window.getComputedStyle(linkEl).fontSize)
+  const iconZone = emSize * 1.25
   const onIcon =
     event.clientX >= lastRect.right - iconZone &&
     event.clientX <= lastRect.right &&
     event.clientY >= lastRect.top &&
-    event.clientY <= lastRect.bottom;
+    event.clientY <= lastRect.bottom
 
-  return onIcon ? linkEl : null;
+  return onIcon ? linkEl : null
 }
 
 // Whole-link hit test, used in read-only mode where the entire link
 // (text + icon) is the open affordance. Mirrors `linkIconHitTarget`'s
 // containment check but without the trailing-icon zone restriction.
 function linkElementFromEvent(event: MouseEvent, root?: HTMLElement): HTMLElement | null {
-  const target = event.target;
-  if (!(target instanceof Element)) return null;
-  const linkEl = target.closest<HTMLElement>('.cm-atomic-link');
-  if (!linkEl || (root && !root.contains(linkEl))) return null;
-  return linkEl;
+  const target = event.target
+  if (!(target instanceof Element)) return null
+  const linkEl = target.closest<HTMLElement>('.cm-atomic-link')
+  if (!linkEl || (root && !root.contains(linkEl))) return null
+  return linkEl
 }
 
 // Tracks mouse state on the editor and drives the freeze flag. We listen
@@ -114,64 +114,64 @@ function linkElementFromEvent(event: MouseEvent, root?: HTMLElement): HTMLElemen
 // up event if we listened on the content DOM only.
 const freezeMousePlugin = ViewPlugin.fromClass(
   class {
-    private down = false;
-    private releaseTimer: number | null = null;
+    private down = false
+    private releaseTimer: number | null = null
     private readonly onDown = (event: PointerEvent) => {
-      if (event.button !== 0) return;
+      if (event.button !== 0) return
       // Read-only never reveals, so there's nothing to freeze. Bail
       // before any of the selection/icon plumbing runs.
-      if (this.view.state.facet(readOnlyFacet)) return;
+      if (this.view.state.facet(readOnlyFacet)) return
       // Only freeze when the pointerdown lands inside the content. The
       // scrollbar (on the outer .cm-scroller) would otherwise engage the
       // freeze too — which keeps decorations stale for the whole drag
       // and the syntax only "pops in" on release. Gesture/wheel scroll
       // doesn't have this issue because it never fires a pointerdown on
       // the scrollbar chrome.
-      const target = event.target;
+      const target = event.target
       if (!(target instanceof Node) || !this.view.contentDOM.contains(target)) {
-        return;
+        return
       }
       if (linkIconHitTarget(event, this.view.contentDOM)) {
         // Let the follow-up click open the link, but stop CM6 from
         // interpreting the icon press as a text-editing click. Without
         // this, pointerdown moves the selection into the Link node and
         // reveals `[label](url)` before the click handler opens it.
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        return;
+        event.preventDefault()
+        event.stopImmediatePropagation()
+        return
       }
-      this.down = true;
+      this.down = true
       if (this.releaseTimer != null) {
-        window.clearTimeout(this.releaseTimer);
-        this.releaseTimer = null;
+        window.clearTimeout(this.releaseTimer)
+        this.releaseTimer = null
       }
       if (!this.view.state.field(previewFrozenField)) {
-        this.view.dispatch({ effects: setFrozen.of(true) });
+        this.view.dispatch({ effects: setFrozen.of(true) })
       }
-    };
+    }
     private readonly onUp = () => {
-      if (!this.down) return;
-      this.down = false;
-      if (this.releaseTimer != null) window.clearTimeout(this.releaseTimer);
+      if (!this.down) return
+      this.down = false
+      if (this.releaseTimer != null) window.clearTimeout(this.releaseTimer)
       this.releaseTimer = window.setTimeout(() => {
-        this.releaseTimer = null;
-        if (!this.view.state.field(previewFrozenField)) return;
+        this.releaseTimer = null
+        if (!this.view.state.field(previewFrozenField)) return
         try {
-          this.view.dispatch({ effects: setFrozen.of(false) });
+          this.view.dispatch({ effects: setFrozen.of(false) })
         } catch {
           // view destroyed while timer was pending.
         }
-      }, FREEZE_TAIL_MS);
-    };
+      }, FREEZE_TAIL_MS)
+    }
 
     constructor(readonly view: EditorView) {
       // Capture-phase listener on view.dom so we dispatch setFrozen(true)
       // BEFORE CM6's own pointerdown handler runs its selection logic.
       // Without capture, CM6's listener can win the order race and
       // rebuild decorations (revealing `# `/`**`) before we freeze.
-      view.dom.addEventListener('pointerdown', this.onDown, true);
-      window.addEventListener('pointerup', this.onUp);
-      window.addEventListener('pointercancel', this.onUp);
+      view.dom.addEventListener('pointerdown', this.onDown, true)
+      window.addEventListener('pointerup', this.onUp)
+      window.addEventListener('pointercancel', this.onUp)
     }
 
     update(_: ViewUpdate) {
@@ -179,13 +179,13 @@ const freezeMousePlugin = ViewPlugin.fromClass(
     }
 
     destroy() {
-      this.view.dom.removeEventListener('pointerdown', this.onDown, true);
-      window.removeEventListener('pointerup', this.onUp);
-      window.removeEventListener('pointercancel', this.onUp);
-      if (this.releaseTimer != null) window.clearTimeout(this.releaseTimer);
+      this.view.dom.removeEventListener('pointerdown', this.onDown, true)
+      window.removeEventListener('pointerup', this.onUp)
+      window.removeEventListener('pointercancel', this.onUp)
+      if (this.releaseTimer != null) window.clearTimeout(this.releaseTimer)
     }
-  },
-);
+  }
+)
 
 // ---- decoration building --------------------------------------------------
 
@@ -199,8 +199,8 @@ const LINE_CLASS_BY_BLOCK: Record<string, string> = {
   SetextHeading1: 'cm-atomic-h1',
   SetextHeading2: 'cm-atomic-h2',
   Blockquote: 'cm-atomic-blockquote',
-  FencedCode: 'cm-atomic-fenced-code',
-};
+  FencedCode: 'cm-atomic-fenced-code'
+}
 
 const HIDEABLE_SYNTAX = new Set([
   'HeaderMark',
@@ -211,14 +211,14 @@ const HIDEABLE_SYNTAX = new Set([
   'LinkTitle',
   'StrikethroughMark',
   'HighlightMark',
-  'QuoteMark',
-]);
+  'QuoteMark'
+])
 
 // Children of a Link node whose visibility follows the link-scoped
 // rule (cursor-inside-link) instead of the default line-based rule.
 // The same token names can appear under an Image node — those stay
 // on the line-based rule because images are a different UX surface.
-const LINK_CHILD_SYNTAX = new Set(['LinkMark', 'URL', 'LinkTitle']);
+const LINK_CHILD_SYNTAX = new Set(['LinkMark', 'URL', 'LinkTitle'])
 
 const INLINE_MARK_CLASS: Record<string, string> = {
   StrongEmphasis: 'cm-atomic-strong',
@@ -226,8 +226,8 @@ const INLINE_MARK_CLASS: Record<string, string> = {
   InlineCode: 'cm-atomic-inline-code',
   Strikethrough: 'cm-atomic-strike',
   Highlight: 'cm-atomic-highlight',
-  Link: 'cm-atomic-link',
-};
+  Link: 'cm-atomic-link'
+}
 
 // A Link can contain two URL nodes when its visible label is itself a
 // URL: `[https://label](https://destination)`. Only the node after the
@@ -236,43 +236,39 @@ const INLINE_MARK_CLASS: Record<string, string> = {
 function linkDestinationUrl(link: SyntaxNode, doc: Text): SyntaxNode | null {
   const labelClose = link
     .getChildren('LinkMark')
-    .find((mark) => doc.sliceString(mark.from, mark.to) === ']');
-  if (!labelClose) return null;
-  return (
-    link
-      .getChildren('URL')
-      .find((url) => url.from >= labelClose.to) ?? null
-  );
+    .find((mark) => doc.sliceString(mark.from, mark.to) === ']')
+  if (!labelClose) return null
+  return link.getChildren('URL').find((url) => url.from >= labelClose.to) ?? null
 }
 
 class BulletWidget extends WidgetType {
   eq(): boolean {
-    return true;
+    return true
   }
   toDOM(): HTMLElement {
     // The `.cm-atomic-list-marker` class is what forces the
     // uniform 1.2em inline-block alcove shared by bullets, task
     // checkboxes, and ordered-list numbers. `.cm-atomic-bullet`
     // layers on bullet-specific color / weight.
-    const span = document.createElement('span');
-    span.className = 'cm-atomic-list-marker cm-atomic-bullet';
-    span.textContent = '•';
-    return span;
+    const span = document.createElement('span')
+    span.className = 'cm-atomic-list-marker cm-atomic-bullet'
+    span.textContent = '•'
+    return span
   }
   ignoreEvent(): boolean {
-    return false;
+    return false
   }
 }
 
-const BULLET_WIDGET = new BulletWidget();
+const BULLET_WIDGET = new BulletWidget()
 
 class TaskCheckboxWidget extends WidgetType {
   constructor(readonly checked: boolean) {
-    super();
+    super()
   }
 
   eq(other: TaskCheckboxWidget): boolean {
-    return other.checked === this.checked;
+    return other.checked === this.checked
   }
 
   toDOM(view: EditorView): HTMLElement {
@@ -282,30 +278,30 @@ class TaskCheckboxWidget extends WidgetType {
     // selectors like `input.cm-atomic-task-checkbox` still work
     // (a wrapper span broke a Playwright probe that targets the
     // input by its class).
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.checked = this.checked;
-    input.className = 'cm-atomic-list-marker cm-atomic-task-checkbox';
-    input.setAttribute('contenteditable', 'false');
+    const input = document.createElement('input')
+    input.type = 'checkbox'
+    input.checked = this.checked
+    input.className = 'cm-atomic-list-marker cm-atomic-task-checkbox'
+    input.setAttribute('contenteditable', 'false')
     input.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-    });
+      e.preventDefault()
+      e.stopPropagation()
+    })
     input.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const pos = view.posAtDOM(input);
-      if (pos < 0) return;
-      const current = view.state.doc.sliceString(pos, pos + 3);
-      const next = /\[x\]/i.test(current) ? '[ ]' : '[x]';
-      if (current === next) return;
-      view.dispatch({ changes: { from: pos, to: pos + 3, insert: next } });
-    });
-    return input;
+      e.preventDefault()
+      e.stopPropagation()
+      const pos = view.posAtDOM(input)
+      if (pos < 0) return
+      const current = view.state.doc.sliceString(pos, pos + 3)
+      const next = /\[x\]/i.test(current) ? '[ ]' : '[x]'
+      if (current === next) return
+      view.dispatch({ changes: { from: pos, to: pos + 3, insert: next } })
+    })
+    return input
   }
 
   ignoreEvent(event: Event): boolean {
-    return event.type === 'mousedown' || event.type === 'click';
+    return event.type === 'mousedown' || event.type === 'click'
   }
 }
 
@@ -323,72 +319,70 @@ function pushReplace(
   doc: Text,
   from: number,
   to: number,
-  spec: Parameters<typeof Decoration.replace>[0] = {},
+  spec: Parameters<typeof Decoration.replace>[0] = {}
 ): void {
-  if (from >= to) return;
-  const startLine = doc.lineAt(from);
+  if (from >= to) return
+  const startLine = doc.lineAt(from)
   if (to <= startLine.to) {
-    ranges.push(Decoration.replace(spec).range(from, to));
-    return;
+    ranges.push(Decoration.replace(spec).range(from, to))
+    return
   }
   // Multi-line: first segment carries the widget (if any) so it
   // renders in place of the opening token; subsequent segments are
   // plain hides. Emitting the widget on every segment would stack
   // duplicates (e.g. a BulletWidget on line 2+ of a wrapped item).
-  let cursor = from;
-  let firstSegment = true;
+  let cursor = from
+  let firstSegment = true
   while (cursor < to) {
-    const line = doc.lineAt(cursor);
-    const segEnd = Math.min(to, line.to);
+    const line = doc.lineAt(cursor)
+    const segEnd = Math.min(to, line.to)
     if (segEnd > cursor) {
-      ranges.push(
-        Decoration.replace(firstSegment ? spec : {}).range(cursor, segEnd),
-      );
-      firstSegment = false;
+      ranges.push(Decoration.replace(firstSegment ? spec : {}).range(cursor, segEnd))
+      firstSegment = false
     }
-    cursor = line.to + 1;
+    cursor = line.to + 1
   }
 }
 
-const LIST_BASE_EM = 0.8;
-const LIST_ALCOVE_EM = 1.2;
-const LIST_LEVEL_EM = 0.6;
+const LIST_BASE_EM = 0.8
+const LIST_ALCOVE_EM = 1.2
+const LIST_LEVEL_EM = 0.6
 
 function nearestListItem(node: SyntaxNode | null): SyntaxNode | null {
   for (let current = node; current; current = current.parent) {
-    if (current.name === 'ListItem') return current;
+    if (current.name === 'ListItem') return current
   }
-  return null;
+  return null
 }
 
 function listItemDepth(item: SyntaxNode): number {
-  let depth = 0;
+  let depth = 0
   for (let parent = item.parent; parent; parent = parent.parent) {
-    if (parent.name === 'ListItem') depth++;
+    if (parent.name === 'ListItem') depth++
   }
-  return depth;
+  return depth
 }
 
 function sameListItem(a: SyntaxNode | null, b: SyntaxNode): boolean {
-  return a?.name === 'ListItem' && a.from === b.from && a.to === b.to;
+  return a?.name === 'ListItem' && a.from === b.from && a.to === b.to
 }
 
 function buildInlineDecorations(view: EditorView): DecorationSet {
-  const { state } = view;
-  const { doc } = state;
-  const ranges: Range<Decoration>[] = [];
+  const { state } = view
+  const { doc } = state
+  const ranges: Range<Decoration>[] = []
 
   // In read-only mode no line is ever "active" — the whole doc stays
   // rendered (no reveal). We skip the selection walk entirely rather
   // than relying on `hasFocus` staying false, so a programmatic
   // `.focus()` can't accidentally reveal source under reading mode.
-  const readOnly = state.facet(readOnlyFacet);
-  const activeLines = new Set<number>();
+  const readOnly = state.facet(readOnlyFacet)
+  const activeLines = new Set<number>()
   if (view.hasFocus && !readOnly) {
     for (const r of state.selection.ranges) {
-      const firstLine = doc.lineAt(r.from).number;
-      const lastLine = doc.lineAt(r.to).number;
-      for (let n = firstLine; n <= lastLine; n++) activeLines.add(n);
+      const firstLine = doc.lineAt(r.from).number
+      const lastLine = doc.lineAt(r.to).number
+      for (let n = firstLine; n <= lastLine; n++) activeLines.add(n)
     }
   }
 
@@ -409,8 +403,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
   // decorations don't rebuild on scroll anymore. Subsequent calls
   // are near-free because ensureSyntaxTree short-circuits once the
   // tree reaches the target.
-  const tree =
-    ensureSyntaxTree(state, state.doc.length, 200) ?? syntaxTree(state);
+  const tree = ensureSyntaxTree(state, state.doc.length, 200) ?? syntaxTree(state)
 
   // `from` positions of Link nodes whose range overlaps a selection.
   // Link children (LinkMark/URL/LinkTitle) hide unless their parent
@@ -418,7 +411,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
   // link specifically, not merely landed on the same line. Images
   // aren't included; they already have their own widget UX and the
   // line-based reveal is the right fit for `![alt](url)`.
-  const activeLinkStarts = new Set<number>();
+  const activeLinkStarts = new Set<number>()
 
   // Single pre-order walk. A tree walk visits a parent before its
   // children, which lets us compute two pieces of look-ahead state on
@@ -437,17 +430,17 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
   tree.iterate({
     enter: (node) => {
       if (node.name === 'FencedCode') {
-        const firstLine = doc.lineAt(node.from).number;
-        const lastLine = doc.lineAt(node.to).number;
-        let anyActive = false;
+        const firstLine = doc.lineAt(node.from).number
+        const lastLine = doc.lineAt(node.to).number
+        let anyActive = false
         for (let n = firstLine; n <= lastLine; n++) {
           if (activeLines.has(n)) {
-            anyActive = true;
-            break;
+            anyActive = true
+            break
           }
         }
         if (anyActive) {
-          for (let n = firstLine; n <= lastLine; n++) activeLines.add(n);
+          for (let n = firstLine; n <= lastLine; n++) activeLines.add(n)
         }
       }
       if (node.name === 'Link' && view.hasFocus) {
@@ -456,83 +449,75 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
           // boundary counts as inside, matching the UX where the
           // next keystroke affects the link.
           if (range.from <= node.to && range.to >= node.from) {
-            activeLinkStarts.add(node.from);
-            break;
+            activeLinkStarts.add(node.from)
+            break
           }
         }
       }
-      const lineClass = LINE_CLASS_BY_BLOCK[node.name];
+      const lineClass = LINE_CLASS_BY_BLOCK[node.name]
       if (lineClass) {
-        const firstLine = doc.lineAt(node.from);
-        const lastLine = doc.lineAt(node.to);
+        const firstLine = doc.lineAt(node.from)
+        const lastLine = doc.lineAt(node.to)
         for (let n = firstLine.number; n <= lastLine.number; n++) {
-          const line = doc.line(n);
-          ranges.push(Decoration.line({ class: lineClass }).range(line.from));
+          const line = doc.line(n)
+          ranges.push(Decoration.line({ class: lineClass }).range(line.from))
         }
       }
 
-      const markClass = INLINE_MARK_CLASS[node.name];
+      const markClass = INLINE_MARK_CLASS[node.name]
       if (markClass && node.from < node.to) {
-        ranges.push(Decoration.mark({ class: markClass }).range(node.from, node.to));
+        ranges.push(Decoration.mark({ class: markClass }).range(node.from, node.to))
       }
 
       if (HIDEABLE_SYNTAX.has(node.name) && node.from < node.to) {
-        const lineNum = doc.lineAt(node.from).number;
+        const lineNum = doc.lineAt(node.from).number
 
         // Link children use a link-scoped rule (cursor-inside-link)
         // rather than the line-based rule. A LinkMark under an
         // Image node falls through to line-based — images have
         // their own widget UX that the line-based reveal fits.
-        let shouldHide: boolean;
+        let shouldHide: boolean
         if (LINK_CHILD_SYNTAX.has(node.name)) {
-          let parent = node.node.parent;
+          let parent = node.node.parent
           while (parent && parent.name !== 'Link' && parent.name !== 'Image') {
-            parent = parent.parent;
+            parent = parent.parent
           }
           if (parent && parent.name === 'Link') {
-            shouldHide = !activeLinkStarts.has(parent.from);
+            shouldHide = !activeLinkStarts.has(parent.from)
           } else {
-            shouldHide = !activeLines.has(lineNum);
+            shouldHide = !activeLines.has(lineNum)
           }
         } else {
-          shouldHide = !activeLines.has(lineNum);
+          shouldHide = !activeLines.has(lineNum)
         }
 
         if (shouldHide) {
-          let hideTo = node.to;
+          let hideTo = node.to
           if (node.name === 'HeaderMark' || node.name === 'QuoteMark') {
             while (hideTo < doc.length && doc.sliceString(hideTo, hideTo + 1) === ' ') {
-              hideTo++;
+              hideTo++
             }
           }
-          pushReplace(ranges, doc, node.from, hideTo);
+          pushReplace(ranges, doc, node.from, hideTo)
         }
       }
 
       if (node.name === 'URL' && node.from < node.to) {
-        const parent = node.node.parent;
+        const parent = node.node.parent
         if (parent?.name === 'Link') {
           // A URL in the label is visible content. A URL after the
           // closing `]` is destination syntax and follows the existing
           // cursor-inside-this-link reveal rule—not whole-line activity.
-          const destination = linkDestinationUrl(parent, doc);
-          if (
-            destination?.from === node.from &&
-            !activeLinkStarts.has(parent.from)
-          ) {
-            pushReplace(ranges, doc, node.from, node.to);
+          const destination = linkDestinationUrl(parent, doc)
+          if (destination?.from === node.from && !activeLinkStarts.has(parent.from)) {
+            pushReplace(ranges, doc, node.from, node.to)
           }
         } else {
           // Bare GFM URLs and `<https://...>` autolinks are visible
           // content, not syntax. Give them the same styling and icon
           // hit target as explicit links while leaving their text in
           // the document flow on inactive lines.
-          ranges.push(
-            Decoration.mark({ class: 'cm-atomic-link' }).range(
-              node.from,
-              node.to,
-            ),
-          );
+          ranges.push(Decoration.mark({ class: 'cm-atomic-link' }).range(node.from, node.to))
         }
       }
 
@@ -544,22 +529,21 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
       // renders escapes. The Escape node spans both characters
       // (`\` + escaped char), so we only replace the first position.
       if (node.name === 'Escape' && node.to - node.from >= 2) {
-        const lineNum = doc.lineAt(node.from).number;
+        const lineNum = doc.lineAt(node.from).number
         if (!activeLines.has(lineNum)) {
-          pushReplace(ranges, doc, node.from, node.from + 1);
+          pushReplace(ranges, doc, node.from, node.from + 1)
         }
       }
 
       if (node.name === 'ListMark' && node.from < node.to) {
-        const line = doc.lineAt(node.from);
+        const line = doc.lineAt(node.from)
         // Detect a task item from the line text. ListMark is visited
         // before the TaskMarker on its line, so a forward single-pass
         // walk can't look the marker position up from a map; the
         // capture group is the `- ` lead-in and its length lands
         // taskFrom exactly on the `[` (matching TaskMarker.from).
-        const taskLead = line.text.match(/^(\s*[-*+]\s+)\[[ xX]\]/);
-        const taskFrom =
-          taskLead != null ? line.from + taskLead[1].length : undefined;
+        const taskLead = line.text.match(/^(\s*[-*+]\s+)\[[ xX]\]/)
+        const taskFrom = taskLead != null ? line.from + taskLead[1].length : undefined
 
         // Hanging-indent every physical line owned by this list item.
         // Ownership and depth come from the parsed tree, not raw source
@@ -585,38 +569,33 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         // leading spaces are replaced visually on every owned line;
         // otherwise they would be added on top of the tree-derived
         // padding and ordered/odd indentation would still drift.
-        const listItem = nearestListItem(node.node);
+        const listItem = nearestListItem(node.node)
         if (listItem) {
-          const depth = listItemDepth(listItem);
-          const padding =
-            LIST_BASE_EM + LIST_ALCOVE_EM + depth * LIST_LEVEL_EM;
-          const firstLine = doc.lineAt(listItem.from);
-          const lastLine = doc.lineAt(listItem.to);
+          const depth = listItemDepth(listItem)
+          const padding = LIST_BASE_EM + LIST_ALCOVE_EM + depth * LIST_LEVEL_EM
+          const firstLine = doc.lineAt(listItem.from)
+          const lastLine = doc.lineAt(listItem.to)
 
-          for (
-            let number = firstLine.number;
-            number <= lastLine.number;
-            number++
-          ) {
-            const ownedLine = doc.line(number);
-            const contentOffset = ownedLine.text.search(/\S/);
-            if (contentOffset < 0) continue;
-            const contentFrom = ownedLine.from + contentOffset;
-            const owner = nearestListItem(tree.resolve(contentFrom, 1));
-            if (!sameListItem(owner, listItem)) continue;
+          for (let number = firstLine.number; number <= lastLine.number; number++) {
+            const ownedLine = doc.line(number)
+            const contentOffset = ownedLine.text.search(/\S/)
+            if (contentOffset < 0) continue
+            const contentFrom = ownedLine.from + contentOffset
+            const owner = nearestListItem(tree.resolve(contentFrom, 1))
+            if (!sameListItem(owner, listItem)) continue
 
-            const markerLine = ownedLine.number === line.number;
+            const markerLine = ownedLine.number === line.number
             ranges.push(
               Decoration.line({
                 attributes: {
                   style: `padding-left: ${padding}em; text-indent: ${
                     markerLine ? `-${LIST_ALCOVE_EM}` : '0'
-                  }em`,
-                },
-              }).range(ownedLine.from),
-            );
+                  }em`
+                }
+              }).range(ownedLine.from)
+            )
             if (contentFrom > ownedLine.from) {
-              pushReplace(ranges, doc, ownedLine.from, contentFrom);
+              pushReplace(ranges, doc, ownedLine.from, contentFrom)
             }
           }
         }
@@ -628,20 +607,19 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         // For bullets / ordered, include a single trailing space
         // if present so text flows from padding-left without a
         // spurious leading space.
-        const hasTrailingSpace =
-          doc.sliceString(node.to, node.to + 1) === ' ';
-        const markEnd = hasTrailingSpace ? node.to + 1 : node.to;
+        const hasTrailingSpace = doc.sliceString(node.to, node.to + 1) === ' '
+        const markEnd = hasTrailingSpace ? node.to + 1 : node.to
 
         if (taskFrom !== undefined) {
           // Hide `- ` (ListMark through the space before `[`).
-          pushReplace(ranges, doc, node.from, taskFrom);
+          pushReplace(ranges, doc, node.from, taskFrom)
         } else {
-          const markText = doc.sliceString(node.from, node.to);
+          const markText = doc.sliceString(node.from, node.to)
           if (markText === '-' || markText === '*' || markText === '+') {
             // Bullet: substitute with the fixed-width marker
             // widget, swallowing the trailing space so content
             // starts precisely at padding-left.
-            pushReplace(ranges, doc, node.from, markEnd, { widget: BULLET_WIDGET });
+            pushReplace(ranges, doc, node.from, markEnd, { widget: BULLET_WIDGET })
           } else {
             // Ordered list (or anything else with a non-standard
             // mark text like `1.`, `42.`): keep the text visible
@@ -649,13 +627,10 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
             // alcove. Hide the trailing space separately so the
             // total marker-plus-space footprint matches ALCOVE.
             ranges.push(
-              Decoration.mark({ class: 'cm-atomic-list-marker' }).range(
-                node.from,
-                node.to,
-              ),
-            );
+              Decoration.mark({ class: 'cm-atomic-list-marker' }).range(node.from, node.to)
+            )
             if (hasTrailingSpace) {
-              pushReplace(ranges, doc, node.to, markEnd);
+              pushReplace(ranges, doc, node.to, markEnd)
             }
           }
         }
@@ -674,16 +649,16 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         // and render a horizontal rule via CSS `::after`. On active
         // lines we leave the raw characters visible so the user can
         // edit the marker without it vanishing.
-        const line = doc.lineAt(node.from);
+        const line = doc.lineAt(node.from)
         if (!activeLines.has(line.number)) {
-          ranges.push(Decoration.line({ class: 'cm-atomic-hr' }).range(line.from));
-          pushReplace(ranges, doc, line.from, line.to);
+          ranges.push(Decoration.line({ class: 'cm-atomic-hr' }).range(line.from))
+          pushReplace(ranges, doc, line.from, line.to)
         }
       }
 
       if (node.name === 'Image' && node.from < node.to) {
-        const imageLine = doc.lineAt(node.from);
-        const lineNum = imageLine.number;
+        const imageLine = doc.lineAt(node.from)
+        const lineNum = imageLine.number
         if (!activeLines.has(lineNum)) {
           // Hide the raw `![alt](url)` on inactive lines so only the
           // rendered image block (emitted by the image-blocks state
@@ -698,35 +673,32 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
           // back up." The tradeoff is one line of empty space
           // above each rendered image, which actually reads a bit
           // cleaner as visual separation anyway.
-          pushReplace(ranges, doc, node.from, node.to);
+          pushReplace(ranges, doc, node.from, node.to)
         }
       }
 
       if (node.name === 'TaskMarker' && node.from < node.to) {
-        const markText = doc.sliceString(node.from, node.to);
-        const checked = /\[x\]/i.test(markText);
+        const markText = doc.sliceString(node.from, node.to)
+        const checked = /\[x\]/i.test(markText)
         // Swallow the single trailing space after `[ ]` / `[x]` so the
         // checkbox widget owns the alcove exactly (mirrors how bullet
         // markers also swallow their trailing space). Without this the
         // space stays visible, pushing first-line content to the right
         // of where wrapped lines start — visible as a 0.3em hang.
         const hasTrailingSpace =
-          node.to < doc.length &&
-          doc.sliceString(node.to, node.to + 1) === ' ';
-        const replaceTo = hasTrailingSpace ? node.to + 1 : node.to;
+          node.to < doc.length && doc.sliceString(node.to, node.to + 1) === ' '
+        const replaceTo = hasTrailingSpace ? node.to + 1 : node.to
         pushReplace(ranges, doc, node.from, replaceTo, {
-          widget: new TaskCheckboxWidget(checked),
-        });
+          widget: new TaskCheckboxWidget(checked)
+        })
         if (checked) {
-          const lineNum = doc.lineAt(node.from).number;
-          const line = doc.line(lineNum);
-          ranges.push(
-            Decoration.line({ class: 'cm-atomic-task-done' }).range(line.from),
-          );
+          const lineNum = doc.lineAt(node.from).number
+          const line = doc.line(lineNum)
+          ranges.push(Decoration.line({ class: 'cm-atomic-task-done' }).range(line.from))
         }
       }
-    },
-  });
+    }
+  })
 
   // Supplemental inline marks for the line containing the cursor.
   // CommonMark's flanking rules say that `**foo **` is not emphasis
@@ -740,19 +712,14 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
   // cursor leaves, lezer's opinion wins and the visual reverts to
   // what will actually persist when the line is serialized.
   if (view.hasFocus) {
-    const head = state.selection.main.head;
-    const line = doc.lineAt(head);
+    const head = state.selection.main.head
+    const line = doc.lineAt(head)
     if (activeLines.has(line.number)) {
-      supplementMidTypingEmphasis(
-        line.text,
-        line.from,
-        head - line.from,
-        ranges,
-      );
+      supplementMidTypingEmphasis(line.text, line.from, head - line.from, ranges)
     }
   }
 
-  return Decoration.set(ranges, true);
+  return Decoration.set(ranges, true)
 }
 
 // Delimiters we emit supplemental marks for, longest first so `**`
@@ -764,65 +731,58 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
 // renders when lezer *does* parse: parent tag's weight / style /
 // decoration plus `processingInstruction`'s faint color).
 const MID_TYPING_DELIMITERS: readonly {
-  delim: string;
-  contentCls: string;
-  delimCls: string;
+  delim: string
+  contentCls: string
+  delimCls: string
 }[] = [
   { delim: '**', contentCls: 'cm-atomic-strong', delimCls: 'cm-atomic-strong-mark' },
   { delim: '__', contentCls: 'cm-atomic-strong', delimCls: 'cm-atomic-strong-mark' },
   { delim: '~~', contentCls: 'cm-atomic-strike', delimCls: 'cm-atomic-strike-mark' },
   { delim: '==', contentCls: 'cm-atomic-highlight', delimCls: 'cm-atomic-highlight-mark' },
   { delim: '*', contentCls: 'cm-atomic-em', delimCls: 'cm-atomic-em-mark' },
-  { delim: '_', contentCls: 'cm-atomic-em', delimCls: 'cm-atomic-em-mark' },
-];
+  { delim: '_', contentCls: 'cm-atomic-em', delimCls: 'cm-atomic-em-mark' }
+]
 
 function supplementMidTypingEmphasis(
   text: string,
   lineFrom: number,
   localCursor: number,
-  out: Range<Decoration>[],
+  out: Range<Decoration>[]
 ): void {
   // Track which characters of the line are already "owned" by a
   // matched delimiter pair so a single-char delimiter doesn't
   // accidentally pair halves of two different double-delimiter
   // spans.
-  const consumed = new Uint8Array(text.length);
+  const consumed = new Uint8Array(text.length)
 
   for (const { delim, contentCls, delimCls } of MID_TYPING_DELIMITERS) {
-    const dLen = delim.length;
+    const dLen = delim.length
     // Underscore emphasis (`_`, `__`) doesn't open intra-word under
     // CommonMark's flanking rules — `snake_case_var` is not italic.
     // Without this guard the supplement would flash false italic while
     // the cursor sits between two intra-word underscores (exactly the
     // flicker this feature exists to prevent, inverted). Asterisk
     // delimiters have no such restriction, so only gate underscores.
-    const isUnderscore = delim === '_' || delim === '__';
-    let searchFrom = 0;
+    const isUnderscore = delim === '_' || delim === '__'
+    let searchFrom = 0
     while (searchFrom < text.length) {
-      const open = indexOfUnconsumed(text, delim, searchFrom, consumed);
-      if (open < 0) break;
+      const open = indexOfUnconsumed(text, delim, searchFrom, consumed)
+      if (open < 0) break
       if (isUnderscore && open > 0 && /\w/.test(text[open - 1])) {
-        searchFrom = open + dLen;
-        continue;
+        searchFrom = open + dLen
+        continue
       }
-      const close = indexOfUnconsumed(text, delim, open + dLen, consumed);
-      if (close < 0) break;
+      const close = indexOfUnconsumed(text, delim, open + dLen, consumed)
+      if (close < 0) break
 
-      for (let i = open; i < close + dLen; i++) consumed[i] = 1;
+      for (let i = open; i < close + dLen; i++) consumed[i] = 1
 
-      const contentFrom = open + dLen;
-      const contentTo = close;
-      if (
-        contentFrom < contentTo &&
-        localCursor > open &&
-        localCursor < close + dLen
-      ) {
+      const contentFrom = open + dLen
+      const contentTo = close
+      if (contentFrom < contentTo && localCursor > open && localCursor < close + dLen) {
         out.push(
-          Decoration.mark({ class: contentCls }).range(
-            lineFrom + contentFrom,
-            lineFrom + contentTo,
-          ),
-        );
+          Decoration.mark({ class: contentCls }).range(lineFrom + contentFrom, lineFrom + contentTo)
+        )
         // Style the delimiter characters to match how lezer's
         // `EmphasisMark` tokens render when the pattern parses
         // cleanly. Lezer tags `EmphasisMark` with both its parent
@@ -833,20 +793,14 @@ function supplementMidTypingEmphasis(
         // flip style / size / color when the cursor moves or a
         // trailing space triggers / untriggers lezer's parse.
         out.push(
-          Decoration.mark({ class: delimCls }).range(
-            lineFrom + open,
-            lineFrom + contentFrom,
-          ),
-        );
+          Decoration.mark({ class: delimCls }).range(lineFrom + open, lineFrom + contentFrom)
+        )
         out.push(
-          Decoration.mark({ class: delimCls }).range(
-            lineFrom + contentTo,
-            lineFrom + close + dLen,
-          ),
-        );
+          Decoration.mark({ class: delimCls }).range(lineFrom + contentTo, lineFrom + close + dLen)
+        )
       }
 
-      searchFrom = close + dLen;
+      searchFrom = close + dLen
     }
   }
 }
@@ -855,37 +809,37 @@ function indexOfUnconsumed(
   text: string,
   needle: string,
   from: number,
-  consumed: Uint8Array,
+  consumed: Uint8Array
 ): number {
-  let i = from;
+  let i = from
   while (i <= text.length - needle.length) {
-    const found = text.indexOf(needle, i);
-    if (found < 0) return -1;
-    let isConsumed = false;
+    const found = text.indexOf(needle, i)
+    if (found < 0) return -1
+    let isConsumed = false
     for (let k = found; k < found + needle.length; k++) {
       if (consumed[k]) {
-        isConsumed = true;
-        break;
+        isConsumed = true
+        break
       }
     }
-    if (!isConsumed) return found;
-    i = found + 1;
+    if (!isConsumed) return found
+    i = found + 1
   }
-  return -1;
+  return -1
 }
 
 const inlinePreviewPlugin = ViewPlugin.fromClass(
   class {
-    decorations: DecorationSet;
+    decorations: DecorationSet
 
     constructor(view: EditorView) {
-      this.decorations = buildInlineDecorations(view);
+      this.decorations = buildInlineDecorations(view)
     }
 
     update(update: ViewUpdate) {
-      const prevFrozen = update.startState.field(previewFrozenField);
-      const nextFrozen = update.state.field(previewFrozenField);
-      const justUnfroze = prevFrozen && !nextFrozen;
+      const prevFrozen = update.startState.field(previewFrozenField)
+      const nextFrozen = update.state.field(previewFrozenField)
+      const justUnfroze = prevFrozen && !nextFrozen
 
       // A doc change is unambiguous edit intent, so rebuild even while
       // frozen. Returning the stale (pre-edit) decoration set here would
@@ -896,21 +850,21 @@ const inlinePreviewPlugin = ViewPlugin.fromClass(
       // heightmap ("No tile at position …" → broken scrollIntoView). The
       // freeze only needs to suppress the *selection*-driven reveal that
       // makes a click jitter; typing should reveal syntax as normal.
-      if (nextFrozen && !justUnfroze && !update.docChanged) return;
+      if (nextFrozen && !justUnfroze && !update.docChanged) return
 
       // Tree-growth effect: background parser advanced past where
       // we last walked. For docs large enough that the initial
       // parse didn't reach the end, later blocks (headings, lists,
       // etc.) render as raw `##`/`**` until this fires.
-      let treeGrew = false;
+      let treeGrew = false
       for (const tr of update.transactions) {
         for (const effect of tr.effects) {
           if (effect.is(treeGrowthEffect)) {
-            treeGrew = true;
-            break;
+            treeGrew = true
+            break
           }
         }
-        if (treeGrew) break;
+        if (treeGrew) break
       }
 
       // Note: `update.viewportChanged` is intentionally NOT in this
@@ -926,8 +880,7 @@ const inlinePreviewPlugin = ViewPlugin.fromClass(
       // — otherwise reading mode wouldn't repaint into / out of the
       // fully-rendered state.
       const readOnlyChanged =
-        update.startState.facet(readOnlyFacet) !==
-        update.state.facet(readOnlyFacet);
+        update.startState.facet(readOnlyFacet) !== update.state.facet(readOnlyFacet)
 
       if (
         justUnfroze ||
@@ -937,14 +890,14 @@ const inlinePreviewPlugin = ViewPlugin.fromClass(
         treeGrew ||
         readOnlyChanged
       ) {
-        this.decorations = buildInlineDecorations(update.view);
+        this.decorations = buildInlineDecorations(update.view)
       }
     }
   },
   {
-    decorations: (v) => v.decorations,
-  },
-);
+    decorations: (v) => v.decorations
+  }
+)
 
 // CM6's drawSelection layer intentionally sits behind `.cm-content`. That is
 // normally ideal—the rectangle is behind the glyphs—but an opaque fenced-code
@@ -955,11 +908,11 @@ const inlinePreviewPlugin = ViewPlugin.fromClass(
 // must repaint live even while preview decorations are frozen for click-jitter
 // prevention.
 function fencedCodeSelectionDecorations(view: EditorView): DecorationSet {
-  const selections = view.state.selection.ranges.filter((range) => !range.empty);
-  if (selections.length === 0) return Decoration.none;
+  const selections = view.state.selection.ranges.filter((range) => !range.empty)
+  if (selections.length === 0) return Decoration.none
 
-  const ranges: Range<Decoration>[] = [];
-  const tree = syntaxTree(view.state);
+  const ranges: Range<Decoration>[] = []
+  const tree = syntaxTree(view.state)
   for (const selection of selections) {
     // Selection updates can arrive for every pointermove. Restrict the walk to
     // the selected range so dragging within a short code sample stays O(range)
@@ -968,39 +921,37 @@ function fencedCodeSelectionDecorations(view: EditorView): DecorationSet {
       from: selection.from,
       to: selection.to,
       enter(node) {
-        if (node.name !== 'FencedCode') return;
-        const from = Math.max(node.from, selection.from);
-        const to = Math.min(node.to, selection.to);
+        if (node.name !== 'FencedCode') return
+        const from = Math.max(node.from, selection.from)
+        const to = Math.min(node.to, selection.to)
         if (from < to) {
-          ranges.push(
-            Decoration.mark({ class: 'cm-atomic-fenced-selection' }).range(from, to),
-          );
+          ranges.push(Decoration.mark({ class: 'cm-atomic-fenced-selection' }).range(from, to))
         }
-        return false;
-      },
-    });
+        return false
+      }
+    })
   }
-  return Decoration.set(ranges, true);
+  return Decoration.set(ranges, true)
 }
 
 const fencedCodeSelectionPlugin = ViewPlugin.fromClass(
   class {
-    decorations: DecorationSet;
+    decorations: DecorationSet
 
     constructor(view: EditorView) {
-      this.decorations = fencedCodeSelectionDecorations(view);
+      this.decorations = fencedCodeSelectionDecorations(view)
     }
 
     update(update: ViewUpdate) {
       if (update.docChanged || update.selectionSet) {
-        this.decorations = fencedCodeSelectionDecorations(update.view);
+        this.decorations = fencedCodeSelectionDecorations(update.view)
       }
     }
   },
   {
-    decorations: (plugin) => plugin.decorations,
-  },
-);
+    decorations: (plugin) => plugin.decorations
+  }
+)
 
 // Tight-continuation Enter for bullet lists.
 //
@@ -1013,101 +964,99 @@ const fencedCodeSelectionPlugin = ViewPlugin.fromClass(
 // user didn't intend. In our inline-preview mode loose vs tight lists
 // look identical anyway, so we always continue tight.
 function insertTightListItem(view: EditorView): boolean {
-  const { state } = view;
-  const sel = state.selection.main;
-  if (!sel.empty) return false;
-  const from = sel.from;
-  const line = state.doc.lineAt(from);
+  const { state } = view
+  const sel = state.selection.main
+  if (!sel.empty) return false
+  const from = sel.from
+  const line = state.doc.lineAt(from)
 
-  const tree = syntaxTree(state);
-  let cursor = tree.resolveInner(from, -1).cursor();
-  let inBulletList = false;
+  const tree = syntaxTree(state)
+  let cursor = tree.resolveInner(from, -1).cursor()
+  let inBulletList = false
   for (;;) {
     if (cursor.name === 'BulletList') {
-      inBulletList = true;
-      break;
+      inBulletList = true
+      break
     }
-    if (!cursor.parent()) break;
+    if (!cursor.parent()) break
   }
-  if (!inBulletList) return false;
+  if (!inBulletList) return false
 
-  const lineText = state.doc.sliceString(line.from, line.to);
-  const prefix = lineText.match(/^(\s*)([-*+])(\s+)/);
-  if (!prefix) return false;
+  const lineText = state.doc.sliceString(line.from, line.to)
+  const prefix = lineText.match(/^(\s*)([-*+])(\s+)/)
+  if (!prefix) return false
 
-  const [whole, indent, marker] = prefix;
-  const rest = lineText.slice(whole.length);
+  const [whole, indent, marker] = prefix
+  const rest = lineText.slice(whole.length)
 
-  const taskMatch = rest.match(/^(\[[ xX]\])(\s*)/);
-  const taskPrefixLen = taskMatch ? taskMatch[0].length : 0;
-  const contentAfterPrefix = rest.slice(taskPrefixLen);
+  const taskMatch = rest.match(/^(\[[ xX]\])(\s*)/)
+  const taskPrefixLen = taskMatch ? taskMatch[0].length : 0
+  const contentAfterPrefix = rest.slice(taskPrefixLen)
 
   if (!contentAfterPrefix.trim()) {
-    const depth = Math.floor(indent.length / 2);
+    const depth = Math.floor(indent.length / 2)
     if (depth >= 1) {
-      const outerIndent = indent.slice(0, indent.length - 2);
-      const continuation = taskMatch ? `${marker} [ ] ` : `${marker} `;
-      const replacement = `${outerIndent}${continuation}`;
+      const outerIndent = indent.slice(0, indent.length - 2)
+      const continuation = taskMatch ? `${marker} [ ] ` : `${marker} `
+      const replacement = `${outerIndent}${continuation}`
       view.dispatch({
         changes: { from: line.from, to: line.to, insert: replacement },
-        selection: EditorSelection.cursor(line.from + replacement.length),
-      });
+        selection: EditorSelection.cursor(line.from + replacement.length)
+      })
     } else {
       view.dispatch({
         changes: { from: line.from, to: line.to, insert: '' },
-        selection: EditorSelection.cursor(line.from),
-      });
+        selection: EditorSelection.cursor(line.from)
+      })
     }
-    return true;
+    return true
   }
 
-  const continuation = taskMatch ? `${marker} [ ] ` : `${marker} `;
-  const insert = `\n${indent}${continuation}`;
+  const continuation = taskMatch ? `${marker} [ ] ` : `${marker} `
+  const insert = `\n${indent}${continuation}`
   view.dispatch({
     changes: { from, to: from, insert },
-    selection: EditorSelection.cursor(from + insert.length),
-  });
-  return true;
+    selection: EditorSelection.cursor(from + insert.length)
+  })
+  return true
 }
 
 function makeLinkClickHandler(onLinkClick: (url: string) => void): Extension {
   return EditorView.domEventHandlers({
     click: (event, view) => {
-      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return false;
-      if (event.button !== 0) return false;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return false
+      if (event.button !== 0) return false
       // In read-only mode there's no editable link text to protect, so
       // a click anywhere on the link opens it. In edit mode the open
       // affordance stays scoped to the trailing icon hit-zone so the
       // text itself remains clickable-to-edit.
       const linkEl = view.state.facet(readOnlyFacet)
         ? linkElementFromEvent(event, view.contentDOM)
-        : linkIconHitTarget(event, view.contentDOM);
-      if (!linkEl) return false;
+        : linkIconHitTarget(event, view.contentDOM)
+      if (!linkEl) return false
 
-      const pos = view.posAtDOM(linkEl);
-      if (pos < 0) return false;
+      const pos = view.posAtDOM(linkEl)
+      if (pos < 0) return false
 
-      const tree = syntaxTree(view.state);
-      let node: SyntaxNode | null = tree.resolveInner(pos, 1);
-      let visibleUrl: SyntaxNode | null = null;
+      const tree = syntaxTree(view.state)
+      let node: SyntaxNode | null = tree.resolveInner(pos, 1)
+      let visibleUrl: SyntaxNode | null = null
       while (node && node.name !== 'Link') {
-        if (node.name === 'URL') visibleUrl = node;
-        node = node.parent;
+        if (node.name === 'URL') visibleUrl = node
+        node = node.parent
       }
-      const urlNode = node
-        ? linkDestinationUrl(node, view.state.doc)
-        : visibleUrl;
-      if (!urlNode) return false;
+      const urlNode = node ? linkDestinationUrl(node, view.state.doc) : visibleUrl
+      if (!urlNode) return false
 
-      const url = view.state.doc.sliceString(urlNode.from, urlNode.to);
-      if (!url) return false;
+      const url = view.state.doc.sliceString(urlNode.from, urlNode.to)
+      if (!url) return false
 
-      event.preventDefault();
-      event.stopPropagation();
-      onLinkClick(url);
-      return true;
-    },
-  });
+      event.preventDefault()
+      event.stopPropagation()
+      onLinkClick(url)
+      return true
+    }
+  })
 }
 
 /**
@@ -1118,7 +1067,7 @@ function makeLinkClickHandler(onLinkClick: (url: string) => void): Extension {
  * browser, etc.) instead of the default `window.open`.
  */
 export function inlinePreview(config: InlinePreviewConfig = {}): Extension {
-  const { onLinkClick = defaultOnLinkClick } = config;
+  const { onLinkClick = defaultOnLinkClick } = config
   return [
     previewFrozenField,
     inlinePreviewPlugin,
@@ -1130,6 +1079,6 @@ export function inlinePreview(config: InlinePreviewConfig = {}): Extension {
     // handler, which is registered internally by the `markdown()`
     // extension (not just via the exported markdownKeymap) and
     // otherwise wins precedence.
-    Prec.highest(keymap.of([{ key: 'Enter', run: insertTightListItem }])),
-  ];
+    Prec.highest(keymap.of([{ key: 'Enter', run: insertTightListItem }]))
+  ]
 }

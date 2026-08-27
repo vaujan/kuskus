@@ -89,6 +89,7 @@ import {
   type FolderTreeNode
 } from '@/features/collections/folder-tree'
 import type { LibraryView } from '@/features/items/item-view'
+import type { LiveEngine } from '@/features/items/live-engine'
 import { hasKuskusItemDrag, readKuskusItemDrag } from '@/features/items/item-drag'
 import type { Theme } from '@/hooks/use-theme'
 import type {
@@ -540,6 +541,8 @@ export function LibrarySidebar({
   onTranslucentBackgroundChange,
   vimEnabled,
   onVimEnabledChange,
+  liveEngine,
+  onLiveEngineChange,
   onOpenFullSettings
 }: {
   library: LibraryDto
@@ -561,6 +564,8 @@ export function LibrarySidebar({
   onTranslucentBackgroundChange: (enabled: boolean) => void
   vimEnabled: boolean
   onVimEnabledChange: (enabled: boolean) => void
+  liveEngine: LiveEngine
+  onLiveEngineChange: (engine: LiveEngine) => void
   onOpenFullSettings: () => void
 }): React.JSX.Element {
   const { isMobile, setOpenMobile } = useSidebar()
@@ -1027,6 +1032,8 @@ export function LibrarySidebar({
                 onTranslucentBackgroundChange={onTranslucentBackgroundChange}
                 vimEnabled={vimEnabled}
                 onVimEnabledChange={onVimEnabledChange}
+                liveEngine={liveEngine}
+                onLiveEngineChange={onLiveEngineChange}
                 onOpenFullSettings={onOpenFullSettings}
               />
             </SidebarMenuItem>
