@@ -1,4 +1,4 @@
-import { syntaxTree } from '@codemirror/language'
+import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
 import {
   Facet,
   StateField,
@@ -114,6 +114,57 @@ class WikilinkImageWidget extends WidgetType {
       chip.textContent = `Image missing: ${this.alt || this.resolution.label}`
     } else if (this.resolution) {
       chip.textContent = 'Loading image…'
+    } else {
+      chip.textContent = this.alt || this.target || 'Invalid image'
+    }
+    wrapper.appendChild(chip)
+    return wrapper
+  }
+}
+
+/** Block-level widget for standard markdown images `![alt](src)`.
+ * Renders below the source line (side: 1) so the inline-preview hide
+ * decoration can keep the raw source hidden on inactive lines without
+ * any range conflict — we never replace the `Image` node range. */
+class MarkdownImageBlockWidget extends WidgetType {
+  constructor(
+    private readonly target: string,
+    private readonly alt: string,
+    private readonly resolution: LivePreviewImage | null
+  ) {
+    super()
+  }
+
+  eq(other: MarkdownImageBlockWidget): boolean {
+    return (
+      other.target === this.target &&
+      other.alt === this.alt &&
+      other.resolution?.src === this.resolution?.src &&
+      other.resolution?.missing === this.resolution?.missing &&
+      other.resolution?.label === this.resolution?.label
+    )
+  }
+
+  toDOM(): HTMLElement {
+    const wrapper = document.createElement('div')
+    wrapper.className = 'cm-kuskus-image-block'
+    if (this.resolution?.src) {
+      const image = document.createElement('img')
+      image.className = 'kuskus-markdown-image cm-kuskus-image'
+      image.src = this.resolution.src
+      image.alt = this.alt || this.resolution.label
+      image.loading = 'lazy'
+      image.width = this.resolution.width
+      image.height = this.resolution.height
+      wrapper.appendChild(image)
+      return wrapper
+    }
+    const chip = document.createElement('span')
+    chip.className = 'kuskus-rich-image-state cm-kuskus-chip'
+    if (this.resolution?.missing) {
+      chip.textContent = `Image missing: ${this.alt || this.resolution.label}`
+    } else if (/^https?:\/\//i.test(this.target)) {
+      chip.textContent = this.alt ? `Remote image: ${this.alt}` : 'Remote image'
     } else {
       chip.textContent = this.alt || this.target || 'Invalid image'
     }
@@ -353,7 +404,8 @@ const kuskusLiveField = StateField.define<DecorationSet>({
     if (
       transaction.docChanged ||
       !transaction.startState.selection.eq(transaction.state.selection) ||
-      treeGrew(transaction)
+      treeGrew(transaction) ||
+      transaction.reconfigured
     ) {
       return buildKuskusLiveDecorations(
         transaction.state,
@@ -361,6 +413,71 @@ const kuskusLiveField = StateField.define<DecorationSet>({
       )
     }
     return value
+  },
+  provide: (field) => EditorView.decorations.from(field)
+})
+
+function isInsideTable(node: MarkdownSyntaxNode): boolean {
+  for (let parent = node.parent; parent; parent = parent.parent) {
+    if (parent.name === 'Table') return true
+  }
+  return false
+}
+
+export function buildKuskusImageBlocks(
+  state: EditorState,
+  options: LiveEditorOptions
+): DecorationSet {
+  const ranges: Range<Decoration>[] = []
+  const tree = ensureSyntaxTree(state, state.doc.length, 200) ?? syntaxTree(state)
+  tree.iterate({
+    enter: (node) => {
+      if (node.name !== 'Image') return
+      // Tables render images inside cells through their own widget.
+      if (isInsideTable(node.node)) return
+      const raw = state.doc.sliceString(node.from, node.to)
+      const match = raw.match(/^!\[([^\]]*)\]\(([^\s)"']+)(?:\s+["'][^)]*["'])?\)$/)
+      if (!match) return
+      const [, alt, src] = match
+      if (!src) return
+      const line = state.doc.lineAt(node.from)
+      const resolution = options.resolveImage?.(src) ?? null
+      ranges.push(
+        Decoration.widget({
+          widget: new MarkdownImageBlockWidget(src, alt, resolution),
+          block: true,
+          side: 1
+        }).range(line.to)
+      )
+    }
+  })
+  return Decoration.set(ranges, true)
+}
+
+const kuskusImageBlockField = StateField.define<DecorationSet>({
+  create: (state) => buildKuskusImageBlocks(state, state.facet(liveOptionsFacet)),
+  update: (value, transaction) => {
+    if (treeGrew(transaction) || transaction.reconfigured) {
+      return buildKuskusImageBlocks(transaction.state, transaction.state.facet(liveOptionsFacet))
+    }
+    if (!transaction.docChanged) return value
+    const mapped = value.map(transaction.changes)
+    // Cheap signal: any touched line containing `![` may hold an image.
+    let affected = false
+    transaction.changes.iterChanges((_fromA, _toA, fromB, toB) => {
+      if (affected) return
+      const startLine = transaction.state.doc.lineAt(fromB)
+      const endLine = toB > startLine.to ? transaction.state.doc.lineAt(toB) : startLine
+      for (let n = startLine.number; n <= endLine.number; n++) {
+        if (transaction.state.doc.line(n).text.includes('![')) {
+          affected = true
+          return
+        }
+      }
+    })
+    return affected
+      ? buildKuskusImageBlocks(transaction.state, transaction.state.facet(liveOptionsFacet))
+      : mapped
   },
   provide: (field) => EditorView.decorations.from(field)
 })
@@ -386,6 +503,7 @@ export function kuskusLiveExtensions(getOptions: () => LiveEditorOptions): Exten
     }),
     autoCloseCodeFence,
     kuskusLiveField,
+    kuskusImageBlockField,
     wikilinkInteraction(getOptions)
   ]
 }

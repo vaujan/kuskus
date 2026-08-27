@@ -300,7 +300,7 @@ export const LiveMarkdownEditor = forwardRef<SourceNoteHandle, LiveMarkdownEdito
         highlightActiveLineGutter(),
         highlightSelectionMatches(),
         EditorView.editorAttributes.of({
-          class: 'cm-kuskus-live kuskus-typeset',
+          class: 'cm-kuskus-live kuskus-typeset cm-kuskus-detail-editor',
           'data-typeset-presentation': presentation
         }),
         EditorView.scrollMargins.of(() => ({ bottom: 112 })),
