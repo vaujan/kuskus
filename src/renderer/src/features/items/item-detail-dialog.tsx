@@ -1070,7 +1070,7 @@ function NoteCanvas({
   onError: (message: string) => void
 }): React.JSX.Element {
   const noteEditorRef = useRef<SourceNoteHandle>(null)
-  const richFindTargetRef = useRef<NoteFindTarget | null>(null)
+  const liveFindTargetRef = useRef<NoteFindTarget | null>(null)
   const previewFindTargetRef = useRef<NoteFindTarget | null>(null)
   const previewViewportRef = useRef<HTMLDivElement>(null)
   const noteViewportRef = useRef<HTMLDivElement>(null)
@@ -1345,58 +1345,58 @@ function NoteCanvas({
           onError={onError}
         />
       ) : null}
-      {mode === 'read' || mode === 'live' ? (
-        mode === 'live' ? (
-          <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
-            <NoteLiveEditor
-              ref={noteEditorRef}
-              value={snapshot.draft}
-              editable
-              active
-              liveOptions={liveOptions}
-              topContent={
-                showInlineTitle || hasProperties ? (
-                  <NoteDocumentBlocks
-                    item={item}
-                    markdown={snapshot.draft}
-                    showInlineTitle={showInlineTitle}
-                    showProperties
-                    propertiesEditable
-                    className="pb-8"
-                    titleRef={noteTitleRef}
-                    onRenameTitle={onRenameTitle}
-                    onDraftChange={onDraftChange}
-                    onOpenSource={() => onModeChange('markdown')}
-                    onError={onError}
-                  />
-                ) : undefined
-              }
-              hiddenRange={
-                frontmatter.status === 'valid' ? { from: 0, to: frontmatter.endOffset } : null
-              }
-              preserveScrollTopRef={noteScrollTopRef}
-              findTarget={richFindTargetRef}
-              vimEnabled={vimEnabled}
-              vim={noteVimContract}
-              onChange={onDraftChange}
-            />
-          </Suspense>
-        ) : (
-          <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
-            <MarkdownPreview
-              value={snapshot.draft}
-              itemId={item.id}
-              attachments={item.attachments}
-              attachmentPreviews={attachmentPreviews}
-              presentation="detail"
-              onOpenLink={handlePreviewOpenLink}
-              onOpenVaultLink={handlePreviewOpenVaultLink}
-              onChange={handlePreviewChange}
-            />
-          </Suspense>
-        )
+      {mode === 'read' ? (
+        <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
+          <MarkdownPreview
+            value={snapshot.draft}
+            itemId={item.id}
+            attachments={item.attachments}
+            attachmentPreviews={attachmentPreviews}
+            presentation="detail"
+            onOpenLink={handlePreviewOpenLink}
+            onOpenVaultLink={handlePreviewOpenVaultLink}
+            onChange={handlePreviewChange}
+          />
+        </Suspense>
       ) : null}
     </>
+  )
+
+  const liveEditor = (
+    <Suspense fallback={<div className="min-h-48 flex-1 animate-pulse bg-muted/20" />}>
+      <NoteLiveEditor
+        key={historyRevision}
+        ref={noteEditorRef}
+        value={snapshot.draft}
+        editable
+        active
+        className="flex-1"
+        liveOptions={liveOptions}
+        topContent={
+          showInlineTitle || hasProperties ? (
+            <NoteDocumentBlocks
+              item={item}
+              markdown={snapshot.draft}
+              showInlineTitle={showInlineTitle}
+              showProperties
+              propertiesEditable
+              className="pb-8"
+              titleRef={noteTitleRef}
+              onRenameTitle={onRenameTitle}
+              onDraftChange={onDraftChange}
+              onOpenSource={() => onModeChange('markdown')}
+              onError={onError}
+            />
+          ) : undefined
+        }
+        hiddenRange={frontmatter.status === 'valid' ? { from: 0, to: frontmatter.endOffset } : null}
+        preserveScrollTopRef={noteScrollTopRef}
+        findTarget={liveFindTargetRef}
+        vimEnabled={vimEnabled}
+        vim={noteVimContract}
+        onChange={onDraftChange}
+      />
+    </Suspense>
   )
 
   return (
@@ -1407,7 +1407,7 @@ function NoteCanvas({
     >
       <NoteFind
         enabled={mode === 'read' || mode === 'live'}
-        target={mode === 'live' ? richFindTargetRef : previewFindTargetRef}
+        target={mode === 'live' ? liveFindTargetRef : previewFindTargetRef}
       />
       {item.missingContent ? (
         <div className="flex min-h-0 flex-1 items-center justify-center">
@@ -1450,10 +1450,12 @@ function NoteCanvas({
             <div
               className={cn(
                 'min-h-0 min-w-0 flex-col',
-                mode === 'markdown' || mode === 'split' ? 'flex' : 'hidden'
+                mode === 'markdown' || mode === 'split' || mode === 'live' ? 'flex' : 'hidden'
               )}
             >
-              {sourceActivated ? (
+              {mode === 'live' ? (
+                liveEditor
+              ) : sourceActivated ? (
                 <Suspense fallback={<div className="min-h-48 flex-1 animate-pulse bg-muted/20" />}>
                   <NoteSourceEditor
                     key={historyRevision}
@@ -1506,22 +1508,13 @@ function NoteCanvas({
                     viewport.removeEventListener('scroll', handleScroll)
                 }
               }}
-              className={cn(
-                'min-h-0 min-w-0',
-                mode === 'read' || mode === 'live' ? 'flex' : 'hidden'
-              )}
+              className={cn('min-h-0 min-w-0', mode === 'read' ? 'flex' : 'hidden')}
             >
-              {mode === 'read' ? (
-                <NoteReadContextMenu>
-                  <article className="kuskus-detail-document-frame min-h-full w-full py-8">
-                    {readLiveDocument}
-                  </article>
-                </NoteReadContextMenu>
-              ) : (
+              <NoteReadContextMenu>
                 <article className="kuskus-detail-document-frame min-h-full w-full py-8">
                   {readLiveDocument}
                 </article>
-              )}
+              </NoteReadContextMenu>
             </ScrollArea>
             <ScrollArea
               ref={(root) => {

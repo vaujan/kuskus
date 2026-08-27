@@ -112,6 +112,18 @@ test('embeds resolved images as widgets through options', () => {
   assert.equal(decorations[0]?.from, state.doc.toString().indexOf('![[image'))
 })
 
+test('marks blank lines so live rhythm matches the read typeset flow', () => {
+  const state = createState(['Cursor', '', 'Para one', '', 'Para two'].join('\n'))
+  const decorations = []
+  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
+    if (value.spec.class) decorations.push({ from, className: value.spec.class })
+  })
+  assert.equal(
+    decorations.filter((entry) => entry.className === 'cm-kuskus-blank').length,
+    2
+  )
+})
+
 test('does not duplicate replacement ranges owned by atomic preview', () => {
   // Horizontal rules, headings, lists, tasks are atomic's; the Kuskus
   // layer only adds math, wikilinks, and embed images. Replacing the

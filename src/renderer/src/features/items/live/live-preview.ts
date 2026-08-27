@@ -185,6 +185,11 @@ interface MarkEntry {
   decoration: Decoration
 }
 
+interface LineEntry {
+  position: number
+  decoration: Decoration
+}
+
 type MarkdownSyntaxNode = ReturnType<ReturnType<typeof syntaxTree>['resolveInner']>
 
 function activeLineNumbers(state: EditorState): Set<number> {
@@ -202,6 +207,7 @@ function activeLineNumbers(state: EditorState): Set<number> {
 class KuskusLiveDecorationBuilder {
   private readonly replaces: ReplaceEntry[] = []
   private readonly marks: MarkEntry[] = []
+  private readonly lines: LineEntry[] = []
   private readonly consumedLines = new Set<number>()
 
   constructor(
@@ -229,6 +235,10 @@ class KuskusLiveDecorationBuilder {
     this.marks.push({ from, to, decoration })
   }
 
+  private addLine(position: number, decoration: Decoration): void {
+    this.lines.push({ position, decoration })
+  }
+
   build(): DecorationSet {
     syntaxTree(this.state).iterate({
       enter: (node) => {
@@ -237,13 +247,29 @@ class KuskusLiveDecorationBuilder {
     })
     this.scanBlockMath()
     this.scanInlineSegments()
+    this.scanBlankLines()
     return Decoration.set(
       [
         ...this.replaces.map((entry) => entry.decoration.range(entry.from, entry.to)),
-        ...this.marks.map((entry) => entry.decoration.range(entry.from, entry.to))
+        ...this.marks.map((entry) => entry.decoration.range(entry.from, entry.to)),
+        ...this.lines.map((entry) => entry.decoration.range(entry.position))
       ],
       true
     )
+  }
+
+  /** Empty lines become the read renderer's inter-block rhythm: in Read
+   * mode a blank markdown line produces no element and blocks carry
+   * `margin-block-start: var(--typeset-flow)`; in live mode the blank
+   * line itself renders, so it takes exactly that height. */
+  private scanBlankLines(): void {
+    const doc = this.state.doc
+    for (let line = 1; line <= doc.lines; line += 1) {
+      if (doc.line(line).text.trim() !== '') continue
+      const from = doc.line(line).from
+      if (isCodePosition(this.state, from)) continue
+      this.addLine(from, Decoration.line({ class: 'cm-kuskus-blank' }))
+    }
   }
 
   private handleNode(node: MarkdownSyntaxNode): void {
