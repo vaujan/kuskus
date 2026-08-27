@@ -4,6 +4,10 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Added
+
+- Development-only React Scan and React Grab overlays for spotting wasted renders and copying component source.
+
 ## [0.0.3] - 2026-08-17
 
 ### Added

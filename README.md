@@ -26,6 +26,8 @@ pnpm install
 pnpm dev
 ```
 
+Development windows load [React Scan](https://github.com/aidenybai/react-scan) and [React Grab](https://github.com/aidenybai/react-grab) so you can see re-renders and copy a component's source for an agent. Neither package is included in packaged builds. React Scan's toolbar appears in the corner. Hold **Alt+C** to start React Grab, hover a control, then press **C** to copy its component stack.
+
 ### Isolated demo environment
 
 Run Kuskus with a populated, repository-local profile:
