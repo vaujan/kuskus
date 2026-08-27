@@ -67,6 +67,7 @@ export interface LiveMarkdownEditorProps {
   active: boolean
   editable: boolean
   className?: string
+  presentation?: 'card' | 'detail'
   topContent?: React.ReactNode
   hiddenRange?: { from: number; to: number } | null
   preserveScrollTopRef?: React.RefObject<number | null> | null
@@ -194,6 +195,7 @@ export const LiveMarkdownEditor = forwardRef<SourceNoteHandle, LiveMarkdownEdito
       active,
       editable,
       className,
+      presentation = 'detail',
       topContent,
       hiddenRange,
       preserveScrollTopRef,
@@ -297,7 +299,10 @@ export const LiveMarkdownEditor = forwardRef<SourceNoteHandle, LiveMarkdownEdito
         highlightActiveLine(),
         highlightActiveLineGutter(),
         highlightSelectionMatches(),
-        EditorView.editorAttributes.of({ class: 'cm-kuskus-live' }),
+        EditorView.editorAttributes.of({
+          class: 'cm-kuskus-live kuskus-typeset',
+          'data-typeset-presentation': presentation
+        }),
         EditorView.scrollMargins.of(() => ({ bottom: 112 })),
         liveEditorTheme,
         vimModeTheme,

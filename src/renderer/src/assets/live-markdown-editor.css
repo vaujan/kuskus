@@ -9,6 +9,37 @@
  */
 
 @layer components {
+  /* The live editor root carries `kuskus-typeset`, so all `--typeset-*`
+   * tokens resolve. Atomic's own themed rules read `--atomic-editor-*`
+   * variables with dark-theme defaults; we define them on the root so
+   * the whole surface derives from the same tokens as the Read renderer
+   * (typeset.css + markdown.css). This is the single source of truth. */
+  .cm-kuskus-live {
+    --atomic-editor-measure: 100%;
+    --atomic-editor-font: var(--typeset-font-body);
+    --atomic-editor-font-mono: var(--typeset-font-mono);
+    --atomic-editor-body-size: var(--typeset-size);
+    --atomic-editor-body-leading: var(--typeset-leading);
+    --atomic-editor-fg: var(--typeset-body-color);
+    --atomic-editor-fg-muted: var(--typeset-muted);
+    --atomic-editor-fg-faint: var(--typeset-muted);
+    --atomic-editor-bg: transparent;
+    --atomic-editor-bg-panel: var(--muted);
+    --atomic-editor-bg-surface: transparent;
+    --atomic-editor-border: var(--typeset-rule);
+    --atomic-editor-code-bg: var(--typeset-code-background);
+    --atomic-editor-code-rail: var(--typeset-rule);
+    --atomic-editor-link: var(--foreground);
+    --atomic-editor-link-hover: var(--foreground);
+    --atomic-editor-accent: var(--primary);
+    --atomic-editor-accent-bright: var(--primary);
+    --atomic-editor-accent-soft: color-mix(in oklab, var(--primary) 15%, transparent);
+    --atomic-editor-selection-bg: color-mix(in oklch, var(--primary) 25%, transparent);
+    --atomic-editor-radius: var(--radius);
+    --atomic-editor-initial-reveal-bg: color-mix(in oklch, var(--primary) 18%, transparent);
+    --atomic-editor-initial-reveal-bg-strong: color-mix(in oklch, var(--primary) 30%, transparent);
+  }
+
   .cm-kuskus-live .cm-content {
     color: var(--typeset-body-color);
     font-family: var(--typeset-font-body);
@@ -113,7 +144,9 @@
     text-decoration: line-through;
   }
 
-  /* Links — typeset link treatment, muted icon. */
+  /* Links — typeset link treatment (plain underline, no icon). The
+   * external-link glyph atomic draws is a source affordance; read mode
+   * doesn't have it, and the user prefers the read-mode rendering. */
   .cm-kuskus-live .cm-atomic-link,
   .cm-kuskus-live .cm-kuskus-wikilink {
     color: inherit;
@@ -126,13 +159,12 @@
   .cm-kuskus-live .cm-kuskus-wikilink:hover {
     text-decoration-color: currentColor;
   }
+  /* Suppress the external-link icon entirely — the click-to-open zone
+   * stays functional via the extension's own hit handling. */
   .cm-kuskus-live .cm-atomic-link::after,
   .cm-kuskus-live .cm-atomic-link-icon {
-    background-color: var(--typeset-muted);
-  }
-  .cm-kuskus-live .cm-atomic-link:hover::after,
-  .cm-kuskus-live .cm-atomic-link-icon:hover {
-    background-color: var(--typeset-muted);
+    content: none;
+    display: none;
   }
 
   /* Lists — hanging indent computed by atomic; override alcove spacing

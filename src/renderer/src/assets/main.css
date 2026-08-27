@@ -22,8 +22,8 @@
   background: color-mix(in oklch, var(--muted-foreground) 30%, transparent);
 }
 @import './markdown.css';
-@import './live-markdown-editor.css';
 @import '../features/items/live/atomic/inline-preview.css';
+@import './live-markdown-editor.css';
 @import './shell.css';
 @import './motion.css';
 /* The interface is English-first, so only the Latin subset of each variable font is

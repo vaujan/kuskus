@@ -70,6 +70,7 @@ export const ComposerLiveMarkdownEditor = forwardRef<
         value={value}
         editable={!disabled}
         active={!disabled}
+        presentation="card"
         liveOptions={{ ...options, onPasteImage }}
         className="relative z-[1] h-full"
         onChange={onChange}
