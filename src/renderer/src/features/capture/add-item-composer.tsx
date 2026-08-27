@@ -37,8 +37,8 @@ import { Spinner } from '@/components/ui/spinner'
 import { ItemCard, ItemCardCaption, ItemCardSurface } from '@/features/items/item-card'
 import { SavedItemCard } from '@/features/items/saved-item-card'
 import type { LibraryView } from '@/features/items/item-view'
-import type { RichMarkdownEditorOptions } from '@/features/items/rich-markdown-editor'
-import type { ComposerRichMarkdownEditorHandle } from '@/features/capture/composer-rich-markdown-editor'
+import type { LiveEditorOptions } from '@/features/items/live/live-preview'
+import type { ComposerLiveMarkdownEditorHandle } from '@/features/capture/composer-live-markdown-editor'
 import {
   composeMarkdownCapture,
   detectCaptureKind,
@@ -63,9 +63,9 @@ import {
   rewriteMarkdownImageDestinations
 } from '../../../../shared/markdown-image-references'
 
-const ComposerRichMarkdownEditor = lazy(() =>
-  import('@/features/capture/composer-rich-markdown-editor').then((module) => ({
-    default: module.ComposerRichMarkdownEditor
+const ComposerLiveMarkdownEditor = lazy(() =>
+  import('@/features/capture/composer-live-markdown-editor').then((module) => ({
+    default: module.ComposerLiveMarkdownEditor
   }))
 )
 
@@ -288,7 +288,7 @@ export function AddItemComposer({
     phase: 'saving' | 'preview'
   } | null>(null)
   const rootRef = useRef<HTMLDivElement>(null)
-  const editorRef = useRef<ComposerRichMarkdownEditorHandle>(null)
+  const editorRef = useRef<ComposerLiveMarkdownEditorHandle>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const attachmentNameInputRef = useRef<HTMLInputElement>(null)
   const renamingAttachmentRef = useRef(false)
@@ -344,7 +344,7 @@ export function AddItemComposer({
     effectiveKind === 'note' && (surface === 'quick' || presentation === 'card')
   const displayedError = error || captureSession.error
   const draftPreviews = useCaptureDraftPreviews(attachments)
-  const richOptions = useMemo<RichMarkdownEditorOptions>(() => {
+  const liveOptions = useMemo<LiveEditorOptions>(() => {
     const images = new Map<string, { attachment: CaptureDraftImageDto; preview: string | null }>()
     for (const attachment of attachments) {
       const entry = { attachment, preview: draftPreviews[attachment.id] ?? null }
@@ -781,7 +781,7 @@ export function AddItemComposer({
 
   const editor = (
     <Suspense fallback={<div className="min-h-32 animate-pulse rounded-md bg-muted/35" />}>
-      <ComposerRichMarkdownEditor
+      <ComposerLiveMarkdownEditor
         ref={editorRef}
         className={surface === 'quick' || presentation === 'pane' ? 'h-full' : undefined}
         value={exiting ? exitingDraft : draft}
@@ -792,7 +792,7 @@ export function AddItemComposer({
         }
         disabled={captureBlocked || fileCandidate !== null}
         surface={surface}
-        options={richOptions}
+        options={liveOptions}
         onChange={(after) => {
           if (
             detectCaptureKind(draft, attachments.length) === 'image' &&

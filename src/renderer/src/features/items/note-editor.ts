@@ -14,9 +14,10 @@ export interface NoteEditorHandle {
 }
 
 /**
- * The single Vim contract both engines drive into. Each adapter owns how its own
- * engine (CodeMirror vim or vim-prosemirror) produces these callbacks.
- * `commandLineHost` is the status-bar element where engines mount their '/'
+ * The single Vim contract the editor surface drives. The CodeMirror live and
+ * source editors share one vim implementation (@replit/codemirror-vim), so
+ * mode changes, :w/:q, and the command line behave identically across modes.
+ * `commandLineHost` is the status-bar element where the engine mounts its '/'
  * and ':' command-line UI, so the prompt always renders on the vim status line
  * instead of riding inside the scrolled document.
  */

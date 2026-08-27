@@ -1,10 +1,48 @@
 import type { NoteAttachmentDto } from '../../../../shared/library-contract'
-import { normalizeHtmlBreaks } from './rich-markdown-syntax'
 import {
   encodeMarkdownImageTarget,
   markdownImageTargetKey,
   rewriteMarkdownImageDestinations
 } from '../../../../shared/markdown-image-references'
+
+/**
+ * Rewrites legacy `<br>` / `<br/>` HTML breaks into hard line breaks so
+ * the Read renderer (remark-breaks) treats them as single-line wraps.
+ * Inline code and fenced code are left untouched. This existed to
+ * round-trip Milkdown's empty-paragraph serialization; it stays because
+ * old notes may contain the literal bytes.
+ */
+const HTML_BREAK = /<br\s*\/?>/gi
+
+function transformProse(value: string, transform: (prose: string) => string): string {
+  const lines = value.split(/(?<=\n)/)
+  let fence: string | null = null
+
+  return lines
+    .map((line) => {
+      const marker = line.match(/^\s*(`{3,}|~{3,})/)?.[1] ?? null
+      if (marker) {
+        if (!fence) fence = marker
+        else if (marker[0] === fence[0] && marker.length >= fence.length) fence = null
+        return line
+      }
+      if (fence) return line
+
+      let output = ''
+      let cursor = 0
+      for (const match of line.matchAll(/(`+)([\s\S]*?)\1/g)) {
+        const index = match.index ?? 0
+        output += transform(line.slice(cursor, index)) + match[0]
+        cursor = index + match[0].length
+      }
+      return output + transform(line.slice(cursor))
+    })
+    .join('')
+}
+
+export function normalizeHtmlBreaks(value: string): string {
+  return transformProse(value, (prose) => prose.replace(HTML_BREAK, '  \n'))
+}
 
 function stripFrontmatter(value: string): string {
   if (!/^---[\t ]*\r?\n/.test(value)) return value

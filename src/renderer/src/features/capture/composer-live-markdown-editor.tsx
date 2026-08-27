@@ -1,25 +1,23 @@
 import { forwardRef, useImperativeHandle, useRef } from 'react'
 
 import type { CaptureSurface } from '../../../../shared/capture-contract'
-import {
-  RichMarkdownEditor,
-  type RichMarkdownEditorHandle,
-  type RichMarkdownEditorOptions
-} from '@/features/items/rich-markdown-editor'
+import { LiveMarkdownEditor } from '@/features/items/live/live-markdown-editor'
+import type { LiveEditorOptions } from '@/features/items/live/live-preview'
+import type { SourceNoteHandle } from '@/features/items/note-editor'
 import { cn } from '@/lib/utils'
 
-export interface ComposerRichMarkdownEditorHandle {
+export interface ComposerLiveMarkdownEditorHandle {
   focus: () => void
 }
 
-export const ComposerRichMarkdownEditor = forwardRef<
-  ComposerRichMarkdownEditorHandle,
+export const ComposerLiveMarkdownEditor = forwardRef<
+  ComposerLiveMarkdownEditorHandle,
   {
     value: string
     placeholder: string
     disabled: boolean
     surface: CaptureSurface
-    options?: RichMarkdownEditorOptions
+    options?: LiveEditorOptions
     className?: string
     onChange: (value: string) => void
     onPasteImage: (file: File, insertAtSelection: (src: string) => void) => void
@@ -27,7 +25,7 @@ export const ComposerRichMarkdownEditor = forwardRef<
     onContinueInEditor?: () => void
     onEscape: () => void
   }
->(function ComposerRichMarkdownEditor(
+>(function ComposerLiveMarkdownEditor(
   {
     value,
     placeholder,
@@ -43,7 +41,7 @@ export const ComposerRichMarkdownEditor = forwardRef<
   },
   forwardedRef
 ): React.JSX.Element {
-  const editorRef = useRef<RichMarkdownEditorHandle>(null)
+  const editorRef = useRef<SourceNoteHandle>(null)
   useImperativeHandle(forwardedRef, () => ({ focus: () => editorRef.current?.focus() }), [])
 
   return (
@@ -67,16 +65,17 @@ export const ComposerRichMarkdownEditor = forwardRef<
           {placeholder}
         </span>
       ) : null}
-      <RichMarkdownEditor
+      <LiveMarkdownEditor
         ref={editorRef}
         value={value}
         editable={!disabled}
         active={!disabled}
-        options={{ ...options, plainUrlPaste: true, onPasteImage }}
-        presentation="card"
+        liveOptions={{ ...options, onPasteImage }}
         className="relative z-[1] h-full"
         onChange={onChange}
       />
     </div>
   )
 })
+
+export type { LiveEditorOptions }

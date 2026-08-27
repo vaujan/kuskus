@@ -16,8 +16,10 @@ const propertiesSource = readFileSync(
 )
 
 test('keeps rendered properties read-only outside Live mode', () => {
-  assert.match(detailSource, /propertiesEditable=\{mode === 'live'\}/)
+  // The read-mode blocks render read-only; live mode edits properties
+  // through the in-editor top-content block (shorthand true).
   assert.match(detailSource, /propertiesEditable=\{false\}/)
+  assert.match(detailSource, /\n\s+propertiesEditable\n/)
   assert.match(propertiesSource, /showIcon=\{false\}/)
   assert.match(propertiesSource, /editable \? \(/)
 })

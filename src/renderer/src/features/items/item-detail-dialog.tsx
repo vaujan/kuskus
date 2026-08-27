@@ -106,9 +106,7 @@ import type {
   SourceNoteHandle
 } from '@/features/items/note-editor'
 import { createDomFindTarget } from '@/features/items/note-find-dom'
-import type { RichMarkdownEditorOptions } from '@/features/items/rich-markdown-editor'
-import { partitionRichMarkdownSource } from '@/features/items/rich-markdown-source'
-import { supportsRichMarkdown } from '@/features/items/rich-markdown-syntax'
+import type { LiveEditorOptions } from '@/features/items/live/live-preview'
 import { NoteProperties } from '@/features/items/note-properties'
 import { NoteFind } from '@/features/items/note-find'
 import type { NoteVimMode } from '@/features/items/note-vim-mode'
@@ -135,13 +133,11 @@ import {
   type NoteMode,
   type SinglePaneNoteMode
 } from '@/features/items/note-view-mode'
-import { useLiveEnginePreference } from '@/features/items/live-engine'
 import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
 import { useImagePreview } from '@/features/items/use-image-preview'
 import { useNoteAttachmentPreviews } from '@/features/items/use-note-attachment-previews'
 import { useUrlPreview } from '@/features/items/use-url-preview'
 import { WindowControls } from '@/features/shell/window-controls'
-import { notifyRichEditingUnavailable } from '@/lib/notify'
 import { cn } from '@/lib/utils'
 import type {
   ActiveItemLocation,
@@ -162,11 +158,6 @@ const NoteSourceEditor = lazy(() =>
 const MarkdownPreview = lazy(() =>
   import('@/features/items/markdown-preview').then((module) => ({
     default: module.MarkdownPreview
-  }))
-)
-const NoteRichEditor = lazy(() =>
-  import('@/features/items/note-rich-editor').then((module) => ({
-    default: module.NoteRichEditor
   }))
 )
 const NoteLiveEditor = lazy(() =>
@@ -1097,21 +1088,10 @@ function NoteCanvas({
   const attachmentPreviews = useNoteAttachmentPreviews(item.id, item.attachments)
   const frontmatter = useMemo(() => parseNoteFrontmatter(snapshot.draft), [snapshot.draft])
   const hasProperties = frontmatter.status === 'valid' && frontmatter.properties.length > 0
-  const richSource = useMemo(() => partitionRichMarkdownSource(snapshot.draft), [snapshot.draft])
-  const [liveEngine] = useLiveEnginePreference()
-  const richSupported = useMemo(
-    () => liveEngine === 'milkdown' && richSource !== null && supportsRichMarkdown(richSource.body),
-    [liveEngine, richSource]
-  )
   const onModeChangeRef = useRef(onModeChange)
   useEffect(() => {
     onModeChangeRef.current = onModeChange
   }, [onModeChange])
-  useEffect(() => {
-    if (mode !== 'live' || richSupported || liveEngine === 'codemirror') return
-    notifyRichEditingUnavailable()
-    onModeChangeRef.current('markdown')
-  }, [mode, richSupported, liveEngine])
   const noteAttachments = item.attachments
   const onOpenVaultLinkRef = useRef(onOpenVaultLink)
   useEffect(() => {
@@ -1157,7 +1137,7 @@ function NoteCanvas({
     },
     [item.id, onError]
   )
-  const richOptions = useMemo<RichMarkdownEditorOptions>(() => {
+  const liveOptions = useMemo<LiveEditorOptions>(() => {
     const images = new Map<
       string,
       { attachment: (typeof noteAttachments)[number]; preview: string | null }
@@ -1181,10 +1161,9 @@ function NoteCanvas({
       },
       onOpenLink: (url) => void openExternalUrlWithFeedback(url),
       onOpenVaultLink: (target) => onOpenVaultLinkRef.current(target),
-      onPasteImage: importPastedImage,
-      tasksEditable: mode === 'read'
+      onPasteImage: importPastedImage
     }
-  }, [attachmentPreviews, importPastedImage, mode, noteAttachments])
+  }, [attachmentPreviews, importPastedImage, noteAttachments])
 
   const vimCommandLineHostRef = useRef<HTMLDivElement | null>(null)
   const noteVimContract = useMemo<NoteEditorVimContract>(
@@ -1351,13 +1330,13 @@ function NoteCanvas({
 
   const readLiveDocument = (
     <>
-      {mode === 'read' || mode === 'live' ? (
+      {mode === 'read' ? (
         <NoteDocumentBlocks
           item={item}
           markdown={snapshot.draft}
           showInlineTitle={showInlineTitle}
           showProperties
-          propertiesEditable={mode === 'live'}
+          propertiesEditable={false}
           className="mb-8"
           titleRef={noteTitleRef}
           onRenameTitle={onRenameTitle}
@@ -1367,60 +1346,41 @@ function NoteCanvas({
         />
       ) : null}
       {mode === 'read' || mode === 'live' ? (
-        mode === 'live' && (richSupported || liveEngine === 'codemirror') ? (
-          liveEngine === 'codemirror' ? (
-            <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
-              <NoteLiveEditor
-                ref={noteEditorRef}
-                value={snapshot.draft}
-                editable
-                active
-                liveOptions={richOptions}
-                topContent={
-                  showInlineTitle || hasProperties ? (
-                    <NoteDocumentBlocks
-                      item={item}
-                      markdown={snapshot.draft}
-                      showInlineTitle={showInlineTitle}
-                      showProperties
-                      propertiesEditable
-                      className="pb-8"
-                      titleRef={noteTitleRef}
-                      onRenameTitle={onRenameTitle}
-                      onDraftChange={onDraftChange}
-                      onOpenSource={() => onModeChange('markdown')}
-                      onError={onError}
-                    />
-                  ) : undefined
-                }
-                hiddenRange={
-                  frontmatter.status === 'valid' ? { from: 0, to: frontmatter.endOffset } : null
-                }
-                preserveScrollTopRef={noteScrollTopRef}
-                findTarget={richFindTargetRef}
-                vimEnabled={vimEnabled}
-                vim={noteVimContract}
-                onChange={onDraftChange}
-              />
-            </Suspense>
-          ) : (
-            <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
-              <NoteRichEditor
-                ref={noteEditorRef}
-                value={snapshot.draft}
-                editable
-                active
-                options={richOptions}
-                preserveScrollTopRef={noteScrollTopRef}
-                preserveCursorOffsetRef={noteCursorOffsetRef}
-                findTarget={richFindTargetRef}
-                vimEnabled={vimEnabled}
-                vim={noteVimContract}
-                onChange={onDraftChange}
-                onError={onError}
-              />
-            </Suspense>
-          )
+        mode === 'live' ? (
+          <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
+            <NoteLiveEditor
+              ref={noteEditorRef}
+              value={snapshot.draft}
+              editable
+              active
+              liveOptions={liveOptions}
+              topContent={
+                showInlineTitle || hasProperties ? (
+                  <NoteDocumentBlocks
+                    item={item}
+                    markdown={snapshot.draft}
+                    showInlineTitle={showInlineTitle}
+                    showProperties
+                    propertiesEditable
+                    className="pb-8"
+                    titleRef={noteTitleRef}
+                    onRenameTitle={onRenameTitle}
+                    onDraftChange={onDraftChange}
+                    onOpenSource={() => onModeChange('markdown')}
+                    onError={onError}
+                  />
+                ) : undefined
+              }
+              hiddenRange={
+                frontmatter.status === 'valid' ? { from: 0, to: frontmatter.endOffset } : null
+              }
+              preserveScrollTopRef={noteScrollTopRef}
+              findTarget={richFindTargetRef}
+              vimEnabled={vimEnabled}
+              vim={noteVimContract}
+              onChange={onDraftChange}
+            />
+          </Suspense>
         ) : (
           <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
             <MarkdownPreview

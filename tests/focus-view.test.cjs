@@ -144,7 +144,7 @@ test('Detail capture stays in the rail and can promote notes into the editor', (
     'utf8'
   )
   const composerEditorSource = readFileSync(
-    require.resolve('../src/renderer/src/features/capture/composer-rich-markdown-editor.tsx'),
+    require.resolve('../src/renderer/src/features/capture/composer-live-markdown-editor.tsx'),
     'utf8'
   )
 

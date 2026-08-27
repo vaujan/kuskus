@@ -20,14 +20,6 @@ const {
   toggleSourceMode
 } = require('../src/renderer/src/features/items/note-view-mode.ts')
 const {
-  prepareRichMarkdown,
-  restoreRichMarkdown,
-  supportsRichMarkdown
-} = require('../src/renderer/src/features/items/rich-markdown-syntax.ts')
-const {
-  partitionRichMarkdownSource
-} = require('../src/renderer/src/features/items/rich-markdown-source.ts')
-const {
   getPublishedMarkdownChange
 } = require('../src/renderer/src/features/items/markdown-editor-change.ts')
 const {
@@ -135,42 +127,11 @@ test('uses predictable note-mode keyboard transitions', () => {
   assert.equal(getSplitToggleMode('split', 'markdown'), 'markdown')
 })
 
-test('preserves Kuskus wikilinks through the rich Markdown interchange format', () => {
-  const markdown = [
-    '[[Plain note]]',
-    '[[Target#Heading|Visible alias]]',
-    '![[Image file (wide).png|Image alias]]'
-  ].join('\n')
-
-  assert.equal(restoreRichMarkdown(prepareRichMarkdown(markdown)), markdown)
-  assert.equal(restoreRichMarkdown('<https://example.com>'), 'https://example.com')
-  assert.equal(supportsRichMarkdown(markdown), true)
-  assert.equal(supportsRichMarkdown('<https://example.com/path#frag>'), true)
-  assert.equal(supportsRichMarkdown('<mailto:a@b.com>'), true)
-  assert.equal(supportsRichMarkdown('<a@b.com>'), true)
-  assert.equal(supportsRichMarkdown('see <https://x.com> and <details>x</details>'), false)
-  assert.equal(supportsRichMarkdown('line<br />next'), false)
-  assert.equal(prepareRichMarkdown('line<br />next'), 'line<br />next')
+test('normalizes legacy HTML breaks for the Read renderer', () => {
   assert.equal(
     prepareObsidianMarkdown('line<br/>next\n`literal <br/>`', []),
     'line  \nnext\n`literal <br/>`'
   )
-  assert.equal(supportsRichMarkdown('<details>exact HTML</details>'), false)
-  assert.equal(
-    prepareRichMarkdown('`[[literal]] <br>`\n```md\n[[fenced]] <br>\n```\n[[Real]]'),
-    '`[[literal]] <br>`\n```md\n[[fenced]] <br>\n```\n[Real](kuskus-wiki:Real)'
-  )
-  assert.equal(supportsRichMarkdown('`<details>`\n```html\n<section>\n```'), true)
-})
-
-test('keeps frontmatter outside rich editing and rejects malformed frontmatter', () => {
-  const frontmatter = '---\r\ntags: [design]\r\n---\r\n'
-  assert.deepEqual(partitionRichMarkdownSource(`${frontmatter}# Body\r\n`), {
-    prefix: frontmatter,
-    body: '# Body\r\n'
-  })
-  assert.deepEqual(partitionRichMarkdownSource('# Body'), { prefix: '', body: '# Body' })
-  assert.equal(partitionRichMarkdownSource('---\ntags: [broken]\n# Body'), null)
 })
 
 test('publishes every CodeMirror document change, including empty Markdown', () => {
