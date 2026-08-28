@@ -9,7 +9,7 @@ import {
 } from '@codemirror/state'
 import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view'
 
-import { inlinePreview, inlinePreviewConfigFacet } from './atomic/inline-preview'
+import { inlinePreview } from './atomic/inline-preview'
 import { tables } from './atomic/table-widget'
 import { readOnlyFacet } from './atomic/read-only'
 import { treeGrowthEffect } from './atomic/tree-progress'
@@ -29,12 +29,6 @@ export interface LiveEditorOptions {
   onOpenLink?: (url: string) => void
   onOpenVaultLink?: (target: string) => void
   onPasteImage?: (file: File, insertAtSelection: (src: string) => void) => void
-  /** Render heading preview decorations (toggleable). */
-  renderHeadings?: boolean
-  /** Render bullet/task/list marker previews (toggleable). */
-  renderBullets?: boolean
-  /** Draw vertical hierarchy guides at list nesting levels. */
-  renderGuides?: boolean
 }
 
 function isCodePosition(state: EditorState, position: number): boolean {
@@ -524,11 +518,6 @@ const kuskusImageBlockField = StateField.define<DecorationSet>({
 export function kuskusLiveExtensions(getOptions: () => LiveEditorOptions): Extension {
   return [
     liveOptionsFacet.of(getOptions()),
-    inlinePreviewConfigFacet.of({
-      renderHeadings: getOptions().renderHeadings ?? true,
-      renderBullets: getOptions().renderBullets ?? true,
-      renderGuides: getOptions().renderGuides ?? true
-    }),
     inlinePreview({
       onLinkClick: (url) => getOptions().onOpenLink?.(url)
     }),

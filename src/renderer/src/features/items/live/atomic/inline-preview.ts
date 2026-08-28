@@ -2,7 +2,6 @@ import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
 import type { SyntaxNode } from '@lezer/common'
 import {
   EditorSelection,
-  Facet,
   Prec,
   StateEffect,
   StateField,
@@ -47,21 +46,6 @@ export interface InlinePreviewConfig {
    * mechanism.
    */
   onLinkClick?: (url: string) => void
-  /**
-   * Kuskus: render heading preview decorations (hide `# ` on inactive
-   * lines, scale the heading line). Defaults to true.
-   */
-  renderHeadings?: boolean
-  /**
-   * Kuskus: render bullet/task marker previews (widget bullets and
-   * checkboxes instead of raw `- `, `[ ]`). Defaults to true.
-   */
-  renderBullets?: boolean
-  /**
-   * Kuskus: draw vertical hierarchy guides at list nesting levels.
-   * Defaults to true.
-   */
-  renderGuides?: boolean
 }
 
 function defaultOnLinkClick(url: string): void {
@@ -72,15 +56,6 @@ function defaultOnLinkClick(url: string): void {
     // is fine; the caller can supply an opener that handles this.
   }
 }
-
-/** Kuskus: live config facet the builder reads (defaults all-on). */
-export const inlinePreviewConfigFacet = Facet.define<
-  Required<Pick<InlinePreviewConfig, 'renderHeadings' | 'renderBullets' | 'renderGuides'>>,
-  Required<Pick<InlinePreviewConfig, 'renderHeadings' | 'renderBullets' | 'renderGuides'>>
->({
-  combine: (values) =>
-    values[0] ?? { renderHeadings: true, renderBullets: true, renderGuides: true }
-})
 
 const FREEZE_TAIL_MS = 100
 
@@ -295,31 +270,6 @@ class BulletWidget extends WidgetType {
   }
 }
 
-// Kuskus fork: active-line source reveal without layout shift. When
-// the cursor sits on a bullet/task line the rendered glyph is replaced
-// by the raw source marker (`-`, `*`, `+`, `[ ]`, `[x]`) rendered in
-// the same fixed-width alcove, so the line geometry never changes.
-class ListSourceMarkerWidget extends WidgetType {
-  constructor(private readonly text: string) {
-    super()
-  }
-
-  eq(other: ListSourceMarkerWidget): boolean {
-    return other.text === this.text
-  }
-
-  toDOM(): HTMLElement {
-    const span = document.createElement('span')
-    span.className = 'cm-atomic-list-marker cm-atomic-source-marker'
-    span.textContent = this.text
-    return span
-  }
-
-  ignoreEvent(): boolean {
-    return false
-  }
-}
-
 class TaskCheckboxWidget extends WidgetType {
   constructor(readonly checked: boolean) {
     super()
@@ -434,11 +384,6 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
   const { state } = view
   const { doc } = state
   const ranges: Range<Decoration>[] = []
-  // Kuskus toggles (headings/bullets preview + guides), default all-on.
-  const previewConfig = state.facet(inlinePreviewConfigFacet)
-  const renderHeadings = previewConfig.renderHeadings
-  const renderBullets = previewConfig.renderBullets
-  const renderGuides = previewConfig.renderGuides
 
   // In read-only mode no line is ever "active" — the whole doc stays
   // rendered (no reveal). We skip the selection walk entirely rather
@@ -524,14 +469,11 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
       }
       const lineClass = LINE_CLASS_BY_BLOCK[node.name]
       if (lineClass) {
-        const isHeading = node.name.startsWith('ATXHeading') || node.name.startsWith('SetextHeading')
-        if (!isHeading || renderHeadings) {
-          const firstLine = doc.lineAt(node.from)
-          const lastLine = doc.lineAt(node.to)
-          for (let n = firstLine.number; n <= lastLine.number; n++) {
-            const line = doc.line(n)
-            ranges.push(Decoration.line({ class: lineClass }).range(line.from))
-          }
+        const firstLine = doc.lineAt(node.from)
+        const lastLine = doc.lineAt(node.to)
+        for (let n = firstLine.number; n <= lastLine.number; n++) {
+          const line = doc.line(n)
+          ranges.push(Decoration.line({ class: lineClass }).range(line.from))
         }
       }
 
@@ -561,9 +503,6 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         } else {
           shouldHide = !activeLines.has(lineNum)
         }
-
-        // Kuskus: when heading preview is off, keep `# ` visible.
-        if (!renderHeadings && node.name === 'HeaderMark') return
 
         if (shouldHide) {
           let hideTo = node.to
@@ -661,22 +600,12 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
             if (!sameListItem(owner, listItem)) continue
 
             const markerLine = ownedLine.number === line.number
-            // Kuskus: vertical hierarchy guide at the marker column of
-            // nested levels (0.7em + 1.5em×depth, matching the list
-            // ladder). Guides are drawn via background-image positioned
-            // at --cm-guide-x so they never affect line geometry.
-            const guideStyle =
-              renderGuides && depth >= 1
-                ? `padding-left: ${padding}em; text-indent: ${
-                    markerLine ? `-${LIST_ALCOVE_EM}` : '0'
-                  }em; --cm-guide-x: ${0.7 + 1.5 * depth}em`
-                : `padding-left: ${padding}em; text-indent: ${
-                    markerLine ? `-${LIST_ALCOVE_EM}` : '0'
-                  }em`
             ranges.push(
               Decoration.line({
                 attributes: {
-                  style: guideStyle
+                  style: `padding-left: ${padding}em; text-indent: ${
+                    markerLine ? `-${LIST_ALCOVE_EM}` : '0'
+                  }em`
                 }
               }).range(ownedLine.from)
             )
@@ -696,31 +625,18 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         const hasTrailingSpace = doc.sliceString(node.to, node.to + 1) === ' '
         const markEnd = hasTrailingSpace ? node.to + 1 : node.to
 
-        const lineNumber = line.number
-        const sourceReveal = activeLines.has(lineNumber)
-        const hideListMark = renderBullets && !sourceReveal
         if (taskFrom !== undefined) {
-          // Hide `- ` (ListMark through the space before `[`), or on
-          // active lines show `- ` itself in the alcove (source reveal).
-          if (hideListMark) {
-            pushReplace(ranges, doc, node.from, taskFrom, {
-              ...(sourceReveal ? { widget: new ListSourceMarkerWidget('- ') } : {})
-            })
-          }
+          // Hide `- ` (ListMark through the space before `[`).
+          pushReplace(ranges, doc, node.from, taskFrom)
         } else {
           const markText = doc.sliceString(node.from, node.to)
           if (markText === '-' || markText === '*' || markText === '+') {
             // Bullet: substitute with the fixed-width marker
             // widget, swallowing the trailing space so content
-            // starts precisely at padding-left. On active lines the
-            // source marker replaces the glyph — no layout shift.
-            if (hideListMark) {
-              pushReplace(ranges, doc, node.from, markEnd, {
-                widget: sourceReveal
-                  ? new ListSourceMarkerWidget(markText + (hasTrailingSpace ? ' ' : ''))
-                  : new BulletWidget(bulletDepth)
-              })
-            }
+            // starts precisely at padding-left.
+            pushReplace(ranges, doc, node.from, markEnd, {
+              widget: new BulletWidget(bulletDepth)
+            })
           } else {
             // Ordered list (or anything else with a non-standard
             // mark text like `1.`, `42.`): keep the text visible
@@ -779,7 +695,6 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
       }
 
       if (node.name === 'TaskMarker' && node.from < node.to) {
-        if (!renderBullets) return
         const markText = doc.sliceString(node.from, node.to)
         const checked = /\[x\]/i.test(markText)
         // Swallow the single trailing space after `[ ]` / `[x]` so the
@@ -790,16 +705,11 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         const hasTrailingSpace =
           node.to < doc.length && doc.sliceString(node.to, node.to + 1) === ' '
         const replaceTo = hasTrailingSpace ? node.to + 1 : node.to
-        const lineNum = doc.lineAt(node.from).number
-        // Active-line source reveal: the raw `[ ]` / `[x]` shows in the
-        // alcove instead of the checkbox glyph — no layout shift.
-        const sourceReveal = activeLines.has(lineNum)
         pushReplace(ranges, doc, node.from, replaceTo, {
-          widget: sourceReveal
-            ? new ListSourceMarkerWidget(markText)
-            : new TaskCheckboxWidget(checked)
+          widget: new TaskCheckboxWidget(checked)
         })
-        if (checked && !sourceReveal) {
+        if (checked) {
+          const lineNum = doc.lineAt(node.from).number
           const line = doc.line(lineNum)
           ranges.push(Decoration.line({ class: 'cm-atomic-task-done' }).range(line.from))
         }
@@ -988,11 +898,6 @@ const inlinePreviewPlugin = ViewPlugin.fromClass(
       // fully-rendered state.
       const readOnlyChanged =
         update.startState.facet(readOnlyFacet) !== update.state.facet(readOnlyFacet)
-      // Kuskus: live-preview toggles (headings/bullets/guides) also
-      // reconfigure the compartment without touching doc/selection/focus,
-      // so detect the config-facet flip directly to repaint.
-      const previewConfigChanged =
-        update.startState.facet(inlinePreviewConfigFacet) !== update.state.facet(inlinePreviewConfigFacet)
 
       if (
         justUnfroze ||
@@ -1000,8 +905,7 @@ const inlinePreviewPlugin = ViewPlugin.fromClass(
         update.selectionSet ||
         update.focusChanged ||
         treeGrew ||
-        readOnlyChanged ||
-        previewConfigChanged
+        readOnlyChanged
       ) {
         this.decorations = buildInlineDecorations(update.view)
       }

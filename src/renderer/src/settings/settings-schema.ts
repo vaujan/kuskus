@@ -22,9 +22,6 @@ export type SettingKey =
   | 'readingWidth'
   | 'inlineTitle'
   | 'railDensity'
-  | 'livePreviewHeadings'
-  | 'livePreviewBullets'
-  | 'livePreviewGuides'
 
 export type SettingValue = string | boolean
 
@@ -77,24 +74,6 @@ export const SETTINGS_SCHEMA: readonly SettingDefinition[] = [
     storageKey: FOCUS_RAIL_DENSITY_STORAGE_KEY,
     default: 'visual',
     parse: parseFocusRailDensity
-  },
-  {
-    key: 'livePreviewHeadings',
-    storageKey: 'kuskus-live-preview-headings',
-    default: true,
-    parse: (stored) => stored !== 'false'
-  },
-  {
-    key: 'livePreviewBullets',
-    storageKey: 'kuskus-live-preview-bullets',
-    default: true,
-    parse: (stored) => stored !== 'false'
-  },
-  {
-    key: 'livePreviewGuides',
-    storageKey: 'kuskus-live-preview-guides',
-    default: true,
-    parse: (stored) => stored !== 'false'
   }
 ] as const satisfies readonly SettingDefinition[]
 

@@ -99,7 +99,7 @@
 }
 .cm-kuskus-live .cm-line.cm-atomic-h5 {
   font-size: 0.875em;
-  font-weight: 400;
+  font-weight: 500;
   line-height: 1.5;
   padding-top: calc(var(--typeset-flow) * 0.43);
   color: var(--typeset-muted);
@@ -107,7 +107,7 @@
 }
 .cm-kuskus-live .cm-line.cm-atomic-h6 {
   font-size: 0.8125em;
-  font-weight: 400;
+  font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   padding-top: calc(var(--typeset-flow) * 0.54);
@@ -266,11 +266,6 @@
   color: var(--typeset-muted);
   font-weight: 400;
   font-size: 1em;
-}
-.cm-kuskus-live .cm-atomic-source-marker {
-  color: var(--typeset-muted);
-  font-family: var(--font-mono);
-  font-size: 0.85em;
 }
 .cm-kuskus-live .cm-line:has(> .cm-atomic-list-marker),
 .cm-kuskus-live .cm-line:has(> span.cm-atomic-list-marker),
