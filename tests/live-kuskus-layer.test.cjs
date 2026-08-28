@@ -126,6 +126,35 @@ test('marks first and last fenced-code lines so the block reads as one container
   )
 })
 
+test('renders an inactive fence header widget (language + copy) replacing the first line', () => {
+  const state = createState(['Cursor', '', '```ts', 'const a = 1', '```'].join('\n'))
+  const decorations = []
+  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
+    if (value.spec.widget) decorations.push({ from, to, widget: value.spec.widget })
+  })
+  // No selection → no active lines → the header widget replaces the first
+  // fence line so the block reads as read mode's code card.
+  assert.equal(decorations.length, 1)
+  assert.equal(decorations[0].widget.constructor.name, 'CodeBlockHeaderWidget')
+  assert.equal(decorations[0].from, state.doc.toString().indexOf('```ts'))
+  assert.equal(decorations[0].to, state.doc.line(3).to)
+})
+
+test('keeps the fence header off active lines so the user can edit fence marks', () => {
+  const doc = ['Cursor', '', '```ts', 'const a = 1', '```'].join('\n')
+  const state = EditorState.create({
+    doc,
+    extensions: [markdown({ extensions: GFM })],
+    selection: { anchor: doc.indexOf('const a = 1') + 5 }
+  })
+  const decorations = []
+  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
+    if (value.spec.widget) decorations.push({ from, to, widget: value.spec.widget })
+  })
+  // Cursor inside the block → active → no header (raw fence stays editable).
+  assert.deepEqual(decorations, [])
+})
+
 test('marks blank lines so live rhythm matches the read typeset flow', () => {
   const state = createState(['Cursor', '', 'Para one', '', 'Para two'].join('\n'))
   const decorations = []

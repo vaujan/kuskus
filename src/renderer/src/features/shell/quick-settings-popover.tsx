@@ -26,6 +26,7 @@ import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import type { LibraryView } from '@/features/items/item-view'
 import type { Theme } from '@/hooks/use-theme'
+import { useSetting } from '@/settings/settings-context'
 import type { GlobalCaptureShortcutStatus } from '../../../../shared/window-contract'
 
 const VIEW_OPTIONS: Array<{ value: LibraryView; label: string; icon: TablerIcon }> = [
@@ -36,6 +37,56 @@ const VIEW_OPTIONS: Array<{ value: LibraryView; label: string; icon: TablerIcon 
 const surfaceClass =
   'rounded-2xl bg-muted/45 p-1.5 shadow-[inset_0_0_0_1px_rgb(0_0_0/0.035)] dark:shadow-[inset_0_0_0_1px_rgb(255_255_255/0.05)]'
 const rowClass = 'flex min-h-12 items-center gap-3 rounded-lg px-3'
+
+/** Live-mode preview toggles (headings / bullets / hierarchy guides). */
+function LivePreviewSettingsRows(): React.JSX.Element {
+  const [renderHeadings, setRenderHeadings] = useSetting<boolean>('livePreviewHeadings')
+  const [renderBullets, setRenderBullets] = useSetting<boolean>('livePreviewBullets')
+  const [renderGuides, setRenderGuides] = useSetting<boolean>('livePreviewGuides')
+  return (
+    <>
+      <div className={`${rowClass} border-t border-foreground/5`}>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium">Preview headings</p>
+          <p className="mt-0.5 text-xs leading-5 text-pretty text-muted-foreground">
+            Render heading preview in live mode; off shows the raw # markers.
+          </p>
+        </div>
+        <Switch
+          aria-label="Preview headings"
+          checked={renderHeadings}
+          onCheckedChange={setRenderHeadings}
+        />
+      </div>
+      <div className={`${rowClass} border-t border-foreground/5`}>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium">Preview list markers</p>
+          <p className="mt-0.5 text-xs leading-5 text-pretty text-muted-foreground">
+            Render bullets, checkboxes, and list numbers; off shows the raw markers.
+          </p>
+        </div>
+        <Switch
+          aria-label="Preview list markers"
+          checked={renderBullets}
+          onCheckedChange={setRenderBullets}
+        />
+      </div>
+      <div className={`${rowClass} border-t border-foreground/5`}>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium">Hierarchy guides</p>
+          <p className="mt-0.5 text-xs leading-5 text-pretty text-muted-foreground">
+            Show vertical indent guides for nested lists.
+          </p>
+        </div>
+        <Switch
+          aria-label="Hierarchy guides"
+          checked={renderGuides}
+          onCheckedChange={setRenderGuides}
+        />
+      </div>
+    </>
+  )
+}
 
 export function QuickSettingsPopover({
   open,
@@ -241,6 +292,7 @@ export function QuickSettingsPopover({
                 onCheckedChange={onVimEnabledChange}
               />
             </div>
+            <LivePreviewSettingsRows />
           </div>
         </section>
 

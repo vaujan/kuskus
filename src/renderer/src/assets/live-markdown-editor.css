@@ -140,7 +140,11 @@
 /* Fenced code — one rounded container like read mode's .kuskus-code-block.
  * Corners on the first/last lines; the opening/closing fence marks are
  * hidden on inactive lines, so the visual block reads as a single
- * rounded card. Horizontal overflow scrolls only when needed. */
+ * rounded card. Horizontal overflow scrolls only when needed.
+ *
+ * box-shadow: none clears atomic's inset 2px left rail (an unlayered
+ * rule this stylesheet loads after) so the block matches read mode's
+ * flat .kuskus-code-block. */
 .cm-kuskus-live .cm-line.cm-atomic-fenced-code {
   background: var(--typeset-code-background);
   color: var(--typeset-body-color);
@@ -149,16 +153,59 @@
   line-height: 1.5;
   padding-left: 0.75rem;
   padding-right: 0.75rem;
+  box-shadow: none;
 }
 .cm-kuskus-live .cm-line.cm-atomic-fenced-code.cm-kuskus-code-first {
   border-start-start-radius: var(--radius);
   border-start-end-radius: var(--radius);
   padding-top: 0.75rem;
 }
+/* When the first fence line is replaced by the code-block header, drop
+ * the fence line padding (the header owns its own 0.375rem top) and keep
+ * the rounded top corners on the line box. */
+.cm-kuskus-live .cm-line.cm-kuskus-code-first:has(> .cm-kuskus-code-block-header) {
+  padding-top: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
 .cm-kuskus-live .cm-line.cm-atomic-fenced-code.cm-kuskus-code-last {
   border-end-start-radius: var(--radius);
   border-end-end-radius: var(--radius);
   padding-bottom: 0.875rem;
+}
+
+/* Code-block header (inactive fences) — mirrors read mode's
+ * .kuskus-code-block-header. The header replaces the first fence line,
+ * so its rounded top corners must match .cm-kuskus-code-first's. */
+.cm-kuskus-live .cm-kuskus-code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 2rem;
+  padding: 0.375rem 0.75rem;
+  color: var(--typeset-muted);
+  font-family: var(--typeset-font-mono);
+  font-size: 0.75rem;
+  border-start-start-radius: var(--radius);
+  border-start-end-radius: var(--radius);
+  background: var(--typeset-code-background);
+}
+.cm-kuskus-live .cm-kuskus-code-copy {
+  border: 0;
+  border-radius: 0.25rem;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0.125rem 0.375rem;
+}
+.cm-kuskus-live .cm-kuskus-code-copy:hover {
+  background: color-mix(in oklab, currentColor 12%, transparent);
+  color: var(--foreground);
+}
+.cm-kuskus-live .cm-kuskus-code-copy:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 
 /* Emphasis, code, strike — typeset colors. */
@@ -214,7 +261,6 @@
  * right-aligned like a right tab). */
 .cm-kuskus-live .cm-line .cm-atomic-list-marker {
   color: var(--typeset-muted);
-  text-align: left;
 }
 .cm-kuskus-live .cm-atomic-bullet {
   color: var(--typeset-muted);

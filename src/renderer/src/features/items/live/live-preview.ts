@@ -9,11 +9,12 @@ import {
 } from '@codemirror/state'
 import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view'
 
-import { inlinePreview } from './atomic/inline-preview'
+import { inlinePreview, inlinePreviewConfigFacet } from './atomic/inline-preview'
 import { tables } from './atomic/table-widget'
 import { readOnlyFacet } from './atomic/read-only'
 import { treeGrowthEffect } from './atomic/tree-progress'
 import { autoCloseCodeFence } from './atomic/edit-helpers'
+import { codeLanguageLabel, copyMarkdownCode } from '../markdown-code'
 
 export interface LivePreviewImage {
   src: string | null
@@ -28,6 +29,12 @@ export interface LiveEditorOptions {
   onOpenLink?: (url: string) => void
   onOpenVaultLink?: (target: string) => void
   onPasteImage?: (file: File, insertAtSelection: (src: string) => void) => void
+  /** Render heading preview decorations (toggleable). */
+  renderHeadings?: boolean
+  /** Render bullet/task/list marker previews (toggleable). */
+  renderBullets?: boolean
+  /** Draw vertical hierarchy guides at list nesting levels. */
+  renderGuides?: boolean
 }
 
 function isCodePosition(state: EditorState, position: number): boolean {
@@ -98,6 +105,66 @@ class WikilinkImageWidget extends WidgetType {
  * Renders below the source line (side: 1) so the inline-preview hide
  * decoration can keep the raw source hidden on inactive lines without
  * any range conflict — we never replace the `Image` node range. */
+/** Header widget for inactive fenced-code blocks: language label + copy
+ * button, mirroring read mode's .kuskus-code-block-header. The fence's
+ * first line is decorated with an empty replace carrying this widget so
+ * the source ```` ```lang ```` is hidden and the header occupies that
+ * line's box. Skipped entirely on active lines (cursor inside the block)
+ * so the user can edit the fence marks. */
+class CodeBlockHeaderWidget extends WidgetType {
+  constructor(
+    private readonly code: string,
+    private readonly language: string
+  ) {
+    super()
+  }
+
+  eq(other: CodeBlockHeaderWidget): boolean {
+    return other.code === this.code && other.language === this.language
+  }
+
+  toDOM(): HTMLElement {
+    const header = document.createElement('div')
+    header.className = 'cm-kuskus-code-block-header'
+
+    const label = document.createElement('span')
+    label.className = 'cm-kuskus-code-block-label'
+    label.textContent = codeLanguageLabel(this.language)
+
+    const copy = document.createElement('button')
+    copy.type = 'button'
+    copy.className = 'cm-kuskus-code-copy'
+    copy.textContent = 'Copy'
+    copy.setAttribute('aria-label', `Copy code${this.language ? `: ${this.language}` : ''}`)
+    // Mirror TaskCheckboxWidget: stop CM6 from treating the press as
+    // editor input (which would place the caret in the code block and
+    // focus the editor) and stop the browser default (which would focus
+    // the button). The click handler below still fires because
+    // ignoreEvent only opts the event out of CM6's own handling.
+    copy.addEventListener('mousedown', (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+    })
+    copy.addEventListener('click', async (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      if (await copyMarkdownCode(this.code)) {
+        copy.textContent = 'Copied'
+        window.setTimeout(() => {
+          copy.textContent = 'Copy'
+        }, 1500)
+      }
+    })
+
+    header.append(label, copy)
+    return header
+  }
+
+  ignoreEvent(event: Event): boolean {
+    return event.type === 'mousedown' || event.type === 'click'
+  }
+}
+
 class MarkdownImageBlockWidget extends WidgetType {
   constructor(
     private readonly target: string,
@@ -254,14 +321,38 @@ class KuskusLiveDecorationBuilder {
       if (marks.length >= 2) {
         const openLine = this.state.doc.lineAt(marks[0].from)
         const closeLine = this.state.doc.lineAt(marks[marks.length - 1].from)
-        this.addLine(
-          openLine.from,
-          Decoration.line({ class: 'cm-kuskus-code-first' })
-        )
+        this.addLine(openLine.from, Decoration.line({ class: 'cm-kuskus-code-first' }))
         if (closeLine.number !== openLine.number) {
-          this.addLine(
-            closeLine.from,
-            Decoration.line({ class: 'cm-kuskus-code-last' })
+          this.addLine(closeLine.from, Decoration.line({ class: 'cm-kuskus-code-last' }))
+        }
+
+        // Inactive-block header: the first fence line is fully replaced
+        // by the header widget (language + copy button) so the block
+        // reads like read mode's rounded code card. The header is skipped
+        // when ANY line of the block is active — clicking anywhere in a
+        // fence activates the whole block (mirrors atomic's expansion),
+        // and the raw fence must stay visible for editing.
+        const firstActive = this.isLineActive(openLine.number)
+        let anyLineActive = firstActive
+        if (!anyLineActive && closeLine.number !== openLine.number) {
+          for (let n = openLine.number + 1; n <= closeLine.number; n += 1) {
+            if (this.isLineActive(n)) {
+              anyLineActive = true
+              break
+            }
+          }
+        }
+        if (!anyLineActive) {
+          const info = node.getChildren('CodeInfo')[0]
+          const language = info ? this.state.doc.sliceString(info.from, info.to).trim() : ''
+          const code = this.state.doc.sliceString(marks[0].to, marks[marks.length - 1].from)
+          this.addReplace(
+            openLine.from,
+            openLine.to,
+            Decoration.replace({
+              widget: new CodeBlockHeaderWidget(code, language),
+              block: true
+            })
           )
         }
       }
@@ -433,6 +524,11 @@ const kuskusImageBlockField = StateField.define<DecorationSet>({
 export function kuskusLiveExtensions(getOptions: () => LiveEditorOptions): Extension {
   return [
     liveOptionsFacet.of(getOptions()),
+    inlinePreviewConfigFacet.of({
+      renderHeadings: getOptions().renderHeadings ?? true,
+      renderBullets: getOptions().renderBullets ?? true,
+      renderGuides: getOptions().renderGuides ?? true
+    }),
     inlinePreview({
       onLinkClick: (url) => getOptions().onOpenLink?.(url)
     }),

@@ -107,6 +107,7 @@ import type {
 } from '@/features/items/note-editor'
 import { createDomFindTarget } from '@/features/items/note-find-dom'
 import type { LiveEditorOptions } from '@/features/items/live/live-preview'
+import { useSetting } from '@/settings/settings-context'
 import { NoteProperties } from '@/features/items/note-properties'
 import { NoteFind } from '@/features/items/note-find'
 import type { NoteVimMode } from '@/features/items/note-vim-mode'
@@ -1137,6 +1138,9 @@ function NoteCanvas({
     },
     [item.id, onError]
   )
+  const [livePreviewHeadings] = useSetting<boolean>('livePreviewHeadings')
+  const [livePreviewBullets] = useSetting<boolean>('livePreviewBullets')
+  const [livePreviewGuides] = useSetting<boolean>('livePreviewGuides')
   const liveOptions = useMemo<LiveEditorOptions>(() => {
     const images = new Map<
       string,
@@ -1161,9 +1165,19 @@ function NoteCanvas({
       },
       onOpenLink: (url) => void openExternalUrlWithFeedback(url),
       onOpenVaultLink: (target) => onOpenVaultLinkRef.current(target),
-      onPasteImage: importPastedImage
+      onPasteImage: importPastedImage,
+      renderHeadings: livePreviewHeadings,
+      renderBullets: livePreviewBullets,
+      renderGuides: livePreviewGuides
     }
-  }, [attachmentPreviews, importPastedImage, noteAttachments])
+  }, [
+    attachmentPreviews,
+    importPastedImage,
+    livePreviewBullets,
+    livePreviewGuides,
+    livePreviewHeadings,
+    noteAttachments
+  ])
 
   const vimCommandLineHostRef = useRef<HTMLDivElement | null>(null)
   const noteVimContract = useMemo<NoteEditorVimContract>(
