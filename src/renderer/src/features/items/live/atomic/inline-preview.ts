@@ -988,6 +988,11 @@ const inlinePreviewPlugin = ViewPlugin.fromClass(
       // fully-rendered state.
       const readOnlyChanged =
         update.startState.facet(readOnlyFacet) !== update.state.facet(readOnlyFacet)
+      // Kuskus: live-preview toggles (headings/bullets/guides) also
+      // reconfigure the compartment without touching doc/selection/focus,
+      // so detect the config-facet flip directly to repaint.
+      const previewConfigChanged =
+        update.startState.facet(inlinePreviewConfigFacet) !== update.state.facet(inlinePreviewConfigFacet)
 
       if (
         justUnfroze ||
@@ -995,7 +1000,8 @@ const inlinePreviewPlugin = ViewPlugin.fromClass(
         update.selectionSet ||
         update.focusChanged ||
         treeGrew ||
-        readOnlyChanged
+        readOnlyChanged ||
+        previewConfigChanged
       ) {
         this.decorations = buildInlineDecorations(update.view)
       }

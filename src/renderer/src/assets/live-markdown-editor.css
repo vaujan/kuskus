@@ -99,7 +99,7 @@
 }
 .cm-kuskus-live .cm-line.cm-atomic-h5 {
   font-size: 0.875em;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1.5;
   padding-top: calc(var(--typeset-flow) * 0.43);
   color: var(--typeset-muted);
@@ -107,7 +107,7 @@
 }
 .cm-kuskus-live .cm-line.cm-atomic-h6 {
   font-size: 0.8125em;
-  font-weight: 500;
+  font-weight: 400;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   padding-top: calc(var(--typeset-flow) * 0.54);
