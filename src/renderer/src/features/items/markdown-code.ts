@@ -38,7 +38,8 @@ export function codeLanguageLabel(info: string): string {
       jsx: 'JSX',
       mermaid: 'Mermaid',
       ts: 'TypeScript',
-      tsx: 'TSX'
+      tsx: 'TSX',
+      yaml: 'YAML'
     }[language] ?? language
   )
 }
