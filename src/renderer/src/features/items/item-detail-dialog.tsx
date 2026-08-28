@@ -107,7 +107,7 @@ import type {
 } from '@/features/items/note-editor'
 import { createDomFindTarget } from '@/features/items/note-find-dom'
 import type { LiveEditorOptions } from '@/features/items/live/live-preview'
-import { NoteProperties } from '@/features/items/note-properties'
+import { MarkdownFrontmatterBlock } from '@/features/items/markdown-frontmatter-block'
 import { NoteFind } from '@/features/items/note-find'
 import type { NoteVimMode } from '@/features/items/note-vim-mode'
 import {
@@ -148,7 +148,6 @@ import {
   encodeMarkdownImageTarget,
   markdownImageTargetKey
 } from '../../../../shared/markdown-image-references'
-import { parseNoteFrontmatter } from '../../../../shared/note-frontmatter'
 
 const NoteSourceEditor = lazy(() =>
   import('@/features/items/note-source-editor').then((module) => ({
@@ -747,57 +746,31 @@ function NoteModeControls({
 }
 function NoteDocumentBlocks({
   item,
-  markdown,
   showInlineTitle,
-  showProperties,
-  propertiesEditable,
   className,
   titleRef,
-  onRenameTitle,
-  onDraftChange,
-  onOpenSource,
-  onError
+  onRenameTitle
 }: {
   item: Extract<LibraryItemDto, { type: 'note' }>
-  markdown: string
   showInlineTitle: boolean
-  showProperties: boolean
-  propertiesEditable: boolean
   className?: string
   titleRef?: React.Ref<InlineItemTitleHandle>
   onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
-  onDraftChange: (value: string) => void
-  onOpenSource: () => void
-  onError: (message: string) => void
 }): React.JSX.Element | null {
-  const frontmatter = parseNoteFrontmatter(markdown)
-  const hasProperties =
-    showProperties && frontmatter.status === 'valid' && frontmatter.properties.length > 0
-  if (!showInlineTitle && !hasProperties) return null
+  if (!showInlineTitle) return null
 
   return (
     <div
       className={cn('not-typeset flex min-w-0 flex-col gap-8 font-sans', className)}
       data-not-typeset
     >
-      {showInlineTitle ? (
-        <InlineItemTitle
-          ref={titleRef}
-          item={item}
-          onRename={onRenameTitle}
-          className="font-heading text-3xl leading-tight font-semibold text-foreground text-balance"
-          textClassName="break-words"
-        />
-      ) : null}
-      {hasProperties ? (
-        <NoteProperties
-          value={markdown}
-          editable={propertiesEditable}
-          onChange={onDraftChange}
-          onOpenSource={onOpenSource}
-          onError={onError}
-        />
-      ) : null}
+      <InlineItemTitle
+        ref={titleRef}
+        item={item}
+        onRename={onRenameTitle}
+        className="font-heading text-3xl leading-tight font-semibold text-foreground text-balance"
+        textClassName="break-words"
+      />
     </div>
   )
 }
@@ -1086,8 +1059,6 @@ function NoteCanvas({
   const syncFrameRef = useRef<number | null>(null)
   const releaseSyncFrameRef = useRef<number | null>(null)
   const attachmentPreviews = useNoteAttachmentPreviews(item.id, item.attachments)
-  const frontmatter = useMemo(() => parseNoteFrontmatter(snapshot.draft), [snapshot.draft])
-  const hasProperties = frontmatter.status === 'valid' && frontmatter.properties.length > 0
   const onModeChangeRef = useRef(onModeChange)
   useEffect(() => {
     onModeChangeRef.current = onModeChange
@@ -1333,17 +1304,14 @@ function NoteCanvas({
       {mode === 'read' ? (
         <NoteDocumentBlocks
           item={item}
-          markdown={snapshot.draft}
           showInlineTitle={showInlineTitle}
-          showProperties
-          propertiesEditable={false}
           className="mb-8"
           titleRef={noteTitleRef}
           onRenameTitle={onRenameTitle}
-          onDraftChange={onDraftChange}
-          onOpenSource={() => onModeChange('markdown')}
-          onError={onError}
         />
+      ) : null}
+      {mode === 'read' ? (
+        <MarkdownFrontmatterBlock markdown={snapshot.draft} className="mb-8" />
       ) : null}
       {mode === 'read' ? (
         <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
@@ -1373,23 +1341,16 @@ function NoteCanvas({
         className="flex-1"
         liveOptions={liveOptions}
         topContent={
-          showInlineTitle || hasProperties ? (
+          showInlineTitle ? (
             <NoteDocumentBlocks
               item={item}
-              markdown={snapshot.draft}
               showInlineTitle={showInlineTitle}
-              showProperties
-              propertiesEditable
               className="pb-8"
               titleRef={noteTitleRef}
               onRenameTitle={onRenameTitle}
-              onDraftChange={onDraftChange}
-              onOpenSource={() => onModeChange('markdown')}
-              onError={onError}
             />
           ) : undefined
         }
-        hiddenRange={frontmatter.status === 'valid' ? { from: 0, to: frontmatter.endOffset } : null}
         preserveScrollTopRef={noteScrollTopRef}
         findTarget={liveFindTargetRef}
         vimEnabled={vimEnabled}
@@ -1531,17 +1492,14 @@ function NoteCanvas({
                 {mode === 'split' ? (
                   <NoteDocumentBlocks
                     item={item}
-                    markdown={snapshot.draft}
                     showInlineTitle={showInlineTitle}
-                    showProperties
-                    propertiesEditable={false}
                     className="mb-8"
                     titleRef={previewTitleRef}
                     onRenameTitle={onRenameTitle}
-                    onDraftChange={onDraftChange}
-                    onOpenSource={() => onModeChange('markdown')}
-                    onError={onError}
                   />
+                ) : null}
+                {mode === 'split' ? (
+                  <MarkdownFrontmatterBlock markdown={snapshot.draft} className="mb-8" />
                 ) : null}
                 {mode === 'split' ? (
                   <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
