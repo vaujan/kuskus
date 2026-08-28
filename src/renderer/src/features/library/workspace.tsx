@@ -88,7 +88,6 @@ import { AppToolbar } from '@/features/shell/app-toolbar'
 import { LibrarySidebar, type LibraryDestination } from '@/features/shell/library-sidebar'
 import { SettingsDialog } from '@/features/settings/settings-dialog'
 import { useSetting } from '@/settings/settings-context'
-import { useTheme } from '@/hooks/use-theme'
 import { useNoteVim } from '@/hooks/use-note-vim'
 import type { TranslucentBackgroundPreference } from '@/hooks/use-translucent-background'
 import { cn } from '@/lib/utils'
@@ -222,8 +221,7 @@ export function Workspace({
   const [destination, setDestination] = useState<LibraryDestination>(
     () => initialSession?.destination ?? { type: 'inbox' }
   )
-  const [theme, setTheme] = useTheme()
-  const [vimEnabled, setVimEnabled] = useNoteVim()
+  const [vimEnabled] = useNoteVim()
   const importRequestId = useRef(0)
   const dragDepth = useRef(0)
   const enrichingUrlIds = useRef(new Set<string>())
@@ -548,8 +546,6 @@ export function Workspace({
     },
     [clearSelectionSilently, focusItemId, requestFocusTransition]
   )
-
-  const changeView = useCallback((next: LibraryView): void => setView(next), [setView])
 
   const returnToMasonry = useCallback((): void => {
     setView('visual')
@@ -1426,10 +1422,6 @@ export function Workspace({
       <LibrarySidebar
         key={library.id}
         library={library}
-        theme={theme}
-        onThemeChange={setTheme}
-        view={view}
-        onViewChange={changeView}
         destination={destination}
         onDestinationChange={changeDestination}
         onLibraryChange={(nextLibrary) => {
@@ -1443,14 +1435,7 @@ export function Workspace({
           guardFocusTargets(itemIds, () => void moveItemIds(itemIds, nextDestination))
         }
         librarySwitchBlocked={importRequest !== null || composerHasTransientWork}
-        globalCaptureShortcutStatus={globalCaptureShortcutStatus}
-        translucentBackgroundEnabled={translucentBackground.enabled}
-        translucentBackgroundSupported={translucentBackground.supported}
-        translucentBackgroundReduced={translucentBackground.reducedTransparency}
-        onTranslucentBackgroundChange={translucentBackground.setEnabled}
-        vimEnabled={vimEnabled}
-        onVimEnabledChange={setVimEnabled}
-        onOpenFullSettings={() => setSettingsDialogOpen(true)}
+        onOpenSettings={() => setSettingsDialogOpen(true)}
       />
       <SidebarInset>
         {focusWorkspaceOpen ? null : (

@@ -27,7 +27,6 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { ITEM_SORT_OPTIONS, type ItemSort } from '@/features/items/item-sort'
 import type { LibraryView } from '@/features/items/item-view'
@@ -212,256 +211,210 @@ export function SettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="h-[min(38rem,calc(100vh-4rem))] w-[min(52rem,calc(100vw-2rem))] grid-rows-[auto_1fr] gap-0 overflow-hidden p-0 sm:max-w-none">
+      <DialogContent className="h-[min(38rem,calc(100vh-4rem))] w-[min(34rem,calc(100vw-2rem))] gap-0 overflow-hidden p-0 sm:max-w-none">
         <DialogHeader className="gap-1 px-6 pt-5">
           <DialogTitle>Settings</DialogTitle>
           <DialogDescription>Configure how Kuskus looks, edits, and captures.</DialogDescription>
         </DialogHeader>
-        <Tabs
-          orientation="vertical"
-          defaultValue="appearance"
-          className="min-h-0 gap-6 px-6 pb-6 pt-4"
-        >
-          <TabsList className="h-fit w-40 shrink-0 items-stretch gap-1 rounded-xl p-1">
-            <TabsTrigger value="appearance" className="justify-start rounded-lg px-3 text-left">
-              Appearance
-            </TabsTrigger>
-            <TabsTrigger value="library" className="justify-start rounded-lg px-3 text-left">
-              Library
-            </TabsTrigger>
-            <TabsTrigger value="editor" className="justify-start rounded-lg px-3 text-left">
-              Editor
-            </TabsTrigger>
-            <TabsTrigger value="capture" className="justify-start rounded-lg px-3 text-left">
-              Capture
-            </TabsTrigger>
-            <TabsTrigger value="advanced" className="justify-start rounded-lg px-3 text-left">
-              Advanced
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="appearance" className="h-full min-h-0 overflow-y-auto">
-            <div className="flex flex-col gap-6">
-              <Section title="Appearance">
-                <LabeledRow icon={<IconPalette className="size-4" />} label="Color mode">
-                  <ToggleGroup
-                    value={[theme]}
-                    onValueChange={(values) => {
-                      const mode = values[0]
-                      if (mode) setTheme(mode as Theme)
-                    }}
-                    spacing={1}
-                    aria-label="Color mode"
-                    className="shrink-0 gap-1 rounded-lg bg-background/55 p-1 shadow-inner"
-                  >
-                    <ToggleGroupItem
-                      value="light"
-                      aria-label="Light mode"
-                      className="size-10 rounded-md p-0 data-[state=on]:bg-background data-[state=on]:shadow-sm"
-                    >
-                      <IconSun />
-                    </ToggleGroupItem>
-                    <ToggleGroupItem
-                      value="dark"
-                      aria-label="Dark mode"
-                      className="size-10 rounded-md p-0 data-[state=on]:bg-background data-[state=on]:shadow-sm"
-                    >
-                      <IconMoon />
-                    </ToggleGroupItem>
-                  </ToggleGroup>
-                </LabeledRow>
-                {window.electron.window.platform === 'win32' ? (
-                  <LabeledRow
-                    icon={<IconPalette className="size-4" />}
-                    label="Translucent background"
-                    description={
-                      translucentBackground.supported === false
-                        ? 'Requires Windows 11 22H2 or newer.'
-                        : translucentBackground.reducedTransparency
-                          ? 'Enable Windows Transparency effects to use this.'
-                          : 'Let the desktop material show through the app shell.'
-                    }
-                  >
-                    <Switch
-                      aria-label="Translucent background"
-                      checked={translucentBackground.enabled}
-                      disabled={translucencyDisabled}
-                      onCheckedChange={translucentBackground.setEnabled}
-                    />
-                  </LabeledRow>
-                ) : null}
-                <LabeledRow
-                  icon={<IconKeyboard className="size-4" />}
-                  label="Zoom"
-                  description="Interface scale for the whole app."
+        <div className="min-h-0 flex-1 gap-6 overflow-y-auto px-6 pt-4 pb-6">
+          <div className="flex flex-col gap-6">
+            <Section title="Appearance">
+              <LabeledRow icon={<IconPalette className="size-4" />} label="Color mode">
+                <ToggleGroup
+                  value={[theme]}
+                  onValueChange={(values) => {
+                    const mode = values[0]
+                    if (mode) setTheme(mode as Theme)
+                  }}
+                  spacing={1}
+                  aria-label="Color mode"
+                  className="shrink-0 gap-1 rounded-lg bg-background/55 p-1 shadow-inner"
                 >
-                  <Select
-                    value={String(zoom.factor)}
-                    onValueChange={(factor) => {
-                      const parsed = Number(factor)
-                      if (Number.isFinite(parsed)) zoom.setFactor(parsed)
-                    }}
+                  <ToggleGroupItem
+                    value="light"
+                    aria-label="Light mode"
+                    className="size-10 rounded-md p-0 data-[state=on]:bg-background data-[state=on]:shadow-sm"
                   >
-                    <SelectTrigger size="sm" aria-label="Zoom">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {APP_ZOOM_FACTORS.map((factor) => (
-                        <SelectItem key={factor} value={String(factor)}>
-                          {factor === 1 ? '100%' : `${Math.round(factor * 100)}%`}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </LabeledRow>
-              </Section>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="library" className="h-full min-h-0 overflow-y-auto">
-            <div className="flex flex-col gap-6">
-              <Section title="Library layout">
-                <LabeledRow label="Default view">
-                  <ToggleGroup
-                    value={[view]}
-                    onValueChange={(values) => {
-                      const nextView = values[0]
-                      if (nextView) setView(nextView as LibraryView)
-                    }}
-                    spacing={1}
-                    aria-label="Library layout"
-                    className="shrink-0 gap-1 rounded-lg bg-background/55 p-1 shadow-inner"
+                    <IconSun />
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="dark"
+                    aria-label="Dark mode"
+                    className="size-10 rounded-md p-0 data-[state=on]:bg-background data-[state=on]:shadow-sm"
                   >
-                    {VIEW_OPTIONS.map((option) => {
-                      const Icon = option.icon
-                      return (
-                        <ToggleGroupItem
-                          key={option.value}
-                          value={option.value}
-                          aria-label={option.label}
-                          className="size-10 rounded-md p-0 data-[state=on]:bg-background data-[state=on]:shadow-sm"
-                        >
-                          <Icon />
-                        </ToggleGroupItem>
-                      )
-                    })}
-                  </ToggleGroup>
-                </LabeledRow>
-                <LabeledRow label="Sort items by">
-                  <Select value={sort} onValueChange={(value) => setSort(value as ItemSort)}>
-                    <SelectTrigger size="sm" aria-label="Sort items by">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ITEM_SORT_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </LabeledRow>
-              </Section>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="editor" className="h-full min-h-0 overflow-y-auto">
-            <div className="flex flex-col gap-6">
-              <Section title="Editing">
+                    <IconMoon />
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </LabeledRow>
+              {window.electron.window.platform === 'win32' ? (
                 <LabeledRow
-                  icon={<IconKeyboard className="size-4" />}
-                  label="Vim mode"
-                  description="Use Vim keybindings when editing notes."
+                  icon={<IconPalette className="size-4" />}
+                  label="Translucent background"
+                  description={
+                    translucentBackground.supported === false
+                      ? 'Requires Windows 11 22H2 or newer.'
+                      : translucentBackground.reducedTransparency
+                        ? 'Enable Windows Transparency effects to use this.'
+                        : 'Let the desktop material show through the app shell.'
+                  }
                 >
                   <Switch
-                    aria-label="Vim mode"
-                    checked={vimEnabled}
-                    onCheckedChange={setVimEnabled}
+                    aria-label="Translucent background"
+                    checked={translucentBackground.enabled}
+                    disabled={translucencyDisabled}
+                    onCheckedChange={translucentBackground.setEnabled}
                   />
                 </LabeledRow>
-                <LabeledRow label="Note reading width">
-                  <Select
-                    value={readingWidth}
-                    onValueChange={(value) => setReadingWidth(value as NoteReadingWidth)}
-                  >
-                    <SelectTrigger size="sm" aria-label="Note reading width">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="comfortable">Comfortable</SelectItem>
-                      <SelectItem value="wide">Wide</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </LabeledRow>
-                <LabeledRow
-                  label="Inline title"
-                  description="Show the note title inline while editing."
+              ) : null}
+              <LabeledRow
+                icon={<IconKeyboard className="size-4" />}
+                label="Zoom"
+                description="Interface scale for the whole app."
+              >
+                <Select
+                  value={String(zoom.factor)}
+                  onValueChange={(factor) => {
+                    const parsed = Number(factor)
+                    if (Number.isFinite(parsed)) zoom.setFactor(parsed)
+                  }}
                 >
-                  <Switch
-                    aria-label="Inline title"
-                    checked={inlineTitle}
-                    onCheckedChange={setInlineTitle}
-                  />
-                </LabeledRow>
-              </Section>
-            </div>
-          </TabsContent>
+                  <SelectTrigger size="sm" aria-label="Zoom">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {APP_ZOOM_FACTORS.map((factor) => (
+                      <SelectItem key={factor} value={String(factor)}>
+                        {factor === 1 ? '100%' : `${Math.round(factor * 100)}%`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </LabeledRow>
+            </Section>
 
-          <TabsContent value="capture" className="h-full min-h-0 overflow-y-auto">
-            <div className="flex flex-col gap-6">
-              <Section title="Global capture">
-                <LabeledRow
-                  icon={<IconBolt className="size-4" />}
-                  label="Global capture"
-                  description="Capture from any app while Kuskus is running."
+            <Section title="Library">
+              <LabeledRow label="Default view">
+                <ToggleGroup
+                  value={[view]}
+                  onValueChange={(values) => {
+                    const nextView = values[0]
+                    if (nextView) setView(nextView as LibraryView)
+                  }}
+                  spacing={1}
+                  aria-label="Library layout"
+                  className="shrink-0 gap-1 rounded-lg bg-background/55 p-1 shadow-inner"
                 >
-                  <Badge
-                    aria-live="polite"
-                    variant={
-                      globalCaptureShortcutStatus?.registered === false
-                        ? 'destructive'
-                        : 'secondary'
-                    }
-                  >
-                    {globalCaptureShortcutStatus === null
-                      ? 'Checking…'
-                      : globalCaptureShortcutStatus.registered
-                        ? 'Ready'
-                        : 'Unavailable'}
-                  </Badge>
-                </LabeledRow>
-                <CaptureShortcutControl
-                  status={globalCaptureShortcutStatus}
-                  onStatusChange={onGlobalCaptureShortcutStatusChange}
+                  {VIEW_OPTIONS.map((option) => {
+                    const Icon = option.icon
+                    return (
+                      <ToggleGroupItem
+                        key={option.value}
+                        value={option.value}
+                        aria-label={option.label}
+                        className="size-10 rounded-md p-0 data-[state=on]:bg-background data-[state=on]:shadow-sm"
+                      >
+                        <Icon />
+                      </ToggleGroupItem>
+                    )
+                  })}
+                </ToggleGroup>
+              </LabeledRow>
+              <LabeledRow label="Sort items by">
+                <Select value={sort} onValueChange={(value) => setSort(value as ItemSort)}>
+                  <SelectTrigger size="sm" aria-label="Sort items by">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ITEM_SORT_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </LabeledRow>
+              <LabeledRow label="Focus rail density">
+                <Select
+                  value={railDensity}
+                  onValueChange={(value) => setRailDensity(value as FocusRailDensity)}
+                >
+                  <SelectTrigger size="sm" aria-label="Focus rail density">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="visual">Visual</SelectItem>
+                    <SelectItem value="index">Compact index</SelectItem>
+                  </SelectContent>
+                </Select>
+              </LabeledRow>
+            </Section>
+
+            <Section title="Editor">
+              <LabeledRow
+                icon={<IconKeyboard className="size-4" />}
+                label="Vim mode"
+                description="Use Vim keybindings when editing notes."
+              >
+                <Switch
+                  aria-label="Vim mode"
+                  checked={vimEnabled}
+                  onCheckedChange={setVimEnabled}
                 />
-              </Section>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="advanced" className="h-full min-h-0 overflow-y-auto">
-            <div className="flex flex-col gap-6">
-              <Section title="Advanced">
-                <LabeledRow
-                  label="Focus rail density"
-                  description="How items appear in the focus workspace rail."
+              </LabeledRow>
+              <LabeledRow label="Note reading width">
+                <Select
+                  value={readingWidth}
+                  onValueChange={(value) => setReadingWidth(value as NoteReadingWidth)}
                 >
-                  <Select
-                    value={railDensity}
-                    onValueChange={(value) => setRailDensity(value as FocusRailDensity)}
-                  >
-                    <SelectTrigger size="sm" aria-label="Focus rail density">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="visual">Visual</SelectItem>
-                      <SelectItem value="index">Compact index</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </LabeledRow>
-              </Section>
-            </div>
-          </TabsContent>
-        </Tabs>
+                  <SelectTrigger size="sm" aria-label="Note reading width">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="comfortable">Comfortable</SelectItem>
+                    <SelectItem value="wide">Wide</SelectItem>
+                  </SelectContent>
+                </Select>
+              </LabeledRow>
+              <LabeledRow
+                label="Inline title"
+                description="Show the note title inline while editing."
+              >
+                <Switch
+                  aria-label="Inline title"
+                  checked={inlineTitle}
+                  onCheckedChange={setInlineTitle}
+                />
+              </LabeledRow>
+            </Section>
+
+            <Section title="Capture">
+              <LabeledRow
+                icon={<IconBolt className="size-4" />}
+                label="Global capture"
+                description="Capture from any app while Kuskus is running."
+              >
+                <Badge
+                  aria-live="polite"
+                  variant={
+                    globalCaptureShortcutStatus?.registered === false
+                      ? 'destructive'
+                      : 'secondary'
+                  }
+                >
+                  {globalCaptureShortcutStatus === null
+                    ? 'Checking…'
+                    : globalCaptureShortcutStatus.registered
+                      ? 'Ready'
+                      : 'Unavailable'}
+                </Badge>
+              </LabeledRow>
+              <CaptureShortcutControl
+                status={globalCaptureShortcutStatus}
+                onStatusChange={onGlobalCaptureShortcutStatusChange}
+              />
+            </Section>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   )

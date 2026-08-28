@@ -52,13 +52,10 @@ Sidebar visibility and the most recently selected width should persist between l
 - The current library is shown as context in the final row at the bottom of the sidebar. Clicking
   anywhere on that row opens **Open Another Library**, **Create New Library**, and **Copy Library
   Path** actions without presenting the identity row as a destination selector.
-- A **Settings** row appears immediately above the library identity. It opens a compact **Quick
-  settings** popover toward the content area, with collision handling that keeps it inside the
-  supported window bounds. The popover presents View, Appearance, and Capture groups in one
-  scannable column. View contains the persisted Masonry, Grid, and Focus selection; Appearance
-  contains explicit Light and Dark choices. Settings apply immediately without closing the popover;
-  unavailable future controls are omitted until implemented. Outside click or `Escape` closes the
-  popover and returns keyboard focus to the Settings row.
+- A **Settings** row appears immediately above the library identity. It opens the **Settings**
+  dialog, which presents Appearance, Library, Editor, and Capture groups in one scrollable column.
+  Settings apply immediately without closing the dialog; unavailable future controls are omitted
+  until implemented. Outside click or `Escape` closes the dialog.
 - On Windows, Appearance includes **Translucent background**. It is enabled by default on Windows
   11 22H2 or newer, applies native Acrylic behind a visibly translucent, continuous toolbar/content
   material and a slightly heavier sidebar, and persists as app-local presentation state. Borders,
@@ -126,12 +123,12 @@ Requirements:
 - Move menus and dialogs preserve tree indentation and icons, identify the current destination, and
   disambiguate same-name folders in different branches.
 
-The Capture group in Quick settings shows the fixed `Ctrl+Shift+Space` **Global capture** shortcut
+The Capture group in Settings shows the fixed `Ctrl+Shift+Space` **Global capture** shortcut
 and whether its system-wide registration is checking, available, or unavailable. A registration
 conflict also produces one non-blocking notice per app run. The shortcut cannot be changed or
 disabled in the first version.
 
-Quick settings has no empty Library category. **Show referenced attachments** lives in a
+Settings has no empty Library category. **Show referenced attachments** lives in a
 **Visibility** group in the Masonry/Grid toolbar Filter menu and Focus rail Filter menu. It is off by default so images already embedded by
 notes do not duplicate the visual canvas. The preference persists per device, contributes to the
 active-filter badge, applies in Masonry, Grid, and Focus, and resets with **Clear filters**.

@@ -75,7 +75,6 @@ import { CollectionIcon } from '@/features/collections/collection-icons'
 import { FolderIconPickerDialog } from '@/features/collections/folder-icon-picker-dialog'
 import { FolderMoveDialog } from '@/features/collections/folder-move-dialog'
 import { FolderNameDialog } from '@/features/collections/folder-name-dialog'
-import { QuickSettingsPopover } from '@/features/shell/quick-settings-popover'
 import {
   hasKuskusFolderDrag,
   KUSKUS_FOLDER_DRAG_TYPE,
@@ -88,16 +87,14 @@ import {
   sanitizeCollapsedFolderIds,
   type FolderTreeNode
 } from '@/features/collections/folder-tree'
-import type { LibraryView } from '@/features/items/item-view'
 import { hasKuskusItemDrag, readKuskusItemDrag } from '@/features/items/item-drag'
-import type { Theme } from '@/hooks/use-theme'
+
 import type {
   CollectionDto,
   CollectionIconKey,
   ActiveItemLocation,
   LibraryDto
 } from '../../../../shared/library-contract'
-import type { GlobalCaptureShortcutStatus } from '../../../../shared/window-contract'
 import { cn } from '@/lib/utils'
 import { notifyCollectionRemoved } from '@/lib/notify'
 
@@ -522,10 +519,6 @@ function FolderTreeItem({
 
 export function LibrarySidebar({
   library,
-  theme,
-  onThemeChange,
-  view,
-  onViewChange,
   destination,
   onDestinationChange,
   onLibraryChange,
@@ -533,20 +526,9 @@ export function LibrarySidebar({
   onError,
   onStatus,
   librarySwitchBlocked,
-  globalCaptureShortcutStatus,
-  translucentBackgroundEnabled,
-  translucentBackgroundSupported,
-  translucentBackgroundReduced,
-  onTranslucentBackgroundChange,
-  vimEnabled,
-  onVimEnabledChange,
-  onOpenFullSettings
+  onOpenSettings
 }: {
   library: LibraryDto
-  theme: Theme
-  onThemeChange: (theme: Theme) => void
-  view: LibraryView
-  onViewChange: (view: LibraryView) => void
   destination: LibraryDestination
   onDestinationChange: (destination: LibraryDestination) => void
   onLibraryChange: (library: LibraryDto) => void
@@ -554,14 +536,7 @@ export function LibrarySidebar({
   onError: (message: string) => void
   onStatus: (message: string) => void
   librarySwitchBlocked: boolean
-  globalCaptureShortcutStatus: GlobalCaptureShortcutStatus | null
-  translucentBackgroundEnabled: boolean
-  translucentBackgroundSupported: boolean | null
-  translucentBackgroundReduced: boolean
-  onTranslucentBackgroundChange: (enabled: boolean) => void
-  vimEnabled: boolean
-  onVimEnabledChange: (enabled: boolean) => void
-  onOpenFullSettings: () => void
+  onOpenSettings: () => void
 }): React.JSX.Element {
   const { isMobile, setOpenMobile } = useSidebar()
   const [folderDialog, setFolderDialog] = useState<FolderDialogState>(null)
@@ -573,7 +548,6 @@ export function LibrarySidebar({
   const [folderToDelete, setFolderToDelete] = useState<{ id: string; name: string } | null>(null)
   const [iconPickerFolderId, setIconPickerFolderId] = useState<string | null>(null)
   const [folderToMoveId, setFolderToMoveId] = useState<string | null>(null)
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const [inboxDropActive, setInboxDropActive] = useState(false)
   const [activeFolderDropTarget, setActiveFolderDropTarget] = useState<FolderDropTarget>(null)
   const [storedCollapsedFolderIds, setStoredCollapsedFolderIds] = useState(() =>
@@ -1007,28 +981,10 @@ export function LibrarySidebar({
         <SidebarFooter className="[-webkit-app-region:no-drag]">
           <SidebarMenu>
             <SidebarMenuItem>
-              <QuickSettingsPopover
-                open={settingsOpen}
-                onOpenChange={setSettingsOpen}
-                trigger={
-                  <SidebarMenuButton aria-label="Open Settings">
-                    <IconSettings aria-hidden="true" />
-                    <span>Settings</span>
-                  </SidebarMenuButton>
-                }
-                theme={theme}
-                onThemeChange={onThemeChange}
-                view={view}
-                onViewChange={onViewChange}
-                globalCaptureShortcutStatus={globalCaptureShortcutStatus}
-                translucentBackgroundEnabled={translucentBackgroundEnabled}
-                translucentBackgroundSupported={translucentBackgroundSupported}
-                translucentBackgroundReduced={translucentBackgroundReduced}
-                onTranslucentBackgroundChange={onTranslucentBackgroundChange}
-                vimEnabled={vimEnabled}
-                onVimEnabledChange={onVimEnabledChange}
-                onOpenFullSettings={onOpenFullSettings}
-              />
+              <SidebarMenuButton aria-label="Open Settings" onClick={onOpenSettings}>
+                <IconSettings aria-hidden="true" />
+                <span>Settings</span>
+              </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
           <SidebarSeparator className="mx-1" />
