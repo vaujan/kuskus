@@ -3,11 +3,7 @@ const { readFileSync } = require('node:fs')
 const test = require('node:test')
 require('./helpers/install-ts-require.cjs')()
 
-const {
-  editNoteFrontmatter,
-  parseNoteFrontmatter,
-  valueForNotePropertyType
-} = require('../src/shared/note-frontmatter.ts')
+const { noteFrontmatterSource, parseNoteFrontmatter } = require('../src/shared/note-frontmatter.ts')
 const {
   NOTE_INLINE_TITLE_STORAGE_KEY,
   parseNoteInlineTitle
@@ -41,52 +37,18 @@ test('distinguishes missing, empty, valid, and malformed frontmatter', () => {
   assert.equal(parseNoteFrontmatter('---\ntitle: one\ntitle: two\n---\nBody').status, 'invalid')
 })
 
-test('edits existing properties while preserving comments, order, and body', () => {
-  const source = '---\n# keep this\ntitle: YAML title\ntags: [one, two]\n---\n# Body\n'
-  const edited = editNoteFrontmatter(source, {
-    type: 'set',
-    key: 'title',
-    value: 'Different from the file title'
+test('exposes the raw YAML body for the frontmatter code block', () => {
+  assert.equal(noteFrontmatterSource('# No properties'), null)
+  assert.equal(noteFrontmatterSource('---\ntags: [broken\n---\nBody'), null)
+
+  const source = noteFrontmatterSource('---\ntitle: YAML title\ntags: [one, two]\n---\nBody')
+  assert.deepEqual(source, {
+    yaml: 'title: YAML title\ntags: [one, two]\n',
+    endOffset: 43
   })
-  assert.equal(edited.ok, true)
-  assert.match(edited.value, /# keep this/)
-  assert.match(edited.value, /title: Different from the file title/)
-  assert.match(edited.value, /tags: \[ ?one, two ?\]/)
-  assert.match(edited.value, /---\n# Body\n$/)
 
-  const renamed = editNoteFrontmatter(edited.value, {
-    type: 'rename',
-    key: 'tags',
-    nextKey: 'topics'
-  })
-  assert.equal(renamed.ok, true)
-  assert.deepEqual(
-    parseNoteFrontmatter(renamed.value).properties.map(({ key }) => key),
-    ['title', 'topics']
-  )
-
-  const added = editNoteFrontmatter(renamed.value, { type: 'add' })
-  assert.equal(added.ok, true)
-  assert.equal(added.key, 'property')
-  const removed = editNoteFrontmatter(added.value, { type: 'delete', key: 'property' })
-  assert.equal(removed.ok, true)
-  assert.doesNotMatch(removed.value, /^property:/m)
-})
-
-test('rejects UI edits without valid existing frontmatter', () => {
-  assert.deepEqual(editNoteFrontmatter('Body', { type: 'add' }), {
-    ok: false,
-    value: 'Body',
-    error: 'This note has no frontmatter.'
-  })
-  assert.equal(editNoteFrontmatter('---\ntags: [broken\n---\nBody', { type: 'add' }).ok, false)
-})
-
-test('converts values for supported property types', () => {
-  assert.equal(valueForNotePropertyType('number', '4'), 4)
-  assert.equal(valueForNotePropertyType('boolean', ''), false)
-  assert.deepEqual(valueForNotePropertyType('list', 'one'), ['one'])
-  assert.equal(valueForNotePropertyType('empty', 'ignored'), null)
+  const empty = noteFrontmatterSource('---\n---\nBody')
+  assert.deepEqual(empty, { yaml: '', endOffset: 8 })
 })
 
 test('inline title is a default-on persistent note preference', () => {
@@ -108,6 +70,7 @@ test('note detail uses inline document blocks and detail-only view settings', ()
   assert.doesNotMatch(detail, /NoteIdentityControls|NoteMetadataControls/)
   assert.doesNotMatch(detail, /Wide reading width/)
   assert.match(detail, /<NoteDocumentBlocks/)
+  assert.match(detail, /<MarkdownFrontmatterBlock/)
   assert.match(detail, /<NoteLiveEditor/)
   assert.match(detail, /NOTE_INLINE_TITLE_STORAGE_KEY/)
   assert.match(menu, /Readable line length/)

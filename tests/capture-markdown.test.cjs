@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict')
-const { join } = require('node:path')
+const { join, resolve } = require('node:path')
 const test = require('node:test')
 require('./helpers/install-ts-require.cjs')()
 
@@ -89,7 +89,12 @@ test('parses and repairs balanced Markdown image destinations without losing dra
 })
 
 test('resolves same-folder attachment placement without coupling callers to its layout', () => {
-  const libraryPath = join('C:', 'Vault')
+  // Use an os-appropriate absolute root: `resolve` on posix treats a
+  // win32-style 'C:/Vault' as a relative path, so the placement module's
+  // own resolve() would anchor it to the cwd and the assertion below would
+  // fail on linux/mac. On win32 resolve('C:') is a drive-relative path too,
+  // so anchor to the root instead.
+  const libraryPath = resolve(process.cwd(), 'Vault')
   const notePath = join(libraryPath, 'Projects', 'Research note.md')
   const placement = resolveAttachmentPlacement({
     libraryPath,

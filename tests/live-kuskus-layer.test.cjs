@@ -23,6 +23,9 @@ const {
   buildKuskusLiveDecorations,
   buildKuskusImageBlocks
 } = require('../src/renderer/src/features/items/live/live-preview.ts')
+const {
+  markdownFrontmatter
+} = require('../src/renderer/src/features/items/markdown-frontmatter.ts')
 
 test('renders standard markdown images as block widgets below the source line', () => {
   const state = createState(['Cursor', '', '![photo](./assets/photo.png)'].join('\n'))
@@ -36,7 +39,8 @@ test('renders standard markdown images as block widgets below the source line', 
       height: 100
     })
   }).between(0, state.doc.length, (from, to, value) => {
-    if (value.spec.widget) decorations.push({ from, to, widget: value.spec.widget.constructor.name })
+    if (value.spec.widget)
+      decorations.push({ from, to, widget: value.spec.widget.constructor.name })
   })
   assert.equal(decorations[0]?.widget, 'MarkdownImageBlockWidget')
   // The block widget sits at the end of the image's line (side: 1) — it
@@ -45,10 +49,13 @@ test('renders standard markdown images as block widgets below the source line', 
 })
 
 test('skips table images that atomic renders in-cell', () => {
-  const state = createState(['Cursor', '', '| A | B |', '| --- | --- |', '| ![x](./x.png) | y |'].join('\n'))
+  const state = createState(
+    ['Cursor', '', '| A | B |', '| --- | --- |', '| ![x](./x.png) | y |'].join('\n')
+  )
   const decorations = []
   buildKuskusImageBlocks(state, {}).between(0, state.doc.length, (from, to, value) => {
-    if (value.spec.widget) decorations.push({ from, to, widget: value.spec.widget.constructor.name })
+    if (value.spec.widget)
+      decorations.push({ from, to, widget: value.spec.widget.constructor.name })
   })
   assert.deepEqual(decorations, [])
 })
@@ -85,7 +92,10 @@ test('renders wikilinks with a linked mark and hides brackets', () => {
       })
     }
   })
-  assert.equal(decorations.some((entry) => entry.className === 'cm-kuskus-wikilink'), true)
+  assert.equal(
+    decorations.some((entry) => entry.className === 'cm-kuskus-wikilink'),
+    true
+  )
   const aliasMark = decorations.find(
     (entry) => entry.className === 'cm-kuskus-wikilink' && entry.from > 30
   )
@@ -104,7 +114,8 @@ test('embeds resolved images as widgets through options', () => {
       height: 100
     })
   }).between(0, state.doc.length, (from, to, value) => {
-    if (value.spec.widget) decorations.push({ from, to, widget: value.spec.widget.constructor.name })
+    if (value.spec.widget)
+      decorations.push({ from, to, widget: value.spec.widget.constructor.name })
   })
   assert.equal(decorations[0]?.widget, 'WikilinkImageWidget')
   assert.equal(decorations[0]?.from, state.doc.toString().indexOf('![[image'))
@@ -161,10 +172,7 @@ test('marks blank lines so live rhythm matches the read typeset flow', () => {
   buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
     if (value.spec.class) decorations.push({ from, className: value.spec.class })
   })
-  assert.equal(
-    decorations.filter((entry) => entry.className === 'cm-kuskus-blank').length,
-    2
-  )
+  assert.equal(decorations.filter((entry) => entry.className === 'cm-kuskus-blank').length, 2)
 })
 
 test('does not duplicate replacement ranges owned by atomic preview', () => {
@@ -176,5 +184,40 @@ test('does not duplicate replacement ranges owned by atomic preview', () => {
   buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
     if (value.spec.replace) decorations.push({ from, to })
   })
+  assert.deepEqual(decorations, [])
+})
+
+test('renders an inactive frontmatter header widget and hides the delimiters', () => {
+  const doc = ['---', 'title: hi', 'tags:', '  - one', '---', 'Body'].join('\n')
+  // Cursor in the body (outside the frontmatter) → inactive card.
+  const state = EditorState.create({
+    doc,
+    extensions: [markdown({ extensions: [GFM, markdownFrontmatter] })],
+    selection: { anchor: doc.indexOf('Body') + 2 }
+  })
+  const decorations = []
+  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
+    if (value.spec.widget) decorations.push({ from, to, widget: value.spec.widget })
+  })
+  const header = decorations.find(
+    (entry) => entry.widget.constructor.name === 'FrontmatterHeaderWidget'
+  )
+  assert.equal(Boolean(header), true)
+  assert.equal(header.from, 0) // replaces the opening `---` line
+  assert.equal(header.to, state.doc.toString().indexOf('\n') + 1)
+})
+
+test('keeps the frontmatter raw when the cursor is inside the block', () => {
+  const doc = ['---', 'title: hi', 'tags:', '  - one', '---', 'Body'].join('\n')
+  const state = EditorState.create({
+    doc,
+    extensions: [markdown({ extensions: [GFM, markdownFrontmatter] })],
+    selection: { anchor: doc.indexOf('title: hi') + 2 }
+  })
+  const decorations = []
+  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
+    if (value.spec.widget || value.spec.replace) decorations.push({ from, to })
+  })
+  // Active → no header widget, no delimiter hides → no replaces at all.
   assert.deepEqual(decorations, [])
 })
