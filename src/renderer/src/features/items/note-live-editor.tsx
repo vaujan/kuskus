@@ -16,7 +16,6 @@ interface NoteLiveEditorProps extends NoteEditorProps {
   editable: boolean
   liveOptions: LiveEditorOptions
   topContent?: React.ReactNode
-  hiddenRange?: { from: number; to: number } | null
   preserveScrollTopRef?: React.RefObject<number | null> | null
   findTarget?: NoteFindTargetRef
   onScroll?: (scroller: HTMLElement) => void
@@ -39,7 +38,6 @@ export const NoteLiveEditor = forwardRef<SourceNoteHandle, NoteLiveEditorProps>(
       className,
       liveOptions,
       topContent,
-      hiddenRange,
       preserveScrollTopRef,
       findTarget,
       onScroll
@@ -70,7 +68,6 @@ export const NoteLiveEditor = forwardRef<SourceNoteHandle, NoteLiveEditorProps>(
         editable={editable}
         liveOptions={liveOptions}
         topContent={topContent}
-        hiddenRange={hiddenRange}
         preserveScrollTopRef={preserveScrollTopRef}
         findTarget={findTarget}
         className={cn('flex-1', className)}

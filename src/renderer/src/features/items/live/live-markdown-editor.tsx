@@ -69,7 +69,6 @@ export interface LiveMarkdownEditorProps {
   className?: string
   presentation?: 'card' | 'detail'
   topContent?: React.ReactNode
-  hiddenRange?: { from: number; to: number } | null
   preserveScrollTopRef?: React.RefObject<number | null> | null
   liveOptions?: LiveEditorOptions
   findTarget?: NoteFindTargetRef
@@ -197,7 +196,6 @@ export const LiveMarkdownEditor = forwardRef<SourceNoteHandle, LiveMarkdownEdito
       className,
       presentation = 'detail',
       topContent,
-      hiddenRange,
       preserveScrollTopRef,
       liveOptions,
       findTarget,
@@ -220,10 +218,7 @@ export const LiveMarkdownEditor = forwardRef<SourceNoteHandle, LiveMarkdownEdito
     const liveOptionsRef = useRef<LiveEditorOptions>(liveOptions ?? {})
     const liveCompartmentRef = useRef(new Compartment())
     const blocksCompartmentRef = useRef(new Compartment())
-    const blocksOptionsRef = useRef<{
-      content: React.ReactNode
-      hiddenRange: { from: number; to: number } | undefined
-    }>({ content: topContent, hiddenRange: hiddenRange ?? undefined })
+    const blocksOptionsRef = useRef<{ content: React.ReactNode }>({ content: topContent })
     const vimActiveRef = useRef(false)
     const initialVimEnabledRef = useRef(vimEnabled === true)
     const findTargetRef = useRef<NoteFindTargetRef | null>(findTarget ?? null)
@@ -241,7 +236,7 @@ export const LiveMarkdownEditor = forwardRef<SourceNoteHandle, LiveMarkdownEdito
       onScrollRef.current = onScroll
       liveOptionsRef.current = liveOptions ?? {}
       findTargetRef.current = findTarget ?? null
-      blocksOptionsRef.current = { content: topContent, hiddenRange: hiddenRange ?? undefined }
+      blocksOptionsRef.current = { content: topContent }
     })
 
     const activateMarkdownVim = useCallback((view: EditorView): void => {
@@ -464,7 +459,7 @@ export const LiveMarkdownEditor = forwardRef<SourceNoteHandle, LiveMarkdownEdito
           markdownEditorBlocks(() => blocksOptionsRef.current)
         )
       })
-    }, [topContent, hiddenRange])
+    }, [topContent])
 
     useEffect(() => {
       const view = viewRef.current

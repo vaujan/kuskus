@@ -403,3 +403,31 @@
   outline: 3px solid color-mix(in oklch, var(--ring) 50%, transparent);
   outline-offset: 1px;
 }
+
+/* Frontmatter (YAML) card — the leading `---` block reads as a rounded
+ * code card like read mode's .kuskus-code-block: a header (YAML label +
+ * property count + Copy) replaces the opener line, the closing `---` is
+ * hidden, and the body lines get the code background. When the cursor
+ * lands on any frontmatter line the decorations drop and the raw source
+ * (delimiters included) is editable, mirroring fenced-code reveal. */
+.cm-kuskus-live .cm-line.cm-kuskus-frontmatter-line {
+  background: var(--typeset-code-background);
+  color: var(--typeset-body-color);
+  font-family: var(--typeset-font-mono);
+  font-size: 0.875em;
+  line-height: 1.5;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  box-shadow: none;
+}
+.cm-kuskus-live .cm-line.cm-kuskus-frontmatter-last {
+  border-end-start-radius: var(--radius);
+  border-end-end-radius: var(--radius);
+  padding-bottom: 0.875rem;
+}
+/* Empty frontmatter (`---\n---`) has no body lines — the header alone
+ * is the whole card, so the header's line owns both rounded ends. */
+.cm-kuskus-live .cm-line.cm-kuskus-frontmatter-empty {
+  border-end-start-radius: var(--radius);
+  border-end-end-radius: var(--radius);
+}

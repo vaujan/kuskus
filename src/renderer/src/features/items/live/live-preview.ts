@@ -15,6 +15,7 @@ import { readOnlyFacet } from './atomic/read-only'
 import { treeGrowthEffect } from './atomic/tree-progress'
 import { autoCloseCodeFence } from './atomic/edit-helpers'
 import { codeLanguageLabel, copyMarkdownCode } from '../markdown-code'
+import { noteFrontmatterSource } from '../../../../../shared/note-frontmatter'
 
 export interface LivePreviewImage {
   src: string | null
@@ -143,6 +144,63 @@ class CodeBlockHeaderWidget extends WidgetType {
       event.preventDefault()
       event.stopPropagation()
       if (await copyMarkdownCode(this.code)) {
+        copy.textContent = 'Copied'
+        window.setTimeout(() => {
+          copy.textContent = 'Copy'
+        }, 1500)
+      }
+    })
+
+    header.append(label, copy)
+    return header
+  }
+
+  ignoreEvent(event: Event): boolean {
+    return event.type === 'mousedown' || event.type === 'click'
+  }
+}
+
+/** Header widget for an inactive frontmatter block: a "YAML" label with
+ *  the property count plus a Copy button, mirroring the fenced-code
+ *  header. The opener `---` line is replaced by this header; when the
+ *  cursor enters the frontmatter the raw source (delimiters included)
+ *  reveals for direct editing, exactly like an active fence. */
+class FrontmatterHeaderWidget extends WidgetType {
+  constructor(
+    private readonly yaml: string,
+    private readonly count: number
+  ) {
+    super()
+  }
+
+  eq(other: FrontmatterHeaderWidget): boolean {
+    return other.yaml === this.yaml && other.count === this.count
+  }
+
+  toDOM(): HTMLElement {
+    const header = document.createElement('div')
+    header.className = 'cm-kuskus-code-block-header cm-kuskus-frontmatter-header'
+
+    const label = document.createElement('span')
+    label.className = 'cm-kuskus-code-block-label'
+    label.textContent =
+      this.count === 0
+        ? 'YAML'
+        : `YAML · ${this.count} ${this.count === 1 ? 'property' : 'properties'}`
+
+    const copy = document.createElement('button')
+    copy.type = 'button'
+    copy.className = 'cm-kuskus-code-copy'
+    copy.textContent = 'Copy'
+    copy.setAttribute('aria-label', 'Copy YAML frontmatter')
+    copy.addEventListener('mousedown', (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+    })
+    copy.addEventListener('click', async (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      if (await copyMarkdownCode(this.yaml)) {
         copy.textContent = 'Copied'
         window.setTimeout(() => {
           copy.textContent = 'Copy'
@@ -304,6 +362,66 @@ class KuskusLiveDecorationBuilder {
   }
 
   private handleNode(node: MarkdownSyntaxNode): void {
+    // Frontmatter: the leading YAML block reads as a rounded code card
+    // (header + muted YAML body) when the cursor is NOT inside it — the
+    // same reveal pattern atomic uses for fenced code. Clicking any line
+    // of the frontmatter activates the whole block so the raw `---`
+    // delimiters and exact source are editable.
+    if (node.name === 'Frontmatter') {
+      const firstLine = this.state.doc.lineAt(node.from)
+      const lastLine = this.state.doc.lineAt(node.to)
+      let anyLineActive = false
+      for (let n = firstLine.number; n <= lastLine.number; n += 1) {
+        if (this.isLineActive(n)) {
+          anyLineActive = true
+          break
+        }
+      }
+      if (anyLineActive) {
+        for (let n = firstLine.number; n <= lastLine.number; n += 1) {
+          this.activeLines.add(n)
+        }
+        return
+      }
+
+      // Inactive: hide the `---` delimiters, give the body lines the
+      // code-card treatment, and replace the opener with the header.
+      const openerEnd = firstLine.to + 1
+      const closerStart = lastLine.from
+      const yaml = this.state.doc.sliceString(openerEnd, closerStart)
+      this.addReplace(closerStart, node.to, Decoration.replace({}))
+      const bodyStart = firstLine.number + 1
+      const bodyEnd = lastLine.number - 1
+      for (let n = bodyStart; n <= bodyEnd; n += 1) {
+        this.addLine(
+          this.state.doc.line(n).from,
+          Decoration.line({ class: 'cm-kuskus-frontmatter-line' })
+        )
+      }
+      if (bodyStart <= bodyEnd) {
+        this.addLine(
+          this.state.doc.line(bodyEnd).from,
+          Decoration.line({ class: 'cm-kuskus-frontmatter-last' })
+        )
+      }
+      if (bodyStart > bodyEnd) {
+        this.addLine(firstLine.from, Decoration.line({ class: 'cm-kuskus-frontmatter-empty' }))
+      }
+      const source = noteFrontmatterSource(this.state.doc.sliceString(0, node.to))
+      const count = source
+        ? source.yaml.split(/\r?\n/).filter((line) => /^\S.*:/.test(line)).length
+        : 0
+      this.addReplace(
+        firstLine.from,
+        openerEnd,
+        Decoration.replace({
+          widget: new FrontmatterHeaderWidget(yaml, count),
+          block: true
+        })
+      )
+      return
+    }
+
     // Atomic owns headings, lists, links, emphasis, inline code,
     // fenced code, tasks, horizontal rules, and tables. This layer
     // only extends it: first/last fenced-code lines get corner classes

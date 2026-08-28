@@ -1,11 +1,10 @@
-import { StateField, type EditorState, type Extension } from '@codemirror/state'
+import { StateField, type Extension } from '@codemirror/state'
 import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view'
 import type { ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 
 export interface MarkdownEditorBlocksOptions {
   content?: ReactNode
-  hiddenRange?: { from: number; to: number }
 }
 
 const reactBlockRoots = new WeakMap<HTMLElement, Root>()
@@ -45,16 +44,7 @@ class ReactBlockWidget extends WidgetType {
   }
 }
 
-function buildDecorations(state: EditorState, options: MarkdownEditorBlocksOptions): DecorationSet {
-  const hidden = options.hiddenRange
-  if (hidden && hidden.from >= 0 && hidden.to > hidden.from && hidden.to <= state.doc.length) {
-    return Decoration.set([
-      Decoration.replace({
-        block: true,
-        ...(options.content ? { widget: new ReactBlockWidget(options.content) } : {})
-      }).range(hidden.from, hidden.to)
-    ])
-  }
+function buildDecorations(options: MarkdownEditorBlocksOptions): DecorationSet {
   if (!options.content) return Decoration.none
   return Decoration.set([
     Decoration.widget({
@@ -67,7 +57,7 @@ function buildDecorations(state: EditorState, options: MarkdownEditorBlocksOptio
 
 export function markdownEditorBlocks(getOptions: () => MarkdownEditorBlocksOptions): Extension {
   const blocks = StateField.define<DecorationSet>({
-    create: (state) => buildDecorations(state, getOptions()),
+    create: () => buildDecorations(getOptions()),
     update: (decorations, transaction) =>
       transaction.docChanged ? decorations.map(transaction.changes) : decorations,
     provide: (field) => EditorView.decorations.from(field)
