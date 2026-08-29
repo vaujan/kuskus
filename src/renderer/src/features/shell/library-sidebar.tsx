@@ -305,6 +305,8 @@ function FolderTreeItem({
   onRename,
   onRemove
 }: FolderTreeItemProps): React.JSX.Element {
+  const { state } = useSidebar()
+  const showLabels = state === 'expanded'
   const { folder, children } = node
   const hasChildren = children.length > 0
   const expanded = hasChildren && !collapsedIds.has(folder.id)
@@ -412,7 +414,7 @@ function FolderTreeItem({
             />
           }
         >
-          {depth > 0 && (
+          {showLabels && depth > 0 && (
             <>
               <span
                 aria-hidden="true"
@@ -429,7 +431,7 @@ function FolderTreeItem({
               />
             </>
           )}
-          {hasChildren ? (
+          {hasChildren && showLabels ? (
             <button
               type="button"
               className="absolute inset-y-0 z-10 flex w-5 shrink-0 items-center justify-center text-inherit outline-hidden hover:text-sidebar-accent-foreground [&_svg]:size-4"
@@ -452,8 +454,9 @@ function FolderTreeItem({
           ) : null}
           <SidebarMenuButton
             className="mr-0 h-(--control-height-md) w-auto min-w-0 flex-1 bg-transparent px-0 pr-8 text-inherit before:hidden hover:bg-transparent hover:text-inherit focus-visible:ring-0 active:bg-transparent active:text-inherit data-active:bg-transparent data-active:text-inherit"
-            style={{ marginLeft: `${labelLeft}px` }}
+            style={showLabels ? { marginLeft: `${labelLeft}px` } : undefined}
             isActive={selectedId === folder.id}
+            tooltip={folder.name}
             onClick={() => onSelect(folder.id)}
           >
             <CollectionIcon icon={folder.icon} aria-hidden="true" />
@@ -483,7 +486,7 @@ function FolderTreeItem({
           <FolderContextActions folder={folder} {...actionHandlers} />
         </ContextMenuContent>
       </ContextMenu>
-      {expanded ? (
+      {expanded && showLabels ? (
         <SidebarMenuSub
           id={childListId}
           className="m-0 w-full translate-x-0 gap-0 border-l-0 px-0 py-0"
@@ -538,7 +541,6 @@ export function LibrarySidebar({
   librarySwitchBlocked: boolean
   onOpenSettings: () => void
 }): React.JSX.Element {
-  const { isMobile, setOpenMobile } = useSidebar()
   const [folderDialog, setFolderDialog] = useState<FolderDialogState>(null)
   const [folderName, setFolderName] = useState('')
   const [folderOperationBusy, setFolderOperationBusy] = useState(false)
@@ -568,10 +570,6 @@ export function LibrarySidebar({
   useEffect(() => {
     saveCollapsedFolderIds(library.id, collapsedFolderIds)
   }, [collapsedFolderIds, library.id])
-
-  useEffect(() => {
-    if (isMobile) setOpenMobile(false)
-  }, [destination, isMobile, setOpenMobile])
 
   useEffect(() => {
     const clearDropTargets = (): void => {
@@ -814,6 +812,7 @@ export function LibrarySidebar({
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={destination.type === 'inbox'}
+                    tooltip="Inbox"
                     className={cn(
                       'transition-[background-color,color,box-shadow,scale] [transition-duration:var(--motion-duration-tooltip)] [transition-timing-function:var(--motion-ease-out)] motion-reduce:scale-100 motion-reduce:transition-none',
                       inboxDropActive &&
@@ -852,6 +851,7 @@ export function LibrarySidebar({
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={destination.type === 'all'}
+                    tooltip="All Items"
                     onClick={() => onDestinationChange({ type: 'all' })}
                   >
                     <IconLibrary aria-hidden="true" />
@@ -864,6 +864,7 @@ export function LibrarySidebar({
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={destination.type === 'pinned'}
+                    tooltip="Pinned"
                     onClick={() => onDestinationChange({ type: 'pinned' })}
                   >
                     <IconPin aria-hidden="true" />
@@ -953,6 +954,7 @@ export function LibrarySidebar({
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={destination.type === 'archive'}
+                    tooltip="Archive"
                     onClick={() => onDestinationChange({ type: 'archive' })}
                   >
                     <IconArchive aria-hidden="true" />
@@ -965,6 +967,7 @@ export function LibrarySidebar({
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={destination.type === 'trash'}
+                    tooltip="Trash"
                     onClick={() => onDestinationChange({ type: 'trash' })}
                   >
                     <IconTrash aria-hidden="true" />
@@ -981,7 +984,11 @@ export function LibrarySidebar({
         <SidebarFooter className="[-webkit-app-region:no-drag]">
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton aria-label="Open Settings" onClick={onOpenSettings}>
+              <SidebarMenuButton
+                aria-label="Open Settings"
+                tooltip="Settings"
+                onClick={onOpenSettings}
+              >
                 <IconSettings aria-hidden="true" />
                 <span>Settings</span>
               </SidebarMenuButton>
@@ -996,6 +1003,7 @@ export function LibrarySidebar({
                     <SidebarMenuButton
                       aria-label={`Library actions for ${library.name}`}
                       title={library.path}
+                      tooltip={library.name}
                     />
                   }
                 >

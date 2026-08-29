@@ -163,7 +163,7 @@ export function FocusWorkspace({
           tabIndex={-1}
         >
           <div
-            className="pointer-events-none absolute inset-x-0 top-0 z-30 h-10 [-webkit-app-region:drag]"
+            className="pointer-events-none absolute top-0 right-0 left-10 z-30 h-10 [-webkit-app-region:drag]"
             aria-hidden="true"
           />
           {hasRendererCaptionControls ? (

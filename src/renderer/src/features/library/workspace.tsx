@@ -972,7 +972,7 @@ export function Workspace({
       setGlobalCaptureShortcutStatus(status)
       if (!status.registered && !shortcutFailureNotified.current) {
         shortcutFailureNotified.current = true
-        notifyGlobalCaptureUnavailable()
+        notifyGlobalCaptureUnavailable(status.accelerator)
       }
     })
     const unsubscribe = window.electron.window.onGlobalCaptureRequested(prepareGlobalCapture)

@@ -68,9 +68,9 @@ test('Focus keyboard navigation remains bounded and supports endpoints', () => {
   assert.equal(resolveFocusNavigationItemId(ids, 'c', 'ArrowDown'), 'c')
 })
 
-test('medium windows use an overlay sidebar with a persistent detail trigger', () => {
-  const mobileSource = readFileSync(
-    require.resolve('../src/renderer/src/hooks/use-mobile.ts'),
+test('medium windows use a narrow sidebar rail with a persistent detail trigger', () => {
+  const sidebarSource = readFileSync(
+    require.resolve('../src/renderer/src/features/shell/app-sidebar.tsx'),
     'utf8'
   )
   const focusWorkspaceSource = readFileSync(
@@ -78,9 +78,11 @@ test('medium windows use an overlay sidebar with a persistent detail trigger', (
     'utf8'
   )
 
-  assert.match(mobileSource, /MOBILE_BREAKPOINT = 1024/)
+  assert.match(sidebarSource, /isNarrow \? 'narrow' : 'expanded'/)
   assert.match(focusWorkspaceSource, /detailOpen && !split && !expanded/)
   assert.match(focusWorkspaceSource, /<ShellSidebarTrigger \/>/)
+  // The detail drag strip must not cover the sidebar trigger.
+  assert.match(focusWorkspaceSource, /left-10 z-30 h-10 \[-webkit-app-region:drag\]/)
 })
 
 test('visual notes use the same compact title caption as other item types', () => {

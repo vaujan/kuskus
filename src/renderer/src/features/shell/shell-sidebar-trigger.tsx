@@ -2,9 +2,8 @@ import { SidebarTrigger, useSidebar } from '@/features/shell/app-sidebar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 export function ShellSidebarTrigger(): React.JSX.Element {
-  const { isMobile, openMobile, state } = useSidebar()
-  const isOpen = isMobile ? openMobile : state === 'expanded'
-  const label = isOpen ? 'Hide sidebar' : 'Show sidebar'
+  const { state, flyoutOpen } = useSidebar()
+  const label = state === 'expanded' || flyoutOpen ? 'Hide sidebar' : 'Show sidebar'
 
   return (
     <div className="[-webkit-app-region:no-drag]">
