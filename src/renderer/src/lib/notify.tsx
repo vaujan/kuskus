@@ -267,11 +267,15 @@ export function notifyGlobalCapturePrepared(): void {
   })
 }
 
-export function notifyGlobalCaptureUnavailable(): void {
+export function notifyGlobalCaptureUnavailable(accelerator: string): void {
   showVerbToast({
     title: 'Global capture shortcut unavailable',
     icon: <IconKeyboardOff />,
-    description: 'Another application may already use Ctrl+Shift+Space.',
+    description:
+      window.electron.window.platform === 'linux' &&
+      window.navigator.userAgent.includes('Wayland')
+        ? `Kuskus could not register ${accelerator} with your Wayland compositor.`
+        : `Another application may already use ${accelerator}.`,
     destructive: true,
     duration: 6000,
     id: 'global-capture-unavailable'

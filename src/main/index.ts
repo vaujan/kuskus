@@ -15,13 +15,30 @@ import {
   type GlobalCaptureWindowTarget
 } from './window/global-capture-shortcut'
 import { installApplicationMenu } from './window/app-menu'
-import { WINDOW_CHANNELS } from '../shared/window-contract'
+import { WINDOW_CHANNELS, type GlobalCaptureShortcutStatus } from '../shared/window-contract'
 import { CAPTURE_CHANNELS } from '../shared/capture-contract'
 import { QuickCaptureWindowController } from './window/quick-capture-window'
 import { CaptureShortcutStore } from './window/capture-shortcut-store'
 import { NoteWindowController } from './window/note-window'
 import { startPerformanceReporter } from './performance-reporter'
 import { trackPerformanceIpcTimings } from './performance-log'
+import { HyprlandGlobalCaptureController } from './hyprland/hyprland-global-capture'
+
+type CaptureShortcutBackend = {
+  start: (accelerator?: string) => GlobalCaptureShortcutStatus | Promise<GlobalCaptureShortcutStatus>
+  getStatus: () => GlobalCaptureShortcutStatus
+  setAccelerator: (
+    accelerator: string
+  ) => GlobalCaptureShortcutStatus | Promise<GlobalCaptureShortcutStatus>
+  stop: () => void | Promise<void>
+}
+
+function isHyprlandSession(): boolean {
+  return (
+    process.env.XDG_CURRENT_DESKTOP?.toLowerCase().includes('hyprland') ?? false
+  )
+}
+
 
 const demoUserDataPath = process.env.KUSKUS_DEMO_USER_DATA
 const performanceUserDataPath = process.env.KUSKUS_PERFORMANCE_USER_DATA
@@ -33,7 +50,7 @@ if (performanceUserDataPath && process.env.KUSKUS_PERFORMANCE_OUTPUT) {
 }
 
 let mainWindow: BrowserWindow | null = null
-let globalCaptureShortcut: GlobalCaptureShortcutController | null = null
+let captureShortcutBackend: CaptureShortcutBackend | null = null
 let quickCaptureWindow: QuickCaptureWindowController | null = null
 let libraryService: LibraryService | null = null
 const globalCaptureWindowTargets = new WeakMap<BrowserWindow, GlobalCaptureWindowTarget>()
@@ -153,31 +170,34 @@ if (!hasSingleInstanceLock) {
         }
       }
     })
-    globalCaptureShortcut = new GlobalCaptureShortcutController(
-      globalShortcut,
-      globalCaptureWindowTarget,
-      (accelerator) => {
-        const store = new CaptureShortcutStore(
-          join(app.getPath('userData'), 'capture-shortcut.json')
-        )
-        void store.save(accelerator)
-      }
-    )
     const persistedAccelerator = await new CaptureShortcutStore(
       join(app.getPath('userData'), 'capture-shortcut.json')
     ).load()
+    const persistAccelerator = (accelerator: string): void => {
+      const store = new CaptureShortcutStore(
+        join(app.getPath('userData'), 'capture-shortcut.json')
+      )
+      void store.save(accelerator)
+    }
+    if (isHyprlandSession()) {
+      captureShortcutBackend = new HyprlandGlobalCaptureController(globalCaptureWindowTarget, {
+        socketDirectory: app.getPath('userData'),
+        accelerator: persistedAccelerator ?? undefined,
+        persistAccelerator
+      })
+    } else {
+      captureShortcutBackend = new GlobalCaptureShortcutController(
+        globalShortcut,
+        globalCaptureWindowTarget,
+        persistAccelerator
+      )
+    }
+
     const noteWindows = new NoteWindowController(libraryService)
+    const backend = captureShortcutBackend
     registerWindowIpc(
-      () =>
-        globalCaptureShortcut?.getStatus() ?? {
-          accelerator: 'Ctrl+Shift+Space',
-          registered: false
-        },
-      (accelerator) =>
-        globalCaptureShortcut?.setAccelerator(accelerator) ?? {
-          accelerator: 'Ctrl+Shift+Space',
-          registered: false
-        },
+      () => backend.getStatus(),
+      (accelerator) => backend.setAccelerator(accelerator),
       (itemId) => noteWindows.open(itemId),
       (sender, approved) => noteWindows.resolveClose(sender, approved)
     )
@@ -204,7 +224,7 @@ if (!hasSingleInstanceLock) {
 
     const window = ensureMainWindow()
     startPerformanceReporter(window, libraryService)
-    globalCaptureShortcut.start(persistedAccelerator ?? undefined)
+    await captureShortcutBackend.start()
 
     app.on('activate', () => {
       revealWindow(ensureMainWindow())
@@ -212,7 +232,9 @@ if (!hasSingleInstanceLock) {
   })
 }
 
-app.on('will-quit', () => globalCaptureShortcut?.stop())
+app.on('will-quit', () => {
+  void captureShortcutBackend?.stop()
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()

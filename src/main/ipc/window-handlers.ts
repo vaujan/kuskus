@@ -22,8 +22,12 @@ function windowFromEvent(event: IpcMainEvent | IpcMainInvokeEvent): BrowserWindo
 }
 
 export function registerWindowIpc(
-  getGlobalCaptureShortcutStatus: () => GlobalCaptureShortcutStatus,
-  setGlobalCaptureShortcut: (accelerator: string) => GlobalCaptureShortcutStatus,
+  getGlobalCaptureShortcutStatus: () =>
+    | GlobalCaptureShortcutStatus
+    | Promise<GlobalCaptureShortcutStatus>,
+  setGlobalCaptureShortcut: (
+    accelerator: string
+  ) => GlobalCaptureShortcutStatus | Promise<GlobalCaptureShortcutStatus>,
   openNoteWindow: (itemId: string) => Promise<void>,
   resolveNoteWindowClose: (sender: WebContents, approved: boolean) => void
 ): void {
