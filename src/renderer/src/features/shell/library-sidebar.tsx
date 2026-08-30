@@ -541,6 +541,7 @@ export function LibrarySidebar({
   librarySwitchBlocked: boolean
   onOpenSettings: () => void
 }): React.JSX.Element {
+  const { flyoutOpen, toggleSidebar } = useSidebar()
   const [folderDialog, setFolderDialog] = useState<FolderDialogState>(null)
   const [folderName, setFolderName] = useState('')
   const [folderOperationBusy, setFolderOperationBusy] = useState(false)
@@ -603,13 +604,18 @@ export function LibrarySidebar({
     })
   }
 
+  const selectDestination = (nextDestination: LibraryDestination): void => {
+    onDestinationChange(nextDestination)
+    if (flyoutOpen) toggleSidebar()
+  }
+
   const selectFolder = (folderId: string): void => {
     const ancestorIds = new Set(getFolderAncestorIds(library.collections, folderId))
     setStoredCollapsedFolderIds((current) => {
       const collapsedIds = sanitizeCollapsedFolderIds(library.collections, current)
       return new Set([...collapsedIds].filter((id) => !ancestorIds.has(id)))
     })
-    onDestinationChange({ type: 'collection', collectionId: folderId })
+    selectDestination({ type: 'collection', collectionId: folderId })
   }
 
   const toggleFolder = (folderId: string): void => {
@@ -619,7 +625,7 @@ export function LibrarySidebar({
       selectedFolderId !== null &&
       getFolderAncestorIds(library.collections, selectedFolderId).includes(folderId)
     ) {
-      onDestinationChange({ type: 'collection', collectionId: folderId })
+      selectDestination({ type: 'collection', collectionId: folderId })
     }
     setFolderCollapsed(folderId, willCollapse)
   }
@@ -703,7 +709,7 @@ export function LibrarySidebar({
       if (!result.ok) return onError(result.error)
       onLibraryChange(result.data)
       if (destination.type === 'collection' && destination.collectionId === id) {
-        onDestinationChange({ type: 'inbox' })
+        selectDestination({ type: 'inbox' })
       }
       setFolderToDelete(null)
       notifyCollectionRemoved(name)
@@ -818,7 +824,7 @@ export function LibrarySidebar({
                       inboxDropActive &&
                         'scale-[1.01] bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--sidebar-ring)_45%,transparent),0_8px_18px_-14px_rgba(0,0,0,0.35)] ring-2 ring-sidebar-ring'
                     )}
-                    onClick={() => onDestinationChange({ type: 'inbox' })}
+                    onClick={() => selectDestination({ type: 'inbox' })}
                     onDragEnter={(event) => {
                       if (!hasKuskusItemDrag(event.dataTransfer)) return
                       event.preventDefault()
@@ -852,7 +858,7 @@ export function LibrarySidebar({
                   <SidebarMenuButton
                     isActive={destination.type === 'all'}
                     tooltip="All Items"
-                    onClick={() => onDestinationChange({ type: 'all' })}
+                    onClick={() => selectDestination({ type: 'all' })}
                   >
                     <IconLibrary aria-hidden="true" />
                     <span>All Items</span>
@@ -865,7 +871,7 @@ export function LibrarySidebar({
                   <SidebarMenuButton
                     isActive={destination.type === 'pinned'}
                     tooltip="Pinned"
-                    onClick={() => onDestinationChange({ type: 'pinned' })}
+                    onClick={() => selectDestination({ type: 'pinned' })}
                   >
                     <IconPin aria-hidden="true" />
                     <span>Pinned</span>
@@ -955,7 +961,7 @@ export function LibrarySidebar({
                   <SidebarMenuButton
                     isActive={destination.type === 'archive'}
                     tooltip="Archive"
-                    onClick={() => onDestinationChange({ type: 'archive' })}
+                    onClick={() => selectDestination({ type: 'archive' })}
                   >
                     <IconArchive aria-hidden="true" />
                     <span>Archive</span>
@@ -968,7 +974,7 @@ export function LibrarySidebar({
                   <SidebarMenuButton
                     isActive={destination.type === 'trash'}
                     tooltip="Trash"
-                    onClick={() => onDestinationChange({ type: 'trash' })}
+                    onClick={() => selectDestination({ type: 'trash' })}
                   >
                     <IconTrash aria-hidden="true" />
                     <span>Trash</span>
@@ -987,7 +993,10 @@ export function LibrarySidebar({
               <SidebarMenuButton
                 aria-label="Open Settings"
                 tooltip="Settings"
-                onClick={onOpenSettings}
+                onClick={() => {
+                  onOpenSettings()
+                  if (flyoutOpen) toggleSidebar()
+                }}
               >
                 <IconSettings aria-hidden="true" />
                 <span>Settings</span>

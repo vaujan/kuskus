@@ -12,7 +12,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { IconLayoutSidebar } from '@tabler/icons-react'
 
 const SIDEBAR_WIDTH = '16rem'
-const SIDEBAR_WIDTH_ICON = '3rem'
+const SIDEBAR_WIDTH_ICON = '3.5rem'
 const SIDEBAR_MIN_WIDTH = 208
 const SIDEBAR_MAX_WIDTH = 384
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b'
@@ -150,9 +150,10 @@ function SidebarProvider({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [keyboardShortcutEnabled, toggleSidebar])
 
-  // We add a state so that we can do data-state="expanded", "collapsed" or
-  // "narrow". This makes it easier to style the sidebar with Tailwind classes.
-  const state: SidebarState = open ? (isNarrow ? 'narrow' : 'expanded') : 'collapsed'
+  // Keep the compact rail as the resting narrow state, but expose the flyout
+  // as expanded so labels, folders, badges, and footer actions become usable.
+  const restingState: SidebarState = open ? (isNarrow ? 'narrow' : 'expanded') : 'collapsed'
+  const state: SidebarState = flyoutOpen ? 'expanded' : restingState
 
   // Escape or a click outside the flyout closes it.
   React.useEffect(() => {
@@ -241,7 +242,7 @@ function Sidebar({
   side?: 'left' | 'right'
   variant?: 'sidebar' | 'floating' | 'inset'
 }) {
-  const { state, isNarrow, isOverlay, flyoutOpen } = useSidebar()
+  const { state, isNarrow, isOverlay, flyoutOpen, toggleSidebar } = useSidebar()
 
   // The sidebar floats over the content as a flyout in narrow and overlay
   // modes, or when a collapsed wide-window sidebar is click-revealed.
@@ -268,6 +269,15 @@ function Sidebar({
           isOverlay && 'w-0'
         )}
       />
+      {flyout ? (
+        <button
+          type="button"
+          data-slot="sidebar-backdrop"
+          className="fixed inset-0 z-[60] cursor-default bg-foreground/10 backdrop-blur-[1px] [-webkit-app-region:no-drag] motion-reduce:backdrop-blur-none"
+          aria-label="Close sidebar"
+          onClick={toggleSidebar}
+        />
+      ) : null}
       <div
         data-slot="sidebar-container"
         data-side={side}
@@ -284,7 +294,8 @@ function Sidebar({
           isOverlay &&
             !flyout &&
             'data-[side=left]:left-[calc(var(--sidebar-width)*-1)] data-[side=right]:right-[calc(var(--sidebar-width)*-1)]',
-          flyout && 'z-30 w-(--sidebar-width) shadow-2xl',
+          flyout &&
+            'z-[70] w-(--sidebar-width) shadow-[0_24px_64px_-20px_rgb(0_0_0/0.45),0_0_0_1px_color-mix(in_oklch,var(--sidebar-border)_80%,transparent)]',
           'group-data-[side=left]:border-r group-data-[side=right]:border-l',
           className
         )}
@@ -569,7 +580,7 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<'li'>) {
 }
 
 const sidebarMenuButtonVariants = cva(
-  'peer/menu-button group/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm ring-sidebar-ring outline-hidden transition-[width,height,padding,background-color,color,box-shadow] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[state=narrow]:size-8! group-data-[state=narrow]:p-2! hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-open:hover:text-sidebar-accent-foreground data-active:bg-sidebar-accent data-active:font-medium data-active:text-sidebar-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate',
+  'peer/menu-button group/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm ring-sidebar-ring outline-hidden transition-[width,height,padding,background-color,color,box-shadow] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[state=narrow]:size-10! group-data-[state=narrow]:p-3! hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-open:hover:text-sidebar-accent-foreground data-active:bg-sidebar-accent data-active:font-medium data-active:text-sidebar-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate',
   {
     variants: {
       variant: {
