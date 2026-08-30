@@ -11,6 +11,15 @@ import {
 } from '@tabler/icons-react'
 
 import { Badge } from '@/components/ui/badge'
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet
+} from '@/components/ui/field'
 import { Kbd } from '@/components/ui/kbd'
 import {
   Dialog,
@@ -22,10 +31,12 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { ITEM_SORT_OPTIONS, type ItemSort } from '@/features/items/item-sort'
@@ -46,55 +57,9 @@ const VIEW_OPTIONS: Array<{ value: LibraryView; label: string; icon: typeof Icon
   { value: 'grid', label: 'Grid', icon: IconLayoutGrid }
 ]
 
-const surfaceClass =
-  'rounded-2xl bg-muted/45 p-1.5 shadow-[inset_0_0_0_1px_rgb(0_0_0/0.035)] dark:shadow-[inset_0_0_0_1px_rgb(255_255_255/0.05)]'
-const rowClass = 'flex min-h-12 items-center gap-3 rounded-lg px-3'
-
-function Section({
-  title,
-  children
-}: {
-  title: string
-  children: React.ReactNode
-}): React.JSX.Element {
-  return (
-    <section className="space-y-2" aria-label={title}>
-      <h3 className="px-1 text-xs font-medium tracking-wide text-muted-foreground">{title}</h3>
-      <div className={surfaceClass}>{children}</div>
-    </section>
-  )
-}
-
-function LabeledRow({
-  icon,
-  label,
-  description,
-  children
-}: {
-  icon?: React.ReactNode
-  label: string
-  description?: string
-  children: React.ReactNode
-}): React.JSX.Element {
-  return (
-    <div className={rowClass}>
-      {icon ? (
-        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-background/70 text-foreground shadow-sm">
-          {icon}
-        </span>
-      ) : null}
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium">{label}</p>
-        {description ? (
-          <p className="mt-0.5 text-xs leading-5 text-pretty text-muted-foreground">
-            {description}
-          </p>
-        ) : null}
-      </div>
-      <div className="shrink-0">{children}</div>
-    </div>
-  )
-}
+const iconTileClass =
+  'grid size-9 shrink-0 place-items-center rounded-[calc(var(--radius)-2px)] bg-background/60 text-foreground shadow-[inset_0_0_0_1px_rgb(0_0_0/0.04)] dark:shadow-[inset_0_0_0_1px_rgb(255_255_255/0.06)]'
+const controlClass = 'shrink-0'
 
 function CaptureShortcutControl({
   status,
@@ -157,30 +122,34 @@ function CaptureShortcutControl({
   const registered = status?.registered ?? false
 
   return (
-    <div className={`${rowClass} min-h-11 border-t border-foreground/5`}>
-      <span className="flex-1 text-sm text-muted-foreground">Shortcut</span>
-      {recording ? (
-        <span className="rounded-md bg-background/70 px-2 py-1 text-sm text-foreground shadow-sm">
-          Press keys…
-        </span>
-      ) : (
-        <button
-          type="button"
-          className="inline-flex h-7 items-center gap-1 rounded-md bg-background/70 px-2 text-sm text-foreground shadow-sm transition-colors hover:bg-background"
-          onClick={() => {
-            setError(null)
-            setRecording(true)
-          }}
-          disabled={pending}
-          aria-label="Change global capture shortcut"
-        >
-          <Kbd>{accelerator}</Kbd>
-          <IconChevronDown className="size-3 text-muted-foreground" />
-        </button>
-      )}
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
-      {!registered ? <Badge variant="destructive">Unavailable</Badge> : null}
-    </div>
+    <Field orientation="horizontal">
+      <FieldLabel>Shortcut</FieldLabel>
+      <FieldContent className="items-end gap-1.5">
+        {error ? <p className="text-xs text-destructive">{error}</p> : null}
+        <div className="flex items-center gap-2">
+          {!registered ? <Badge variant="destructive">Unavailable</Badge> : null}
+          {recording ? (
+            <span className="inline-flex h-7 items-center rounded-md bg-background/70 px-2 text-sm text-foreground shadow-sm">
+              Press keys…
+            </span>
+          ) : (
+            <button
+              type="button"
+              className="inline-flex h-7 items-center gap-1 rounded-md bg-background/70 px-2 text-sm text-foreground shadow-sm transition-[background-color,scale] hover:bg-background active:scale-[0.96] disabled:pointer-events-none disabled:opacity-50"
+              onClick={() => {
+                setError(null)
+                setRecording(true)
+              }}
+              disabled={pending}
+              aria-label="Change global capture shortcut"
+            >
+              <Kbd>{accelerator}</Kbd>
+              <IconChevronDown className="size-3 text-muted-foreground" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      </FieldContent>
+    </Field>
   )
 }
 
@@ -216,10 +185,17 @@ export function SettingsDialog({
           <DialogTitle>Settings</DialogTitle>
           <DialogDescription>Configure how Kuskus looks, edits, and captures.</DialogDescription>
         </DialogHeader>
-        <div className="min-h-0 flex-1 gap-6 overflow-y-auto px-6 pt-4 pb-6">
-          <div className="flex flex-col gap-6">
-            <Section title="Appearance">
-              <LabeledRow icon={<IconPalette className="size-4" />} label="Color mode">
+        <div className="scroll-fade-y min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-6">
+          <FieldGroup className="gap-6">
+            <FieldSet>
+              <FieldLegend variant="label" className="text-muted-foreground">
+                Appearance
+              </FieldLegend>
+              <Field orientation="horizontal">
+                <span className={iconTileClass} aria-hidden="true">
+                  <IconPalette className="size-4" />
+                </span>
+                <FieldLabel>Color mode</FieldLabel>
                 <ToggleGroup
                   value={[theme]}
                   onValueChange={(values) => {
@@ -245,32 +221,39 @@ export function SettingsDialog({
                     <IconMoon />
                   </ToggleGroupItem>
                 </ToggleGroup>
-              </LabeledRow>
+              </Field>
               {window.electron.window.platform === 'win32' ? (
-                <LabeledRow
-                  icon={<IconPalette className="size-4" />}
-                  label="Translucent background"
-                  description={
-                    translucentBackground.supported === false
-                      ? 'Requires Windows 11 22H2 or newer.'
-                      : translucentBackground.reducedTransparency
-                        ? 'Enable Windows Transparency effects to use this.'
-                        : 'Let the desktop material show through the app shell.'
-                  }
-                >
+                <Field orientation="horizontal">
+                  <span className={iconTileClass} aria-hidden="true">
+                    <IconPalette className="size-4" />
+                  </span>
+                  <FieldContent>
+                    <FieldLabel htmlFor="settings-translucent">Translucent background</FieldLabel>
+                    <FieldDescription>
+                      {translucentBackground.supported === false
+                        ? 'Requires Windows 11 22H2 or newer.'
+                        : translucentBackground.reducedTransparency
+                          ? 'Enable Windows Transparency effects to use this.'
+                          : 'Let the desktop material show through the app shell.'}
+                    </FieldDescription>
+                  </FieldContent>
                   <Switch
-                    aria-label="Translucent background"
+                    id="settings-translucent"
                     checked={translucentBackground.enabled}
                     disabled={translucencyDisabled}
                     onCheckedChange={translucentBackground.setEnabled}
+                    className={controlClass}
                   />
-                </LabeledRow>
+                </Field>
               ) : null}
-              <LabeledRow
-                icon={<IconKeyboard className="size-4" />}
-                label="Zoom"
-                description="Interface scale for the whole app."
-              >
+              <Field orientation="horizontal">
+                <span className={iconTileClass} aria-hidden="true">
+                  <IconKeyboard className="size-4" />
+                </span>
+                <FieldContent>
+                  <FieldLabel>Zoom</FieldLabel>
+                  <FieldDescription>Interface scale for the whole app.</FieldDescription>
+                </FieldContent>
                 <Select
                   value={String(zoom.factor)}
                   onValueChange={(factor) => {
@@ -278,22 +261,28 @@ export function SettingsDialog({
                     if (Number.isFinite(parsed)) zoom.setFactor(parsed)
                   }}
                 >
-                  <SelectTrigger size="sm" aria-label="Zoom">
+                  <SelectTrigger size="sm" aria-label="Zoom" className="w-24 justify-between">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {APP_ZOOM_FACTORS.map((factor) => (
-                      <SelectItem key={factor} value={String(factor)}>
-                        {factor === 1 ? '100%' : `${Math.round(factor * 100)}%`}
-                      </SelectItem>
-                    ))}
+                    <SelectGroup>
+                      {APP_ZOOM_FACTORS.map((factor) => (
+                        <SelectItem key={factor} value={String(factor)}>
+                          {factor === 1 ? '100%' : `${Math.round(factor * 100)}%`}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
-              </LabeledRow>
-            </Section>
+              </Field>
+            </FieldSet>
 
-            <Section title="Library">
-              <LabeledRow label="Default view">
+            <FieldSet>
+              <FieldLegend variant="label" className="text-muted-foreground">
+                Library
+              </FieldLegend>
+              <Field orientation="horizontal">
+                <FieldLabel>Default view</FieldLabel>
                 <ToggleGroup
                   value={[view]}
                   onValueChange={(values) => {
@@ -318,88 +307,123 @@ export function SettingsDialog({
                     )
                   })}
                 </ToggleGroup>
-              </LabeledRow>
-              <LabeledRow label="Sort items by">
+              </Field>
+              <Field orientation="horizontal">
+                <FieldLabel>Sort items by</FieldLabel>
                 <Select value={sort} onValueChange={(value) => setSort(value as ItemSort)}>
-                  <SelectTrigger size="sm" aria-label="Sort items by">
+                  <SelectTrigger
+                    size="sm"
+                    aria-label="Sort items by"
+                    className="w-32 justify-between"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {ITEM_SORT_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
+                    <SelectGroup>
+                      {ITEM_SORT_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
-              </LabeledRow>
-              <LabeledRow label="Focus rail density">
+              </Field>
+              <Field orientation="horizontal">
+                <FieldLabel>Focus rail density</FieldLabel>
                 <Select
                   value={railDensity}
                   onValueChange={(value) => setRailDensity(value as FocusRailDensity)}
                 >
-                  <SelectTrigger size="sm" aria-label="Focus rail density">
+                  <SelectTrigger
+                    size="sm"
+                    aria-label="Focus rail density"
+                    className="w-32 justify-between"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="visual">Visual</SelectItem>
-                    <SelectItem value="index">Compact index</SelectItem>
+                    <SelectGroup>
+                      <SelectItem value="visual">Visual</SelectItem>
+                      <SelectItem value="index">Compact index</SelectItem>
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
-              </LabeledRow>
-            </Section>
+              </Field>
+            </FieldSet>
 
-            <Section title="Editor">
-              <LabeledRow
-                icon={<IconKeyboard className="size-4" />}
-                label="Vim mode"
-                description="Use Vim keybindings when editing notes."
-              >
+            <FieldSet>
+              <FieldLegend variant="label" className="text-muted-foreground">
+                Editor
+              </FieldLegend>
+              <Field orientation="horizontal">
+                <span className={iconTileClass} aria-hidden="true">
+                  <IconKeyboard className="size-4" />
+                </span>
+                <FieldContent>
+                  <FieldLabel htmlFor="settings-vim-mode">Vim mode</FieldLabel>
+                  <FieldDescription>Use Vim keybindings when editing notes.</FieldDescription>
+                </FieldContent>
                 <Switch
-                  aria-label="Vim mode"
+                  id="settings-vim-mode"
                   checked={vimEnabled}
                   onCheckedChange={setVimEnabled}
+                  className={controlClass}
                 />
-              </LabeledRow>
-              <LabeledRow label="Note reading width">
+              </Field>
+              <Field orientation="horizontal">
+                <FieldLabel>Note reading width</FieldLabel>
                 <Select
                   value={readingWidth}
                   onValueChange={(value) => setReadingWidth(value as NoteReadingWidth)}
                 >
-                  <SelectTrigger size="sm" aria-label="Note reading width">
+                  <SelectTrigger
+                    size="sm"
+                    aria-label="Note reading width"
+                    className="w-32 justify-between"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="comfortable">Comfortable</SelectItem>
-                    <SelectItem value="wide">Wide</SelectItem>
+                    <SelectGroup>
+                      <SelectItem value="comfortable">Comfortable</SelectItem>
+                      <SelectItem value="wide">Wide</SelectItem>
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
-              </LabeledRow>
-              <LabeledRow
-                label="Inline title"
-                description="Show the note title inline while editing."
-              >
+              </Field>
+              <Field orientation="horizontal">
+                <FieldContent>
+                  <FieldLabel htmlFor="settings-inline-title">Inline title</FieldLabel>
+                  <FieldDescription>Show the note title inline while editing.</FieldDescription>
+                </FieldContent>
                 <Switch
-                  aria-label="Inline title"
+                  id="settings-inline-title"
                   checked={inlineTitle}
                   onCheckedChange={setInlineTitle}
+                  className={controlClass}
                 />
-              </LabeledRow>
-            </Section>
+              </Field>
+            </FieldSet>
 
-            <Section title="Capture">
-              <LabeledRow
-                icon={<IconBolt className="size-4" />}
-                label="Global capture"
-                description="Capture from any app while Kuskus is running."
-              >
+            <FieldSet>
+              <FieldLegend variant="label" className="text-muted-foreground">
+                Capture
+              </FieldLegend>
+              <Field orientation="horizontal">
+                <span className={iconTileClass} aria-hidden="true">
+                  <IconBolt className="size-4" />
+                </span>
+                <FieldContent>
+                  <FieldLabel>Global capture</FieldLabel>
+                  <FieldDescription>Capture from any app while Kuskus is running.</FieldDescription>
+                </FieldContent>
                 <Badge
                   aria-live="polite"
                   variant={
-                    globalCaptureShortcutStatus?.registered === false
-                      ? 'destructive'
-                      : 'secondary'
+                    globalCaptureShortcutStatus?.registered === false ? 'destructive' : 'secondary'
                   }
+                  className={controlClass}
                 >
                   {globalCaptureShortcutStatus === null
                     ? 'Checking…'
@@ -407,13 +431,14 @@ export function SettingsDialog({
                       ? 'Ready'
                       : 'Unavailable'}
                 </Badge>
-              </LabeledRow>
+              </Field>
+              <Separator />
               <CaptureShortcutControl
                 status={globalCaptureShortcutStatus}
                 onStatusChange={onGlobalCaptureShortcutStatusChange}
               />
-            </Section>
-          </div>
+            </FieldSet>
+          </FieldGroup>
         </div>
       </DialogContent>
     </Dialog>
