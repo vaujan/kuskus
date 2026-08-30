@@ -1335,6 +1335,11 @@ export function Workspace({
           setFocusItemEditOnOpenId(null)
           setFocusItemId(null)
         }}
+        onBackToList={() => {
+          setFocusNoteExpanded(false)
+          setFocusItemEditOnOpenId(null)
+          setFocusDetailOpen(false)
+        }}
         onItemUpdated={updateItem}
         onRenameItem={renameItemTitle}
         libraryItems={library.items}

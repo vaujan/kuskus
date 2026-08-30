@@ -440,6 +440,7 @@ function DetailToolbar({
   hasNext,
   onPrevious,
   onNext,
+  onBack,
   onError,
   presentation,
   expanded = false,
@@ -454,6 +455,7 @@ function DetailToolbar({
   hasNext: boolean
   onPrevious: () => void
   onNext: () => void
+  onBack?: () => void
   onError: (message: string) => void
   presentation: 'dialog' | 'focus'
   expanded?: boolean
@@ -478,48 +480,63 @@ function DetailToolbar({
           data-detail-focus-leading-actions
           className={cn(
             'pointer-events-auto flex items-center [&_button]:[-webkit-app-region:no-drag]',
-            !expanded && 'group-data-[focus-single-pane=true]/focus-detail:hidden'
+            !expanded && 'group-data-[focus-single-pane=true]/focus-detail:pl-10'
           )}
         >
+          {!expanded && onBack ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="hidden h-10 px-2.5 text-muted-foreground group-data-[focus-single-pane=true]/focus-detail:inline-flex"
+              aria-label="Back to items"
+              onClick={onBack}
+            >
+              <ChevronLeft data-icon="inline-start" aria-hidden="true" />
+              Items
+            </Button>
+          ) : null}
           {onExpandedChange ? (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    className="size-10 text-muted-foreground"
-                    aria-label={expandLabel}
-                    aria-keyshortcuts="Control+Shift+\\"
-                    aria-pressed={expanded}
-                    onClick={() => onExpandedChange(!expanded)}
-                  />
-                }
-              >
-                <span className="relative size-4" aria-hidden="true">
-                  <ArrowsDiagonal
-                    stroke={1.5}
-                    className={cn(
-                      'absolute inset-0 size-4 transition-[opacity,scale,filter] duration-300 [transition-timing-function:cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none',
-                      expanded
-                        ? 'scale-[0.25] opacity-0 blur-[4px]'
-                        : 'scale-100 opacity-100 blur-0'
-                    )}
-                  />
-                  <ArrowsDiagonalMinimize
-                    stroke={1.5}
-                    className={cn(
-                      'absolute inset-0 size-4 transition-[opacity,scale,filter] duration-300 [transition-timing-function:cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none',
-                      expanded
-                        ? 'scale-100 opacity-100 blur-0'
-                        : 'scale-[0.25] opacity-0 blur-[4px]'
-                    )}
-                  />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>{expandLabel}</TooltipContent>
-            </Tooltip>
+            <div className="group-data-[focus-single-pane=true]/focus-detail:hidden">
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="size-10 text-muted-foreground"
+                      aria-label={expandLabel}
+                      aria-keyshortcuts="Control+Shift+\\"
+                      aria-pressed={expanded}
+                      onClick={() => onExpandedChange(!expanded)}
+                    />
+                  }
+                >
+                  <span className="relative size-4" aria-hidden="true">
+                    <ArrowsDiagonal
+                      stroke={1.5}
+                      className={cn(
+                        'absolute inset-0 size-4 transition-[opacity,scale,filter] duration-300 [transition-timing-function:cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none',
+                        expanded
+                          ? 'scale-[0.25] opacity-0 blur-[4px]'
+                          : 'scale-100 opacity-100 blur-0'
+                      )}
+                    />
+                    <ArrowsDiagonalMinimize
+                      stroke={1.5}
+                      className={cn(
+                        'absolute inset-0 size-4 transition-[opacity,scale,filter] duration-300 [transition-timing-function:cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none',
+                        expanded
+                          ? 'scale-100 opacity-100 blur-0'
+                          : 'scale-[0.25] opacity-0 blur-[4px]'
+                      )}
+                    />
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>{expandLabel}</TooltipContent>
+              </Tooltip>
+            </div>
           ) : null}
         </div>
         <p
@@ -1855,6 +1872,7 @@ interface ItemDetailProps {
   onPrevious: () => void
   onNext: () => void
   onOpenChange: (open: boolean) => void
+  onBackToList?: () => void
   onItemUpdated: (item: LibraryItemDto) => void
   onRenameItem: (item: LibraryItemDto, title: string) => Promise<DetailTitleRenameResult>
   libraryItems: readonly LibraryItemDto[]
@@ -1886,6 +1904,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       onPrevious,
       onNext,
       onOpenChange,
+      onBackToList,
       onItemUpdated,
       onRenameItem,
       libraryItems,
@@ -2281,6 +2300,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
           hasNext={hasNext}
           onPrevious={() => requestGuardedAction(onPrevious)}
           onNext={() => requestGuardedAction(onNext)}
+          onBack={onBackToList ? () => requestGuardedAction(onBackToList) : undefined}
           onError={onError}
           presentation={presentation}
           showClose={presentation === 'dialog'}
@@ -2301,7 +2321,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
                     type="button"
                     size="icon"
                     variant="ghost"
-                    className="absolute top-2 right-2 z-40 size-10 text-muted-foreground opacity-30 transition-opacity hover:opacity-100 focus-visible:opacity-100 motion-reduce:transition-none"
+                    className="absolute top-2 right-2 z-40 size-10 text-muted-foreground opacity-30 transition-opacity hover:opacity-100 focus-visible:opacity-100 group-data-[focus-single-pane=true]/focus-detail:hidden motion-reduce:transition-none"
                     aria-label="Close item"
                     onClick={() => requestGuardedAction(() => onOpenChange(false))}
                   />

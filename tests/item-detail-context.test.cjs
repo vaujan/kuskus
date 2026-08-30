@@ -139,10 +139,14 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.match(focusToolbarSource, /Enter zen mode \(Ctrl\+Shift\+\\\\\)/)
   assert.match(focusToolbarSource, /aria-pressed=\{expanded\}/)
   assert.match(focusToolbarSource, /onClick=\{\(\) => onExpandedChange\(!expanded\)\}/)
+  assert.match(focusToolbarSource, /aria-label="Back to items"/)
+  assert.match(detailSource, /onBackToList\?: \(\) => void/)
+  assert.match(detailSource, /requestGuardedAction\(onBackToList\)/)
   assert.match(
     focusToolbarSource,
-    /!expanded && 'group-data-\[focus-single-pane=true\]\/focus-detail:hidden'/
+    /group-data-\[focus-single-pane=true\]\/focus-detail:inline-flex/
   )
+  assert.match(focusToolbarSource, /group-data-\[focus-single-pane=true\]\/focus-detail:hidden/)
   assert.match(focusToolbarSource, /<ArrowsDiagonal/)
   assert.match(focusToolbarSource, /<ArrowsDiagonalMinimize/)
   assert.match(
@@ -157,6 +161,10 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.match(
     detailSource,
     /data-detail-pane[\s\S]*presentation === 'focus' && !expanded[\s\S]*aria-label="Close item"/
+  )
+  assert.match(
+    detailSource,
+    /aria-label="Close item"[\s\S]*group-data-\[focus-single-pane=true\]\/focus-detail:hidden|group-data-\[focus-single-pane=true\]\/focus-detail:hidden[\s\S]*aria-label="Close item"/
   )
   assert.match(focusToolbarSource, /!isMac && 'pr-\[8\.625rem\]'/)
   assert.doesNotMatch(focusToolbarSource, /Previous item|Next item/)
