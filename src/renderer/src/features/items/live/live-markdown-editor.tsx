@@ -42,6 +42,7 @@ import { toggleMarkdownMarker } from '@/features/items/markdown-formatting'
 import { markdownFrontmatter } from '@/features/items/markdown-frontmatter'
 import { markdownHighlightStyle } from '@/features/items/markdown-highlight-style'
 import { markdownCodeLanguage } from '@/features/items/markdown-code'
+import { markdownCodeSpellcheck } from '@/features/items/markdown-code-spellcheck'
 import { markdownSearchTheme } from '@/features/items/markdown-search-theme'
 import { liveFindExtensions, wireLiveFind, unwireLiveFind } from '@/features/items/live/live-find'
 import {
@@ -303,6 +304,7 @@ export const LiveMarkdownEditor = forwardRef<SourceNoteHandle, LiveMarkdownEdito
         vimModeTheme,
         editorTheme,
         markdownSearchTheme,
+        markdownCodeSpellcheck,
         syntaxHighlighting(classHighlighter),
         syntaxHighlighting(markdownHighlightStyle),
         liveFindExtensions(),
