@@ -12,7 +12,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { IconLayoutSidebar } from '@tabler/icons-react'
 
 const SIDEBAR_WIDTH = '16rem'
-const SIDEBAR_WIDTH_ICON = '3.5rem'
 const SIDEBAR_MIN_WIDTH = 208
 const SIDEBAR_MAX_WIDTH = 384
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b'
@@ -150,8 +149,8 @@ function SidebarProvider({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [keyboardShortcutEnabled, toggleSidebar])
 
-  // Keep the compact rail as the resting narrow state, but expose the flyout
-  // as expanded so labels, folders, badges, and footer actions become usable.
+  // Narrow windows hide the sidebar entirely until toggled; the flyout is
+  // reported as expanded so labels, folders, badges, and footer actions show.
   const restingState: SidebarState = open ? (isNarrow ? 'narrow' : 'expanded') : 'collapsed'
   const state: SidebarState = flyoutOpen ? 'expanded' : restingState
 
@@ -216,7 +215,6 @@ function SidebarProvider({
         style={
           {
             '--sidebar-width': `${width}px`,
-            '--sidebar-width-icon': SIDEBAR_WIDTH_ICON,
             ...style
           } as React.CSSProperties
         }
@@ -256,17 +254,16 @@ function Sidebar({
       data-side={side}
       data-slot="sidebar"
     >
-      {/* Gap that reserves space beside the sidebar. In narrow mode it stays
-          at icon width; in overlay mode it collapses to zero so the sidebar
-          floats over the content without shifting it. */}
+      {/* Gap that reserves space beside the sidebar. It collapses to zero when
+          the sidebar is hidden (collapsed or flyout-only narrow/overlay modes)
+          so the sidebar never shifts the layout as an icon rail. */}
       <div
         data-slot="sidebar-gap"
         className={cn(
           'relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear',
           'group-data-[side=right]:rotate-180',
           state === 'collapsed' && !flyout && 'w-0',
-          isNarrow && state !== 'collapsed' && 'w-(--sidebar-width-icon)',
-          isOverlay && 'w-0'
+          (isNarrow || isOverlay) && 'w-0'
         )}
       />
       {flyout ? (
@@ -287,11 +284,9 @@ function Sidebar({
           state === 'collapsed' &&
             !flyout &&
             'data-[side=left]:left-[calc(var(--sidebar-width)*-1)] data-[side=right]:right-[calc(var(--sidebar-width)*-1)]',
-          // Narrow mode: icon rail, expanding to full width as an overlay flyout.
-          isNarrow && state !== 'collapsed' && 'w-(--sidebar-width-icon)',
-          // Overlay mode: floats over the content with a shadow and only slides
-          // in while hovered, so nothing in the layout ever shifts.
-          isOverlay &&
+          // Narrow and overlay modes stay off-canvas until toggled; both
+          // reveal the full sidebar as an overlay flyout instead of a rail.
+          (isNarrow || isOverlay) &&
             !flyout &&
             'data-[side=left]:left-[calc(var(--sidebar-width)*-1)] data-[side=right]:right-[calc(var(--sidebar-width)*-1)]',
           flyout &&

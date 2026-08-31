@@ -2308,10 +2308,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
         <section
           data-detail-pane
           data-detail-structural-surface
-          className={cn(
-            'window-canvas relative flex min-h-0 min-w-0 flex-1 overflow-hidden !bg-background/50',
-            !expanded && 'rounded-tl-2xl border-t border-l border-border'
-          )}
+          className="window-canvas relative flex min-h-0 min-w-0 flex-1 overflow-hidden !bg-background/50"
         >
           {presentation === 'focus' && !expanded ? (
             <Tooltip>

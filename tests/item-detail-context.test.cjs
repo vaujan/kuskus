@@ -262,8 +262,9 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.equal((detailSource.match(/data-detail-pane/g) ?? []).length, 1)
   assert.match(
     detailSource,
-    /data-detail-pane[\s\S]{0,240}window-canvas[\s\S]{0,240}rounded-tl-2xl/
+    /data-detail-pane[\s\S]{0,240}window-canvas[\s\S]{0,240}bg-background\/50/
   )
+  assert.doesNotMatch(detailSource, /rounded-tl-2xl/)
   assert.match(detailSource, /function DetailInspector/)
   assert.match(detailSource, /function FileCanvas/)
   assert.match(detailSource, /<article className="kuskus-detail-document-frame/)
