@@ -37,7 +37,7 @@ export const SETTINGS_SCHEMA: readonly SettingDefinition[] = [
     key: 'theme',
     storageKey: 'kuskus-theme',
     default: 'dark',
-    parse: (stored) => (stored === 'light' ? 'light' : 'dark')
+    parse: (stored) => (stored === 'light' || stored === 'system' ? stored : 'dark')
   },
   {
     key: 'libraryView',

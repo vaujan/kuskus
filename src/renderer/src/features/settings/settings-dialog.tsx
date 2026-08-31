@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   IconBolt,
   IconChevronDown,
+  IconDeviceDesktop,
   IconKeyboard,
   IconLayoutGrid,
   IconLayoutDashboard,
@@ -44,7 +45,7 @@ import type { LibraryView } from '@/features/items/item-view'
 import type { NoteReadingWidth } from '@/features/items/note-reading-width'
 import type { FocusRailDensity } from '@/features/items/focus-view-state'
 import { useAppZoom } from '@/hooks/use-app-zoom'
-import type { Theme } from '@/hooks/use-theme'
+import type { Theme } from '@/hooks/theme'
 import { useSetting } from '@/settings/settings-context'
 import type { TranslucentBackgroundPreference } from '@/hooks/use-translucent-background'
 import {
@@ -219,6 +220,13 @@ export function SettingsDialog({
                     className="size-10 rounded-md p-0 data-[state=on]:bg-background data-[state=on]:shadow-sm"
                   >
                     <IconMoon />
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="system"
+                    aria-label="System mode"
+                    className="size-10 rounded-md p-0 data-[state=on]:bg-background data-[state=on]:shadow-sm"
+                  >
+                    <IconDeviceDesktop />
                   </ToggleGroupItem>
                 </ToggleGroup>
               </Field>

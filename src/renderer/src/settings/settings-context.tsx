@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 
+import { applyTheme, resolveAppliedTheme } from '@/hooks/theme'
 import { SETTINGS_SCHEMA, findSetting, type SettingKey, type SettingValue } from './settings-schema'
 
 // Split into a values context and a stable dispatch context (Redux-style) so
@@ -34,6 +35,22 @@ export function SettingsProvider({ children }: { children: ReactNode }): React.J
       }
     }
   }, [values])
+
+  // The theme preference is the one setting with a DOM side effect. Apply it
+  // here so every surface (main window, note window, quick capture) stays in
+  // sync with the stored value, including live OS changes when set to
+  // 'system'. main.tsx still applies the stored theme once at startup to
+  // avoid a flash before this provider mounts.
+  const theme = values.theme
+  useEffect(() => {
+    const apply = (): void => applyTheme(resolveAppliedTheme(theme as 'dark' | 'light' | 'system'))
+    apply()
+    if (theme !== 'system') return
+    const query = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = (): void => apply()
+    query.addEventListener('change', onChange)
+    return () => query.removeEventListener('change', onChange)
+  }, [theme])
 
   const setSetting = useCallback(<T extends SettingValue>(key: SettingKey, value: T): void => {
     // Reject unknown keys instead of silently storing values no consumer reads.
