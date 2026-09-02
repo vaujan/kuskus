@@ -99,7 +99,7 @@
 }
 .cm-kuskus-live .cm-line.cm-atomic-h5 {
   font-size: 0.875em;
-  font-weight: 500;
+  font-weight: 400;
   line-height: 1.5;
   padding-top: calc(var(--typeset-flow) * 0.43);
   color: var(--typeset-muted);
@@ -107,12 +107,28 @@
 }
 .cm-kuskus-live .cm-line.cm-atomic-h6 {
   font-size: 0.8125em;
-  font-weight: 500;
+  font-weight: 400;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   padding-top: calc(var(--typeset-flow) * 0.54);
   color: var(--typeset-muted);
   border-bottom: 1px solid var(--typeset-rule);
+}
+
+/* CodeMirror's Markdown highlighter assigns 600 directly to syntax spans
+ * inside heading lines. Reset those spans to the line's read-mode weight;
+ * the stronger selector below keeps explicit Markdown bold at 700. */
+.cm-kuskus-live
+  .cm-line:is(
+    .cm-atomic-h1,
+    .cm-atomic-h2,
+    .cm-atomic-h3,
+    .cm-atomic-h4,
+    .cm-atomic-h5,
+    .cm-atomic-h6
+  )
+  span {
+  font-weight: inherit;
 }
 
 /* Strong inside headings reads 700 in both modes (read: markdown.css
@@ -262,6 +278,9 @@
 .cm-kuskus-live .cm-line .cm-atomic-list-marker {
   color: var(--typeset-muted);
 }
+.cm-kuskus-live .cm-line .cm-atomic-list-marker span {
+  color: inherit;
+}
 .cm-kuskus-live .cm-atomic-bullet {
   color: var(--typeset-muted);
   font-weight: 400;
@@ -301,7 +320,7 @@
 
 /* Horizontal rule. */
 .cm-kuskus-live .cm-line.cm-atomic-hr {
-  border-top: 1px solid var(--typeset-rule);
+  /* Atomic draws the single visible rule with ::after. */
   margin-top: calc(var(--typeset-flow) * 2.4);
   margin-bottom: 0;
   width: 100%;
