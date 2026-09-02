@@ -347,6 +347,17 @@
     white-space: pre;
   }
 
+  /* Visual-rail cards keep long code horizontally scrollable without
+   * exposing scrollbar chrome inside the compact preview surface. */
+  .kuskus-note-card-markdown .kuskus-code-block pre {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .kuskus-note-card-markdown .kuskus-code-block pre::-webkit-scrollbar {
+    display: none;
+  }
+
   .kuskus-code-block code {
     font: inherit;
   }

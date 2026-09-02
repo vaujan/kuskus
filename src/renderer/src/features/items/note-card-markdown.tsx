@@ -34,7 +34,7 @@ export const NoteCardMarkdown = memo(function NoteCardMarkdown({
     <div
       data-typeset-presentation={compact ? 'snippet-compact' : 'snippet'}
       className={cn(
-        'typeset kuskus-typeset overflow-hidden [--typeset-body-color:var(--muted-foreground)]',
+        'kuskus-note-card-markdown typeset kuskus-typeset overflow-hidden [--typeset-body-color:var(--muted-foreground)]',
         compact ? 'max-h-[13rem]' : 'max-h-[20rem]'
       )}
     >
