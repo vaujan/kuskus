@@ -343,11 +343,16 @@
  * list kinds. Width here must match LIST_ALCOVE_EM in
  * inline-preview.ts. Without the fixed width, wrapped-line
  * indent lands in different places for each kind because the raw
- * marker widths differ per font. */
+ * marker widths differ per font. The trailing gap is padding, not
+ * margin: CM6 measures the caret at a replaced range's end from the
+ * element rect, which excludes margins — with padding, the caret
+ * after a freshly typed `- ` sits exactly where the first content
+ * character will land. */
 .cm-atomic-list-marker {
+  box-sizing: border-box;
   display: inline-block;
-  width: 0.9em;
-  margin-right: 0.3em;
+  width: 1.2em;
+  padding-right: 0.3em;
   text-align: right;
 }
 
@@ -357,12 +362,29 @@
   font-weight: 700;
 }
 
+/* Task checkbox alcove — the wrapper around the checkbox input. The
+ * trailing gap lives inside this element's border box (as the input's
+ * margin filling the 1.2em width): CM6 measures the caret at a
+ * replaced range's end from the element rect, which excludes margins —
+ * with the gap outside the widget's box, the caret after a freshly
+ * typed `- [ ] ` hugged the checkbox instead of sitting where the
+ * first content character lands. text-indent: 0 is load-bearing: the
+ * property inherits, and the list line's -1.2em indent would shift the
+ * checkbox left by the whole alcove a second time (the bullet span
+ * survives the same inheritance only via its text-align: right). */
+.cm-atomic-task-marker {
+  display: inline-block;
+  width: 1.2em;
+  text-indent: 0;
+}
+
 /* GFM task-list checkbox widget — replaces `[ ]` / `[x]` in a task
  * item. Styled as a small custom square rather than the platform's
  * native checkbox so it reads closer to Obsidian across browsers.
- * Width+margin still total 1.2em to match ALCOVE_EM in
- * inline-preview.ts. The trailing space after `[ ]` in the source is
- * swallowed by the replace decoration. */
+ * The input's margins (−0.16em left, 0.31em right) plus its 1.05em
+ * box total 1.2em, exactly filling `.cm-atomic-task-marker`. The
+ * trailing space after `[ ]` in the source is swallowed by the
+ * replace decoration. */
 .cm-atomic-task-checkbox {
   width: 1.05em;
   height: 1.05em;

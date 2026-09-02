@@ -2,6 +2,7 @@ import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
 import type { SyntaxNode } from '@lezer/common'
 import {
   EditorSelection,
+  EditorState,
   Prec,
   StateEffect,
   StateField,
@@ -243,7 +244,7 @@ function linkDestinationUrl(link: SyntaxNode, doc: Text): SyntaxNode | null {
 
 // Kuskus fork: bullets follow the Read renderer's list-style-type
 // ladder — disc at depth 0, circle at depth 1, square at depth 2+.
-const BULLET_GLYPHS = ['•', '○', '▪']
+const BULLET_GLYPHS = ['•', '◦', '▪']
 
 class BulletWidget extends WidgetType {
   constructor(private readonly depth: number) {
@@ -280,16 +281,21 @@ class TaskCheckboxWidget extends WidgetType {
   }
 
   toDOM(view: EditorView): HTMLElement {
-    // The `.cm-atomic-list-marker` class provides the uniform
-    // inline-block alcove shared by bullets, checkboxes, and
-    // ordered numbers. We apply it directly to the `<input>` so
-    // selectors like `input.cm-atomic-task-checkbox` still work
-    // (a wrapper span broke a Playwright probe that targets the
-    // input by its class).
+    // The `.cm-atomic-task-marker` wrapper is the fixed-width alcove
+    // shared with bullets and ordered numbers, and it owns the trailing
+    // gap inside its border box: CM6 measures the caret at a replaced
+    // range's end from the element rect, which excludes margins — with
+    // the gap as the input's margin-right, the caret after a freshly
+    // typed `- [ ] ` hugged the checkbox instead of sitting where the
+    // first content character lands. The checkbox class stays on the
+    // input itself so selectors like `input.cm-atomic-task-checkbox`
+    // keep working.
+    const wrapper = document.createElement('span')
+    wrapper.className = 'cm-atomic-task-marker'
     const input = document.createElement('input')
     input.type = 'checkbox'
     input.checked = this.checked
-    input.className = 'cm-atomic-list-marker cm-atomic-task-checkbox'
+    input.className = 'cm-atomic-task-checkbox'
     input.setAttribute('contenteditable', 'false')
     input.addEventListener('mousedown', (e) => {
       e.preventDefault()
@@ -305,7 +311,8 @@ class TaskCheckboxWidget extends WidgetType {
       if (current === next) return
       view.dispatch({ changes: { from: pos, to: pos + 3, insert: next } })
     })
-    return input
+    wrapper.appendChild(input)
+    return wrapper
   }
 
   ignoreEvent(event: Event): boolean {
@@ -378,6 +385,13 @@ function listItemDepth(item: SyntaxNode): number {
 
 function sameListItem(a: SyntaxNode | null, b: SyntaxNode): boolean {
   return a?.name === 'ListItem' && a.from === b.from && a.to === b.to
+}
+
+// True when a selection starts inside [from, to) — i.e. the caret is
+// stepping through the marker's source span. Range.from covers plain
+// caret moves (from === head) and selections starting in the span.
+function caretInsideRange(state: EditorState, from: number, to: number): boolean {
+  return state.selection.ranges.some((range) => range.from >= from && range.from < to)
 }
 
 function buildInlineDecorations(view: EditorView): DecorationSet {
@@ -625,18 +639,54 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         const hasTrailingSpace = doc.sliceString(node.to, node.to + 1) === ' '
         const markEnd = hasTrailingSpace ? node.to + 1 : node.to
 
+        // Active-line rendering follows Obsidian: a marker renders as
+        // soon as it is completed with its trailing space, even while
+        // the cursor stays on the line. The raw source takes over in
+        // two cases so it stays reachable: the marker isn't complete
+        // yet (bare `-`), or the caret is stepping through the marker
+        // span with the arrow keys. Raw markers wear the same
+        // fixed-width alcove class as the widget so the swap shifts
+        // nothing.
+        const lineActive = activeLines.has(line.number)
+
         if (taskFrom !== undefined) {
-          // Hide `- ` (ListMark through the space before `[`).
-          pushReplace(ranges, doc, node.from, taskFrom)
+          // `- [ ] ` is complete only once the space lands after the
+          // brackets; before that — or while the caret navigates the
+          // marker span — the raw `- [ ]` stays visible and editable.
+          const taskComplete =
+            !lineActive || doc.sliceString(taskFrom + 3, taskFrom + 4) === ' '
+          const taskRevealed =
+            lineActive &&
+            (!taskComplete ||
+              caretInsideRange(state, doc.line(line.number).from, taskFrom + 4))
+          if (taskRevealed) {
+            ranges.push(
+              Decoration.mark({ class: 'cm-atomic-list-marker' }).range(node.from, node.to)
+            )
+          } else {
+            // Hide `- ` (ListMark through the space before `[`).
+            pushReplace(ranges, doc, node.from, taskFrom)
+          }
         } else {
           const markText = doc.sliceString(node.from, node.to)
           if (markText === '-' || markText === '*' || markText === '+') {
-            // Bullet: substitute with the fixed-width marker
-            // widget, swallowing the trailing space so content
-            // starts precisely at padding-left.
-            pushReplace(ranges, doc, node.from, markEnd, {
-              widget: new BulletWidget(bulletDepth)
-            })
+            const bulletRevealed =
+              lineActive && (!hasTrailingSpace || caretInsideRange(state, node.from, markEnd))
+            if (bulletRevealed) {
+              ranges.push(
+                Decoration.mark({ class: 'cm-atomic-list-marker' }).range(node.from, node.to)
+              )
+              if (hasTrailingSpace) {
+                pushReplace(ranges, doc, node.to, markEnd)
+              }
+            } else {
+              // Bullet: substitute with the fixed-width marker
+              // widget, swallowing the trailing space so content
+              // starts precisely at padding-left.
+              pushReplace(ranges, doc, node.from, markEnd, {
+                widget: new BulletWidget(bulletDepth)
+              })
+            }
           } else {
             // Ordered list (or anything else with a non-standard
             // mark text like `1.`, `42.`): keep the text visible
@@ -697,6 +747,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
       if (node.name === 'TaskMarker' && node.from < node.to) {
         const markText = doc.sliceString(node.from, node.to)
         const checked = /\[x\]/i.test(markText)
+        const taskLine = doc.lineAt(node.from).number
         // Swallow the single trailing space after `[ ]` / `[x]` so the
         // checkbox widget owns the alcove exactly (mirrors how bullet
         // markers also swallow their trailing space). Without this the
@@ -705,12 +756,19 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         const hasTrailingSpace =
           node.to < doc.length && doc.sliceString(node.to, node.to + 1) === ' '
         const replaceTo = hasTrailingSpace ? node.to + 1 : node.to
-        pushReplace(ranges, doc, node.from, replaceTo, {
-          widget: new TaskCheckboxWidget(checked)
-        })
+        // Same rule as the bullet: the checkbox appears once the marker
+        // is finished with its space and the caret isn't stepping
+        // through the source span, which stays visible and editable.
+        const checkboxRevealed =
+          activeLines.has(taskLine) &&
+          (!hasTrailingSpace || caretInsideRange(state, doc.line(taskLine).from, replaceTo))
+        if (!checkboxRevealed) {
+          pushReplace(ranges, doc, node.from, replaceTo, {
+            widget: new TaskCheckboxWidget(checked)
+          })
+        }
         if (checked) {
-          const lineNum = doc.lineAt(node.from).number
-          const line = doc.line(lineNum)
+          const line = doc.line(taskLine)
           ranges.push(Decoration.line({ class: 'cm-atomic-task-done' }).range(line.from))
         }
       }
