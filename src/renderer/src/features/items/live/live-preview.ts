@@ -433,11 +433,6 @@ class KuskusLiveDecorationBuilder {
       if (marks.length >= 2) {
         const openLine = this.state.doc.lineAt(marks[0].from)
         const closeLine = this.state.doc.lineAt(marks[marks.length - 1].from)
-        this.addLine(openLine.from, Decoration.line({ class: 'cm-kuskus-code-first' }))
-        if (closeLine.number !== openLine.number) {
-          this.addLine(closeLine.from, Decoration.line({ class: 'cm-kuskus-code-last' }))
-        }
-
         // Inactive-block header: the first fence line is fully replaced
         // by the header widget (language + copy button) so the block
         // reads like read mode's rounded code card. The header is skipped
@@ -453,6 +448,24 @@ class KuskusLiveDecorationBuilder {
               break
             }
           }
+        }
+        this.addLine(openLine.from, Decoration.line({ class: 'cm-kuskus-code-first' }))
+        if (anyLineActive) {
+          if (closeLine.number !== openLine.number) {
+            this.addLine(closeLine.from, Decoration.line({ class: 'cm-kuskus-code-last' }))
+          }
+        } else if (closeLine.number === openLine.number + 1) {
+          // Empty fences have no content line, so their header owns both
+          // rounded ends while the hidden closer collapses.
+          this.addLine(openLine.from, Decoration.line({ class: 'cm-kuskus-code-last' }))
+          this.addLine(closeLine.from, Decoration.line({ class: 'cm-kuskus-code-closer' }))
+        } else {
+          // Atomic hides the inactive closing fence text, but CM6 still
+          // reserves the line box. Put the card bottom on the final code
+          // line and collapse only that hidden closing-fence line.
+          const lastCodeLine = this.state.doc.line(closeLine.number - 1)
+          this.addLine(lastCodeLine.from, Decoration.line({ class: 'cm-kuskus-code-last' }))
+          this.addLine(closeLine.from, Decoration.line({ class: 'cm-kuskus-code-closer' }))
         }
         if (!anyLineActive) {
           const info = node.getChildren('CodeInfo')[0]

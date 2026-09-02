@@ -121,7 +121,7 @@ test('embeds resolved images as widgets through options', () => {
   assert.equal(decorations[0]?.from, state.doc.toString().indexOf('![[image'))
 })
 
-test('marks first and last fenced-code lines so the block reads as one container', () => {
+test('moves an inactive code block bottom edge onto its final code line', () => {
   const state = createState(['Cursor', '', '```ts', 'const a = 1', '```'].join('\n'))
   const decorations = []
   buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
@@ -132,7 +132,16 @@ test('marks first and last fenced-code lines so the block reads as one container
     true
   )
   assert.equal(
-    decorations.some((entry) => entry.className === 'cm-kuskus-code-last'),
+    decorations.some(
+      (entry) => entry.className === 'cm-kuskus-code-last' && entry.from === state.doc.line(4).from
+    ),
+    true
+  )
+  assert.equal(
+    decorations.some(
+      (entry) =>
+        entry.className === 'cm-kuskus-code-closer' && entry.from === state.doc.line(5).from
+    ),
     true
   )
 })
@@ -164,6 +173,29 @@ test('keeps the fence header off active lines so the user can edit fence marks',
   })
   // Cursor inside the block → active → no header (raw fence stays editable).
   assert.deepEqual(decorations, [])
+})
+
+test('keeps the closing fence at normal height while the code block is active', () => {
+  const doc = ['Cursor', '', '```ts', 'const a = 1', '```'].join('\n')
+  const state = EditorState.create({
+    doc,
+    extensions: [markdown({ extensions: GFM })],
+    selection: { anchor: doc.indexOf('const a = 1') + 5 }
+  })
+  const decorations = []
+  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
+    if (value.spec.class) decorations.push({ from, className: value.spec.class })
+  })
+  assert.equal(
+    decorations.some(
+      (entry) => entry.className === 'cm-kuskus-code-last' && entry.from === state.doc.line(5).from
+    ),
+    true
+  )
+  assert.equal(
+    decorations.some((entry) => entry.className === 'cm-kuskus-code-closer'),
+    false
+  )
 })
 
 test('marks blank lines so live rhythm matches the read typeset flow', () => {

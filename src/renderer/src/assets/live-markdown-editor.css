@@ -189,6 +189,25 @@
   border-end-end-radius: var(--radius);
   padding-bottom: 0.875rem;
 }
+/* Atomic preview hides an inactive closing fence's text but CM6 retains the
+ * line box. This class collapses that line after the preceding code line has
+ * become the visual card bottom. Active blocks never receive it. */
+.cm-kuskus-live .cm-line.cm-kuskus-code-closer {
+  font-size: 0;
+  line-height: 0;
+  min-height: 0;
+  padding: 0;
+}
+/* Empty fences are just a header, so it owns both rounded ends without the
+ * body-area padding used by a non-empty code card. */
+.cm-kuskus-live
+  .cm-line.cm-kuskus-code-first.cm-kuskus-code-last:has(> .cm-kuskus-code-block-header) {
+  padding-bottom: 0;
+}
+.cm-kuskus-live .cm-line.cm-kuskus-code-first.cm-kuskus-code-last > .cm-kuskus-code-block-header {
+  border-end-start-radius: var(--radius);
+  border-end-end-radius: var(--radius);
+}
 
 /* Code-block header (inactive fences) — mirrors read mode's
  * .kuskus-code-block-header. The header replaces the first fence line,
