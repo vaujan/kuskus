@@ -55,6 +55,9 @@ export const ComposerLiveMarkdownEditor = forwardRef<
           else onSave()
         }
       }}
+      onPointerDown={(event) => {
+        if (event.target === event.currentTarget) editorRef.current?.focus()
+      }}
     >
       {!value ? (
         <span
