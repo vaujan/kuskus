@@ -103,9 +103,6 @@ const editorTheme = EditorView.theme({
   '.cm-scroller::-webkit-scrollbar-corner': { backgroundColor: 'transparent' },
   '.cm-content': {
     minHeight: '100%',
-    maxWidth: 'var(--detail-document-max-width)',
-    margin: '0 auto',
-    padding: '2.5rem var(--typeset-detail-gutter)',
     caretColor: 'currentColor'
   },
   '.cm-line': { padding: '0' },
@@ -131,6 +128,16 @@ const editorTheme = EditorView.theme({
   '.cm-kuskus-find-current': {
     boxShadow: 'inset 0 0 0 1px var(--primary)',
     backgroundColor: 'color-mix(in oklch, var(--primary) 45%, transparent)'
+  }
+})
+
+// Document geometry (centered measure + responsive gutters) belongs to the
+// detail note editor only; compact surfaces start at their container's edge.
+const detailContentTheme = EditorView.theme({
+  '.cm-content': {
+    maxWidth: 'var(--detail-document-max-width)',
+    margin: '0 auto',
+    padding: '2.5rem var(--typeset-detail-gutter)'
   }
 })
 
@@ -296,13 +303,17 @@ export const LiveMarkdownEditor = forwardRef<SourceNoteHandle, LiveMarkdownEdito
         highlightActiveLineGutter(),
         highlightSelectionMatches(),
         EditorView.editorAttributes.of({
-          class: 'cm-kuskus-live kuskus-typeset cm-kuskus-detail-editor',
+          class: cn(
+            'cm-kuskus-live kuskus-typeset',
+            presentation === 'detail' && 'cm-kuskus-detail-editor'
+          ),
           'data-typeset-presentation': presentation
         }),
         EditorView.scrollMargins.of(() => ({ bottom: 112 })),
         liveEditorTheme,
         vimModeTheme,
         editorTheme,
+        ...(presentation === 'detail' ? [detailContentTheme] : []),
         markdownSearchTheme,
         markdownCodeSpellcheck,
         syntaxHighlighting(classHighlighter),
