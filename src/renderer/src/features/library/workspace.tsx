@@ -9,13 +9,7 @@ import {
   useRef,
   useState
 } from 'react'
-import {
-  IconAlertTriangle,
-  IconInbox as Inbox,
-  IconLayoutDashboard,
-  IconLibrary,
-  IconSearch as Search
-} from '@tabler/icons-react'
+import { IconAlertTriangle } from '@tabler/icons-react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
@@ -39,15 +33,7 @@ import {
 } from '@/components/ui/dialog'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { Kbd } from '@/components/ui/kbd'
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle
-} from '@/components/ui/empty'
+import { Empty, EmptyContent, EmptyTitle } from '@/components/ui/empty'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Switch } from '@/components/ui/switch'
 import { SidebarInset, SidebarProvider } from '@/features/shell/app-sidebar'
@@ -56,6 +42,7 @@ import { shouldYieldMainComposer } from '@/features/capture/capture-draft-tracke
 import { ExternalDropShadow } from '@/features/capture/external-drop-shadow'
 import { CaptureRecoveryDialog } from '@/features/capture/capture-recovery-dialog'
 import { SavedItemCard } from '@/features/items/saved-item-card'
+import { FocusIndexRow } from '@/features/items/focus-index-row'
 import { FocusItemList } from '@/features/items/focus-item-list'
 import { FocusListHeader } from '@/features/items/focus-list-header'
 import {
@@ -87,14 +74,18 @@ import type { NoteMode } from '@/features/items/note-view-mode'
 import { AppToolbar } from '@/features/shell/app-toolbar'
 import { LibrarySidebar, type LibraryDestination } from '@/features/shell/library-sidebar'
 import { SettingsDialog } from '@/features/settings/settings-dialog'
+import { GlobalSearchDialog } from '@/features/search/global-search-dialog'
+import { addRecentSearchItem } from '@/features/search/global-search-state'
 import { useSetting } from '@/settings/settings-context'
 import { useNoteVim } from '@/hooks/use-note-vim'
 import type { TranslucentBackgroundPreference } from '@/hooks/use-translucent-background'
 import { cn } from '@/lib/utils'
 import type {
+  ActiveItemLocation,
   ApiResult,
   LibraryDto,
   LibraryItemDto,
+  NoteItemDto,
   UrlItemDto
 } from '../../../../shared/library-contract'
 import type { GlobalCaptureShortcutStatus } from '../../../../shared/window-contract'
@@ -125,10 +116,35 @@ const AddItemComposer = lazy(() =>
   }))
 )
 
+const NewNoteEditor = lazy(() =>
+  import('@/features/items/new-note-editor').then((module) => ({
+    default: module.NewNoteEditor
+  }))
+)
+
 const DEFAULT_SIDEBAR_WIDTH = 256
 const MIN_SIDEBAR_WIDTH = 208
 const MAX_SIDEBAR_WIDTH = 384
 const ITEM_PAGE_SIZE = 50
+
+function createProvisionalNote(location: ActiveItemLocation): NoteItemDto {
+  const timestamp = new Date().toISOString()
+  return {
+    schemaVersion: 2,
+    id: crypto.randomUUID(),
+    type: 'note',
+    title: 'Untitled note',
+    titleSource: 'derived',
+    body: '',
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    missingContent: false,
+    attachments: [],
+    location,
+    relativePath: '',
+    referencedAttachment: false
+  }
+}
 
 function destinationLabel(destination: LibraryDestination, library: LibraryDto): string {
   if (destination.type === 'inbox') return 'Inbox'
@@ -174,6 +190,9 @@ export function Workspace({
     return Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, storedWidth))
   })
   const [composerOpen, setComposerOpen] = useState(false)
+  const [newNoteOpen, setNewNoteOpen] = useState(false)
+  const [newNoteSession, setNewNoteSession] = useState(0)
+  const [newNoteItem, setNewNoteItem] = useState<NoteItemDto | null>(null)
   const [composerHasDraft, setComposerHasDraft] = useState(false)
   const [composerFocusRequest, setComposerFocusRequest] = useState(0)
   const [composerDiscardRequest, setComposerDiscardRequest] = useState(0)
@@ -187,7 +206,10 @@ export function Workspace({
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [draggedItemIds, setDraggedItemIds] = useState<ReadonlySet<string>>(() => new Set())
-  const [search, setSearch] = useState(() => initialSession?.search ?? '')
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false)
+  const [recentItemIds, setRecentItemIds] = useState<string[]>(
+    () => initialSession?.recentItemIds ?? []
+  )
   const [typeFilters, setTypeFilters] = useState<ItemTypeFilter[]>(
     () => initialSession?.typeFilters ?? []
   )
@@ -232,6 +254,14 @@ export function Workspace({
   const captureOwner = useRef<CaptureSurface | null>(null)
   const mainComposerOwnershipRequested = useRef(false)
   const focusDetailRef = useRef<ItemDetailHandle>(null)
+  const newNoteReturnRef = useRef<{
+    composerOpen: boolean
+    focusWorkspaceOpen: boolean
+    focusItemId: string | null
+    focusDetailOpen: boolean
+    focusNoteExpanded: boolean
+  } | null>(null)
+  const newlyCreatedNoteIdRef = useRef<string | null>(null)
   const previousVisibleItemIdsRef = useRef<string[]>([])
   const draftStorageKey = `kuskus-note-draft:${library.path}`
 
@@ -259,6 +289,10 @@ export function Workspace({
 
   const changeFocusItemId = useCallback(
     (itemId: string | null): void => {
+      if (itemId !== newlyCreatedNoteIdRef.current) {
+        newlyCreatedNoteIdRef.current = null
+        newNoteReturnRef.current = null
+      }
       const item = library.items.find((candidate) => candidate.id === itemId)
       setFocusNoteExpanded((current) => (item?.type === 'note' ? current : false))
       setFocusItemEditOnOpenId(null)
@@ -271,8 +305,10 @@ export function Workspace({
 
   const openDetail = useCallback(
     (itemId: string, edit = false): void => {
+      setRecentItemIds((current) => addRecentSearchItem(current, itemId))
       const apply = (): void => {
         setComposerOpen(false)
+        setNewNoteOpen(false)
         setFocusNoteExpanded(false)
         setFocusWorkspaceOpen(true)
         setFocusItemId(itemId)
@@ -284,6 +320,63 @@ export function Workspace({
     },
     [focusItemId, requestFocusTransition]
   )
+
+  const openNewNote = useCallback((): void => {
+    const apply = (): void => {
+      const noteDestination: ActiveItemLocation =
+        destination.type === 'collection'
+          ? { type: 'collection', collectionId: destination.collectionId }
+          : { type: 'inbox' }
+      if (newNoteOpen && newlyCreatedNoteIdRef.current) {
+        newlyCreatedNoteIdRef.current = null
+        setNewNoteItem(createProvisionalNote(noteDestination))
+        setNewNoteSession((current) => current + 1)
+      } else if (newNoteOpen) {
+        focusDetailRef.current?.focusEditor()
+      }
+      if (!newNoteOpen) {
+        newNoteReturnRef.current = {
+          composerOpen,
+          focusWorkspaceOpen,
+          focusItemId,
+          focusDetailOpen,
+          focusNoteExpanded
+        }
+        setNewNoteItem(createProvisionalNote(noteDestination))
+      }
+      newlyCreatedNoteIdRef.current = null
+      setComposerOpen(false)
+      setFocusNoteExpanded(false)
+      setFocusWorkspaceOpen(true)
+      setFocusDetailOpen(true)
+      setNewNoteOpen(true)
+    }
+    if (focusDetailRef.current) requestFocusTransition(apply)
+    else apply()
+  }, [
+    composerOpen,
+    destination,
+    focusDetailOpen,
+    focusItemId,
+    focusNoteExpanded,
+    focusWorkspaceOpen,
+    newNoteOpen,
+    requestFocusTransition
+  ])
+
+  const restoreWorkspaceBeforeNewNote = useCallback((): void => {
+    const previous = newNoteReturnRef.current
+    newNoteReturnRef.current = null
+    newlyCreatedNoteIdRef.current = null
+    setNewNoteOpen(false)
+    setNewNoteItem(null)
+    if (!previous) return
+    setComposerOpen(previous.composerOpen)
+    setFocusWorkspaceOpen(previous.focusWorkspaceOpen)
+    setFocusItemId(previous.focusItemId)
+    setFocusDetailOpen(previous.focusDetailOpen)
+    setFocusNoteExpanded(previous.focusNoteExpanded)
+  }, [])
 
   const guardFocusTargets = useCallback(
     (itemIds: readonly string[], action: () => void): void => {
@@ -313,8 +406,8 @@ export function Workspace({
   useEffect(() => {
     writeAppSession(library.path, {
       destination,
-      search,
       typeFilters,
+      recentItemIds,
       focusItemId,
       focusDetailOpen: focusDetailOpen && focusItemId !== null,
       focusNoteExpanded: focusNoteExpanded && focusItemId !== null,
@@ -322,8 +415,8 @@ export function Workspace({
     })
   }, [
     destination,
-    search,
     typeFilters,
+    recentItemIds,
     focusItemId,
     focusDetailOpen,
     focusNoteExpanded,
@@ -352,20 +445,17 @@ export function Workspace({
     }
   }, [refreshVault])
 
-  const { deferredSearch, destinationItems, matchesCurrentRetrieval, searchPending, visibleItems } =
-    useLibraryRetrieval({
-      library,
-      destination,
-      search,
-      typeFilters,
-      sort,
-      showReferencedAttachments,
-      excludedItemId: composerOwnedItemId,
-      onSearchResolved: pruneSelectionToItemIds
-    })
+  const { destinationItems, matchesCurrentRetrieval, visibleItems } = useLibraryRetrieval({
+    library,
+    destination,
+    typeFilters,
+    sort,
+    showReferencedAttachments,
+    excludedItemId: composerOwnedItemId ?? (newNoteOpen ? (newNoteItem?.id ?? null) : null)
+  })
   const visibleItemIds = useMemo(() => new Set(visibleItems.map((item) => item.id)), [visibleItems])
   const visibleItemIdList = useMemo(() => visibleItems.map((item) => item.id), [visibleItems])
-  const retrievalPageKey = `${destination.type}:${destination.type === 'collection' ? destination.collectionId : ''}:${deferredSearch}:${typeFilters.join(',')}:${sort}:${showReferencedAttachments}`
+  const retrievalPageKey = `${destination.type}:${destination.type === 'collection' ? destination.collectionId : ''}:${typeFilters.join(',')}:${sort}:${showReferencedAttachments}`
   const [renderPage, setRenderPage] = useState({ key: retrievalPageKey, limit: ITEM_PAGE_SIZE })
   const renderLimit = renderPage.key === retrievalPageKey ? renderPage.limit : ITEM_PAGE_SIZE
   const renderedItems = useMemo(
@@ -528,7 +618,7 @@ export function Workspace({
     requestFocusTransition(() => changeFocusItemId(visibleItems[focusVisibleIndex + 1].id))
   }, [changeFocusItemId, focusVisibleIndex, requestFocusTransition, visibleItems])
 
-  const hasActiveRetrieval = search.trim().length > 0 || typeFilters.length > 0
+  const hasActiveRetrieval = typeFilters.length > 0
 
   const changeDestination = useCallback(
     (next: LibraryDestination): void => {
@@ -567,8 +657,6 @@ export function Workspace({
     [announceStatus]
   )
 
-  const changeSearch = useCallback((next: string): void => setSearch(next), [])
-
   const changeTypeFilter = useCallback(
     (type: ItemTypeFilter, selected: boolean): void => {
       const next = selected
@@ -586,6 +674,33 @@ export function Workspace({
       )
     },
     [library.items, pruneSelectionToItemIds, typeFilters]
+  )
+
+  const openGlobalSearchItem = useCallback(
+    (itemId: string): void => {
+      const item = library.items.find((candidate) => candidate.id === itemId)
+      if (!item) return
+      const nextDestination: LibraryDestination =
+        item.location.type === 'collection'
+          ? { type: 'collection', collectionId: item.location.collectionId }
+          : { type: item.location.type }
+      const apply = (): void => {
+        setDestination(nextDestination)
+        setTypeFilters([])
+        clearSelectionSilently()
+        setComposerOpen(false)
+        setNewNoteOpen(false)
+        setFocusNoteExpanded(false)
+        setFocusWorkspaceOpen(true)
+        setFocusItemId(itemId)
+        setFocusItemEditOnOpenId(null)
+        setFocusDetailOpen(true)
+        setRecentItemIds((current) => addRecentSearchItem(current, itemId))
+      }
+      if (focusItemId) requestFocusTransition(apply)
+      else apply()
+    },
+    [clearSelectionSilently, focusItemId, library.items, requestFocusTransition]
   )
 
   const addCreatedItem = useCallback(
@@ -638,6 +753,45 @@ export function Workspace({
     }
   }, [])
 
+  const updateNewNoteItem = useCallback(
+    (item: NoteItemDto): void => {
+      setNewNoteItem(item)
+      updateItem(item)
+    },
+    [updateItem]
+  )
+
+  const finishNewNote = useCallback(
+    async (
+      note: Extract<LibraryItemDto, { type: 'note' }>,
+      target: ActiveItemLocation
+    ): Promise<Extract<LibraryItemDto, { type: 'note' }>> => {
+      let nextLibrary: LibraryDto | null = null
+      if (target.type === 'collection') {
+        const moved = await window.kuskus.moveItems({
+          itemIds: [note.id],
+          destination: target
+        })
+        if (!moved.ok) {
+          notifyActionError(moved.error)
+        } else {
+          nextLibrary = moved.data
+        }
+      }
+      if (!nextLibrary) {
+        const refreshed = await window.kuskus.getState()
+        if (refreshed.ok && refreshed.data.status === 'ready') nextLibrary = refreshed.data.library
+      }
+      const nextNote = nextLibrary?.items.find((item) => item.id === note.id) ?? note
+      if (nextLibrary) setLibrary(nextLibrary)
+      else setLibrary((current) => ({ ...current, items: [note, ...current.items] }))
+      newlyCreatedNoteIdRef.current = note.id
+      if (nextNote.type === 'note') updateItem(nextNote)
+      return nextNote.type === 'note' ? nextNote : note
+    },
+    [updateItem]
+  )
+
   const applyLibraryResult = useCallback(
     (result: ApiResult<LibraryDto>): LibraryDto | null => {
       if (!result.ok) {
@@ -669,6 +823,15 @@ export function Workspace({
     if (item.type !== 'url') return
     await openExternalUrlWithFeedback(item.sourceUrl)
   }, [])
+
+  const useFirstLineAsTitle = useCallback(
+    async (item: Extract<LibraryItemDto, { type: 'note' }>): Promise<void> => {
+      const result = await window.kuskus.renameItem({ itemId: item.id, titleSource: 'derived' })
+      if (!applyLibraryResult(result)) return
+      announceStatus('The note title now follows its first line.')
+    },
+    [announceStatus, applyLibraryResult]
+  )
 
   const beginItemDrag = useCallback(
     (itemId: string, event: React.DragEvent<HTMLElement>): void => {
@@ -922,6 +1085,7 @@ export function Workspace({
   const openComposer = useCallback((): void => {
     const open = (): void => {
       mainComposerOwnershipRequested.current = captureOwner.current !== 'main'
+      setNewNoteOpen(false)
       setComposerOpen(true)
       setFocusDetailOpen(false)
       setFocusNoteExpanded(false)
@@ -945,19 +1109,19 @@ export function Workspace({
         return
       }
       event.preventDefault()
-      openComposer()
+      openNewNote()
     }
     window.addEventListener('keydown', handleNewItemShortcut)
     return () => window.removeEventListener('keydown', handleNewItemShortcut)
-  }, [openComposer])
+  }, [openNewNote])
 
   const prepareGlobalCapture = useCallback((): void => {
     const modalOpen = document.querySelector('[role="dialog"]') !== null
     mainComposerOwnershipRequested.current = captureOwner.current !== 'main'
     setDestination({ type: 'inbox' })
-    setSearch('')
     setTypeFilters([])
     clearSelectionSilently()
+    setNewNoteOpen(false)
     setComposerOpen(true)
     setFocusNoteExpanded(false)
     if (!modalOpen) setComposerFocusRequest((request) => request + 1)
@@ -1253,17 +1417,13 @@ export function Workspace({
   const focusList = (
     <div className="flex size-full min-h-0 flex-col">
       <FocusListHeader
-        keyboardShortcutsEnabled
         destinationLabel={destinationLabel(destination, library)}
         composerOpen={composerOpen}
         hasDraft={composerHasDraft}
         newItemFocusRequest={newItemFocusRequest}
+        onNewNote={openNewNote}
         onNewItem={openComposer}
-        search={search}
-        onSearchChange={changeSearch}
-        searchPending={searchPending}
-        resultCount={visibleItems.length}
-        totalCount={destinationItems.length}
+        onOpenSearch={() => setGlobalSearchOpen(true)}
         typeFilters={typeFilters}
         onTypeFilterChange={changeTypeFilter}
         showReferencedAttachments={showReferencedAttachments}
@@ -1281,10 +1441,39 @@ export function Workspace({
         items={visibleItems}
         pageKey={retrievalPageKey}
         density={focusRailDensity}
-        activeItemId={focusItemId}
+        activeItemId={newNoteOpen ? null : focusItemId}
         selectedIds={selectedIds}
         draggedIds={draggedItemIds}
-        composer={composerOpen || showExternalDropShadow ? captureSlot : null}
+        composer={
+          newNoteOpen && newNoteItem ? (
+            focusRailDensity === 'index' ? (
+              <FocusIndexRow
+                item={newNoteItem}
+                active
+                selected={false}
+                dragging={false}
+                onActivate={() => focusDetailRef.current?.focusEditor()}
+                onDragStart={(event) => event.preventDefault()}
+                onDragEnd={() => undefined}
+                onNavigate={() => undefined}
+                actions={null}
+              />
+            ) : (
+              <SavedItemCard
+                item={newNoteItem}
+                view="visual"
+                compact
+                selected={false}
+                showSelectionVisual={false}
+                opensDialog={false}
+                onActivate={() => focusDetailRef.current?.focusEditor()}
+                onOpen={() => focusDetailRef.current?.focusEditor()}
+              />
+            )
+          ) : composerOpen || showExternalDropShadow ? (
+            captureSlot
+          ) : null
+        }
         onActivate={activateItem}
         onDragStart={beginItemDrag}
         onDragEnd={endItemDrag}
@@ -1310,7 +1499,101 @@ export function Workspace({
     </div>
   )
 
-  const focusDetail = focusItem ? (
+  const focusDetail = newNoteOpen ? (
+    <Suspense fallback={<div className="size-full animate-pulse bg-muted/20" />}>
+      <NewNoteEditor
+        key={newNoteSession}
+        initialItem={newNoteItem!}
+        destination={
+          destination.type === 'collection'
+            ? { type: 'collection', collectionId: destination.collectionId }
+            : { type: 'inbox' }
+        }
+        onCreated={finishNewNote}
+        onStatus={announceStatus}
+        onItemChange={updateNewNoteItem}
+      >
+        {(state) => (
+          <ItemDetailDialog
+            ref={focusDetailRef}
+            presentation="focus"
+            item={state.item}
+            initialNoteMode="live"
+            onNoteModeChange={setFocusNoteMode}
+            vimEnabled={vimEnabled}
+            expanded={focusNoteExpansionActive}
+            onExpandedChange={changeFocusNoteExpanded}
+            collections={library.collections}
+            hasPrevious={false}
+            hasNext={visibleItems.length > 0}
+            onPrevious={() => undefined}
+            onNext={() => {
+              const next = visibleItems[0]
+              if (!next) return
+              setNewNoteOpen(false)
+              setNewNoteItem(null)
+              changeFocusItemId(next.id)
+            }}
+            onOpenChange={(open) => {
+              if (!open) restoreWorkspaceBeforeNewNote()
+            }}
+            onBackToList={restoreWorkspaceBeforeNewNote}
+            onItemUpdated={state.onItemUpdated}
+            onRenameItem={renameItemTitle}
+            onUseFirstLineAsTitle={useFirstLineAsTitle}
+            libraryItems={library.items}
+            onRenameAttachment={(itemId) => {
+              const image = library.items.find((item) => item.id === itemId)
+              if (!image || image.type !== 'image') return
+              setRenameTarget(image)
+              setRenameTitle(image.title)
+            }}
+            onMoveItem={(nextDestination) =>
+              itemActions(state.item, [state.item.id]).onMove(nextDestination)
+            }
+            onOpenVaultLink={openVaultLink}
+            onMoveToTrash={(itemId) => {
+              const target = library.items.find((item) => item.id === itemId)
+              if (target) itemActions(target, [itemId]).onTrash()
+            }}
+            onEmptyNote={trashEmptyNote}
+            renderActions={(guard, detailOptions) => {
+              if (!state.persisted) return <span className="block size-10" aria-hidden="true" />
+              const actions = itemActions(state.item, [state.item.id])
+              return (
+                <ItemActionMenu
+                  item={state.item}
+                  collections={library.collections}
+                  targetCount={1}
+                  targetLocations={[state.item.location]}
+                  pinned={library.pinnedItemIds.includes(state.item.id)}
+                  alwaysVisible
+                  triggerSurface="caption"
+                  hideOpenAction
+                  detailOptions={detailOptions}
+                  {...actions}
+                  onOpenInNewWindow={() => guard(actions.onOpenInNewWindow)}
+                  onRename={() => guard(actions.onRename)}
+                  onPin={() => guard(actions.onPin)}
+                  onUnpin={() => guard(actions.onUnpin)}
+                  onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}
+                  onArchive={() => guard(actions.onArchive)}
+                  onUnarchive={() => guard(actions.onUnarchive)}
+                  onTrash={() => guard(actions.onTrash)}
+                  onRestore={() => guard(actions.onRestore)}
+                  onDeletePermanently={() => guard(actions.onDeletePermanently)}
+                />
+              )
+            }}
+            onError={notifyActionError}
+            noteSave={state.saveNote}
+            onPasteNoteImage={state.onPasteImage}
+            provisionalNote={!state.persisted}
+          />
+        )}
+      </NewNoteEditor>
+    </Suspense>
+  ) : focusItem ? (
     <Suspense fallback={<div className="size-full animate-pulse bg-muted/20" />}>
       <ItemDetailDialog
         ref={focusDetailRef}
@@ -1331,17 +1614,26 @@ export function Workspace({
         onNext={selectNextFocusItem}
         onOpenChange={(open) => {
           if (open) return
+          if (focusItem.id === newlyCreatedNoteIdRef.current) {
+            restoreWorkspaceBeforeNewNote()
+            return
+          }
           setFocusNoteExpanded(false)
           setFocusItemEditOnOpenId(null)
           setFocusItemId(null)
         }}
         onBackToList={() => {
+          if (focusItem.id === newlyCreatedNoteIdRef.current) {
+            restoreWorkspaceBeforeNewNote()
+            return
+          }
           setFocusNoteExpanded(false)
           setFocusItemEditOnOpenId(null)
           setFocusDetailOpen(false)
         }}
         onItemUpdated={updateItem}
         onRenameItem={renameItemTitle}
+        onUseFirstLineAsTitle={useFirstLineAsTitle}
         libraryItems={library.items}
         onRenameAttachment={(itemId) => {
           const image = library.items.find((item) => item.id === itemId)
@@ -1387,27 +1679,13 @@ export function Workspace({
       />
     </Suspense>
   ) : (
-    <Empty className="size-full gap-5">
-      <EmptyHeader className="max-w-sm">
-        <EmptyMedia
-          variant="icon"
-          className="size-12 rounded-2xl shadow-sm ring-1 ring-foreground/6"
-        >
-          <IconLibrary aria-hidden="true" />
-        </EmptyMedia>
-        <EmptyTitle className="font-heading text-xl text-balance">
-          {visibleItems.length === 0 ? 'Nothing here yet' : 'Choose your next item'}
-        </EmptyTitle>
-        <EmptyDescription className="text-pretty leading-5">
-          {visibleItems.length === 0
-            ? 'Capture something new or adjust the current search and filters.'
-            : 'Open another item from the list, or return to your visual overview.'}
-        </EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
-        <Button size="sm" onClick={returnToMasonry}>
-          <IconLayoutDashboard aria-hidden="true" />
-          Masonry overview
+    <Empty className="size-full gap-0">
+      <EmptyContent className="gap-0">
+        <Button variant="link" size="sm" aria-keyshortcuts="Control+N" onClick={openNewNote}>
+          Create new note (Ctrl + N)
+        </Button>
+        <Button variant="link" size="sm" onClick={returnToMasonry}>
+          Return to overview
         </Button>
       </EmptyContent>
     </Empty>
@@ -1445,18 +1723,14 @@ export function Workspace({
       <SidebarInset>
         {focusWorkspaceOpen ? null : (
           <AppToolbar
-            keyboardShortcutsEnabled
             newItemOpen={composerOpen}
             hasDraft={composerHasDraft}
             newItemFocusRequest={newItemFocusRequest}
+            onNewNote={openNewNote}
             onNewItem={openComposer}
             onDiscardDraft={() => setComposerDiscardRequest((request) => request + 1)}
-            search={search}
-            searchScope={destinationLabel(destination, library)}
-            onSearchChange={changeSearch}
-            searchPending={searchPending}
-            resultCount={visibleItems.length}
-            totalCount={destinationItems.length}
+            destinationLabel={destinationLabel(destination, library)}
+            onOpenSearch={() => setGlobalSearchOpen(true)}
             typeFilters={typeFilters}
             onTypeFilterChange={changeTypeFilter}
             showReferencedAttachments={showReferencedAttachments}
@@ -1571,32 +1845,14 @@ export function Workspace({
                   </>
                 )}
                 {!isDragging && visibleItems.length === 0 && hasActiveRetrieval && (
-                  <Empty className="mt-8 border">
-                    <EmptyHeader>
-                      <EmptyMedia variant="icon">
-                        <Search aria-hidden="true" />
-                      </EmptyMedia>
-                      <EmptyTitle>No matching items</EmptyTitle>
-                      <EmptyDescription>
-                        Try another search or clear the active item filters.
-                      </EmptyDescription>
-                    </EmptyHeader>
-                    <EmptyContent>
-                      {search.trim().length > 0 ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            changeSearch('')
-                            clearSelectionSilently()
-                          }}
-                        >
-                          Clear search
-                        </Button>
-                      ) : null}
+                  <Empty className="mt-8 gap-1">
+                    <EmptyTitle className="text-sm text-muted-foreground">
+                      No matching items
+                    </EmptyTitle>
+                    <EmptyContent className="gap-0">
                       {typeFilters.length > 0 ? (
                         <Button
-                          variant="outline"
+                          variant="link"
                           size="sm"
                           onClick={() => {
                             setTypeFilters([])
@@ -1610,54 +1866,26 @@ export function Workspace({
                   </Empty>
                 )}
                 {!isDragging && destinationItems.length === 0 && !hasActiveRetrieval && (
-                  <Empty className="mt-6">
-                    <EmptyHeader>
-                      <EmptyMedia variant="icon">
-                        <Inbox aria-hidden="true" />
-                      </EmptyMedia>
-                      <EmptyTitle>
-                        {destination.type === 'archive'
-                          ? 'Archive is empty'
-                          : destination.type === 'trash'
-                            ? 'Trash is empty'
-                            : destination.type === 'all'
-                              ? 'Your library is ready'
-                              : destination.type === 'collection'
-                                ? 'This folder is empty'
-                                : 'Your Inbox is ready'}
-                      </EmptyTitle>
-                      <EmptyDescription>
-                        {destination.type === 'archive'
-                          ? 'Archived items stay here until you unarchive or trash them.'
-                          : destination.type === 'trash'
-                            ? 'Items moved to Trash remain recoverable until permanently deleted.'
-                            : destination.type === 'all'
-                              ? 'A private, local library for links, images, notes, and files.'
-                              : destination.type === 'collection'
-                                ? 'Capture a link, image, note, or file right into this folder.'
-                                : 'Everything you capture lands here until you organize it.'}
-                      </EmptyDescription>
-                    </EmptyHeader>
+                  <Empty className="mt-6 gap-1">
+                    <EmptyTitle className="text-sm text-muted-foreground">
+                      {destination.type === 'archive'
+                        ? 'Archive is empty'
+                        : destination.type === 'trash'
+                          ? 'Trash is empty'
+                          : destination.type === 'collection'
+                            ? 'This folder is empty'
+                            : 'Nothing here yet'}
+                    </EmptyTitle>
                     {destination.type !== 'archive' && destination.type !== 'trash' ? (
-                      <EmptyContent>
-                        <Button size="sm" aria-keyshortcuts="Control+N" onClick={openComposer}>
-                          New item
-                          <Kbd className="ml-1 bg-primary-foreground/15 text-primary-foreground">
-                            Ctrl+N
-                          </Kbd>
+                      <EmptyContent className="gap-0">
+                        <Button
+                          variant="link"
+                          size="sm"
+                          aria-keyshortcuts="Control+N"
+                          onClick={openNewNote}
+                        >
+                          Create new note (Ctrl + N)
                         </Button>
-                        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                          <span>Paste or drop anywhere in this window</span>
-                          {globalCaptureShortcutStatus?.registered ? (
-                            <>
-                              <span aria-hidden="true">·</span>
-                              <span>
-                                Capture from any app with{' '}
-                                <Kbd>{globalCaptureShortcutStatus.accelerator}</Kbd>
-                              </span>
-                            </>
-                          ) : null}
-                        </div>
                       </EmptyContent>
                     ) : null}
                   </Empty>
@@ -1691,6 +1919,13 @@ export function Workspace({
             guardFocusTargets(itemIds, () => requestPermanentDelete(itemIds))
           }
           onClearSelection={clearSelection}
+        />
+        <GlobalSearchDialog
+          open={globalSearchOpen}
+          onOpenChange={setGlobalSearchOpen}
+          library={library}
+          recentItemIds={recentItemIds}
+          onOpenItem={openGlobalSearchItem}
         />
         <p className="sr-only" aria-live="polite" aria-atomic="true">
           {statusMessage}

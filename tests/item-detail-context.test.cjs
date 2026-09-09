@@ -97,6 +97,10 @@ test('detail modes share the compact toolbar and inline document flow', () => {
     require.resolve('../src/renderer/src/features/items/markdown-editor.tsx'),
     'utf8'
   )
+  const liveEditorSource = readFileSync(
+    require.resolve('../src/renderer/src/features/items/live/live-markdown-editor.tsx'),
+    'utf8'
+  )
   const markdownStyles = readFileSync(
     require.resolve('../src/renderer/src/assets/markdown.css'),
     'utf8'
@@ -140,6 +144,8 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.match(focusToolbarSource, /aria-pressed=\{expanded\}/)
   assert.match(focusToolbarSource, /onClick=\{\(\) => onExpandedChange\(!expanded\)\}/)
   assert.match(focusToolbarSource, /aria-label="Back to items"/)
+  assert.match(focusToolbarSource, /size="icon"[\s\S]*?<ChevronLeft aria-hidden="true" \/>/)
+  assert.doesNotMatch(focusToolbarSource, />\s*Items\s*</)
   assert.match(detailSource, /onBackToList\?: \(\) => void/)
   assert.match(detailSource, /requestGuardedAction\(onBackToList\)/)
   assert.match(
@@ -170,9 +176,25 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.doesNotMatch(focusToolbarSource, /Previous item|Next item/)
   assert.doesNotMatch(focusToolbarSource, /\[-webkit-app-region:drag\]/)
   assert.match(detailSource, /className="size-10 text-muted-foreground"/)
+  assert.doesNotMatch(detailSource, /stroke=\{1\.5\}/)
   assert.match(detailSource, /<span>{activeOption\.shortLabel}<\/span>/)
   assert.doesNotMatch(detailSource, /mode === 'live' && 'bg-muted text-foreground'/)
   assert.match(detailSource, /function NoteModeHud/)
+  assert.match(detailSource, /note-status-bar/)
+  assert.match(detailSource, /noteMetrics\.words\.toLocaleString\(\)/)
+  assert.match(detailSource, /noteMetrics\.characters\.toLocaleString\(\)/)
+  assert.match(detailSource, /Vim mode:/)
+  assert.match(detailSource, /VIM_MODE_BADGE_STYLES\[vimMode\]/)
+  assert.match(detailSource, /normal: 'bg-item-note\/12 text-item-note'/)
+  assert.match(detailSource, /insert: 'bg-item-image\/12 text-item-image'/)
+  assert.match(detailSource, /visual: 'bg-item-link\/12 text-item-link'/)
+  assert.match(detailSource, /'visual-line': 'bg-item-file\/12 text-item-file'/)
+  assert.match(
+    detailSource,
+    /replace: 'bg-destructive\/10 text-destructive dark:bg-destructive\/20'/
+  )
+  assert.match(detailSource, /transition-\[color,background-color\] duration-150/)
+  assert.doesNotMatch(detailSource, /-- \{vimMode\.toUpperCase\(\)\} --/)
   assert.match(detailSource, /role="status"/)
   assert.match(detailSource, /window\.setTimeout\(\(\) => setModeHudVisible\(false\), 900\)/)
   assert.match(detailSource, /<NoteModeHud mode={mode} visible={modeHudVisible} \/>/)
@@ -185,6 +207,7 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.match(actionMenuSource, /!props\.hideOpenAction/)
   assert.match(workspaceSource, /triggerSurface="caption"[\s\S]*?hideOpenAction/)
   assert.match(actionMenuSource, /props\.triggerSurface === 'caption' \? 'ghost' : 'secondary'/)
+  assert.match(actionMenuSource, /'size-10 text-muted-foreground'/)
   assert.doesNotMatch(actionMenuSource, /CaptionTileButton/)
   assert.match(focusWorkspaceSource, /data-focus-single-pane={!split}/)
   assert.match(focusWorkspaceSource, /expanded && 'hidden'/)
@@ -221,7 +244,7 @@ test('detail modes share the compact toolbar and inline document flow', () => {
     workspaceSource,
     /const \[focusWorkspaceOpen, setFocusWorkspaceOpen\] = useState\(\n\s*\(\) => initialSession !== null && initialSession\.focusItemId !== null\n\s*\)/
   )
-  assert.match(workspaceSource, /Masonry overview/)
+  assert.match(workspaceSource, /Return to overview/)
   assert.doesNotMatch(focusSplitHandlerSource, /setFocusNoteExpanded\(false\)/)
   assert.match(workspaceSource, /announceStatus\(expanded \? 'Zen mode on' : 'Zen mode off'\)/)
   assert.match(detailSource, /aria-keyshortcuts="Control\+Shift\+\\\\"/)
@@ -264,7 +287,7 @@ test('detail modes share the compact toolbar and inline document flow', () => {
     detailSource,
     /data-detail-pane[\s\S]{0,240}window-canvas[\s\S]{0,240}bg-background\/50/
   )
-  assert.doesNotMatch(detailSource, /rounded-tl-2xl/)
+  assert.match(detailSource, /rounded-tl-2xl border-t border-l border-border/)
   assert.match(detailSource, /function DetailInspector/)
   assert.match(detailSource, /function FileCanvas/)
   assert.match(detailSource, /<article className="kuskus-detail-document-frame/)
@@ -274,9 +297,27 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.match(actionMenuSource, /Manage attachments/)
   assert.match(actionMenuSource, /Note details/)
   assert.match(markdownStyles, /--detail-document-max-width: 48rem/)
+  assert.match(markdownStyles, /--detail-editor-scrollbar-size: 0\.625rem/)
+  assert.match(markdownStyles, /--typeset-detail-padding-block: 2rem/)
   assert.match(markdownStyles, /max-width: var\(--detail-document-max-width\)/)
+  assert.doesNotMatch(markdownStyles, /scrollbar-gutter/)
+  assert.match(markdownStyles, /translate: calc\(var\(--detail-editor-scrollbar-size\) \/ 2\) 0/)
   assert.match(markdownStyles, /\[data-reading-width='wide'\] \.kuskus-detail-document-frame/)
   assert.match(markdownStyles, /--detail-document-max-width: none/)
   assert.match(editorSource, /maxWidth: 'var\(--detail-document-max-width\)'/)
+  assert.match(editorSource, /width: 'var\(--detail-editor-scrollbar-size, 0\.625rem\)'/)
+  assert.match(
+    editorSource,
+    /padding: 'var\(--typeset-detail-padding-block\) var\(--typeset-detail-gutter\)'/
+  )
+  assert.match(
+    liveEditorSource,
+    /padding: 'var\(--typeset-detail-padding-block\) var\(--typeset-detail-gutter\)'/
+  )
+  assert.match(liveEditorSource, /width: 'var\(--detail-editor-scrollbar-size, 0\.625rem\)'/)
+  assert.equal(
+    (detailSource.match(/py-\[var\(--typeset-detail-padding-block\)\]/g) ?? []).length,
+    2
+  )
   assert.doesNotMatch(detailSource, /pt-28/)
 })

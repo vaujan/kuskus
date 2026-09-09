@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { IconAdjustmentsHorizontal, IconPlus, IconSearch, IconX } from '@tabler/icons-react'
+import { IconAdjustmentsHorizontal, IconNote, IconPlus, IconSearch } from '@tabler/icons-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,12 +13,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput
-} from '@/components/ui/input-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { FocusRailDensity } from '@/features/items/focus-view-state'
 import { ItemFilterMenuGroups, ItemSortMenuGroup } from '@/features/items/item-retrieval-menu'
@@ -27,17 +21,13 @@ import type { ItemTypeFilter } from '@/features/items/item-view'
 import { ShellSidebarTrigger } from '@/features/shell/shell-sidebar-trigger'
 
 export function FocusListHeader({
-  keyboardShortcutsEnabled,
   destinationLabel,
   composerOpen,
   hasDraft,
   newItemFocusRequest,
+  onNewNote,
   onNewItem,
-  search,
-  onSearchChange,
-  searchPending,
-  resultCount,
-  totalCount,
+  onOpenSearch,
   typeFilters,
   onTypeFilterChange,
   showReferencedAttachments,
@@ -48,17 +38,13 @@ export function FocusListHeader({
   density,
   onDensityChange
 }: {
-  keyboardShortcutsEnabled: boolean
   destinationLabel: string
   composerOpen: boolean
   hasDraft: boolean
   newItemFocusRequest: number
+  onNewNote: () => void
   onNewItem: () => void
-  search: string
-  onSearchChange: (value: string) => void
-  searchPending: boolean
-  resultCount: number
-  totalCount: number
+  onOpenSearch: () => void
   typeFilters: ItemTypeFilter[]
   onTypeFilterChange: (type: ItemTypeFilter, selected: boolean) => void
   showReferencedAttachments: boolean
@@ -69,39 +55,9 @@ export function FocusListHeader({
   density: FocusRailDensity
   onDensityChange: (density: FocusRailDensity) => void
 }): React.JSX.Element {
-  const searchRef = useRef<HTMLInputElement>(null)
   const newItemRef = useRef<HTMLButtonElement>(null)
-  const hasSearch = search.trim().length > 0
   const filterCount = typeFilters.length + Number(showReferencedAttachments)
   const retrievalActive = filterCount > 0 || sort !== DEFAULT_ITEM_SORT
-  const searchStatus = searchPending
-    ? 'Searching...'
-    : resultCount === 0
-      ? 'No matches'
-      : `${resultCount} of ${totalCount}`
-
-  useEffect(() => {
-    const handleShortcut = (event: KeyboardEvent): void => {
-      if (!keyboardShortcutsEnabled || event.defaultPrevented) return
-      if (
-        event.target instanceof Element &&
-        event.target.closest(
-          '[data-detail-surface], [role="dialog"], [role="menu"], [role="listbox"]'
-        )
-      ) {
-        return
-      }
-      const key = event.key.toLocaleLowerCase()
-      if ((event.ctrlKey || event.metaKey) && (key === 'k' || key === 'f')) {
-        event.preventDefault()
-        searchRef.current?.focus()
-        searchRef.current?.select()
-        return
-      }
-    }
-    window.addEventListener('keydown', handleShortcut)
-    return () => window.removeEventListener('keydown', handleShortcut)
-  }, [keyboardShortcutsEnabled])
 
   useEffect(() => {
     if (newItemFocusRequest > 0) newItemRef.current?.focus()
@@ -114,60 +70,27 @@ export function FocusListHeader({
     >
       <ShellSidebarTrigger />
 
-      <InputGroup className="h-(--control-height-md) min-w-0 flex-1 border-transparent transition-[background-color,box-shadow] [transition-duration:var(--motion-duration-ui)] [-webkit-app-region:no-drag] hover:bg-muted/80 has-[[data-slot=input-group-control]:focus-visible]:bg-background has-[[data-slot=input-group-control]:focus-visible]:shadow-[inset_0_0_0_1px_var(--ring),0_4px_14px_rgb(0_0_0/0.08)] has-[[data-slot=input-group-control]:focus-visible]:ring-0">
-        <InputGroupInput
-          ref={searchRef}
-          className="h-(--control-height-md) min-w-0 text-sm [&::-webkit-search-cancel-button]:hidden md:text-sm"
-          type="search"
-          name="focus-search"
-          aria-keyshortcuts="Control+K Meta+K Control+F Meta+F"
-          autoComplete="off"
-          placeholder="Search..."
-          aria-label={`Search ${destinationLabel} by title, note text, link, or filename`}
-          value={search}
-          onChange={(event) => onSearchChange(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape' && search) {
-              event.preventDefault()
-              onSearchChange('')
-            } else if (event.key === 'Escape') event.currentTarget.blur()
-          }}
-        />
-        <InputGroupAddon align="inline-start" className="min-w-0 gap-1.5 pl-2.5 pr-1">
-          <IconSearch aria-hidden="true" />
-          <span
-            className="hidden max-w-24 truncate text-xs font-medium text-foreground/70 @min-[22rem]/focus-header:inline"
-            title={destinationLabel}
+      <div className="flex min-w-0 flex-1 items-center gap-1 [-webkit-app-region:no-drag]">
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                aria-label="Search the entire library"
+                aria-keyshortcuts="Control+K Meta+K"
+                onClick={onOpenSearch}
+              />
+            }
           >
-            {destinationLabel}
-          </span>
-          <span
-            className="hidden h-3.5 w-px shrink-0 bg-border @min-[22rem]/focus-header:block"
-            aria-hidden="true"
-          />
-        </InputGroupAddon>
-        <InputGroupAddon align="inline-end" className="gap-1 pr-1.5">
-          <span
-            className="hidden max-w-20 truncate text-[0.6875rem] tabular-nums text-muted-foreground @min-[34rem]/focus-header:inline"
-            aria-live="polite"
-            aria-atomic="true"
-          >
-            {hasSearch ? searchStatus : ''}
-          </span>
-          {hasSearch ? (
-            <InputGroupButton
-              size="icon-xs"
-              aria-label="Clear search"
-              onClick={() => {
-                onSearchChange('')
-                searchRef.current?.focus()
-              }}
-            >
-              <IconX aria-hidden="true" />
-            </InputGroupButton>
-          ) : null}
-        </InputGroupAddon>
-      </InputGroup>
+            <IconSearch aria-hidden="true" />
+          </TooltipTrigger>
+          <TooltipContent>Search library (Ctrl+K)</TooltipContent>
+        </Tooltip>
+        <span className="min-w-0 truncate px-1 text-xs font-medium text-foreground/70">
+          {destinationLabel}
+        </span>
+      </div>
 
       <div className="[-webkit-app-region:no-drag]">
         <Tooltip>
@@ -227,14 +150,31 @@ export function FocusListHeader({
         <TooltipTrigger
           render={
             <Button
+              className="relative [-webkit-app-region:no-drag]"
+              size="icon-sm"
+              variant="ghost"
+              aria-keyshortcuts="Control+N"
+              aria-label="Create new note"
+              onClick={onNewNote}
+            />
+          }
+        >
+          <IconNote aria-hidden="true" />
+        </TooltipTrigger>
+        <TooltipContent>New note (Ctrl+N)</TooltipContent>
+      </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
               ref={newItemRef}
               className="relative [-webkit-app-region:no-drag]"
               size="icon-sm"
               variant="ghost"
               data-new-item-button
               aria-expanded={composerOpen}
-              aria-keyshortcuts="Control+N"
-              aria-label={hasDraft && !composerOpen ? 'Continue New item draft' : 'Create new item'}
+              aria-label={hasDraft && !composerOpen ? 'Continue Add item draft' : 'Add item'}
               onClick={onNewItem}
             />
           }
@@ -247,7 +187,7 @@ export function FocusListHeader({
             />
           ) : null}
         </TooltipTrigger>
-        <TooltipContent>{hasDraft && !composerOpen ? 'Continue draft' : 'New item'}</TooltipContent>
+        <TooltipContent>{hasDraft && !composerOpen ? 'Continue draft' : 'Add item'}</TooltipContent>
       </Tooltip>
     </header>
   )

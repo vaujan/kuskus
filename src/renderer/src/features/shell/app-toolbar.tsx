@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react'
 import {
   IconAdjustmentsHorizontal,
+  IconNote,
   IconPlus,
   IconSearch,
-  IconTrash,
-  IconX
+  IconTrash
 } from '@tabler/icons-react'
 
 import { Badge } from '@/components/ui/badge'
@@ -15,12 +15,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput
-} from '@/components/ui/input-group'
 import { Kbd } from '@/components/ui/kbd'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ItemFilterMenuGroups, ItemSortMenuGroup } from '@/features/items/item-retrieval-menu'
@@ -28,21 +22,16 @@ import { DEFAULT_ITEM_SORT, type ItemSort } from '@/features/items/item-sort'
 import type { ItemTypeFilter } from '@/features/items/item-view'
 import { ShellSidebarTrigger } from '@/features/shell/shell-sidebar-trigger'
 import { WindowControls } from '@/features/shell/window-controls'
-import { cn } from '@/lib/utils'
 
 export function AppToolbar({
-  keyboardShortcutsEnabled = true,
   newItemOpen,
   hasDraft,
   newItemFocusRequest,
+  onNewNote,
   onNewItem,
   onDiscardDraft,
-  search,
-  searchScope,
-  onSearchChange,
-  searchPending,
-  resultCount,
-  totalCount,
+  destinationLabel,
+  onOpenSearch,
   typeFilters,
   onTypeFilterChange,
   showReferencedAttachments,
@@ -52,18 +41,14 @@ export function AppToolbar({
   onSortChange,
   onWindowClose
 }: {
-  keyboardShortcutsEnabled?: boolean
   newItemOpen: boolean
   hasDraft: boolean
   newItemFocusRequest: number
+  onNewNote: () => void
   onNewItem: () => void
   onDiscardDraft: () => void
-  search: string
-  searchScope: string
-  onSearchChange: (value: string) => void
-  searchPending: boolean
-  resultCount: number
-  totalCount: number
+  destinationLabel: string
+  onOpenSearch: () => void
   typeFilters: ItemTypeFilter[]
   onTypeFilterChange: (type: ItemTypeFilter, selected: boolean) => void
   showReferencedAttachments: boolean
@@ -73,29 +58,7 @@ export function AppToolbar({
   onSortChange: (sort: ItemSort) => void
   onWindowClose?: () => void
 }): React.JSX.Element {
-  const searchRef = useRef<HTMLInputElement>(null)
   const newItemRef = useRef<HTMLButtonElement>(null)
-  const hasSearch = search.trim().length > 0
-  const searchStatus = searchPending
-    ? 'Searching…'
-    : resultCount === 0
-      ? 'No matches'
-      : `${resultCount} of ${totalCount} ${totalCount === 1 ? 'item' : 'items'}`
-
-  useEffect(() => {
-    const focusSearch = (event: KeyboardEvent): void => {
-      if (!keyboardShortcutsEnabled || event.defaultPrevented) return
-      if (event.target instanceof Element && event.target.closest('[data-detail-surface]')) return
-      const key = event.key.toLocaleLowerCase()
-      if ((event.ctrlKey || event.metaKey) && (key === 'k' || key === 'f')) {
-        event.preventDefault()
-        searchRef.current?.focus()
-        searchRef.current?.select()
-      }
-    }
-    window.addEventListener('keydown', focusSearch)
-    return () => window.removeEventListener('keydown', focusSearch)
-  }, [keyboardShortcutsEnabled])
 
   useEffect(() => {
     if (newItemFocusRequest > 0) newItemRef.current?.focus()
@@ -110,73 +73,18 @@ export function AppToolbar({
           </div>
 
           <div className="flex min-w-0 items-center gap-1 [-webkit-app-region:no-drag]">
-            <InputGroup className="h-(--control-height-md) min-w-0 flex-1 border-transparent transition-[background-color,box-shadow] [transition-duration:var(--motion-duration-ui)] hover:bg-muted/80 has-[[data-slot=input-group-control]:focus-visible]:bg-background has-[[data-slot=input-group-control]:focus-visible]:shadow-[inset_0_0_0_1px_var(--ring),0_4px_14px_rgb(0_0_0/0.08)] has-[[data-slot=input-group-control]:focus-visible]:ring-0">
-              <InputGroupInput
-                ref={searchRef}
-                className="h-(--control-height-md) min-w-0 text-sm [&::-webkit-search-cancel-button]:hidden md:text-sm"
-                type="search"
-                name="search"
-                aria-keyshortcuts="Control+K Meta+K Control+F Meta+F"
-                autoComplete="off"
-                placeholder="Search…"
-                aria-label={`Search ${searchScope} by title, note text, link, or filename`}
-                value={search}
-                onChange={(event) => onSearchChange(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Escape' && search) {
-                    event.preventDefault()
-                    onSearchChange('')
-                  } else if (event.key === 'Escape') {
-                    event.currentTarget.blur()
-                  }
-                }}
-              />
-              <InputGroupAddon align="inline-start" className="min-w-0 gap-1.5 pl-2.5 pr-1">
-                <IconSearch aria-hidden="true" />
-                <span
-                  className="max-w-20 truncate text-xs font-medium text-foreground/70 @min-[56rem]/toolbar:max-w-32"
-                  title={searchScope}
-                >
-                  {searchScope}
-                </span>
-                <span className="h-3.5 w-px shrink-0 bg-border" aria-hidden="true" />
-              </InputGroupAddon>
-              <InputGroupAddon align="inline-end" className="gap-2 pr-1.5">
-                <span
-                  className="hidden max-w-28 truncate text-[0.6875rem] font-normal tabular-nums text-muted-foreground @min-[64rem]/toolbar:inline"
-                  aria-live="polite"
-                  aria-atomic="true"
-                >
-                  {hasSearch ? searchStatus : ''}
-                </span>
-                <span className="relative flex h-6 w-6 shrink-0 items-center justify-end @min-[48rem]/toolbar:w-14">
-                  <Kbd
-                    className={cn(
-                      'absolute right-0 hidden @min-[48rem]/toolbar:inline-flex',
-                      hasSearch ? 'invisible opacity-0' : 'visible opacity-100'
-                    )}
-                    aria-hidden="true"
-                  >
-                    Ctrl+K
-                  </Kbd>
-                  <InputGroupButton
-                    size="icon-xs"
-                    aria-label="Clear search"
-                    tabIndex={hasSearch ? 0 : -1}
-                    className={cn(
-                      "absolute right-0 after:absolute after:-inset-2 after:content-['']",
-                      hasSearch ? 'visible opacity-100' : 'pointer-events-none invisible opacity-0'
-                    )}
-                    onClick={() => {
-                      onSearchChange('')
-                      searchRef.current?.focus()
-                    }}
-                  >
-                    <IconX aria-hidden="true" />
-                  </InputGroupButton>
-                </span>
-              </InputGroupAddon>
-            </InputGroup>
+            <Button
+              className="min-w-0 flex-1 justify-start"
+              size="sm"
+              variant="secondary"
+              aria-label="Search the entire library"
+              aria-keyshortcuts="Control+K Meta+K"
+              onClick={onOpenSearch}
+            >
+              <IconSearch data-icon="inline-start" aria-hidden="true" />
+              <span className="truncate">Search library…</span>
+              <Kbd className="ml-auto hidden @min-[48rem]/toolbar:inline-flex">Ctrl+K</Kbd>
+            </Button>
 
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -190,7 +98,7 @@ export function AppToolbar({
                         ? 'secondary'
                         : 'ghost'
                     }
-                    aria-label={`Sort and filter ${searchScope}`}
+                    aria-label={`Sort and filter ${destinationLabel}`}
                   />
                 }
               >
@@ -218,25 +126,43 @@ export function AppToolbar({
 
           <div className="flex min-w-0 items-center justify-end gap-1">
             <Button
-              ref={newItemRef}
               size="sm"
-              data-new-item-button
-              aria-expanded={newItemOpen}
+              variant="secondary"
               aria-keyshortcuts="Control+N"
-              aria-label={hasDraft && !newItemOpen ? 'Continue New item draft' : 'Create new item'}
-              onClick={onNewItem}
+              aria-label="Create new note"
+              onClick={onNewNote}
             >
-              <IconPlus data-icon="inline-start" aria-hidden="true" />
-              <span className="hidden @min-[44rem]/toolbar:inline">
-                {hasDraft && !newItemOpen ? 'Continue draft' : 'New item'}
-              </span>
-              <Kbd className="ml-1 hidden bg-primary-foreground/15 text-primary-foreground @min-[56rem]/toolbar:inline-flex">
-                Ctrl+N
-              </Kbd>
-              {hasDraft ? (
-                <span className="size-1.5 rounded-full bg-primary-foreground" aria-hidden="true" />
-              ) : null}
+              <IconNote data-icon="inline-start" aria-hidden="true" />
+              <span className="hidden @min-[44rem]/toolbar:inline">New note</span>
+              <Kbd className="ml-1 hidden @min-[56rem]/toolbar:inline-flex">Ctrl+N</Kbd>
             </Button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    ref={newItemRef}
+                    className="relative"
+                    size="icon-sm"
+                    variant="ghost"
+                    data-new-item-button
+                    aria-expanded={newItemOpen}
+                    aria-label={hasDraft && !newItemOpen ? 'Continue Add item draft' : 'Add item'}
+                    onClick={onNewItem}
+                  />
+                }
+              >
+                <IconPlus aria-hidden="true" />
+                {hasDraft ? (
+                  <span
+                    className="absolute top-2 right-2 size-1.5 rounded-full bg-primary"
+                    aria-hidden="true"
+                  />
+                ) : null}
+              </TooltipTrigger>
+              <TooltipContent>
+                {hasDraft && !newItemOpen ? 'Continue draft' : 'Add item'}
+              </TooltipContent>
+            </Tooltip>
             {hasDraft ? (
               <Tooltip>
                 <TooltipTrigger

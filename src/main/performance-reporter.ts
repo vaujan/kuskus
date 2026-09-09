@@ -42,14 +42,21 @@ const TYPING_RESET = `(() => { const s = window.__kuskusTyping; if (s) { s.keyLa
 const TYPING_READ = `(() => { const s = window.__kuskusTyping; return s ? { keyLatencies: s.keyLatencies, droppedFrames: s.droppedFrames, longTasks: s.longTasks, rafTicks: s.rafTicks } : null })()`
 
 const FOCUS_SEARCH = `(() => {
-  const input = document.querySelector('input[type="search"]');
+  const input = document.querySelector('input[aria-label="Search the entire library"]');
   if (!input) return false;
   input.focus();
   return true;
 })()`
 
+const OPEN_SEARCH = `(() => {
+  const trigger = document.querySelector('button[aria-label="Search the entire library"]');
+  if (!trigger) return false;
+  trigger.click();
+  return true;
+})()`
+
 const CLEAR_SEARCH = `(() => {
-  const input = document.querySelector('input[type="search"]');
+  const input = document.querySelector('input[aria-label="Search the entire library"]');
   if (!input) return;
   const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
   setter.call(input, '');
@@ -194,7 +201,9 @@ export function startPerformanceReporter(
     const ready = await waitFor(
       () =>
         window.webContents
-          .executeJavaScript(`!!document.querySelector('input[type="search"]')`)
+          .executeJavaScript(
+            `!!document.querySelector('button[aria-label="Search the entire library"]')`
+          )
           .catch(() => false),
       250,
       60_000
@@ -206,7 +215,21 @@ export function startPerformanceReporter(
     let note: typeof empty = empty
     let noteScansBefore: number | null = null
     if (ready) {
-      const searchFocused = await window.webContents.executeJavaScript(FOCUS_SEARCH)
+      const searchOpened = await window.webContents.executeJavaScript(OPEN_SEARCH)
+      const searchReady =
+        searchOpened &&
+        (await waitFor(
+          () =>
+            window.webContents
+              .executeJavaScript(
+                `!!document.querySelector('input[aria-label="Search the entire library"]')`
+              )
+              .catch(() => false),
+          100,
+          5_000
+        ))
+      const searchFocused =
+        searchReady && (await window.webContents.executeJavaScript(FOCUS_SEARCH))
       if (searchFocused) {
         await waitStable()
         await typeKey('a')
@@ -219,6 +242,9 @@ export function startPerformanceReporter(
         await wait(250)
         await window.webContents.executeJavaScript(CLEAR_SEARCH)
         await wait(250)
+        sendKey(window, 'keyDown', 'Escape')
+        sendKey(window, 'keyUp', 'Escape')
+        await wait(150)
       }
       search = summarize(await scenarioState())
 

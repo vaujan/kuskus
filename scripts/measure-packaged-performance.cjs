@@ -137,7 +137,7 @@ async function main() {
       }
       if (typingEvents.some((entry) => entry.data.completed === false)) {
         throw new Error(
-          'A typing scenario never reached an interactive workspace (no search input found).'
+          'A typing scenario never reached an interactive workspace (no search trigger found).'
         )
       }
       const searchKeyLatencies = typingEvents.flatMap((entry) => entry.data.search.keyLatencies)

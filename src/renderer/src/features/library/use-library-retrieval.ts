@@ -1,12 +1,10 @@
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo } from 'react'
 
 import { getFolderSubtreeIds } from '@/features/collections/folder-tree'
 import { sortItems, type ItemSort } from '@/features/items/item-sort'
 import type { ItemTypeFilter } from '@/features/items/item-view'
 import type { LibraryDestination } from '@/features/shell/library-sidebar'
 import type { LibraryDto, LibraryItemDto } from '../../../../shared/library-contract'
-
-const SEARCH_QUERY_DEBOUNCE_MS = 150
 
 function itemMatchesDestination(
   item: LibraryItemDto,
@@ -36,60 +34,22 @@ function itemMatchesDestination(
 export function useLibraryRetrieval({
   library,
   destination,
-  search,
   typeFilters,
   sort,
   showReferencedAttachments,
-  excludedItemId,
-  onSearchResolved
+  excludedItemId
 }: {
   library: LibraryDto
   destination: LibraryDestination
-  search: string
   typeFilters: ItemTypeFilter[]
   sort: ItemSort
   showReferencedAttachments: boolean
   excludedItemId: string | null
-  onSearchResolved: (itemIds: ReadonlySet<string>) => void
 }): {
-  deferredSearch: string
-  searchPending: boolean
   visibleItems: LibraryItemDto[]
   destinationItems: LibraryItemDto[]
   matchesCurrentRetrieval: (item: LibraryItemDto) => boolean
 } {
-  const [deferredSearch, setDeferredSearch] = useState(search)
-  useEffect(() => {
-    const timer = window.setTimeout(
-      () => setDeferredSearch(search),
-      search ? SEARCH_QUERY_DEBOUNCE_MS : 0
-    )
-    return () => window.clearTimeout(timer)
-  }, [search])
-  const query = deferredSearch.trim().toLocaleLowerCase()
-  const requestId = useRef(0)
-  const [searchMatches, setSearchMatches] = useState<{
-    library: LibraryDto
-    query: string
-    itemIds: ReadonlySet<string>
-  } | null>(null)
-
-  useEffect(() => {
-    if (!query) return
-    const currentRequest = requestId.current + 1
-    requestId.current = currentRequest
-    let active = true
-    void window.kuskus.queryItems({ query }).then((result) => {
-      if (!active || currentRequest !== requestId.current || !result.ok) return
-      const itemIds = new Set(result.data.itemIds)
-      onSearchResolved(itemIds)
-      startTransition(() => setSearchMatches({ library, query, itemIds }))
-    })
-    return () => {
-      active = false
-    }
-  }, [library, onSearchResolved, query])
-
   const collectionSubtreeIds = useMemo(
     () =>
       destination.type === 'collection'
@@ -98,23 +58,12 @@ export function useLibraryRetrieval({
     [destination, library.collections]
   )
   const pinnedItemIds = useMemo(() => new Set(library.pinnedItemIds), [library.pinnedItemIds])
-  const acceptedSearchIds =
-    searchMatches?.library === library && query ? searchMatches.itemIds : null
   const matchesCurrentRetrieval = useCallback(
     (item: LibraryItemDto): boolean =>
       (showReferencedAttachments || !item.referencedAttachment) &&
       itemMatchesDestination(item, destination, collectionSubtreeIds, pinnedItemIds) &&
-      (typeFilters.length === 0 || typeFilters.includes(item.type)) &&
-      (!query || acceptedSearchIds?.has(item.id) === true),
-    [
-      acceptedSearchIds,
-      collectionSubtreeIds,
-      destination,
-      pinnedItemIds,
-      query,
-      showReferencedAttachments,
-      typeFilters
-    ]
+      (typeFilters.length === 0 || typeFilters.includes(item.type)),
+    [collectionSubtreeIds, destination, pinnedItemIds, showReferencedAttachments, typeFilters]
   )
   const visibleItems = useMemo(
     () =>
@@ -133,8 +82,6 @@ export function useLibraryRetrieval({
   )
 
   return {
-    deferredSearch,
-    searchPending: search !== deferredSearch || Boolean(query && !acceptedSearchIds),
     visibleItems,
     destinationItems,
     matchesCurrentRetrieval

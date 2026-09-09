@@ -102,7 +102,8 @@ test('Focus Index uses text-first rows with previews and distinct active and sel
   assert.match(source, /min-h-\[88px\]/)
   assert.match(source, /contain-intrinsic-size:96px/)
   assert.doesNotMatch(source, /useImagePreview|useUrlPreview|IntersectionObserver/)
-  assert.doesNotMatch(source, /<img|Thumbnail|<Badge/)
+  assert.doesNotMatch(source, /<img|Thumbnail/)
+  assert.match(source, /<Badge size="sm" variant=\{itemTypeBadgeVariant\(item\)\}>/)
   assert.match(source, /content-visibility:auto/)
   assert.match(source, /line-clamp-2/)
   assert.match(source, /focusIndexSupportingText\(item\)/)
@@ -132,7 +133,7 @@ test('Focus Index derives quiet supporting text without repeating a note title',
   )
 })
 
-test('Detail capture stays in the rail and can promote notes into the editor', () => {
+test('New notes use the detail editor while mixed capture stays in the rail', () => {
   const workspaceSource = readFileSync(
     require.resolve('../src/renderer/src/features/library/workspace.tsx'),
     'utf8'
@@ -149,9 +150,24 @@ test('Detail capture stays in the rail and can promote notes into the editor', (
     require.resolve('../src/renderer/src/features/capture/composer-live-markdown-editor.tsx'),
     'utf8'
   )
+  const newNoteEditorSource = readFileSync(
+    require.resolve('../src/renderer/src/features/items/new-note-editor.tsx'),
+    'utf8'
+  )
 
   assert.match(workspaceSource, /presentation="card"/)
-  assert.match(workspaceSource, /const focusDetail = focusItem \? \(/)
+  assert.match(workspaceSource, /const focusDetail = newNoteOpen \? \(/)
+  assert.match(workspaceSource, /openNewNote\(\)/)
+  assert.match(workspaceSource, /Untitled note/)
+  assert.match(workspaceSource, /onNewNote=\{openNewNote\}/)
+  assert.match(workspaceSource, /<ItemDetailDialog/)
+  assert.match(workspaceSource, /noteSave=\{state\.saveNote\}/)
+  assert.match(workspaceSource, /initialNoteMode="live"/)
+  assert.match(newNoteEditorSource, /window\.kuskus\.createNote/)
+  assert.match(newNoteEditorSource, /window\.kuskus\.updateNote/)
+  assert.match(newNoteEditorSource, /window\.kuskus\.stageCaptureDraftImage/)
+  assert.match(newNoteEditorSource, /children\(renderState\)/)
+  assert.doesNotMatch(newNoteEditorSource, /Start typing to create|Creating…|Note not created/)
   assert.equal(
     detectCaptureKind('', 1),
     'image',
@@ -169,8 +185,8 @@ test('Detail capture stays in the rail and can promote notes into the editor', (
   )
   assert.equal(shouldYieldMainComposer('quick', false), true)
 
-  // The focus rail owns its capture slot as a plain React node; detail capture
-  // never slips back into a full composer that overlays the rail.
+  // Mixed capture remains a separate rail workflow and can still promote a
+  // capture into the normal note editor explicitly.
   assert.match(listSource, /composer: React\.ReactNode/)
   assert.doesNotMatch(listSource, /Draft in progress/)
   assert.match(composerSource, /Continue in editor/)

@@ -44,16 +44,6 @@ import {
 } from '@tabler/icons-react'
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle
-} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { ContextMenu as ContextMenuPrimitive } from '@base-ui/react/context-menu'
@@ -77,7 +67,6 @@ import {
   Dialog as ConflictDialog,
   DialogContent as ConflictDialogContent,
   DialogDescription as ConflictDialogDescription,
-  DialogFooter as ConflictDialogFooter,
   DialogHeader as ConflictDialogHeader,
   DialogTitle as ConflictDialogTitle
 } from '@/components/ui/dialog'
@@ -94,7 +83,6 @@ import { Input } from '@/components/ui/input'
 import { Kbd } from '@/components/ui/kbd'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { createMarkdownDiffRows } from '@/features/items/markdown-diff'
 import {
   createInlineTitleEditState,
   reduceInlineTitleEdit,
@@ -110,6 +98,7 @@ import type { LiveEditorOptions } from '@/features/items/live/live-preview'
 import { MarkdownFrontmatterBlock } from '@/features/items/markdown-frontmatter-block'
 import { NoteFind } from '@/features/items/note-find'
 import type { NoteVimMode } from '@/features/items/note-vim-mode'
+import { getNoteTextMetrics } from '@/features/items/note-text-metrics'
 import {
   getScrollRatio,
   getScrollTopForRatio,
@@ -133,6 +122,7 @@ import {
   type NoteMode,
   type SinglePaneNoteMode
 } from '@/features/items/note-view-mode'
+import { notifyExternalChangesMerged } from '@/lib/notify'
 import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
 import { useImagePreview } from '@/features/items/use-image-preview'
 import { useNoteAttachmentPreviews } from '@/features/items/use-note-attachment-previews'
@@ -142,7 +132,9 @@ import { cn } from '@/lib/utils'
 import type {
   ActiveItemLocation,
   CollectionDto,
-  LibraryItemDto
+  LibraryItemDto,
+  UpdateNoteInput,
+  UpdateNoteResult
 } from '../../../../shared/library-contract'
 import {
   encodeMarkdownImageTarget,
@@ -384,7 +376,7 @@ function PropertyRow({
   return (
     <div className="grid min-h-9 grid-cols-[6.5rem_minmax(0,1fr)] items-start gap-3 rounded-md px-1.5 py-2">
       <dt className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-        <Icon className="size-4 shrink-0" stroke={1.5} aria-hidden="true" />
+        <Icon className="size-4 shrink-0" aria-hidden="true" />
         <span className="truncate">{label}</span>
       </dt>
       <dd className={cn('min-w-0 text-xs leading-5 text-foreground/85', valueClassName)}>
@@ -484,17 +476,23 @@ function DetailToolbar({
           )}
         >
           {!expanded && onBack ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="hidden h-10 px-2.5 text-muted-foreground group-data-[focus-single-pane=true]/focus-detail:inline-flex"
-              aria-label="Back to items"
-              onClick={onBack}
-            >
-              <ChevronLeft data-icon="inline-start" aria-hidden="true" />
-              Items
-            </Button>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="hidden size-10 text-muted-foreground group-data-[focus-single-pane=true]/focus-detail:inline-flex"
+                    aria-label="Back to items"
+                    onClick={onBack}
+                  />
+                }
+              >
+                <ChevronLeft aria-hidden="true" />
+              </TooltipTrigger>
+              <TooltipContent>Back to items</TooltipContent>
+            </Tooltip>
           ) : null}
           {onExpandedChange ? (
             <div className="group-data-[focus-single-pane=true]/focus-detail:hidden">
@@ -515,7 +513,6 @@ function DetailToolbar({
                 >
                   <span className="relative size-4" aria-hidden="true">
                     <ArrowsDiagonal
-                      stroke={1.5}
                       className={cn(
                         'absolute inset-0 size-4 transition-[opacity,scale,filter] duration-300 [transition-timing-function:cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none',
                         expanded
@@ -524,7 +521,6 @@ function DetailToolbar({
                       )}
                     />
                     <ArrowsDiagonalMinimize
-                      stroke={1.5}
                       className={cn(
                         'absolute inset-0 size-4 transition-[opacity,scale,filter] duration-300 [transition-timing-function:cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none',
                         expanded
@@ -637,10 +633,18 @@ function NoteModeHud({ mode, visible }: { mode: NoteMode; visible: boolean }): R
         visible ? 'opacity-100' : 'opacity-0'
       )}
     >
-      <Icon className="size-4" stroke={1.5} aria-hidden="true" />
+      <Icon className="size-4" aria-hidden="true" />
       <span>{visible ? option.label : ''}</span>
     </div>
   )
+}
+
+const VIM_MODE_BADGE_STYLES: Record<NoteVimMode, string> = {
+  normal: 'bg-item-note/12 text-item-note',
+  insert: 'bg-item-image/12 text-item-image',
+  visual: 'bg-item-link/12 text-item-link',
+  'visual-line': 'bg-item-file/12 text-item-file',
+  replace: 'bg-destructive/10 text-destructive dark:bg-destructive/20'
 }
 
 function NoteModeControls({
@@ -704,7 +708,7 @@ function NoteModeControls({
               />
             }
           >
-            <ActiveIcon stroke={1.5} aria-hidden="true" />
+            <ActiveIcon aria-hidden="true" />
             <span>{activeOption.shortLabel}</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-72">
@@ -753,7 +757,7 @@ function NoteModeControls({
               />
             }
           >
-            <Icon stroke={1.5} aria-hidden="true" />
+            <Icon aria-hidden="true" />
           </TooltipTrigger>
           <TooltipContent>{label}</TooltipContent>
         </Tooltip>
@@ -772,7 +776,7 @@ function NoteDocumentBlocks({
   showInlineTitle: boolean
   className?: string
   titleRef?: React.Ref<InlineItemTitleHandle>
-  onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
+  onRenameTitle?: (title: string) => Promise<DetailTitleRenameResult>
 }): React.JSX.Element | null {
   if (!showInlineTitle) return null
 
@@ -781,13 +785,19 @@ function NoteDocumentBlocks({
       className={cn('not-typeset flex min-w-0 flex-col gap-8 font-sans', className)}
       data-not-typeset
     >
-      <InlineItemTitle
-        ref={titleRef}
-        item={item}
-        onRename={onRenameTitle}
-        className="font-heading text-3xl leading-tight font-semibold text-foreground text-balance"
-        textClassName="break-words"
-      />
+      {onRenameTitle ? (
+        <InlineItemTitle
+          ref={titleRef}
+          item={item}
+          onRename={onRenameTitle}
+          className="font-heading text-3xl leading-tight font-semibold text-foreground text-balance"
+          textClassName="break-words"
+        />
+      ) : (
+        <h1 className="font-heading text-3xl leading-tight font-semibold text-foreground text-balance break-words">
+          {item.title}
+        </h1>
+      )}
     </div>
   )
 }
@@ -1027,7 +1037,7 @@ function NoteCanvas({
   onModeChange,
   onRetry,
   onRestore,
-  onReviewConflict,
+  onPasteImage,
   onOpenVaultLink,
   onError,
   onMoveToTrash
@@ -1049,18 +1059,20 @@ function NoteCanvas({
   previewTitleRef: React.Ref<InlineItemTitleHandle>
   noteCursorCaptureRef: React.MutableRefObject<(() => number | null) | null>
   noteCursorOffsetRef: React.RefObject<number | null>
-  onRenameTitle: (title: string) => Promise<DetailTitleRenameResult>
+  onRenameTitle?: (title: string) => Promise<DetailTitleRenameResult>
   onDraftChange: (value: string) => void
   onModeChange: (mode: NoteMode) => void
   onRetry: () => void
   onRestore: () => void
-  onReviewConflict: () => void
+  onPasteImage?: (file: File, insertAtSelection: (src: string) => void) => Promise<void>
   onOpenVaultLink: (target: string) => void
   onMoveToTrash: (itemId: string) => void
   onError: (message: string) => void
 }): React.JSX.Element {
+  const noteMetrics = useMemo(() => getNoteTextMetrics(snapshot.draft), [snapshot.draft])
   const noteEditorRef = useRef<SourceNoteHandle>(null)
   const liveFindTargetRef = useRef<NoteFindTarget | null>(null)
+  const sourceFindTargetRef = useRef<NoteFindTarget | null>(null)
   const previewFindTargetRef = useRef<NoteFindTarget | null>(null)
   const previewViewportRef = useRef<HTMLDivElement>(null)
   const noteViewportRef = useRef<HTMLDivElement>(null)
@@ -1110,6 +1122,10 @@ function NoteCanvas({
   const importPastedImage = useCallback(
     async (file: File, insertAtSelection: (src: string) => void): Promise<void> => {
       try {
+        if (onPasteImage) {
+          await onPasteImage(file, insertAtSelection)
+          return
+        }
         const result = await window.kuskus.importNoteImage({
           itemId: item.id,
           bytes: await file.arrayBuffer(),
@@ -1123,7 +1139,7 @@ function NoteCanvas({
         onError(error instanceof Error ? error.message : 'The image could not be pasted.')
       }
     },
-    [item.id, onError]
+    [item.id, onError, onPasteImage]
   )
   const liveOptions = useMemo<LiveEditorOptions>(() => {
     const images = new Map<
@@ -1384,8 +1400,16 @@ function NoteCanvas({
       onKeyDownCapture={handleUndo}
     >
       <NoteFind
-        enabled={mode === 'read' || mode === 'live'}
-        target={mode === 'live' ? liveFindTargetRef : previewFindTargetRef}
+        key={mode}
+        enabled={!item.missingContent}
+        replaceEnabled={mode !== 'read'}
+        target={
+          mode === 'read'
+            ? previewFindTargetRef
+            : mode === 'live'
+              ? liveFindTargetRef
+              : sourceFindTargetRef
+        }
       />
       {item.missingContent ? (
         <div className="flex min-h-0 flex-1 items-center justify-center">
@@ -1394,18 +1418,15 @@ function NoteCanvas({
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
           {snapshot.error ? (
-            <div className="kuskus-detail-document-frame shrink-0 pt-2">
-              <Alert variant="destructive">
-                <AlertTitle>
-                  {snapshot.status === 'conflict' ? 'The note changed on disk' : 'Note not saved'}
-                </AlertTitle>
+            <div className="pointer-events-none absolute inset-x-0 top-2 z-40 px-4">
+              <Alert
+                variant="destructive"
+                className="pointer-events-auto mx-auto max-w-2xl bg-background/95 shadow-lg backdrop-blur-xl"
+              >
+                <AlertTitle>Note not saved</AlertTitle>
                 <AlertDescription>{snapshot.error}</AlertDescription>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {snapshot.status === 'conflict' ? (
-                    <Button type="button" variant="outline" size="sm" onClick={onReviewConflict}>
-                      Review differences
-                    </Button>
-                  ) : snapshot.status === 'error' ? (
+                  {snapshot.status === 'error' ? (
                     <Button type="button" variant="outline" size="sm" onClick={onRetry}>
                       Retry save
                     </Button>
@@ -1442,7 +1463,7 @@ function NoteCanvas({
                     active={mode === 'markdown' || mode === 'split'}
                     className="flex-1"
                     header={
-                      showInlineTitle ? (
+                      showInlineTitle && onRenameTitle ? (
                         <InlineItemTitle
                           ref={sourceTitleRef}
                           item={item}
@@ -1450,6 +1471,10 @@ function NoteCanvas({
                           className="font-heading text-3xl leading-tight font-semibold text-foreground text-balance"
                           textClassName="break-words"
                         />
+                      ) : showInlineTitle ? (
+                        <h1 className="font-heading text-3xl leading-tight font-semibold text-foreground text-balance break-words">
+                          {item.title}
+                        </h1>
                       ) : null
                     }
                     onChange={(value) => {
@@ -1460,6 +1485,7 @@ function NoteCanvas({
                     onScroll={() => scheduleScrollSynchronization('source')}
                     vimEnabled={vimEnabled}
                     vim={noteVimContract}
+                    findTarget={sourceFindTargetRef}
                   />
                 </Suspense>
               ) : null}
@@ -1489,7 +1515,7 @@ function NoteCanvas({
               className={cn('min-h-0 min-w-0', mode === 'read' ? 'flex' : 'hidden')}
             >
               <NoteReadContextMenu>
-                <article className="kuskus-detail-document-frame min-h-full w-full py-8">
+                <article className="kuskus-detail-document-frame min-h-full w-full py-[var(--typeset-detail-padding-block)]">
                   {readLiveDocument}
                 </article>
               </NoteReadContextMenu>
@@ -1505,7 +1531,7 @@ function NoteCanvas({
                 mode === 'split' && 'hidden @min-[860px]/detail:flex'
               )}
             >
-              <article className="kuskus-detail-document-frame min-h-full w-full py-8">
+              <article className="kuskus-detail-document-frame min-h-full w-full py-[var(--typeset-detail-padding-block)]">
                 {mode === 'split' ? (
                   <NoteDocumentBlocks
                     item={item}
@@ -1537,16 +1563,41 @@ function NoteCanvas({
           </div>
         </div>
       )}
-      {vimEnabled && vimMode && mode !== 'read' && !item.missingContent ? (
-        <div
-          role="status"
-          aria-live="polite"
-          className="flex h-7 shrink-0 items-center border-t border-border/50 px-3 font-mono text-xs font-medium text-muted-foreground"
-        >
-          {/* Both editors mount their '/' and ':' command line here; while it
-              has content it takes the line over from the mode indicator. */}
-          <div ref={vimCommandLineHostRef} className="vim-cmdline-host" />
-          <span className="vim-mode-indicator">-- {vimMode.toUpperCase()} --</span>
+      {mode !== 'read' && !item.missingContent ? (
+        <div className="note-status-bar flex h-7 shrink-0 items-center gap-3 border-t border-border/30 px-3 text-xs text-muted-foreground">
+          {vimEnabled ? (
+            <div
+              ref={vimCommandLineHostRef}
+              className="vim-cmdline-host min-w-0 flex-1"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+            />
+          ) : null}
+          <div className="note-status-metadata ml-auto flex shrink-0 items-center gap-3 tabular-nums">
+            {vimEnabled && vimMode ? (
+              <>
+                <span className="sr-only" role="status" aria-live="polite">
+                  Vim mode: {vimMode.replace('-', ' ')}
+                </span>
+                <span
+                  className={cn(
+                    'rounded px-1.5 py-0.5 font-mono text-[0.6875rem] font-semibold tracking-[0.08em] transition-[color,background-color] duration-150 motion-reduce:transition-none',
+                    VIM_MODE_BADGE_STYLES[vimMode]
+                  )}
+                >
+                  {vimMode === 'visual-line' ? 'V-LINE' : vimMode.toUpperCase()}
+                </span>
+              </>
+            ) : null}
+            <span>
+              {noteMetrics.words.toLocaleString()} {noteMetrics.words === 1 ? 'word' : 'words'}
+            </span>
+            <span className="hidden min-[520px]:inline">
+              {noteMetrics.characters.toLocaleString()}{' '}
+              {noteMetrics.characters === 1 ? 'character' : 'characters'}
+            </span>
+          </div>
         </div>
       ) : null}
     </div>
@@ -1761,7 +1812,7 @@ function FileCanvas({
       ) : (
         <div className="flex max-w-md flex-col items-center gap-5 text-center">
           <span className="flex size-24 items-center justify-center rounded-3xl bg-background/75 text-muted-foreground shadow-[0_0_0_1px_rgb(0_0_0/0.06),0_12px_32px_-20px_rgb(0_0_0/0.45)] dark:shadow-[0_0_0_1px_rgb(255_255_255/0.08)]">
-            <File className="size-10" stroke={1.5} aria-hidden="true" />
+            <File className="size-10" aria-hidden="true" />
           </span>
           <div className="min-w-0">
             <p className="break-words text-sm font-medium">{item.contentFilename}</p>
@@ -1821,7 +1872,7 @@ function UrlInspector({
     <DetailInspector>
       <div className="flex min-w-0 flex-col gap-2">
         <p className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-          <Globe2 className="size-4 shrink-0" stroke={1.5} aria-hidden="true" />
+          <Globe2 className="size-4 shrink-0" aria-hidden="true" />
           <span className="truncate">{item.domain}</span>
         </p>
         <InlineItemTitle
@@ -1862,9 +1913,10 @@ function UrlInspector({
 export interface ItemDetailHandle {
   requestTransition: (action: () => void) => void
   flush: () => Promise<boolean>
+  focusEditor: () => void
 }
 
-interface ItemDetailProps {
+export interface ItemDetailProps {
   item: LibraryItemDto | null
   collections: readonly CollectionDto[]
   hasPrevious: boolean
@@ -1875,6 +1927,7 @@ interface ItemDetailProps {
   onBackToList?: () => void
   onItemUpdated: (item: LibraryItemDto) => void
   onRenameItem: (item: LibraryItemDto, title: string) => Promise<DetailTitleRenameResult>
+  onUseFirstLineAsTitle: (item: Extract<LibraryItemDto, { type: 'note' }>) => Promise<void>
   libraryItems: readonly LibraryItemDto[]
   onRenameAttachment: (itemId: string) => void
   renderActions?: (
@@ -1893,6 +1946,9 @@ interface ItemDetailProps {
   expandable?: boolean
   onExpandedChange?: (expanded: boolean) => void
   vimEnabled?: boolean
+  noteSave?: (input: UpdateNoteInput) => Promise<UpdateNoteResult>
+  onPasteNoteImage?: (file: File, insertAtSelection: (src: string) => void) => Promise<void>
+  provisionalNote?: boolean
 }
 
 export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
@@ -1907,6 +1963,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       onBackToList,
       onItemUpdated,
       onRenameItem,
+      onUseFirstLineAsTitle,
       libraryItems,
       onRenameAttachment,
       renderActions,
@@ -1920,7 +1977,10 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       expandable = true,
       onExpandedChange,
       presentation = 'dialog',
-      vimEnabled = false
+      vimEnabled = false,
+      noteSave,
+      onPasteNoteImage,
+      provisionalNote = false
     },
     ref
   ): React.JSX.Element {
@@ -1928,6 +1988,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
     const [noteHistoryRevision, setNoteHistoryRevision] = useState(0)
     const noteCursorOffsetRef = useRef<number | null>(null)
     const noteCursorCaptureRef = useRef<(() => number | null) | null>(null)
+    const detailSurfaceRef = useRef<HTMLElement | null>(null)
     const coordinator = useMemo(
       () =>
         openedNote
@@ -1935,12 +1996,13 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
               itemId: openedNote.id,
               initialMarkdown: openedNote.body,
               initialUpdatedAt: openedNote.updatedAt,
-              save: (input) => window.kuskus.updateNote(input),
+              save: noteSave ?? ((input) => window.kuskus.updateNote(input)),
               onSaved: onItemUpdated,
-              onDraftReplaced: () => setNoteHistoryRevision((current) => current + 1)
+              onDraftReplaced: () => setNoteHistoryRevision((current) => current + 1),
+              onExternalChangesMerged: notifyExternalChangesMerged
             })
           : null,
-      [onItemUpdated, openedNote]
+      [noteSave, onItemUpdated, openedNote]
     )
     const handleNoteDraftChange = useCallback(
       (value: string): void => {
@@ -1953,8 +2015,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       draft: '',
       savedMarkdown: '',
       savedUpdatedAt: '',
-      error: null,
-      conflict: null
+      error: null
     })
     const snapshot = useSyncExternalStore(
       coordinator?.subscribe ?? (() => () => undefined),
@@ -1981,8 +2042,6 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       parseNoteInlineTitle(localStorage.getItem(NOTE_INLINE_TITLE_STORAGE_KEY))
     )
     const [vimMode, setVimMode] = useState<NoteVimMode | null>(null)
-    const [conflictDialogOpen, setConflictDialogOpen] = useState(false)
-    const [conflictResolution, setConflictResolution] = useState<'mine' | 'disk' | null>(null)
     const [attachmentsOpen, setAttachmentsOpen] = useState(false)
     const [noteDetailsOpen, setNoteDetailsOpen] = useState(false)
     const [renameDialogOpen, setRenameDialogOpen] = useState(false)
@@ -1993,12 +2052,6 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
         onExpandedChange?.(nextExpanded)
       },
       [onExpandedChange]
-    )
-
-    const diffRows = useMemo(
-      () =>
-        snapshot.conflict ? createMarkdownDiffRows(snapshot.draft, snapshot.conflict.body) : [],
-      [snapshot.conflict, snapshot.draft]
     )
 
     useEffect(() => () => coordinator?.dispose(), [coordinator])
@@ -2118,6 +2171,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
         ) {
           return
         }
+        if (provisionalNote) return
         if (item.location.type === 'trash') return
         const titleTarget =
           item.type === 'note'
@@ -2139,7 +2193,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       }
       window.addEventListener('keydown', handleRenameShortcut, true)
       return () => window.removeEventListener('keydown', handleRenameShortcut, true)
-    }, [item, mode])
+    }, [item, mode, provisionalNote])
 
     const resolvePendingNote = useCallback(async (): Promise<'ready' | 'trashed' | 'blocked'> => {
       if (leaving) return 'blocked'
@@ -2153,12 +2207,13 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
           return saved ? 'ready' : 'blocked'
         }
         const settled = coordinator.getSnapshot()
-        if (settled.status === 'error' || settled.status === 'conflict') return 'blocked'
-        return (await onEmptyNote(openedNote!.id)) ? 'trashed' : 'blocked'
+        if (settled.status === 'error') return 'blocked'
+        if (provisionalNote) return 'trashed'
+        return (await onEmptyNote(item!.id)) ? 'trashed' : 'blocked'
       } finally {
         setLeaving(false)
       }
-    }, [coordinator, leaving, onEmptyNote, openedNote])
+    }, [coordinator, item, leaving, onEmptyNote, provisionalNote])
 
     const flushPendingNote = useCallback(
       async (): Promise<boolean> => (await resolvePendingNote()) !== 'blocked',
@@ -2185,7 +2240,14 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
 
     useImperativeHandle(
       ref,
-      () => ({ requestTransition: requestGuardedAction, flush: flushPendingNote }),
+      () => ({
+        requestTransition: requestGuardedAction,
+        flush: flushPendingNote,
+        focusEditor: () => {
+          const editor = detailSurfaceRef.current?.querySelector<HTMLElement>('.cm-content')
+          editor?.focus({ preventScroll: true })
+        }
+      }),
       [flushPendingNote, requestGuardedAction]
     )
 
@@ -2213,6 +2275,11 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       if (event.defaultPrevented) return
       const target = event.target as HTMLElement | null
       const isEditingTarget = Boolean(target?.closest('input, textarea, [contenteditable="true"]'))
+      if (event.key === 'Escape' && provisionalNote && !snapshot.draft.trim()) {
+        event.preventDefault()
+        requestGuardedAction(() => onOpenChange(false))
+        return
+      }
       if (event.key === 'Escape' && expanded && !isEditingTarget) {
         event.preventDefault()
         changeExpanded(false)
@@ -2292,7 +2359,11 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
                   onReadableLineLengthChange: (checked) =>
                     setReadingWidth(checked ? 'comfortable' : 'wide'),
                   onManageAttachments: () => setAttachmentsOpen(true),
-                  onShowDetails: () => setNoteDetailsOpen(true)
+                  onShowDetails: () => setNoteDetailsOpen(true),
+                  onUseFirstLineAsTitle:
+                    item.titleSource === 'custom'
+                      ? () => void onUseFirstLineAsTitle(item)
+                      : undefined
                 }
               : undefined
           )}
@@ -2308,7 +2379,10 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
         <section
           data-detail-pane
           data-detail-structural-surface
-          className="window-canvas relative flex min-h-0 min-w-0 flex-1 overflow-hidden !bg-background/50"
+          className={cn(
+            'window-canvas relative flex min-h-0 min-w-0 flex-1 overflow-hidden !bg-background/50',
+            !expanded && 'rounded-tl-2xl border-t border-l border-border'
+          )}
         >
           {presentation === 'focus' && !expanded ? (
             <Tooltip>
@@ -2348,14 +2422,14 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
                 previewTitleRef={previewTitleRef}
                 noteCursorCaptureRef={noteCursorCaptureRef}
                 noteCursorOffsetRef={noteCursorOffsetRef}
-                onRenameTitle={renameCurrentItem}
+                onRenameTitle={provisionalNote ? undefined : renameCurrentItem}
                 onDraftChange={handleNoteDraftChange}
                 onModeChange={changeMode}
                 readingWidth={readingWidth}
                 onRetry={() => void coordinator?.retry()}
                 onRestore={() => coordinator?.restoreSaved()}
+                onPasteImage={onPasteNoteImage}
                 onError={onError}
-                onReviewConflict={() => setConflictDialogOpen(true)}
                 onOpenVaultLink={(target) => requestGuardedAction(() => onOpenVaultLink(target))}
                 onMoveToTrash={(itemId) => requestGuardedAction(() => onMoveToTrash(itemId))}
               />
@@ -2460,6 +2534,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
           </Dialog.Root>
         ) : (
           <section
+            ref={detailSurfaceRef}
             data-detail-surface
             data-detail-presentation="focus"
             className="@container/detail relative flex size-full min-h-0 min-w-0 overflow-hidden bg-transparent text-popover-foreground outline-none"
@@ -2469,72 +2544,6 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
             {detailContent}
           </section>
         )}
-        <ConflictDialog open={conflictDialogOpen} onOpenChange={setConflictDialogOpen}>
-          <ConflictDialogContent className="max-w-5xl" showCloseButton>
-            <ConflictDialogHeader>
-              <ConflictDialogTitle>Review note conflict</ConflictDialogTitle>
-              <ConflictDialogDescription>
-                Your draft is on the left. The version currently stored on disk is on the right.
-              </ConflictDialogDescription>
-            </ConflictDialogHeader>
-            <div className="grid min-h-0 grid-cols-2 overflow-hidden rounded-lg border">
-              <div className="border-r px-3 py-2 text-xs font-medium">My draft</div>
-              <div className="px-3 py-2 text-xs font-medium">Disk version</div>
-              <ScrollArea className="col-span-2 max-h-[60vh] border-t">
-                <div className="grid min-w-[48rem] grid-cols-2 font-mono text-xs leading-5">
-                  {diffRows.map((row, index) => (
-                    <div className="contents" key={`${index}-${row.localLine}-${row.diskLine}`}>
-                      <pre
-                        className={cn(
-                          'min-h-5 border-r px-3 whitespace-pre-wrap',
-                          row.kind !== 'same' && row.kind !== 'disk' && 'bg-destructive/10'
-                        )}
-                      >
-                        <span className="mr-3 select-none text-muted-foreground">
-                          {row.localLine ?? ''}
-                        </span>
-                        {row.localText}
-                      </pre>
-                      <pre
-                        className={cn(
-                          'min-h-5 px-3 whitespace-pre-wrap',
-                          row.kind !== 'same' && row.kind !== 'local' && 'bg-destructive/10'
-                        )}
-                      >
-                        <span className="mr-3 select-none text-muted-foreground">
-                          {row.diskLine ?? ''}
-                        </span>
-                        {row.diskText}
-                      </pre>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            </div>
-            <ConflictDialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setConflictDialogOpen(false)
-                  setConflictResolution('disk')
-                }}
-              >
-                Use disk version
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={() => {
-                  setConflictDialogOpen(false)
-                  setConflictResolution('mine')
-                }}
-              >
-                Use my version
-              </Button>
-            </ConflictDialogFooter>
-          </ConflictDialogContent>
-        </ConflictDialog>
         <RenameDialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
           <RenameDialogContent data-detail-rename-dialog showCloseButton>
             <form
@@ -2578,46 +2587,6 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
             </form>
           </RenameDialogContent>
         </RenameDialog>
-        <AlertDialog
-          open={conflictResolution !== null}
-          onOpenChange={(open) => {
-            if (!open) setConflictResolution(null)
-          }}
-        >
-          <AlertDialogContent size="sm">
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                {conflictResolution === 'mine'
-                  ? 'Replace the disk version?'
-                  : 'Replace your draft?'}
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                {conflictResolution === 'mine'
-                  ? 'Kuskus will save your reviewed draft over the external version. A newer external change will trigger another conflict.'
-                  : 'Your unsaved draft will be replaced by the reviewed version from disk.'}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Go back</AlertDialogCancel>
-              <AlertDialogAction
-                variant={conflictResolution === 'mine' ? 'destructive' : 'default'}
-                onClick={() => {
-                  const current = snapshot.conflict
-                  const resolution = conflictResolution
-                  setConflictResolution(null)
-                  if (!current || !coordinator) return
-                  if (resolution === 'mine') void coordinator.useLocalVersion(current)
-                  else {
-                    coordinator.useDiskVersion(current)
-                    changeMode('read')
-                  }
-                }}
-              >
-                {conflictResolution === 'mine' ? 'Use my version' : 'Use disk version'}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </>
     )
   }

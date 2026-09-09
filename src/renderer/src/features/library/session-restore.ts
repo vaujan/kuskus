@@ -10,8 +10,8 @@ const NOTE_MODES: readonly NoteMode[] = ['read', 'live', 'markdown', 'split']
 
 export interface AppSessionState {
   destination: LibraryDestination
-  search: string
   typeFilters: ItemTypeFilter[]
+  recentItemIds: string[]
   focusItemId: string | null
   focusDetailOpen: boolean
   focusNoteExpanded: boolean
@@ -57,11 +57,18 @@ export function readAppSession(library: LibraryDto): AppSessionState | null {
   const record = stored as Record<string, unknown>
 
   const destination = resolveDestination(record.destination, library)
-  const search = typeof record.search === 'string' ? record.search.slice(0, 200) : ''
   const typeFilters = Array.isArray(record.typeFilters)
     ? record.typeFilters.filter((value): value is ItemTypeFilter =>
         ITEM_TYPE_FILTERS.includes(value as ItemTypeFilter)
       )
+    : []
+  const recentItemIds = Array.isArray(record.recentItemIds)
+    ? record.recentItemIds
+        .filter(
+          (value): value is string =>
+            typeof value === 'string' && library.items.some((item) => item.id === value)
+        )
+        .slice(0, 8)
     : []
 
   let focusItemId: string | null = null
@@ -75,8 +82,8 @@ export function readAppSession(library: LibraryDto): AppSessionState | null {
 
   return {
     destination,
-    search,
     typeFilters,
+    recentItemIds,
     focusItemId,
     focusDetailOpen: focusItemId !== null && record.focusDetailOpen === true,
     focusNoteExpanded: focusItem?.type === 'note' && record.focusNoteExpanded === true,
@@ -93,8 +100,8 @@ export function writeAppSession(libraryPath: string, state: AppSessionState): vo
       appSessionStorageKey(libraryPath),
       JSON.stringify({
         destination: state.destination,
-        search: state.search,
         typeFilters: state.typeFilters,
+        recentItemIds: state.recentItemIds,
         focusItemId: state.focusItemId,
         focusDetailOpen: state.focusDetailOpen,
         focusNoteExpanded: state.focusNoteExpanded,
