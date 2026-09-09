@@ -59,6 +59,8 @@ export function AppToolbar({
   onWindowClose?: () => void
 }): React.JSX.Element {
   const newItemRef = useRef<HTMLButtonElement>(null)
+  const filterCount = typeFilters.length + Number(showReferencedAttachments)
+  const retrievalActive = filterCount > 0 || sort !== DEFAULT_ITEM_SORT
 
   useEffect(() => {
     if (newItemFocusRequest > 0) newItemRef.current?.focus()
@@ -67,14 +69,17 @@ export function AppToolbar({
   return (
     <header className="window-toolbar flex h-12 shrink-0 select-none items-center [-webkit-app-region:drag] [&_[data-slot=sidebar-trigger]]:size-10">
       <div className="@container/toolbar min-w-0 flex-1">
-        <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 px-2 @min-[44rem]/toolbar:grid-cols-[minmax(12rem,1fr)_minmax(16rem,40rem)_minmax(12rem,1fr)] @min-[44rem]/toolbar:gap-2 @min-[44rem]/toolbar:px-5 @min-[64rem]/toolbar:px-7">
-          <div className="flex justify-start">
+        <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 px-2 @min-[44rem]/toolbar:grid-cols-[minmax(12rem,1fr)_minmax(18rem,28rem)_minmax(12rem,1fr)] @min-[44rem]/toolbar:gap-3 @min-[44rem]/toolbar:px-5 @min-[64rem]/toolbar:px-7">
+          <div className="flex min-w-0 items-center justify-start gap-1">
             <ShellSidebarTrigger />
+            <span className="hidden min-w-0 truncate px-1 text-sm font-medium text-foreground/80 @min-[44rem]/toolbar:block">
+              {destinationLabel}
+            </span>
           </div>
 
-          <div className="flex min-w-0 items-center gap-1 [-webkit-app-region:no-drag]">
+          <div className="min-w-0 [-webkit-app-region:no-drag]">
             <Button
-              className="h-10 min-w-0 flex-1 justify-start"
+              className="h-10 w-full min-w-0 justify-start"
               size="sm"
               variant="secondary"
               aria-label="Search the entire library"
@@ -83,30 +88,26 @@ export function AppToolbar({
             >
               <IconSearch data-icon="inline-start" aria-hidden="true" />
               <span className="truncate">Search library…</span>
-              <Kbd className="ml-auto hidden @min-[48rem]/toolbar:inline-flex">Ctrl+K</Kbd>
+              <Kbd className="ml-auto hidden @min-[64rem]/toolbar:inline-flex">Ctrl+K</Kbd>
             </Button>
+          </div>
 
+          <div className="flex min-w-0 items-center justify-end gap-1 [-webkit-app-region:no-drag]">
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
                   <Button
-                    className="h-10 min-w-10 px-2.5"
-                    variant={
-                      typeFilters.length > 0 ||
-                      showReferencedAttachments ||
-                      sort !== DEFAULT_ITEM_SORT
-                        ? 'secondary'
-                        : 'ghost'
-                    }
+                    className="h-10 min-w-10 px-2.5 @min-[44rem]/toolbar:mr-1"
+                    variant={retrievalActive ? 'secondary' : 'ghost'}
                     aria-label={`Sort and filter ${destinationLabel}`}
                   />
                 }
               >
                 <IconAdjustmentsHorizontal data-icon="inline-start" aria-hidden="true" />
-                <span className="hidden @min-[56rem]/toolbar:inline">Filter</span>
-                {typeFilters.length > 0 || showReferencedAttachments ? (
-                  <Badge variant="secondary" className="tabular-nums">
-                    {typeFilters.length + Number(showReferencedAttachments)}
+                <span className="hidden @min-[60rem]/toolbar:inline">Sort &amp; filter</span>
+                {filterCount > 0 ? (
+                  <Badge variant="default" size="sm" className="tabular-nums">
+                    {filterCount}
                   </Badge>
                 ) : null}
               </DropdownMenuTrigger>
@@ -122,9 +123,6 @@ export function AppToolbar({
                 />
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
-
-          <div className="flex min-w-0 items-center justify-end gap-1">
             <Button
               className="h-10"
               size="sm"
@@ -134,16 +132,16 @@ export function AppToolbar({
               onClick={onNewNote}
             >
               <IconNote data-icon="inline-start" aria-hidden="true" />
-              <span className="hidden @min-[44rem]/toolbar:inline">New note</span>
-              <Kbd className="ml-1 hidden @min-[56rem]/toolbar:inline-flex">Ctrl+N</Kbd>
+              <span className="hidden @min-[68rem]/toolbar:inline">New note</span>
+              <Kbd className="ml-1 hidden @min-[88rem]/toolbar:inline-flex">Ctrl+N</Kbd>
             </Button>
             <Tooltip>
               <TooltipTrigger
                 render={
                   <Button
                     ref={newItemRef}
-                    className="relative size-10"
-                    size="icon"
+                    className="relative h-10 min-w-10 px-3"
+                    size="sm"
                     variant="ghost"
                     data-new-item-button
                     aria-expanded={newItemOpen}
@@ -152,7 +150,8 @@ export function AppToolbar({
                   />
                 }
               >
-                <IconPlus aria-hidden="true" />
+                <IconPlus data-icon="inline-start" aria-hidden="true" />
+                <span className="hidden @min-[76rem]/toolbar:inline">Add item</span>
                 {hasDraft ? (
                   <span
                     className="absolute top-2 right-2 size-1.5 rounded-full bg-primary"

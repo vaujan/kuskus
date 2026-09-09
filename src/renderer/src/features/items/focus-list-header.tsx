@@ -70,29 +70,31 @@ export function FocusListHeader({
     >
       <ShellSidebarTrigger />
 
-      <div className="flex min-w-0 flex-1 items-center gap-1 [-webkit-app-region:no-drag]">
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                aria-label="Search the entire library"
-                aria-keyshortcuts="Control+K Meta+K"
-                onClick={onOpenSearch}
-              />
-            }
-          >
-            <IconSearch aria-hidden="true" />
-          </TooltipTrigger>
-          <TooltipContent>Search library (Ctrl+K)</TooltipContent>
-        </Tooltip>
-        <span className="min-w-0 truncate px-1 text-xs font-medium text-foreground/70">
+      <div className="flex min-w-0 flex-1 items-center [-webkit-app-region:no-drag]">
+        <span className="min-w-0 truncate px-1.5 text-sm font-medium text-foreground/80">
           {destinationLabel}
         </span>
       </div>
 
-      <div className="[-webkit-app-region:no-drag]">
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              className="[-webkit-app-region:no-drag]"
+              size="icon-sm"
+              variant="ghost"
+              aria-label="Search the entire library"
+              aria-keyshortcuts="Control+K Meta+K"
+              onClick={onOpenSearch}
+            />
+          }
+        >
+          <IconSearch data-icon="inline-start" aria-hidden="true" />
+        </TooltipTrigger>
+        <TooltipContent>Search library (Ctrl+K)</TooltipContent>
+      </Tooltip>
+
+      <div className="mr-0.5 [-webkit-app-region:no-drag]">
         <Tooltip>
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -109,11 +111,12 @@ export function FocusListHeader({
                 />
               }
             >
-              <IconAdjustmentsHorizontal aria-hidden="true" />
+              <IconAdjustmentsHorizontal data-icon="inline-start" aria-hidden="true" />
               {filterCount > 0 ? (
                 <Badge
-                  className="absolute -top-1 -right-1 min-w-4 justify-center px-1 tabular-nums"
-                  variant="secondary"
+                  className="absolute top-0.5 right-0.5 min-w-4 justify-center tabular-nums"
+                  size="sm"
+                  variant="default"
                 >
                   {filterCount}
                 </Badge>
@@ -159,7 +162,7 @@ export function FocusListHeader({
             />
           }
         >
-          <IconNote aria-hidden="true" />
+          <IconNote data-icon="inline-start" aria-hidden="true" />
         </TooltipTrigger>
         <TooltipContent>New note (Ctrl+N)</TooltipContent>
       </Tooltip>
@@ -179,7 +182,7 @@ export function FocusListHeader({
             />
           }
         >
-          <IconPlus aria-hidden="true" />
+          <IconPlus data-icon="inline-start" aria-hidden="true" />
           {hasDraft ? (
             <span
               className="absolute top-2 right-2 size-1.5 rounded-full bg-primary"
