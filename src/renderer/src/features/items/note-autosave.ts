@@ -3,8 +3,9 @@ import type {
   UpdateNoteInput,
   UpdateNoteResult
 } from '../../../../shared/library-contract'
+import { mergeNoteChanges } from './merge-note-changes'
 
-export type NoteSaveStatus = 'saved' | 'dirty' | 'saving' | 'error' | 'conflict'
+export type NoteSaveStatus = 'saved' | 'dirty' | 'saving' | 'error'
 
 export interface NoteAutosaveSnapshot {
   status: NoteSaveStatus
@@ -12,7 +13,6 @@ export interface NoteAutosaveSnapshot {
   savedMarkdown: string
   savedUpdatedAt: string
   error: string | null
-  conflict: NoteItemDto | null
 }
 
 interface NoteAutosaveOptions {
@@ -23,6 +23,7 @@ interface NoteAutosaveOptions {
   save: (input: UpdateNoteInput) => Promise<UpdateNoteResult>
   onSaved: (item: NoteItemDto) => void
   onDraftReplaced: (markdown: string) => void
+  onExternalChangesMerged?: (overlappingChanges: boolean) => void
 }
 
 export class NoteAutosaveCoordinator {
@@ -40,8 +41,7 @@ export class NoteAutosaveCoordinator {
       draft: options.initialMarkdown,
       savedMarkdown: options.initialMarkdown,
       savedUpdatedAt: options.initialUpdatedAt ?? '',
-      error: null,
-      conflict: null
+      error: null
     }
   }
 
@@ -72,27 +72,23 @@ export class NoteAutosaveCoordinator {
     this.setSnapshot({
       ...this.snapshot,
       draft: markdown,
-      error: this.snapshot.conflict ? this.snapshot.error : null,
-      status: this.snapshot.conflict ? 'conflict' : dirty ? 'dirty' : 'saved'
+      error: null,
+      status: dirty ? 'dirty' : 'saved'
     })
-    if (dirty && markdown.trim() && !this.snapshot.conflict) this.schedule()
+    if (dirty && markdown.trim()) this.schedule()
   }
 
   async flush(): Promise<boolean> {
     this.clearTimer()
     if (this.inFlight) await this.inFlight
     if (!this.snapshot.draft.trim()) {
-      return (
-        !this.snapshot.savedMarkdown.trim() &&
-        this.snapshot.status !== 'error' &&
-        this.snapshot.status !== 'conflict'
-      )
+      return !this.snapshot.savedMarkdown.trim() && this.snapshot.status !== 'error'
     }
     return this.savePending(true)
   }
 
   async retry(): Promise<boolean> {
-    if (this.snapshot.conflict || !this.snapshot.draft.trim()) return false
+    if (!this.snapshot.draft.trim()) return false
     this.setSnapshot({ ...this.snapshot, status: 'dirty', error: null })
     return this.flush()
   }
@@ -105,8 +101,7 @@ export class NoteAutosaveCoordinator {
       draft: markdown,
       savedMarkdown: markdown,
       savedUpdatedAt: this.snapshot.savedUpdatedAt,
-      error: null,
-      conflict: null
+      error: null
     })
     this.options.onDraftReplaced(markdown)
   }
@@ -135,23 +130,10 @@ export class NoteAutosaveCoordinator {
       draft: current.body,
       savedMarkdown: current.body,
       savedUpdatedAt: current.updatedAt,
-      error: null,
-      conflict: null
+      error: null
     })
     this.options.onDraftReplaced(current.body)
     this.options.onSaved(current)
-  }
-
-  async useLocalVersion(current: NoteItemDto): Promise<boolean> {
-    this.setSnapshot({
-      ...this.snapshot,
-      status: 'dirty',
-      savedMarkdown: current.body,
-      savedUpdatedAt: current.updatedAt,
-      error: null,
-      conflict: null
-    })
-    return this.flush()
   }
 
   hasPendingChanges(): boolean {
@@ -172,17 +154,17 @@ export class NoteAutosaveCoordinator {
   }
 
   private async savePending(drain: boolean): Promise<boolean> {
-    if (this.disposed || this.snapshot.conflict || !this.snapshot.draft.trim()) return false
+    if (this.disposed || !this.snapshot.draft.trim()) return false
 
     if (this.inFlight) {
       await this.inFlight
-      if (!drain) return this.snapshot.status !== 'error' && this.snapshot.status !== 'conflict'
+      if (!drain) return this.snapshot.status !== 'error'
     }
 
     if (this.snapshot.draft === this.snapshot.savedMarkdown) return true
-    if (this.snapshot.conflict || !this.snapshot.draft.trim()) return false
+    if (!this.snapshot.draft.trim()) return false
     await this.startSave()
-    if (this.snapshot.status === 'error' || this.snapshot.status === 'conflict') return false
+    if (this.snapshot.status === 'error') return false
     if (this.snapshot.draft !== this.snapshot.savedMarkdown) {
       if (drain) return this.savePending(true)
       this.schedule()
@@ -201,18 +183,25 @@ export class NoteAutosaveCoordinator {
         if (this.disposed) return
         if (!result.ok) {
           if (result.code === 'conflict') {
+            const merged = mergeNoteChanges(
+              expectedMarkdown,
+              this.snapshot.draft,
+              result.conflict.current.body
+            )
             this.setSnapshot({
               ...this.snapshot,
-              status: 'conflict',
-              error: result.error,
-              conflict: result.conflict.current
+              status: 'dirty',
+              draft: merged.markdown,
+              savedMarkdown: result.conflict.current.body,
+              savedUpdatedAt: result.conflict.current.updatedAt,
+              error: null
             })
+            this.options.onExternalChangesMerged?.(merged.overlappingChanges)
           } else {
             this.setSnapshot({
               ...this.snapshot,
               status: 'error',
-              error: result.error,
-              conflict: null
+              error: result.error
             })
           }
           return
@@ -224,8 +213,7 @@ export class NoteAutosaveCoordinator {
           status: dirty ? 'dirty' : 'saved',
           savedMarkdown: result.data.body,
           savedUpdatedAt: result.data.updatedAt,
-          error: null,
-          conflict: null
+          error: null
         })
         this.options.onSaved(result.data)
       })
@@ -234,8 +222,7 @@ export class NoteAutosaveCoordinator {
         this.setSnapshot({
           ...this.snapshot,
           status: 'error',
-          error: error instanceof Error ? error.message : 'The note could not be saved.',
-          conflict: null
+          error: error instanceof Error ? error.message : 'The note could not be saved.'
         })
       })
       .finally(() => {

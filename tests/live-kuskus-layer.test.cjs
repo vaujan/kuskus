@@ -60,23 +60,35 @@ test('skips table images that atomic renders in-cell', () => {
   assert.deepEqual(decorations, [])
 })
 
+/** @returns {import('@codemirror/state').EditorState} */
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function createState(doc) {
   return EditorState.create({ doc, extensions: [markdown({ extensions: GFM })] })
 }
 
-test('keeps math as source instead of replacing it with KaTeX widgets', () => {
+test('renders inactive math with KaTeX and reveals active block source', () => {
   const state = createState(
     ['Cursor', '', 'Intro $x^2$ text', '', '$$', '\\int_0^1 x \\, dx', '$$'].join('\n')
   )
-  // No widget may cover the math ranges — the user asked for source math
-  // in live mode (no hidden KaTeX, no forced scrollbar).
-  let widgetCount = 0
+  const widgets = []
   buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
-    if (value.spec.widget) widgetCount += 1
+    if (value.spec.widget) widgets.push(value.spec.widget.constructor.name)
     void from
     void to
   })
-  assert.equal(widgetCount, 0)
+  assert.deepEqual(widgets, ['MathWidget', 'MathWidget'])
+
+  const activeDoc = ['$$', 'x^2', '$$'].join('\n')
+  const active = EditorState.create({
+    doc: activeDoc,
+    selection: { anchor: activeDoc.indexOf('x') },
+    extensions: [markdown({ extensions: GFM })]
+  })
+  let activeMathWidgets = 0
+  buildKuskusLiveDecorations(active, {}).between(0, active.doc.length, (_from, _to, value) => {
+    if (value.spec.widget?.constructor.name === 'MathWidget') activeMathWidgets += 1
+  })
+  assert.equal(activeMathWidgets, 0)
 })
 
 test('renders wikilinks with a linked mark and hides brackets', () => {
@@ -219,7 +231,7 @@ test('does not duplicate replacement ranges owned by atomic preview', () => {
   assert.deepEqual(decorations, [])
 })
 
-test('renders an inactive frontmatter header widget and hides the delimiters', () => {
+test('renders inactive frontmatter with the same header and line shell as a code block', () => {
   const doc = ['---', 'title: hi', 'tags:', '  - one', '---', 'Body'].join('\n')
   // Cursor in the body (outside the frontmatter) → inactive card.
   const state = EditorState.create({
@@ -232,11 +244,29 @@ test('renders an inactive frontmatter header widget and hides the delimiters', (
     if (value.spec.widget) decorations.push({ from, to, widget: value.spec.widget })
   })
   const header = decorations.find(
-    (entry) => entry.widget.constructor.name === 'FrontmatterHeaderWidget'
+    (entry) => entry.widget.constructor.name === 'CodeBlockHeaderWidget'
   )
   assert.equal(Boolean(header), true)
   assert.equal(header.from, 0) // replaces the opening `---` line
-  assert.equal(header.to, state.doc.toString().indexOf('\n') + 1)
+  assert.equal(header.to, state.doc.toString().indexOf('\n'))
+
+  const lineClasses = []
+  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, _to, value) => {
+    if (value.spec.class) lineClasses.push({ from, className: value.spec.class })
+  })
+  assert.equal(
+    lineClasses.some(
+      (entry) =>
+        entry.from === state.doc.line(2).from && entry.className === 'cm-atomic-fenced-code'
+    ),
+    true
+  )
+  assert.equal(
+    lineClasses.some(
+      (entry) => entry.from === state.doc.line(4).from && entry.className === 'cm-kuskus-code-last'
+    ),
+    true
+  )
 })
 
 test('keeps the frontmatter raw when the cursor is inside the block', () => {

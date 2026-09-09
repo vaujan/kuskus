@@ -173,6 +173,17 @@ export function NoteWindowApp({ itemId }: { itemId: string }): React.JSX.Element
     []
   )
 
+  const useFirstLineAsTitle = useCallback(async (current: NoteItemDto): Promise<void> => {
+    const result = await window.kuskus.renameItem({ itemId: current.id, titleSource: 'derived' })
+    if (!result.ok) {
+      setError(result.error)
+      return
+    }
+    setLibrary(result.data)
+    const renamed = result.data.items.find((entry) => entry.id === current.id)
+    if (renamed?.type === 'note') setItem(renamed)
+  }, [])
+
   const trashNote = useCallback(async (noteId: string): Promise<boolean> => {
     const inspection = await window.kuskus.inspectItemDeletion({ itemIds: [noteId], mode: 'trash' })
     if (!inspection.ok) {
@@ -252,6 +263,7 @@ export function NoteWindowApp({ itemId }: { itemId: string }): React.JSX.Element
             onOpenChange={() => undefined}
             onItemUpdated={updateItem}
             onRenameItem={renameItem}
+            onUseFirstLineAsTitle={useFirstLineAsTitle}
             onRenameAttachment={() => undefined}
             onMoveItem={() => undefined}
             onOpenVaultLink={openVaultLink}

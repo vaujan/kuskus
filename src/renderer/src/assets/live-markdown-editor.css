@@ -60,20 +60,20 @@
  * resets atomic's h1 letter-spacing. */
 .cm-kuskus-live .cm-line.cm-atomic-h1 {
   font-family: var(--typeset-font-heading);
-  font-size: 1.75em;
-  font-weight: 400;
+  font-size: var(--typeset-h1-size);
+  font-weight: var(--typeset-heading-weight);
   letter-spacing: normal;
-  line-height: 1.3;
+  line-height: var(--typeset-h1-leading);
   color: var(--foreground);
   border-bottom: 1px solid var(--typeset-rule);
   text-wrap: balance;
 }
 .cm-kuskus-live .cm-line.cm-atomic-h2 {
   font-family: var(--typeset-font-heading);
-  font-size: 1.25em;
-  font-weight: 400;
+  font-size: var(--typeset-h2-size);
+  font-weight: var(--typeset-heading-weight);
   letter-spacing: normal;
-  line-height: 1.4;
+  line-height: var(--typeset-h2-leading);
   padding-top: calc(var(--typeset-flow) * 0.4);
   color: var(--foreground);
   border-bottom: 1px solid var(--typeset-rule);
@@ -81,33 +81,34 @@
 }
 .cm-kuskus-live .cm-line.cm-atomic-h3 {
   font-family: var(--typeset-font-heading);
-  font-size: 1.125em;
-  font-weight: 400;
+  font-size: var(--typeset-h3-size);
+  font-weight: var(--typeset-heading-weight);
   letter-spacing: normal;
-  line-height: 1.45;
+  line-height: var(--typeset-h3-leading);
   color: var(--foreground);
   border-bottom: 1px solid var(--typeset-rule);
   text-wrap: balance;
 }
 .cm-kuskus-live .cm-line.cm-atomic-h4 {
   font-family: var(--typeset-font-heading);
-  font-size: 1em;
-  font-weight: 400;
-  line-height: 1.5;
+  font-size: var(--typeset-h4-size);
+  font-weight: var(--typeset-heading-weight);
+  line-height: var(--typeset-h4-leading);
   color: var(--foreground);
   border-bottom: 1px solid var(--typeset-rule);
 }
 .cm-kuskus-live .cm-line.cm-atomic-h5 {
-  font-size: 0.875em;
-  font-weight: 400;
-  line-height: 1.5;
+  font-size: var(--typeset-h5-size);
+  font-weight: var(--typeset-heading-weight);
+  line-height: var(--typeset-h5-leading);
   padding-top: calc(var(--typeset-flow) * 0.43);
   color: var(--typeset-muted);
   border-bottom: 1px solid var(--typeset-rule);
 }
 .cm-kuskus-live .cm-line.cm-atomic-h6 {
-  font-size: 0.8125em;
-  font-weight: 400;
+  font-size: var(--typeset-h6-size);
+  font-weight: var(--typeset-heading-weight);
+  line-height: var(--typeset-h6-leading);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   padding-top: calc(var(--typeset-flow) * 0.54);
@@ -128,7 +129,9 @@
     .cm-atomic-h6
   )
   span {
+  font-size: inherit;
   font-weight: inherit;
+  line-height: inherit;
 }
 
 /* Strong inside headings reads 700 in both modes (read: markdown.css
@@ -140,17 +143,18 @@
   font-weight: 700;
 }
 
-/* Blank markdown lines are the read renderer's inter-block rhythm:
- * one --typeset-flow of separation (block margin × line-height). */
+/* Empty lines keep the body metrics so a new-line caret matches the text
+ * the user is about to enter and the live surface keeps Read mode's air. */
 .cm-kuskus-live .cm-line.cm-kuskus-blank {
-  font-size: calc(var(--typeset-flow) / var(--typeset-leading));
+  font-size: inherit;
+  line-height: inherit;
 }
 
 /* Quotes. */
 .cm-kuskus-live .cm-line.cm-atomic-blockquote {
-  border-left: 2px solid var(--typeset-rule);
+  border-left: var(--typeset-quote-rail) solid var(--typeset-rule);
   color: var(--typeset-muted);
-  padding-left: 1em;
+  padding-left: var(--typeset-quote-indent);
 }
 
 /* Fenced code — one rounded container like read mode's .kuskus-code-block.
@@ -165,16 +169,16 @@
   background: var(--typeset-code-background);
   color: var(--typeset-body-color);
   font-family: var(--typeset-font-mono);
-  font-size: 0.875em;
-  line-height: 1.5;
-  padding-left: 0.75rem;
-  padding-right: 0.75rem;
+  font-size: var(--typeset-code-size);
+  line-height: var(--typeset-code-leading);
+  padding-left: var(--typeset-code-padding-inline);
+  padding-right: var(--typeset-code-padding-inline);
   box-shadow: none;
 }
 .cm-kuskus-live .cm-line.cm-atomic-fenced-code.cm-kuskus-code-first {
-  border-start-start-radius: var(--radius);
-  border-start-end-radius: var(--radius);
-  padding-top: 0.75rem;
+  border-start-start-radius: var(--typeset-code-radius, var(--radius));
+  border-start-end-radius: var(--typeset-code-radius, var(--radius));
+  padding-top: var(--typeset-code-padding-block);
 }
 /* When the first fence line is replaced by the code-block header, drop
  * the fence line padding (the header owns its own 0.375rem top) and keep
@@ -185,9 +189,9 @@
   padding-right: 0;
 }
 .cm-kuskus-live .cm-line.cm-atomic-fenced-code.cm-kuskus-code-last {
-  border-end-start-radius: var(--radius);
-  border-end-end-radius: var(--radius);
-  padding-bottom: 0.875rem;
+  border-end-start-radius: var(--typeset-code-radius, var(--radius));
+  border-end-end-radius: var(--typeset-code-radius, var(--radius));
+  padding-bottom: var(--typeset-code-padding-block);
 }
 /* Atomic preview hides an inactive closing fence's text but CM6 retains the
  * line box. This class collapses that line after the preceding code line has
@@ -205,42 +209,8 @@
   padding-bottom: 0;
 }
 .cm-kuskus-live .cm-line.cm-kuskus-code-first.cm-kuskus-code-last > .cm-kuskus-code-block-header {
-  border-end-start-radius: var(--radius);
-  border-end-end-radius: var(--radius);
-}
-
-/* Code-block header (inactive fences) — mirrors read mode's
- * .kuskus-code-block-header. The header replaces the first fence line,
- * so its rounded top corners must match .cm-kuskus-code-first's. */
-.cm-kuskus-live .cm-kuskus-code-block-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 2rem;
-  padding: 0.375rem 0.75rem;
-  color: var(--typeset-muted);
-  font-family: var(--typeset-font-mono);
-  font-size: 0.75rem;
-  border-start-start-radius: var(--radius);
-  border-start-end-radius: var(--radius);
-  background: var(--typeset-code-background);
-}
-.cm-kuskus-live .cm-kuskus-code-copy {
-  border: 0;
-  border-radius: 0.25rem;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  padding: 0.125rem 0.375rem;
-}
-.cm-kuskus-live .cm-kuskus-code-copy:hover {
-  background: color-mix(in oklab, currentColor 12%, transparent);
-  color: var(--foreground);
-}
-.cm-kuskus-live .cm-kuskus-code-copy:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
+  border-end-start-radius: var(--typeset-code-radius);
+  border-end-end-radius: var(--typeset-code-radius);
 }
 
 /* Emphasis, code, strike — typeset colors. */
@@ -253,11 +223,11 @@
 }
 .cm-kuskus-live .cm-atomic-inline-code {
   background-color: var(--typeset-code-background);
-  border-radius: min(calc(var(--radius) * 0.6), 0.35em);
+  border-radius: var(--typeset-inline-code-radius);
   color: var(--typeset-body-color);
   font-family: var(--typeset-font-mono);
-  font-size: 0.85em;
-  padding: 0.125em 0.3em;
+  font-size: var(--typeset-inline-code-size);
+  padding: var(--typeset-inline-code-padding);
   word-break: break-word;
 }
 .cm-kuskus-live .cm-atomic-strike {
@@ -290,47 +260,14 @@
 
 /* Lists — hanging indent computed by atomic; override alcove spacing
  * to the typeset list rhythm. Item-start lines (those carrying a
- * marker) take the read renderer's 0.5em inter-item gap. The ordered
- * or source marker text must be muted (read mode ::marker color) and
- * left-aligned (read mode numbers sit at the content edge, not
- * right-aligned like a right tab). */
-.cm-kuskus-live .cm-line .cm-atomic-list-marker {
-  color: var(--typeset-muted);
-}
-.cm-kuskus-live .cm-line .cm-atomic-list-marker span {
-  color: inherit;
-}
-.cm-kuskus-live .cm-atomic-bullet {
-  color: var(--typeset-muted);
-  font-weight: 400;
-  font-size: 1em;
-}
+ * marker) take the read renderer's 0.5em inter-item gap. */
 .cm-kuskus-live .cm-line:has(> .cm-atomic-list-marker),
 .cm-kuskus-live .cm-line:has(> span.cm-atomic-list-marker),
 .cm-kuskus-live .cm-line:has(.cm-atomic-task-checkbox) {
-  padding-top: 0.5em;
+  padding-top: var(--typeset-list-item-gap);
 }
-
-/* Task checkbox — reuse the app task-checkbox look. */
 .cm-kuskus-live .cm-atomic-task-checkbox {
-  border-color: color-mix(in oklch, var(--foreground) 40%, transparent);
-  border-radius: 4px;
-  background: color-mix(in oklch, var(--foreground) 10%, transparent);
-}
-.cm-kuskus-live .cm-atomic-task-checkbox:hover {
-  border-color: color-mix(in oklch, var(--foreground) 52%, transparent);
-}
-.cm-kuskus-live .cm-atomic-task-checkbox:checked {
-  background: var(--primary);
-  border-color: var(--primary);
-}
-.cm-kuskus-live .cm-atomic-task-checkbox::after {
-  border-color: var(--primary-foreground);
-}
-.cm-kuskus-live .cm-atomic-task-checkbox:focus-visible {
-  outline: 3px solid color-mix(in oklch, var(--ring) 50%, transparent);
-  outline-offset: 1px;
-  box-shadow: none;
+  transform: translateY(0.175em);
 }
 .cm-kuskus-live .cm-line.cm-atomic-task-done {
   color: var(--typeset-muted);
@@ -340,59 +277,9 @@
 /* Horizontal rule. */
 .cm-kuskus-live .cm-line.cm-atomic-hr {
   /* Atomic draws the single visible rule with ::after. */
-  margin-top: calc(var(--typeset-flow) * 2.4);
+  margin-top: var(--typeset-rule-flow);
   margin-bottom: 0;
   width: 100%;
-}
-
-/* Tables — typeset table treatment: rounded, bordered, header bottom
- * rule, first-column start alignment. */
-.cm-kuskus-live .cm-atomic-table {
-  padding: var(--typeset-flow) 0;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-}
-.cm-kuskus-live .cm-atomic-table table {
-  width: max-content;
-  min-width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  background: color-mix(in oklch, var(--foreground) 3%, transparent);
-  border: 1px solid color-mix(in oklch, var(--foreground) 28%, transparent);
-  font-family: var(--typeset-font-body);
-  border-radius: calc(var(--radius) * 1.4);
-  overflow: hidden;
-}
-.cm-kuskus-live .cm-atomic-table th,
-.cm-kuskus-live .cm-atomic-table td {
-  border: 0;
-  border-block-start: 1px solid color-mix(in oklch, var(--foreground) 18%, transparent);
-  border-inline-end: 1px solid color-mix(in oklch, var(--foreground) 18%, transparent);
-  padding: 0.75em 1em;
-  text-align: start;
-  vertical-align: top;
-  min-width: 2em;
-  min-height: 1.5em;
-  font-variant-numeric: tabular-nums;
-}
-.cm-kuskus-live .cm-atomic-table th {
-  font-weight: 500;
-  background: transparent;
-  border-block-end: 1px solid color-mix(in oklch, var(--foreground) 22%, transparent);
-}
-.cm-kuskus-live .cm-atomic-table th:first-child,
-.cm-kuskus-live .cm-atomic-table td:first-child {
-  padding-inline-start: 1em;
-}
-.cm-kuskus-live .cm-atomic-table th:last-child,
-.cm-kuskus-live .cm-atomic-table td:last-child {
-  padding-inline-end: 1em;
-  border-inline-end: 0;
-}
-.cm-kuskus-live .cm-atomic-table th:focus-within,
-.cm-kuskus-live .cm-atomic-table td:focus-within {
-  outline: 2px solid var(--primary);
-  outline-offset: -2px;
 }
 
 /* Wikilinks render with `:has()` anchor support. */
@@ -404,25 +291,12 @@
 }
 
 /* Images + chips. */
-.cm-kuskus-live .cm-kuskus-image {
-  border-radius: var(--radius-lg);
-  display: block;
-  margin-block-start: var(--typeset-flow);
-  max-height: 32rem;
-  max-width: 100%;
-  object-fit: contain;
-  outline: 1px solid var(--typeset-image-outline);
-  outline-offset: -1px;
-}
 .cm-kuskus-live .cm-kuskus-image-wrap {
   display: block;
 }
 .cm-kuskus-live .cm-kuskus-image-block {
   display: block;
   margin-block-start: var(--typeset-flow);
-}
-.cm-kuskus-live .cm-kuskus-image-block .cm-kuskus-image {
-  margin-block-start: 0;
 }
 .cm-kuskus-live .cm-kuskus-chip {
   border-radius: 0.5rem;
@@ -440,32 +314,4 @@
 .cm-kuskus-live .cm-kuskus-checkbox:focus-visible {
   outline: 3px solid color-mix(in oklch, var(--ring) 50%, transparent);
   outline-offset: 1px;
-}
-
-/* Frontmatter (YAML) card — the leading `---` block reads as a rounded
- * code card like read mode's .kuskus-code-block: a header (YAML label +
- * property count + Copy) replaces the opener line, the closing `---` is
- * hidden, and the body lines get the code background. When the cursor
- * lands on any frontmatter line the decorations drop and the raw source
- * (delimiters included) is editable, mirroring fenced-code reveal. */
-.cm-kuskus-live .cm-line.cm-kuskus-frontmatter-line {
-  background: var(--typeset-code-background);
-  color: var(--typeset-body-color);
-  font-family: var(--typeset-font-mono);
-  font-size: 0.875em;
-  line-height: 1.5;
-  padding-left: 0.75rem;
-  padding-right: 0.75rem;
-  box-shadow: none;
-}
-.cm-kuskus-live .cm-line.cm-kuskus-frontmatter-last {
-  border-end-start-radius: var(--radius);
-  border-end-end-radius: var(--radius);
-  padding-bottom: 0.875rem;
-}
-/* Empty frontmatter (`---\n---`) has no body lines — the header alone
- * is the whole card, so the header's line owns both rounded ends. */
-.cm-kuskus-live .cm-line.cm-kuskus-frontmatter-empty {
-  border-end-start-radius: var(--radius);
-  border-end-end-radius: var(--radius);
 }

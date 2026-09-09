@@ -1,19 +1,5 @@
 @layer components {
   .kuskus-typeset {
-    --typeset-font-body: var(--font-sans);
-    --typeset-font-heading: var(--font-sans);
-    --typeset-font-mono: var(--font-mono);
-    --typeset-leading: 1.75;
-    --typeset-flow: 1.25em;
-    --typeset-list-indent: 1.5em;
-    --typeset-muted: var(--muted-foreground);
-    --typeset-rule: color-mix(in oklch, var(--foreground) 30%, transparent);
-    --typeset-body-color: color-mix(in oklch, var(--foreground) 85%, transparent);
-    --typeset-code-background: var(--code-background);
-    --typeset-image-outline: rgb(0 0 0 / 10%);
-  }
-
-  .kuskus-typeset {
     font-size: var(--typeset-size);
     color: var(--typeset-body-color);
   }
@@ -45,7 +31,9 @@
   .kuskus-detail-document-frame,
   .cm-kuskus-detail-editor {
     --detail-document-max-width: 48rem;
+    --detail-editor-scrollbar-size: 0.625rem;
     --typeset-detail-gutter: 1.75rem;
+    --typeset-detail-padding-block: 2rem;
   }
 
   .kuskus-detail-document-frame {
@@ -53,6 +41,10 @@
     max-width: var(--detail-document-max-width);
     margin-inline: auto;
     padding-inline: var(--typeset-detail-gutter);
+  }
+
+  .cm-kuskus-detail-editor .cm-content {
+    translate: calc(var(--detail-editor-scrollbar-size) / 2) 0;
   }
 
   [data-reading-width='wide'] .kuskus-detail-document-frame,
@@ -116,9 +108,9 @@
     }
 
     &:where(img) {
-      max-height: 32rem;
+      max-height: var(--typeset-media-max-height);
       width: auto;
-      border-radius: var(--radius-lg);
+      border-radius: var(--typeset-media-radius);
       object-fit: contain;
       outline: 1px solid var(--typeset-image-outline);
       outline-offset: -1px;
@@ -134,67 +126,6 @@
 
   /* The Read renderer's task rows use kuskus-rich-task-content; the
      Milkdown-specific document selectors were removed with the engine. */
-
-  .kuskus-typeset li.task-list-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.5em;
-    padding-inline-start: 0;
-  }
-
-  .kuskus-typeset li.task-list-item > input[type='checkbox'] {
-    margin-inline-end: 0;
-  }
-
-  .kuskus-task-checkbox {
-    width: 1rem;
-    height: 1rem;
-    margin-block-start: 0.375rem;
-    flex: none;
-    appearance: none;
-    border: 1px solid color-mix(in oklch, var(--foreground) 40%, transparent);
-    border-radius: 4px;
-    background: color-mix(in oklch, var(--foreground) 10%, transparent);
-    cursor: pointer;
-  }
-
-  .kuskus-task-checkbox:hover {
-    border-color: color-mix(in oklch, var(--foreground) 52%, transparent);
-  }
-
-  .kuskus-task-checkbox:checked {
-    border-color: var(--primary);
-    background: var(--primary);
-  }
-
-  .kuskus-task-checkbox:checked::after {
-    display: block;
-    width: 0.25rem;
-    height: 0.5rem;
-    margin: 0.125rem auto 0;
-    border: solid var(--primary-foreground);
-    border-width: 0 1.5px 1.5px 0;
-    content: '';
-    transform: rotate(45deg);
-  }
-
-  .kuskus-task-checkbox:focus-visible {
-    outline: 3px solid color-mix(in oklch, var(--ring) 50%, transparent);
-    outline-offset: 1px;
-  }
-
-  .kuskus-task-checkbox:disabled {
-    cursor: default;
-    opacity: 1;
-  }
-
-  .kuskus-typeset .katex-display {
-    overflow-x: auto;
-    margin-block: var(--typeset-flow) 0;
-    border-radius: var(--radius);
-    background: var(--typeset-code-background);
-    padding: 0.875rem 1rem;
-  }
 
   .kuskus-rich-task-content {
     min-width: 0;
@@ -302,48 +233,18 @@
   .kuskus-code-block {
     overflow: hidden;
     margin-block-start: var(--typeset-flow);
-    border-radius: var(--radius);
+    border-radius: var(--typeset-code-radius, var(--radius));
     background: var(--typeset-code-background);
     color: var(--typeset-body-color);
     font-family: var(--typeset-font-mono);
-    font-size: 0.875em;
-    line-height: 1.5;
-  }
-
-  .kuskus-code-block-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    min-height: 2rem;
-    padding: 0.375rem 0.75rem;
-    color: var(--typeset-muted);
-    font-size: 0.75rem;
-  }
-
-  .kuskus-code-copy {
-    border: 0;
-    border-radius: 0.25rem;
-    background: transparent;
-    color: inherit;
-    cursor: pointer;
-    font: inherit;
-    padding: 0.125rem 0.375rem;
-  }
-
-  .kuskus-code-copy:hover {
-    background: color-mix(in oklab, currentColor 12%, transparent);
-    color: var(--foreground);
-  }
-
-  .kuskus-code-copy:focus-visible {
-    outline: 2px solid var(--ring);
-    outline-offset: 2px;
+    font-size: var(--typeset-code-size);
+    line-height: var(--typeset-code-leading);
   }
 
   .kuskus-code-block pre {
     margin: 0;
     overflow-x: auto;
-    padding: 0 1rem 0.875rem;
+    padding: 0 var(--typeset-code-padding-inline) var(--typeset-code-padding-block);
     white-space: pre;
   }
 
@@ -445,10 +346,6 @@
     font-style: italic;
   }
 
-  .dark .kuskus-typeset {
-    --typeset-image-outline: rgb(255 255 255 / 10%);
-  }
-
   @media (prefers-contrast: more) {
     .kuskus-typeset {
       --typeset-code-background: oklch(0.8 0 0);
@@ -457,26 +354,9 @@
     .dark .kuskus-typeset {
       --typeset-code-background: oklch(0.4 0 0);
     }
-
-    .kuskus-task-checkbox {
-      border-color: color-mix(in oklch, var(--foreground) 65%, transparent);
-    }
   }
 
   @media (forced-colors: active) {
-    .kuskus-task-checkbox {
-      border: 1px solid CanvasText;
-      background: ButtonFace;
-    }
-
-    .kuskus-task-checkbox:checked {
-      background: Highlight;
-    }
-
-    .kuskus-task-checkbox:checked::after {
-      border-color: HighlightText;
-    }
-
     .kuskus-code-block {
       border: 1px solid CanvasText;
     }

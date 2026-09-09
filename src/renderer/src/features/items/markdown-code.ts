@@ -36,6 +36,7 @@ export function codeLanguageLabel(info: string): string {
     {
       js: 'JavaScript',
       jsx: 'JSX',
+      math: 'Math',
       mermaid: 'Mermaid',
       ts: 'TypeScript',
       tsx: 'TSX',

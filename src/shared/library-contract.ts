@@ -112,16 +112,15 @@ export interface MoveItemsInput extends ItemMutationInput {
   destination: ActiveItemLocation
 }
 
-export interface RenameItemInput {
-  itemId: string
-  title: string
-}
+export type RenameItemInput =
+  { itemId: string; title: string } | { itemId: string; titleSource: 'derived' }
 
 export interface NoteItemDto {
   schemaVersion: 1 | 2
   id: string
   type: 'note'
   title: string
+  titleSource: 'derived' | 'custom'
   body: string
   bodyTruncated?: boolean
   createdAt: string

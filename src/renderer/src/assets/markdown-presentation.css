@@ -1,0 +1,344 @@
+/*
+ * Shared rendered-Markdown presentation contract.
+ *
+ * Read mode supplies semantic HTML and Live mode supplies CodeMirror widgets,
+ * but neither renderer owns visual measurements. New rendered elements belong
+ * here first; renderer-specific styles should only describe editor mechanics.
+ */
+.kuskus-typeset {
+  --typeset-font-body: var(--font-sans);
+  --typeset-font-heading: var(--font-sans);
+  --typeset-font-mono: var(--font-mono);
+  --typeset-leading: 1.75;
+  --typeset-flow: 1.25em;
+  --typeset-body-color: color-mix(in oklch, var(--foreground) 85%, transparent);
+  --typeset-muted: var(--muted-foreground);
+  --typeset-rule: color-mix(in oklch, var(--foreground) 30%, transparent);
+
+  --typeset-h1-size: 1.75em;
+  --typeset-h1-leading: 1.3;
+  --typeset-h2-size: 1.25em;
+  --typeset-h2-leading: 1.4;
+  --typeset-h3-size: 1.125em;
+  --typeset-h3-leading: 1.45;
+  --typeset-h4-size: 1em;
+  --typeset-h4-leading: 1.5;
+  --typeset-h5-size: 0.875em;
+  --typeset-h5-leading: 1.5;
+  --typeset-h6-size: 0.8125em;
+  --typeset-h6-leading: 1.5;
+  --typeset-heading-weight: 400;
+
+  --typeset-inline-code-size: 0.85em;
+  --typeset-inline-code-radius: min(calc(var(--radius) * 0.6), 0.35em);
+  --typeset-inline-code-padding: 0.125em 0.3em;
+  --typeset-code-background: var(--code-background);
+  --typeset-code-radius: var(--radius);
+  --typeset-code-size: 0.875em;
+  --typeset-code-leading: 1.5;
+  --typeset-code-padding-inline: 0.75rem;
+  --typeset-code-padding-block: 0.75rem;
+
+  --typeset-quote-rail: 2px;
+  --typeset-quote-indent: 1em;
+  --typeset-rule-flow: calc(var(--typeset-flow) * 2.4);
+
+  --typeset-list-leading: 0.4em;
+  --typeset-list-marker-column: 1.5em;
+  --typeset-list-nesting: 1.9em;
+  --typeset-list-item-gap: 0.5em;
+  --typeset-task-size: 1rem;
+  --typeset-task-radius: 4px;
+  --typeset-task-border-width: 1px;
+
+  --typeset-media-radius: var(--radius-lg);
+  --typeset-media-max-height: 32rem;
+  --typeset-image-outline: rgb(0 0 0 / 10%);
+  --typeset-math-padding: 0.875rem 1rem;
+
+  --typeset-table-radius: calc(var(--radius) * 1.4);
+  --typeset-table-leading: 1.5;
+  --typeset-table-cell-padding: 0.75em 1em;
+  --typeset-table-border: color-mix(in oklch, var(--foreground) 28%, transparent);
+  --typeset-table-cell-border: color-mix(in oklch, var(--foreground) 18%, transparent);
+}
+
+.dark .kuskus-typeset {
+  --typeset-image-outline: rgb(255 255 255 / 10%);
+}
+
+/* Explicit list markers replace browser-native ::marker so Read and Live use
+ * identical glyph shaping, marker columns, and gaps. */
+.kuskus-rendered-list {
+  margin-block: var(--typeset-flow) 0;
+  padding-inline-start: var(--typeset-list-leading);
+  list-style: none;
+}
+
+.kuskus-rendered-list .kuskus-rendered-list {
+  width: 100%;
+  margin-block-start: 0;
+}
+
+.kuskus-rendered-list > li {
+  display: grid;
+  grid-template-columns: var(--typeset-list-marker-column) minmax(0, 1fr);
+  margin-block-start: var(--typeset-list-item-gap);
+  padding: 0;
+}
+
+.kuskus-list-content {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.kuskus-rendered-list > li::before,
+.kuskus-list-marker {
+  box-sizing: border-box;
+  width: var(--typeset-list-marker-column);
+  padding-inline-end: var(--typeset-list-leading);
+  color: var(--typeset-muted);
+  font-family: var(--typeset-font-body);
+  font-size: 1em;
+  font-variant-numeric: proportional-nums;
+  font-weight: var(--typeset-heading-weight);
+  line-height: inherit;
+  text-align: end;
+}
+
+.kuskus-list-marker {
+  display: inline-block;
+}
+
+.kuskus-rendered-list > li::before {
+  grid-column: 1;
+}
+
+.kuskus-rendered-list--ordered {
+  counter-reset: kuskus-list calc(var(--kuskus-list-start, 1) - 1);
+}
+
+.kuskus-rendered-list--ordered > li {
+  counter-increment: kuskus-list;
+}
+
+.kuskus-rendered-list--ordered > li::before {
+  content: counter(kuskus-list) '.';
+}
+
+.kuskus-rendered-list--bullet > li::before {
+  content: '•';
+}
+
+.kuskus-rendered-list--bullet .kuskus-rendered-list--bullet > li::before {
+  content: '◦';
+}
+
+.kuskus-rendered-list--bullet
+  .kuskus-rendered-list--bullet
+  .kuskus-rendered-list--bullet
+  > li::before {
+  content: '▪';
+}
+
+.kuskus-rendered-list > li.task-list-item::before {
+  content: none;
+}
+
+.kuskus-task-marker {
+  display: inline-flex;
+  grid-column: 1;
+  width: var(--typeset-list-marker-column);
+  height: 1lh;
+  padding-inline-end: var(--typeset-list-leading);
+  justify-content: flex-end;
+  align-items: center;
+  text-indent: 0;
+}
+
+.kuskus-task-checkbox {
+  box-sizing: border-box;
+  width: var(--typeset-task-size);
+  height: var(--typeset-task-size);
+  margin: 0;
+  flex: none;
+  appearance: none;
+  border: var(--typeset-task-border-width) solid
+    color-mix(in oklch, var(--foreground) 40%, transparent);
+  border-radius: var(--typeset-task-radius);
+  background: color-mix(in oklch, var(--foreground) 10%, transparent);
+  cursor: pointer;
+}
+
+.kuskus-task-checkbox:hover {
+  border-color: color-mix(in oklch, var(--foreground) 52%, transparent);
+}
+
+.kuskus-task-checkbox:checked {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+
+.kuskus-task-checkbox:checked::after {
+  display: block;
+  width: 0.25rem;
+  height: 0.5rem;
+  margin: 0.125rem auto 0;
+  border: solid var(--primary-foreground);
+  border-width: 0 1.5px 1.5px 0;
+  content: '';
+  transform: rotate(45deg);
+}
+
+.kuskus-task-checkbox:focus-visible {
+  outline: 3px solid color-mix(in oklch, var(--ring) 50%, transparent);
+  outline-offset: 1px;
+}
+
+.kuskus-task-checkbox:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.kuskus-markdown-image {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: var(--typeset-media-max-height);
+  margin: 0;
+  border-radius: var(--typeset-media-radius);
+  object-fit: contain;
+  outline: 1px solid var(--typeset-image-outline);
+  outline-offset: -1px;
+}
+
+.kuskus-code-block-header {
+  display: flex;
+  min-height: 2rem;
+  padding: calc(var(--typeset-code-padding-block) / 2) var(--typeset-code-padding-inline);
+  align-items: center;
+  justify-content: space-between;
+  border-start-start-radius: var(--typeset-code-radius, var(--radius));
+  border-start-end-radius: var(--typeset-code-radius, var(--radius));
+  background: var(--typeset-code-background);
+  color: var(--typeset-muted);
+  font-family: var(--typeset-font-mono);
+  font-size: 0.75rem;
+}
+
+.kuskus-code-copy {
+  border: 0;
+  border-radius: 0.25rem;
+  background: transparent;
+  padding: 0.125rem 0.375rem;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.kuskus-code-copy:hover {
+  background: color-mix(in oklab, currentColor 12%, transparent);
+  color: var(--foreground);
+}
+
+.kuskus-code-copy:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.kuskus-math-block-body {
+  overflow-x: auto;
+  padding: 0 var(--typeset-code-padding-inline) var(--typeset-code-padding-block);
+}
+
+.kuskus-code-block .kuskus-math-block-body > .katex-display {
+  margin: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.kuskus-markdown-table-scroll {
+  overflow-x: auto;
+  margin-block-start: var(--typeset-flow);
+  padding: 0;
+  overscroll-behavior-x: contain;
+}
+
+.kuskus-markdown-table {
+  width: max-content;
+  min-width: 100%;
+  max-width: none;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--typeset-table-border);
+  border-radius: var(--typeset-table-radius);
+  border-collapse: separate;
+  border-spacing: 0;
+  background: color-mix(in oklch, var(--foreground) 3%, transparent);
+  font-family: var(--typeset-font-body);
+  font-size: 1em;
+  font-variant-numeric: tabular-nums;
+  line-height: var(--typeset-table-leading);
+}
+
+.kuskus-markdown-table :is(th, td) {
+  min-width: 2em;
+  min-height: 1.5em;
+  padding: var(--typeset-table-cell-padding);
+  border: 0;
+  border-block-start: 1px solid var(--typeset-table-cell-border);
+  border-inline-end: 1px solid var(--typeset-table-cell-border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.kuskus-markdown-table th {
+  background: transparent;
+  font-weight: 500;
+}
+
+.kuskus-markdown-table thead th {
+  border-block-start: 0;
+  border-block-end: 1px solid var(--typeset-table-cell-border);
+}
+
+.kuskus-markdown-table :is(th, td):last-child {
+  border-inline-end: 0;
+}
+
+.kuskus-markdown-table :is(th, td):focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.kuskus-math.is-block,
+.kuskus-typeset .katex-display {
+  display: block;
+  overflow-x: auto;
+  margin-block: var(--typeset-flow) 0;
+  border-radius: var(--typeset-code-radius, var(--radius));
+  background: var(--typeset-code-background);
+  padding: var(--typeset-math-padding);
+}
+
+@media (prefers-contrast: more) {
+  .kuskus-task-checkbox {
+    border-color: color-mix(in oklch, var(--foreground) 65%, transparent);
+  }
+}
+
+@media (forced-colors: active) {
+  .kuskus-task-checkbox {
+    border: 1px solid CanvasText;
+    background: ButtonFace;
+  }
+
+  .kuskus-task-checkbox:checked {
+    background: Highlight;
+  }
+
+  .kuskus-task-checkbox:checked::after {
+    border-color: HighlightText;
+  }
+}

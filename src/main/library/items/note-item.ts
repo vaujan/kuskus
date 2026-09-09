@@ -158,6 +158,7 @@ export function createNoteMetadata(
     id,
     type: 'note',
     title: deriveNoteTitle(markdown),
+    titleSource: 'derived',
     createdAt: timestamp,
     updatedAt: timestamp,
     sourceUrl: null,
@@ -176,10 +177,8 @@ export function updateNoteMetadata(
 ): PersistedNoteItem {
   return {
     ...metadata,
-    title:
-      metadata.schemaVersion === 2 || metadata.titleSource === 'custom'
-        ? metadata.title
-        : deriveNoteTitle(markdown),
+    title: metadata.titleSource === 'custom' ? metadata.title : deriveNoteTitle(markdown),
+    titleSource: metadata.titleSource === 'custom' ? 'custom' : 'derived',
     updatedAt: timestamp
   }
 }
@@ -195,6 +194,7 @@ export function toNoteDto(
     id: metadata.id,
     type: metadata.type,
     title: metadata.title,
+    titleSource: metadata.titleSource === 'custom' ? 'custom' : 'derived',
     body,
     createdAt: metadata.createdAt,
     updatedAt: metadata.updatedAt,

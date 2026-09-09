@@ -59,9 +59,12 @@ export interface NoteFindResult {
  * with match decorations; static previews wrap text nodes directly.
  */
 export interface NoteFindTarget {
+  focus(): void
   search(query: string, matchCase: boolean): NoteFindResult
   next(): NoteFindResult
   prev(): NoteFindResult
+  replaceCurrent?(replacement: string): NoteFindResult
+  replaceAll?(replacement: string): NoteFindResult
 }
 
 export interface NoteFindTargetRef {

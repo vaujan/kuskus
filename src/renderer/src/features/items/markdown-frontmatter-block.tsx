@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 
 import { MarkdownCodeBlock } from '@/features/items/markdown-code-block'
+import { cn } from '@/lib/utils'
 import { noteFrontmatterSource } from '../../../../shared/note-frontmatter'
 
 /**
@@ -26,7 +27,7 @@ export function MarkdownFrontmatterBlock({
   const yaml = source.yaml.replace(/\n$/, '')
 
   return (
-    <div className={className}>
+    <div className={cn('typeset kuskus-typeset', className)} data-typeset-presentation="detail">
       <MarkdownCodeBlock code={yaml} language="yaml" />
     </div>
   )

@@ -665,9 +665,10 @@ class TableWidget extends WidgetType {
 
   toDOM(view: EditorView): HTMLElement {
     const wrap = document.createElement('div')
-    wrap.className = 'cm-atomic-table'
+    wrap.className = 'kuskus-markdown-table-scroll cm-atomic-table'
 
     const table = document.createElement('table')
+    table.className = 'kuskus-markdown-table'
     wrap.appendChild(table)
 
     const thead = document.createElement('thead')

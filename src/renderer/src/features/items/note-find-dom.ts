@@ -5,13 +5,15 @@ import type { NoteFindResult, NoteFindTarget } from '@/features/items/note-edito
 const MARK_ATTRIBUTE = 'data-kuskus-find-result'
 
 function unwrapMarks(scope: HTMLElement): void {
+  const parents = new Set<Node>()
   scope.querySelectorAll(`[${MARK_ATTRIBUTE}]`).forEach((node) => {
     const parent = node.parentNode
     if (!parent) return
     while (node.firstChild) parent.insertBefore(node.firstChild, node)
     parent.removeChild(node)
-    parent.normalize()
+    parents.add(parent)
   })
+  parents.forEach((parent) => parent.normalize())
 }
 
 /**
@@ -35,44 +37,54 @@ export function createDomFindTarget(scopeRef: RefObject<HTMLElement | null>): No
       acceptNode: (node) => {
         if (!node.nodeValue) return NodeFilter.FILTER_REJECT
         const parent = node.parentNode as HTMLElement | null
-        if (!parent || parent.closest(`[${MARK_ATTRIBUTE}]`)) return NodeFilter.FILTER_REJECT
+        if (
+          !parent ||
+          parent.closest(`[${MARK_ATTRIBUTE}], script, style, textarea, [contenteditable="true"]`)
+        ) {
+          return NodeFilter.FILTER_REJECT
+        }
         return NodeFilter.FILTER_ACCEPT
       }
     })
     const textNodes: Text[] = []
     while (walker.nextNode()) textNodes.push(walker.currentNode as Text)
 
-    let index = 0
+    const marks: HTMLElement[] = []
     for (const textNode of textNodes) {
       const value = textNode.nodeValue ?? ''
       let rest = value
       let searchable = matchCase ? rest : rest.toLocaleLowerCase()
       let found = searchable.indexOf(normalized)
+      if (found === -1) continue
+      const fragment = document.createDocumentFragment()
       while (found !== -1) {
         const before = rest.slice(0, found)
-        if (before) textNode.parentNode?.insertBefore(document.createTextNode(before), textNode)
+        if (before) fragment.append(document.createTextNode(before))
         const mark = document.createElement('mark')
         mark.setAttribute(MARK_ATTRIBUTE, '')
-        if (index === current) mark.dataset.current = 'true'
         mark.textContent = rest.slice(found, found + normalized.length)
-        textNode.parentNode?.insertBefore(mark, textNode)
+        marks.push(mark)
+        fragment.append(mark)
         rest = rest.slice(found + normalized.length)
         searchable = matchCase ? rest : rest.toLocaleLowerCase()
         found = searchable.indexOf(normalized)
-        index += 1
       }
-      if (rest) textNode.parentNode?.insertBefore(document.createTextNode(rest), textNode)
-      textNode.parentNode?.removeChild(textNode)
+      if (rest) fragment.append(document.createTextNode(rest))
+      textNode.replaceWith(fragment)
     }
-    current = Math.min(current, Math.max(0, index - 1))
-    total = index
-    if (index > 0) {
-      scope.querySelector(`[${MARK_ATTRIBUTE}][data-current]`)?.scrollIntoView({ block: 'center' })
+    current = Math.min(current, Math.max(0, marks.length - 1))
+    total = marks.length
+    if (marks.length > 0) {
+      marks[current].dataset.current = 'true'
+      marks[current].scrollIntoView({ block: 'center' })
     }
-    return { current: index ? current + 1 : 0, total: index }
+    return { current: marks.length ? current + 1 : 0, total: marks.length }
   }
 
   return {
+    focus() {
+      scopeRef.current?.focus({ preventScroll: true })
+    },
     search(newQuery, newMatchCase) {
       query = newQuery
       matchCase = newMatchCase

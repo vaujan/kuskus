@@ -3,7 +3,6 @@ const test = require('node:test')
 require('./helpers/install-ts-require.cjs')()
 
 const { NoteAutosaveCoordinator } = require('../src/renderer/src/features/items/note-autosave.ts')
-const { createMarkdownDiffRows } = require('../src/renderer/src/features/items/markdown-diff.ts')
 const {
   decodeMarkdownLinkTarget,
   setMarkdownTaskChecked,
@@ -25,6 +24,7 @@ const {
 const {
   prepareObsidianMarkdown
 } = require('../src/renderer/src/features/items/obsidian-markdown.ts')
+const { getNoteTextMetrics } = require('../src/renderer/src/features/items/note-text-metrics.ts')
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function noteDto(body, updatedAt = '2026-07-21T00:00:00.000Z') {
@@ -41,7 +41,7 @@ function noteDto(body, updatedAt = '2026-07-21T00:00:00.000Z') {
   }
 }
 
-test('keeps blank edits pending and produces a side-by-side Markdown diff', () => {
+test('keeps blank edits pending', () => {
   const coordinator = new NoteAutosaveCoordinator({
     itemId: noteDto('Initial').id,
     initialMarkdown: 'Initial',
@@ -53,13 +53,12 @@ test('keeps blank edits pending and produces a side-by-side Markdown diff', () =
   assert.equal(coordinator.getSnapshot().status, 'dirty')
   assert.equal(coordinator.getSnapshot().error, null)
   coordinator.dispose()
+})
 
-  const rows = createMarkdownDiffRows('Same\nMy line\nSame end', 'Same\nDisk line\nSame end')
-  assert.equal(rows[0].kind, 'same')
-  assert.equal(rows[1].kind, 'changed')
-  assert.equal(rows[1].localText, 'My line')
-  assert.equal(rows[1].diskText, 'Disk line')
-  assert.equal(rows[2].kind, 'same')
+test('counts note words and characters for the editor status bar', () => {
+  assert.deepEqual(getNoteTextMetrics(''), { words: 0, characters: 0 })
+  assert.deepEqual(getNoteTextMetrics('One word'), { words: 2, characters: 8 })
+  assert.deepEqual(getNoteTextMetrics('one\n\n  two\tthree'), { words: 3, characters: 16 })
 })
 
 test('safely decodes Markdown vault-link targets', () => {

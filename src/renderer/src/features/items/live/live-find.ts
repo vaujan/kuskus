@@ -1,6 +1,6 @@
 import { StateField, StateEffect, type EditorState, type Extension } from '@codemirror/state'
 import { Decoration, EditorView, type DecorationSet } from '@codemirror/view'
-import { SearchCursor, search } from '@codemirror/search'
+import { SearchCursor } from '@codemirror/search'
 
 import type { NoteFindResult, NoteFindTarget } from '@/features/items/note-editor'
 
@@ -32,7 +32,7 @@ export function collectMatches(
     matchCase ? undefined : (text) => text.toLowerCase()
   )
   const matches: Array<{ from: number; to: number }> = []
-  while (cursor.next()) {
+  while (!cursor.next().done) {
     matches.push({ from: cursor.value.from, to: cursor.value.to })
   }
   return matches
@@ -40,12 +40,16 @@ export function collectMatches(
 
 function findDecorations(find: LiveFindState): DecorationSet {
   if (!find.matches.length) return Decoration.none
+  const visibleMatches = find.matches.slice(0, 1000)
+  if (find.current >= visibleMatches.length) visibleMatches.push(find.matches[find.current])
   return Decoration.set(
-    find.matches.map((match, index) =>
+    visibleMatches.map((match) =>
       Decoration.mark({
-        class: index === find.current ? 'cm-kuskus-find-current' : 'cm-kuskus-find-match'
+        class:
+          match === find.matches[find.current] ? 'cm-kuskus-find-current' : 'cm-kuskus-find-match'
       }).range(match.from, match.to)
-    )
+    ),
+    true
   )
 }
 
@@ -90,12 +94,28 @@ function createActions(view: EditorView): NoteFindTarget {
     const find = view.state.field(liveFindField)
     return { current: find.matches.length ? find.current + 1 : 0, total: find.matches.length }
   }
+  const selectCurrent = (): void => {
+    const find = view.state.field(liveFindField)
+    const match = find.matches[find.current]
+    if (match) {
+      view.dispatch({
+        selection: { anchor: match.from, head: match.to },
+        effects: EditorView.scrollIntoView(match.from, { y: 'center' }),
+        userEvent: 'select.search'
+      })
+    }
+  }
   const step = (delta: 1 | -1): void => {
     view.dispatch({ effects: setFind.of({ type: 'move', delta }) })
+    selectCurrent()
   }
   return {
+    focus() {
+      view.focus()
+    },
     search(query, matchCase) {
       view.dispatch({ effects: setFind.of({ type: 'search', query, matchCase }) })
+      selectCurrent()
       return report()
     },
     next() {
@@ -105,12 +125,36 @@ function createActions(view: EditorView): NoteFindTarget {
     prev() {
       step(-1)
       return report()
+    },
+    replaceCurrent(replacement) {
+      const find = view.state.field(liveFindField)
+      const match = find.matches[find.current]
+      if (!match) return report()
+      view.dispatch({
+        changes: { from: match.from, to: match.to, insert: replacement },
+        selection: { anchor: match.from + replacement.length },
+        userEvent: 'input.replace'
+      })
+      return report()
+    },
+    replaceAll(replacement) {
+      const find = view.state.field(liveFindField)
+      if (!find.matches.length) return report()
+      view.dispatch({
+        changes: find.matches.map((match) => ({
+          from: match.from,
+          to: match.to,
+          insert: replacement
+        })),
+        userEvent: 'input.replace.all'
+      })
+      return report()
     }
   }
 }
 
 export function liveFindExtensions(): Extension {
-  return [liveFindField, search()]
+  return liveFindField
 }
 
 export function wireLiveFind(

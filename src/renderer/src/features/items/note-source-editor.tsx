@@ -2,13 +2,18 @@ import { forwardRef, useImperativeHandle, useRef } from 'react'
 
 import { MarkdownEditor } from '@/features/items/markdown-editor'
 import type { MarkdownEditorHandle } from '@/features/items/markdown-editor'
-import type { NoteEditorProps, SourceNoteHandle } from '@/features/items/note-editor'
+import type {
+  NoteEditorProps,
+  NoteFindTargetRef,
+  SourceNoteHandle
+} from '@/features/items/note-editor'
 import { cn } from '@/lib/utils'
 
 interface NoteSourceEditorProps extends NoteEditorProps {
   header?: React.ReactNode
   onPasteImage?: (file: File, insertAtSelection: (src: string) => void) => void
   onScroll?: (scroller: HTMLElement) => void
+  findTarget?: NoteFindTargetRef
 }
 
 /**
@@ -18,7 +23,18 @@ interface NoteSourceEditorProps extends NoteEditorProps {
  */
 export const NoteSourceEditor = forwardRef<SourceNoteHandle, NoteSourceEditorProps>(
   function NoteSourceEditor(
-    { value, active, vimEnabled, vim, onChange, className, header, onPasteImage, onScroll },
+    {
+      value,
+      active,
+      vimEnabled,
+      vim,
+      onChange,
+      className,
+      header,
+      onPasteImage,
+      onScroll,
+      findTarget
+    },
     forwardedRef
   ): React.JSX.Element {
     const editorRef = useRef<MarkdownEditorHandle>(null)
@@ -52,6 +68,7 @@ export const NoteSourceEditor = forwardRef<SourceNoteHandle, NoteSourceEditorPro
         onVimWrite={vim.onWrite}
         onVimQuit={vim.onQuit}
         vimCommandLineHost={vim.commandLineHost}
+        findTarget={findTarget}
       />
     )
   }

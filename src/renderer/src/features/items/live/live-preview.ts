@@ -1,4 +1,5 @@
 import { ensureSyntaxTree, syntaxTree } from '@codemirror/language'
+import katex from 'katex'
 import {
   Facet,
   StateField,
@@ -15,7 +16,6 @@ import { readOnlyFacet } from './atomic/read-only'
 import { treeGrowthEffect } from './atomic/tree-progress'
 import { autoCloseCodeFence } from './atomic/edit-helpers'
 import { codeLanguageLabel, copyMarkdownCode } from '../markdown-code'
-import { noteFrontmatterSource } from '../../../../../shared/note-frontmatter'
 
 export interface LivePreviewImage {
   src: string | null
@@ -106,6 +106,39 @@ class WikilinkImageWidget extends WidgetType {
  * the source ```` ```lang ```` is hidden and the header occupies that
  * line's box. Skipped entirely on active lines (cursor inside the block)
  * so the user can edit the fence marks. */
+function createCodeBlockHeader(code: string, language: string): HTMLElement {
+  const header = document.createElement('div')
+  header.className = 'kuskus-code-block-header cm-kuskus-code-block-header'
+
+  const label = document.createElement('span')
+  label.className = 'cm-kuskus-code-block-label'
+  label.textContent = codeLanguageLabel(language)
+
+  const copy = document.createElement('button')
+  copy.type = 'button'
+  copy.className = 'kuskus-code-copy cm-kuskus-code-copy'
+  copy.textContent = 'Copy'
+  copy.setAttribute('aria-label', `Copy code${language ? `: ${language}` : ''}`)
+  // Keep widget controls from moving the editor caret or stealing focus.
+  copy.addEventListener('mousedown', (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+  })
+  copy.addEventListener('click', async (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (await copyMarkdownCode(code)) {
+      copy.textContent = 'Copied'
+      window.setTimeout(() => {
+        copy.textContent = 'Copy'
+      }, 1500)
+    }
+  })
+
+  header.append(label, copy)
+  return header
+}
+
 class CodeBlockHeaderWidget extends WidgetType {
   constructor(
     private readonly code: string,
@@ -119,97 +152,7 @@ class CodeBlockHeaderWidget extends WidgetType {
   }
 
   toDOM(): HTMLElement {
-    const header = document.createElement('div')
-    header.className = 'cm-kuskus-code-block-header'
-
-    const label = document.createElement('span')
-    label.className = 'cm-kuskus-code-block-label'
-    label.textContent = codeLanguageLabel(this.language)
-
-    const copy = document.createElement('button')
-    copy.type = 'button'
-    copy.className = 'cm-kuskus-code-copy'
-    copy.textContent = 'Copy'
-    copy.setAttribute('aria-label', `Copy code${this.language ? `: ${this.language}` : ''}`)
-    // Mirror TaskCheckboxWidget: stop CM6 from treating the press as
-    // editor input (which would place the caret in the code block and
-    // focus the editor) and stop the browser default (which would focus
-    // the button). The click handler below still fires because
-    // ignoreEvent only opts the event out of CM6's own handling.
-    copy.addEventListener('mousedown', (event) => {
-      event.preventDefault()
-      event.stopPropagation()
-    })
-    copy.addEventListener('click', async (event) => {
-      event.preventDefault()
-      event.stopPropagation()
-      if (await copyMarkdownCode(this.code)) {
-        copy.textContent = 'Copied'
-        window.setTimeout(() => {
-          copy.textContent = 'Copy'
-        }, 1500)
-      }
-    })
-
-    header.append(label, copy)
-    return header
-  }
-
-  ignoreEvent(event: Event): boolean {
-    return event.type === 'mousedown' || event.type === 'click'
-  }
-}
-
-/** Header widget for an inactive frontmatter block: a "YAML" label with
- *  the property count plus a Copy button, mirroring the fenced-code
- *  header. The opener `---` line is replaced by this header; when the
- *  cursor enters the frontmatter the raw source (delimiters included)
- *  reveals for direct editing, exactly like an active fence. */
-class FrontmatterHeaderWidget extends WidgetType {
-  constructor(
-    private readonly yaml: string,
-    private readonly count: number
-  ) {
-    super()
-  }
-
-  eq(other: FrontmatterHeaderWidget): boolean {
-    return other.yaml === this.yaml && other.count === this.count
-  }
-
-  toDOM(): HTMLElement {
-    const header = document.createElement('div')
-    header.className = 'cm-kuskus-code-block-header cm-kuskus-frontmatter-header'
-
-    const label = document.createElement('span')
-    label.className = 'cm-kuskus-code-block-label'
-    label.textContent =
-      this.count === 0
-        ? 'YAML'
-        : `YAML · ${this.count} ${this.count === 1 ? 'property' : 'properties'}`
-
-    const copy = document.createElement('button')
-    copy.type = 'button'
-    copy.className = 'cm-kuskus-code-copy'
-    copy.textContent = 'Copy'
-    copy.setAttribute('aria-label', 'Copy YAML frontmatter')
-    copy.addEventListener('mousedown', (event) => {
-      event.preventDefault()
-      event.stopPropagation()
-    })
-    copy.addEventListener('click', async (event) => {
-      event.preventDefault()
-      event.stopPropagation()
-      if (await copyMarkdownCode(this.yaml)) {
-        copy.textContent = 'Copied'
-        window.setTimeout(() => {
-          copy.textContent = 'Copy'
-        }, 1500)
-      }
-    })
-
-    header.append(label, copy)
-    return header
+    return createCodeBlockHeader(this.code, this.language)
   }
 
   ignoreEvent(event: Event): boolean {
@@ -264,6 +207,40 @@ class MarkdownImageBlockWidget extends WidgetType {
   }
 }
 
+class MathWidget extends WidgetType {
+  constructor(
+    private readonly tex: string,
+    private readonly display: boolean
+  ) {
+    super()
+  }
+
+  eq(other: MathWidget): boolean {
+    return other.tex === this.tex && other.display === this.display
+  }
+
+  toDOM(): HTMLElement {
+    const element = document.createElement(this.display ? 'div' : 'span')
+    element.className = this.display ? 'kuskus-code-block cm-kuskus-math-block' : 'kuskus-math'
+    const content = this.display ? document.createElement('div') : element
+    if (this.display) content.className = 'kuskus-math-block-body'
+    try {
+      content.innerHTML = katex.renderToString(this.tex, {
+        displayMode: this.display,
+        throwOnError: false
+      })
+    } catch {
+      content.textContent = this.tex
+    }
+    if (this.display) element.append(createCodeBlockHeader(this.tex, 'math'), content)
+    return element
+  }
+
+  ignoreEvent(event: Event): boolean {
+    return this.display && (event.type === 'mousedown' || event.type === 'click')
+  }
+}
+
 interface ReplaceEntry {
   from: number
   to: number
@@ -285,12 +262,10 @@ type MarkdownSyntaxNode = ReturnType<ReturnType<typeof syntaxTree>['resolveInner
 
 function activeLineNumbers(state: EditorState): Set<number> {
   const result = new Set<number>()
-  if (state.selection.main.empty) {
-    for (const range of state.selection.ranges) {
-      const first = state.doc.lineAt(range.from).number
-      const last = state.doc.lineAt(Math.max(range.from, range.to)).number
-      for (let line = first; line <= last; line += 1) result.add(line)
-    }
+  for (const range of state.selection.ranges) {
+    const first = state.doc.lineAt(range.from).number
+    const last = state.doc.lineAt(Math.max(range.from, range.to)).number
+    for (let line = first; line <= last; line += 1) result.add(line)
   }
   return result
 }
@@ -299,6 +274,7 @@ class KuskusLiveDecorationBuilder {
   private readonly replaces: ReplaceEntry[] = []
   private readonly marks: MarkEntry[] = []
   private readonly lines: LineEntry[] = []
+  private readonly consumedLines = new Set<number>()
 
   constructor(
     private readonly state: EditorState,
@@ -335,6 +311,7 @@ class KuskusLiveDecorationBuilder {
         this.handleNode(node.node)
       }
     })
+    this.scanBlockMath()
     this.scanInlineSegments()
     this.scanBlankLines()
     return Decoration.set(
@@ -355,6 +332,7 @@ class KuskusLiveDecorationBuilder {
     const doc = this.state.doc
     for (let line = 1; line <= doc.lines; line += 1) {
       if (doc.line(line).text.trim() !== '') continue
+      if (this.consumedLines.has(line)) continue
       const from = doc.line(line).from
       if (isCodePosition(this.state, from)) continue
       this.addLine(from, Decoration.line({ class: 'cm-kuskus-blank' }))
@@ -362,11 +340,8 @@ class KuskusLiveDecorationBuilder {
   }
 
   private handleNode(node: MarkdownSyntaxNode): void {
-    // Frontmatter: the leading YAML block reads as a rounded code card
-    // (header + muted YAML body) when the cursor is NOT inside it — the
-    // same reveal pattern atomic uses for fenced code. Clicking any line
-    // of the frontmatter activates the whole block so the raw `---`
-    // delimiters and exact source are editable.
+    // Frontmatter uses the exact same card lines and header widget as a
+    // fenced YAML code block. Clicking any line reveals the raw source.
     if (node.name === 'Frontmatter') {
       const firstLine = this.state.doc.lineAt(node.from)
       const lastLine = this.state.doc.lineAt(node.to)
@@ -384,38 +359,39 @@ class KuskusLiveDecorationBuilder {
         return
       }
 
-      // Inactive: hide the `---` delimiters, give the body lines the
-      // code-card treatment, and replace the opener with the header.
+      // Replace only the opener text, not its newline. Consuming the line
+      // break pulls the first YAML row into the widget line and leaves it
+      // outside the card background.
       const openerEnd = firstLine.to + 1
       const closerStart = lastLine.from
       const yaml = this.state.doc.sliceString(openerEnd, closerStart)
       this.addReplace(closerStart, node.to, Decoration.replace({}))
+      this.addLine(
+        firstLine.from,
+        Decoration.line({ class: 'cm-atomic-fenced-code cm-kuskus-code-first' })
+      )
+      this.addLine(lastLine.from, Decoration.line({ class: 'cm-kuskus-code-closer' }))
       const bodyStart = firstLine.number + 1
       const bodyEnd = lastLine.number - 1
       for (let n = bodyStart; n <= bodyEnd; n += 1) {
         this.addLine(
           this.state.doc.line(n).from,
-          Decoration.line({ class: 'cm-kuskus-frontmatter-line' })
+          Decoration.line({ class: 'cm-atomic-fenced-code' })
         )
       }
       if (bodyStart <= bodyEnd) {
         this.addLine(
           this.state.doc.line(bodyEnd).from,
-          Decoration.line({ class: 'cm-kuskus-frontmatter-last' })
+          Decoration.line({ class: 'cm-kuskus-code-last' })
         )
+      } else {
+        this.addLine(firstLine.from, Decoration.line({ class: 'cm-kuskus-code-last' }))
       }
-      if (bodyStart > bodyEnd) {
-        this.addLine(firstLine.from, Decoration.line({ class: 'cm-kuskus-frontmatter-empty' }))
-      }
-      const source = noteFrontmatterSource(this.state.doc.sliceString(0, node.to))
-      const count = source
-        ? source.yaml.split(/\r?\n/).filter((line) => /^\S.*:/.test(line)).length
-        : 0
       this.addReplace(
         firstLine.from,
-        openerEnd,
+        firstLine.to,
         Decoration.replace({
-          widget: new FrontmatterHeaderWidget(yaml, count),
+          widget: new CodeBlockHeaderWidget(yaml, 'yaml'),
           block: true
         })
       )
@@ -488,8 +464,78 @@ class KuskusLiveDecorationBuilder {
     const lineCount = this.state.doc.lines
     for (let line = 1; line <= lineCount; line += 1) {
       const { from: lineFrom, text } = this.state.doc.line(line)
+      if (this.consumedLines.has(line)) continue
       if (this.isLineActive(line)) continue
+      this.scanInlineMath(lineFrom, text)
       this.scanWikilinks(lineFrom, text)
+    }
+  }
+
+  private scanBlockMath(): void {
+    const doc = this.state.doc
+    for (let line = 1; line <= doc.lines; line += 1) {
+      if (this.consumedLines.has(line)) continue
+      const { from, to, text } = doc.line(line)
+      const opening = /^ {0,3}\$\$(.*)$/.exec(text)
+      if (!opening || isCodePosition(this.state, from)) continue
+
+      const sameLine = opening[1].trimEnd()
+      if (sameLine.endsWith('$$') && sameLine.length > 2) {
+        if (!this.isLineActive(line)) {
+          const tex = sameLine.slice(0, -2).trim()
+          if (tex) {
+            this.addReplace(
+              from,
+              to,
+              Decoration.replace({ widget: new MathWidget(tex, true), block: true })
+            )
+            this.consumedLines.add(line)
+          }
+        }
+        continue
+      }
+
+      let closeLine = -1
+      for (let candidate = line + 1; candidate <= doc.lines; candidate += 1) {
+        if (/^ {0,3}\$\$\s*$/.test(doc.line(candidate).text)) {
+          closeLine = candidate
+          break
+        }
+      }
+      if (closeLine < 0) continue
+
+      let active = false
+      for (let covered = line; covered <= closeLine; covered += 1) {
+        if (this.isLineActive(covered)) active = true
+      }
+      if (!active) {
+        const close = doc.line(closeLine)
+        const tex = doc.sliceString(to + 1, close.from).replace(/\n$/, '')
+        if (
+          this.addReplace(
+            from,
+            close.to,
+            Decoration.replace({ widget: new MathWidget(tex, true), block: true })
+          )
+        ) {
+          for (let covered = line; covered <= closeLine; covered += 1) {
+            this.consumedLines.add(covered)
+          }
+        }
+      }
+      line = closeLine
+    }
+  }
+
+  private scanInlineMath(lineFrom: number, text: string): void {
+    const pattern = /\$([^$\s][^$\n]*?[^$\s]|[^$\s])\$/g
+    let match: RegExpExecArray | null
+    while ((match = pattern.exec(text)) !== null) {
+      const start = lineFrom + match.index
+      const end = start + match[0].length
+      if (text.charAt(match.index - 1) === '$' || text.charAt(end - lineFrom) === '$') continue
+      if (isCodePosition(this.state, start) || this.overlapsReplace(start, end)) continue
+      this.addReplace(start, end, Decoration.replace({ widget: new MathWidget(match[1], false) }))
     }
   }
 

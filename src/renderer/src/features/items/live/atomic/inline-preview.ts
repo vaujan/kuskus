@@ -257,12 +257,33 @@ class BulletWidget extends WidgetType {
 
   toDOM(): HTMLElement {
     // The `.cm-atomic-list-marker` class is what forces the
-    // uniform 1.2em inline-block alcove shared by bullets, task
+    // uniform 1.5em inline-block alcove shared by bullets, task
     // checkboxes, and ordered-list numbers. `.cm-atomic-bullet`
     // layers on bullet-specific color / weight.
     const span = document.createElement('span')
-    span.className = 'cm-atomic-list-marker cm-atomic-bullet'
+    span.className = 'kuskus-list-marker cm-atomic-list-marker cm-atomic-bullet'
     span.textContent = BULLET_GLYPHS[Math.min(this.depth, BULLET_GLYPHS.length - 1)]
+    return span
+  }
+
+  ignoreEvent(): boolean {
+    return false
+  }
+}
+
+class OrderedListWidget extends WidgetType {
+  constructor(private readonly marker: string) {
+    super()
+  }
+
+  eq(other: OrderedListWidget): boolean {
+    return other.marker === this.marker
+  }
+
+  toDOM(): HTMLElement {
+    const span = document.createElement('span')
+    span.className = 'kuskus-list-marker cm-atomic-list-marker cm-atomic-ordered-marker'
+    span.textContent = this.marker
     return span
   }
 
@@ -291,11 +312,11 @@ class TaskCheckboxWidget extends WidgetType {
     // input itself so selectors like `input.cm-atomic-task-checkbox`
     // keep working.
     const wrapper = document.createElement('span')
-    wrapper.className = 'cm-atomic-task-marker'
+    wrapper.className = 'kuskus-task-marker cm-atomic-task-marker'
     const input = document.createElement('input')
     input.type = 'checkbox'
     input.checked = this.checked
-    input.className = 'cm-atomic-task-checkbox'
+    input.className = 'kuskus-task-checkbox cm-atomic-task-checkbox'
     input.setAttribute('contenteditable', 'false')
     input.addEventListener('mousedown', (e) => {
       e.preventDefault()
@@ -360,13 +381,17 @@ function pushReplace(
 }
 
 // Kuskus fork: matches the Read renderer's typeset list geometry.
-// Read mode: ul/ol padding-inline-start 1.5em per level + li
-// padding-inline-start 0.4em → content starts at 1.9em + 1.5em/depth.
+// Read mode: ul/ol padding-inline-start 1.5em + li padding-inline-start
+// 0.4em → content starts at 1.9em and advances 1.9em per nested item.
 // Atomic default was 0.8/1.2/0.6 (2.0em + 0.6em/depth), which read as
 // a different indentation scale.
-const LIST_BASE_EM = 0.7
-const LIST_ALCOVE_EM = 1.2
-const LIST_LEVEL_EM = 1.5
+function listLineStyle(depth: number, markerLine: boolean): string {
+  const nested = ' + var(--typeset-list-nesting)'.repeat(depth)
+  const indent = `calc(var(--typeset-list-leading) + var(--typeset-list-marker-column)${nested})`
+  return `padding-left: ${indent}; text-indent: ${
+    markerLine ? 'calc(-1 * var(--typeset-list-marker-column))' : '0'
+  }`
+}
 
 function nearestListItem(node: SyntaxNode | null): SyntaxNode | null {
   for (let current = node; current; current = current.parent) {
@@ -381,6 +406,14 @@ function listItemDepth(item: SyntaxNode): number {
     if (parent.name === 'ListItem') depth++
   }
   return depth
+}
+
+function bulletListDepth(item: SyntaxNode): number {
+  let lists = 0
+  for (let parent = item.parent; parent; parent = parent.parent) {
+    if (parent.name === 'BulletList') lists++
+  }
+  return Math.max(0, lists - 1)
 }
 
 function sameListItem(a: SyntaxNode | null, b: SyntaxNode): boolean {
@@ -600,8 +633,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         let bulletDepth = 0
         if (listItem) {
           const depth = listItemDepth(listItem)
-          bulletDepth = depth
-          const padding = LIST_BASE_EM + LIST_ALCOVE_EM + depth * LIST_LEVEL_EM
+          bulletDepth = bulletListDepth(listItem)
           const firstLine = doc.lineAt(listItem.from)
           const lastLine = doc.lineAt(listItem.to)
 
@@ -617,9 +649,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
             ranges.push(
               Decoration.line({
                 attributes: {
-                  style: `padding-left: ${padding}em; text-indent: ${
-                    markerLine ? `-${LIST_ALCOVE_EM}` : '0'
-                  }em`
+                  style: listLineStyle(depth, markerLine)
                 }
               }).range(ownedLine.from)
             )
@@ -653,15 +683,16 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
           // `- [ ] ` is complete only once the space lands after the
           // brackets; before that — or while the caret navigates the
           // marker span — the raw `- [ ]` stays visible and editable.
-          const taskComplete =
-            !lineActive || doc.sliceString(taskFrom + 3, taskFrom + 4) === ' '
+          const taskComplete = !lineActive || doc.sliceString(taskFrom + 3, taskFrom + 4) === ' '
           const taskRevealed =
             lineActive &&
-            (!taskComplete ||
-              caretInsideRange(state, doc.line(line.number).from, taskFrom + 4))
+            (!taskComplete || caretInsideRange(state, doc.line(line.number).from, taskFrom + 4))
           if (taskRevealed) {
             ranges.push(
-              Decoration.mark({ class: 'cm-atomic-list-marker' }).range(node.from, node.to)
+              Decoration.mark({ class: 'kuskus-list-marker cm-atomic-list-marker' }).range(
+                node.from,
+                node.to
+              )
             )
           } else {
             // Hide `- ` (ListMark through the space before `[`).
@@ -674,7 +705,10 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
               lineActive && (!hasTrailingSpace || caretInsideRange(state, node.from, markEnd))
             if (bulletRevealed) {
               ranges.push(
-                Decoration.mark({ class: 'cm-atomic-list-marker' }).range(node.from, node.to)
+                Decoration.mark({ class: 'kuskus-list-marker cm-atomic-list-marker' }).range(
+                  node.from,
+                  node.to
+                )
               )
               if (hasTrailingSpace) {
                 pushReplace(ranges, doc, node.to, markEnd)
@@ -688,16 +722,25 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
               })
             }
           } else {
-            // Ordered list (or anything else with a non-standard
-            // mark text like `1.`, `42.`): keep the text visible
-            // but mark it so CSS gives it the same fixed-width
-            // alcove. Hide the trailing space separately so the
-            // total marker-plus-space footprint matches ALCOVE.
-            ranges.push(
-              Decoration.mark({ class: 'cm-atomic-list-marker' }).range(node.from, node.to)
-            )
-            if (hasTrailingSpace) {
-              pushReplace(ranges, doc, node.to, markEnd)
+            // Render inactive ordered markers outside CodeMirror's syntax
+            // spans so their numeral shaping exactly matches native Read
+            // markers. Reveal the raw source only while the caret traverses
+            // the marker, preserving direct editability without a layout
+            // shift because both forms use the same alcove.
+            const orderedRevealed =
+              lineActive && (!hasTrailingSpace || caretInsideRange(state, node.from, markEnd))
+            if (orderedRevealed) {
+              ranges.push(
+                Decoration.mark({ class: 'kuskus-list-marker cm-atomic-list-marker' }).range(
+                  node.from,
+                  node.to
+                )
+              )
+              if (hasTrailingSpace) pushReplace(ranges, doc, node.to, markEnd)
+            } else {
+              pushReplace(ranges, doc, node.from, markEnd, {
+                widget: new OrderedListWidget(markText)
+              })
             }
           }
         }

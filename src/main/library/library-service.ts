@@ -51,7 +51,12 @@ import {
   toImageDto,
   validateImageInput
 } from './items/image-item'
-import { createNoteMetadata, noteAttachmentFilename, updateNoteMetadata } from './items/note-item'
+import {
+  createNoteMetadata,
+  deriveNoteTitle,
+  noteAttachmentFilename,
+  updateNoteMetadata
+} from './items/note-item'
 import { createUrlMetadata, extractUrlMetadata, toUrlDto, validateWebUrl } from './items/url-item'
 import {
   isCollectionIconKey,
@@ -76,9 +81,7 @@ import { CARD_THUMBNAIL_EDGE, createImageThumbnail } from './image-thumbnail'
 
 export class NoteUpdateConflictError extends Error {
   constructor(readonly current: NoteItemDto) {
-    super(
-      'This note changed on disk after you opened it. Review both versions before choosing what to keep.'
-    )
+    super('This note changed on disk while you were editing it.')
     this.name = 'NoteUpdateConflictError'
   }
 }
@@ -384,20 +387,39 @@ export class LibraryService {
       this.librarySnapshot ?? (await this.buildLibraryDto(this.requireCurrentLibrary()))
     if (!query)
       return { revision: this.libraryRevision, itemIds: library.items.map((item) => item.id) }
+    const queryTerms = query.split(/\s+/)
     const itemIds = library.items
-      .filter((item) => {
-        const searchable = [
-          item.title,
-          item.type === 'note' ? item.body : '',
-          item.type === 'image' ? (item.sourceFilename ?? item.contentFilename) : '',
-          item.type === 'file' ? `${item.sourceFilename} ${item.contentFilename}` : '',
-          item.type === 'url' ? `${item.domain} ${item.sourceUrl} ${item.description ?? ''}` : ''
-        ]
-          .join(' ')
-          .toLocaleLowerCase()
-        return searchable.includes(query)
+      .map((item, index) => {
+        const title = item.title.toLocaleLowerCase()
+        const supporting = (
+          item.type === 'note'
+            ? item.body
+            : item.type === 'image'
+              ? (item.sourceFilename ?? item.contentFilename)
+              : item.type === 'file'
+                ? `${item.sourceFilename} ${item.contentFilename}`
+                : `${item.domain} ${item.sourceUrl} ${item.description ?? ''}`
+        ).toLocaleLowerCase()
+        const searchable = `${title} ${supporting}`
+        if (!queryTerms.every((term) => searchable.includes(term))) return null
+
+        const score =
+          title === query
+            ? 0
+            : title.startsWith(query)
+              ? 1
+              : title.includes(query)
+                ? 2
+                : queryTerms.every((term) => title.includes(term))
+                  ? 3
+                  : supporting.includes(query)
+                    ? 4
+                    : 5
+        return { id: item.id, index, score }
       })
-      .map((item) => item.id)
+      .filter((match): match is { id: string; index: number; score: number } => match !== null)
+      .sort((left, right) => left.score - right.score || left.index - right.index)
+      .map((match) => match.id)
     return { revision: this.libraryRevision, itemIds }
   }
 
@@ -410,6 +432,7 @@ export class LibraryService {
             id: item.id,
             type: item.type,
             title: item.title,
+            titleSource: item.titleSource,
             previewMarkdown: item.body.slice(0, 2_400),
             createdAt: item.createdAt,
             updatedAt: item.updatedAt,
@@ -521,7 +544,9 @@ export class LibraryService {
         data: bytes
       }))
     ])
-    await this.store.discardCaptureDraft(libraryPath)
+    for (const attachmentId of attachmentIds) {
+      await this.store.removeCaptureDraftAttachment(libraryPath, attachmentId)
+    }
     const persisted = await this.store.readPersistedItem(libraryPath, id)
     if (persisted.type !== 'note') throw new Error('The saved note could not be reopened.')
     const item = await this.refreshChangedItem(libraryPath, id)
@@ -1062,14 +1087,27 @@ export class LibraryService {
   async renameItem(input: RenameItemInput): Promise<LibraryDto> {
     if (!input || typeof input !== 'object') throw new Error('The item rename request is invalid.')
     this.validateItemId(input.itemId, 'item')
-    const title = this.validateItemTitle(input.title)
     const libraryPath = this.requireCurrentLibrary()
     const item = await this.store.resolveItem(libraryPath, input.itemId)
     if (item.location.type === 'trash') throw new Error('Restore this item before renaming it.')
+    let title: string
+    let titleSource: 'derived' | 'custom'
+    if ('titleSource' in input) {
+      if (input.titleSource !== 'derived' || item.metadata.type !== 'note') {
+        throw new Error('Only notes can derive their title from their contents.')
+      }
+      title = deriveNoteTitle(
+        (await this.store.readItemContent(libraryPath, item.metadata)).toString('utf8')
+      )
+      titleSource = 'derived'
+    } else {
+      title = this.validateItemTitle(input.title)
+      titleSource = 'custom'
+    }
     await this.store.updateItem(libraryPath, {
       ...item.metadata,
       title,
-      titleSource: 'custom',
+      titleSource,
       updatedAt: new Date().toISOString()
     })
     return this.refreshLibraryDto(

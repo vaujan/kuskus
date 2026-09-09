@@ -10,7 +10,7 @@ import { markdown } from '@codemirror/lang-markdown'
 import { bracketMatching, indentUnit, syntaxHighlighting } from '@codemirror/language'
 import { GFM } from '@lezer/markdown'
 import { classHighlighter } from '@lezer/highlight'
-import { highlightSelectionMatches, searchKeymap } from '@codemirror/search'
+import { highlightSelectionMatches } from '@codemirror/search'
 import {
   Compartment,
   EditorSelection,
@@ -41,9 +41,12 @@ import { getPublishedMarkdownChange } from '@/features/items/markdown-editor-cha
 import { toggleMarkdownMarker } from '@/features/items/markdown-formatting'
 import { markdownFrontmatter } from '@/features/items/markdown-frontmatter'
 import { markdownHighlightStyle } from '@/features/items/markdown-highlight-style'
+import {
+  minimalTextChange,
+  normalizeOrderedListNumbers
+} from '@/features/items/ordered-list-numbering'
 import { markdownCodeLanguage } from '@/features/items/markdown-code'
 import { markdownCodeSpellcheck } from '@/features/items/markdown-code-spellcheck'
-import { markdownSearchTheme } from '@/features/items/markdown-search-theme'
 import { liveFindExtensions, wireLiveFind, unwireLiveFind } from '@/features/items/live/live-find'
 import {
   kuskusLiveExtensions,
@@ -91,7 +94,10 @@ const editorTheme = EditorView.theme({
     fontSize: '0.875rem',
     lineHeight: '1.7'
   },
-  '.cm-scroller::-webkit-scrollbar': { width: '0.625rem', height: '0.625rem' },
+  '.cm-scroller::-webkit-scrollbar': {
+    width: 'var(--detail-editor-scrollbar-size, 0.625rem)',
+    height: 'var(--detail-editor-scrollbar-size, 0.625rem)'
+  },
   '.cm-scroller::-webkit-scrollbar-track': { backgroundColor: 'transparent' },
   '.cm-scroller::-webkit-scrollbar-thumb': {
     backgroundColor: 'var(--border)',
@@ -137,7 +143,7 @@ const detailContentTheme = EditorView.theme({
   '.cm-content': {
     maxWidth: 'var(--detail-document-max-width)',
     margin: '0 auto',
-    padding: '2.5rem var(--typeset-detail-gutter)'
+    padding: 'var(--typeset-detail-padding-block) var(--typeset-detail-gutter)'
   }
 })
 
@@ -314,7 +320,6 @@ export const LiveMarkdownEditor = forwardRef<SourceNoteHandle, LiveMarkdownEdito
         vimModeTheme,
         editorTheme,
         ...(presentation === 'detail' ? [detailContentTheme] : []),
-        markdownSearchTheme,
         markdownCodeSpellcheck,
         syntaxHighlighting(classHighlighter),
         syntaxHighlighting(markdownHighlightStyle),
@@ -324,8 +329,7 @@ export const LiveMarkdownEditor = forwardRef<SourceNoteHandle, LiveMarkdownEdito
           { key: 'Mod-i', preventDefault: true, run: markerCommand('*') },
           indentWithTab,
           ...defaultKeymap,
-          ...historyKeymap,
-          ...searchKeymap
+          ...historyKeymap
         ]),
         EditorView.contentAttributes.of({
           'aria-label': 'Markdown editor',
@@ -363,6 +367,21 @@ export const LiveMarkdownEditor = forwardRef<SourceNoteHandle, LiveMarkdownEdito
         liveCompartmentRef.current.of(kuskusLiveExtensions(() => liveOptionsRef.current)),
         blocksCompartmentRef.current.of(markdownEditorBlocks(() => blocksOptionsRef.current)),
         EditorView.updateListener.of((update) => {
+          if (update.docChanged) {
+            const markdown = update.state.doc.toString()
+            const normalized = normalizeOrderedListNumbers(markdown)
+            const numberingChange = minimalTextChange(markdown, normalized)
+            if (numberingChange) {
+              queueMicrotask(() => {
+                const editor = viewRef.current
+                if (!editor || editor.state.doc.toString() !== markdown) return
+                editor.dispatch({
+                  changes: numberingChange,
+                  userEvent: 'input'
+                })
+              })
+            }
+          }
           const markdownChange = getPublishedMarkdownChange(
             update.docChanged,
             update.state.doc.toString()

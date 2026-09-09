@@ -10,7 +10,6 @@ import {
   useState
 } from 'react'
 import ReactMarkdown, { defaultUrlTransform, type Components } from 'react-markdown'
-import '@/assets/katex-woff2.css'
 import rehypeKatex from 'rehype-katex'
 import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
@@ -21,7 +20,7 @@ import { useNoteAttachmentPreviews } from '@/features/items/use-note-attachment-
 import type { NoteAttachmentDto } from '../../../../shared/library-contract'
 import { markdownImageTargetKey } from '../../../../shared/markdown-image-references'
 import { prepareObsidianMarkdown } from '@/features/items/obsidian-markdown'
-import { MarkdownCodeBlock } from '@/features/items/markdown-code-block'
+import { MarkdownCodeBlock, MarkdownCodeCardHeader } from '@/features/items/markdown-code-block'
 import {
   decodeMarkdownLinkTarget,
   setMarkdownTaskChecked
@@ -29,6 +28,18 @@ import {
 
 const REMARK_PLUGINS = [remarkGfm, remarkBreaks, remarkMath]
 const REHYPE_PLUGINS = [rehypeKatex]
+
+function katexSource(node: React.ReactNode): string | null {
+  if (!isValidElement<{ children?: React.ReactNode; encoding?: string }>(node)) return null
+  if (node.type === 'annotation' && node.props.encoding === 'application/x-tex') {
+    return Children.toArray(node.props.children).join('')
+  }
+  for (const child of Children.toArray(node.props.children)) {
+    const source = katexSource(child)
+    if (source !== null) return source
+  }
+  return null
+}
 
 function extractTaskCheckbox(node: React.ReactNode): {
   checkbox: React.ReactNode
@@ -182,6 +193,25 @@ export const MarkdownPreview = memo(function MarkdownPreview({
   }, [presentation, value])
 
   const components: Components = {
+    ol: ({ className, start = 1, style, ...props }) => (
+      <ol
+        {...props}
+        className={cn('kuskus-rendered-list kuskus-rendered-list--ordered', className)}
+        start={start}
+        style={
+          {
+            ...style,
+            '--kuskus-list-start': start
+          } as React.CSSProperties
+        }
+      />
+    ),
+    ul: ({ className, ...props }) => (
+      <ul
+        {...props}
+        className={cn('kuskus-rendered-list kuskus-rendered-list--bullet', className)}
+      />
+    ),
     input: ({ checked }) => (
       <input
         type="checkbox"
@@ -207,7 +237,7 @@ export const MarkdownPreview = memo(function MarkdownPreview({
       ) {
         return (
           <li className={className} {...props}>
-            {children}
+            <div className="kuskus-list-content">{children}</div>
           </li>
         )
       }
@@ -223,8 +253,13 @@ export const MarkdownPreview = memo(function MarkdownPreview({
         isValidElement<{ checked?: boolean }>(checkbox) && checkbox.props.checked === true
       return (
         <li className={className} {...props}>
-          {checkbox}
-          <div className={cn('kuskus-rich-task-content', checked && 'kuskus-task-checked')}>
+          <span className="kuskus-task-marker">{checkbox}</span>
+          <div
+            className={cn(
+              'kuskus-list-content kuskus-rich-task-content',
+              checked && 'kuskus-task-checked'
+            )}
+          >
             {rest}
           </div>
         </li>
@@ -311,9 +346,32 @@ export const MarkdownPreview = memo(function MarkdownPreview({
         />
       )
     },
-    table: ({ children, ...props }) => (
-      <div className="typeset-scroll">
-        <table {...props}>{children}</table>
+    span: ({ node, children, className, ...props }) => {
+      void node
+      if (className?.split(/\s+/).includes('katex-display')) {
+        const source = katexSource(children) ?? ''
+        return (
+          <div className="kuskus-code-block not-typeset" data-not-typeset>
+            <MarkdownCodeCardHeader code={source} label="Math" />
+            <div className="kuskus-math-block-body">
+              <span {...props} className={className}>
+                {children}
+              </span>
+            </div>
+          </div>
+        )
+      }
+      return (
+        <span {...props} className={className}>
+          {children}
+        </span>
+      )
+    },
+    table: ({ children, className, ...props }) => (
+      <div className="typeset-scroll kuskus-markdown-table-scroll">
+        <table {...props} className={cn('kuskus-markdown-table', className)}>
+          {children}
+        </table>
       </div>
     )
   }

@@ -3,6 +3,7 @@ const test = require('node:test')
 require('./helpers/install-ts-require.cjs')()
 
 const { NoteAutosaveCoordinator } = require('../src/renderer/src/features/items/note-autosave.ts')
+const { mergeNoteChanges } = require('../src/renderer/src/features/items/merge-note-changes.ts')
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function makeNote(body) {
@@ -41,6 +42,13 @@ async function flushMicrotasks() {
     await new Promise((resolve) => setImmediate(resolve))
   }
 }
+
+test('keeps the active draft for overlapping external edits', () => {
+  assert.deepEqual(mergeNoteChanges('Title\nBase', 'Title\nMy edit', 'Title\nDisk edit'), {
+    markdown: 'Title\nMy edit',
+    overlappingChanges: true
+  })
+})
 
 test('autosaves draft changes after the debounce delay', async (t) => {
   t.mock.timers.enable({ apis: ['setTimeout'] })

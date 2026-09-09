@@ -459,7 +459,8 @@ test('updates Markdown notes without changing their identity or attachments', as
   })
 
   assert.equal(updated.id, note.id)
-  assert.equal(updated.title, 'Original title')
+  assert.equal(updated.title, 'Updated title')
+  assert.equal(updated.titleSource, 'derived')
   assert.equal(updated.createdAt, note.createdAt)
   assert.notEqual(updated.updatedAt, note.updatedAt)
   assert.deepEqual(updated.attachments, note.attachments)
@@ -476,6 +477,34 @@ test('updates Markdown notes without changing their identity or attachments', as
   const reopenedNote = state.library.items.find((item) => item.id === note.id)
   assert.equal(reopenedNote.body, updated.body)
   assert.equal(reopenedNote.title, updated.title)
+})
+
+test('creating a note consumes only the attachments used by that note', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-note-draft-isolation-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  await service.createIn(root, 'Draft Isolation')
+  const used = await service.stageCaptureDraftImage({
+    bytes: arrayBuffer(onePixelPng),
+    mediaType: 'image/png',
+    sourceFilename: 'Used.png'
+  })
+  const retained = await service.stageCaptureDraftImage({
+    bytes: arrayBuffer(onePixelPng),
+    mediaType: 'image/png',
+    sourceFilename: 'Retained.png'
+  })
+
+  await service.createNote({
+    markdown: `![](${used.relativePath})`,
+    attachmentIds: [used.id]
+  })
+
+  const remaining = await service.listCaptureDraftImages()
+  assert.deepEqual(
+    remaining.map((attachment) => attachment.id),
+    [retained.id]
+  )
 })
 
 test('imports a clipboard image directly into an existing note', async (context) => {
@@ -652,13 +681,15 @@ test('flushes coalesced edits without allowing an older save to replace a newer 
   assert.equal(coordinator.getSnapshot().savedMarkdown, 'Newest edit')
 })
 
-test('pauses autosave for conflicts and resolves with either reviewed version', async (context) => {
-  const disk = noteDto('Changed on disk', '2026-07-21T01:00:00.000Z')
-  const replacements = []
+test('automatically merges concurrent disk and editor changes before retrying autosave', async (context) => {
+  const base = 'Title\nLocal base\nDisk base'
+  const draft = 'Title\nLocal edit\nDisk base'
+  const disk = noteDto('Title\nLocal base\nDisk edit', '2026-07-21T01:00:00.000Z')
   const calls = []
+  const mergeNotices = []
   const coordinator = new NoteAutosaveCoordinator({
     itemId: disk.id,
-    initialMarkdown: 'Initial',
+    initialMarkdown: base,
     delay: 10_000,
     save: async (input) => {
       calls.push(input)
@@ -673,24 +704,18 @@ test('pauses autosave for conflicts and resolves with either reviewed version', 
       return { ok: true, data: noteDto(input.markdown, '2026-07-21T02:00:00.000Z') }
     },
     onSaved: () => undefined,
-    onDraftReplaced: (markdown) => replacements.push(markdown)
+    onDraftReplaced: () => undefined,
+    onExternalChangesMerged: (overlapping) => mergeNotices.push(overlapping)
   })
   context.after(() => coordinator.dispose())
 
-  coordinator.updateDraft('My draft')
-  assert.equal(await coordinator.flush(), false)
-  assert.equal(coordinator.getSnapshot().status, 'conflict')
-  assert.equal(coordinator.getSnapshot().draft, 'My draft')
-
-  assert.equal(await coordinator.useLocalVersion(disk), true)
-  assert.equal(calls[1].expectedMarkdown, disk.body)
-  assert.equal(calls[1].markdown, 'My draft')
-
-  coordinator.updateDraft('Another local change')
-  coordinator.useDiskVersion(disk)
-  assert.deepEqual(replacements, [disk.body])
-  assert.equal(coordinator.getSnapshot().draft, disk.body)
+  coordinator.updateDraft(draft)
+  assert.equal(await coordinator.flush(), true)
   assert.equal(coordinator.getSnapshot().status, 'saved')
+  assert.equal(coordinator.getSnapshot().draft, 'Title\nLocal edit\nDisk edit')
+  assert.equal(calls[1].expectedMarkdown, disk.body)
+  assert.equal(calls[1].markdown, 'Title\nLocal edit\nDisk edit')
+  assert.deepEqual(mergeNotices, [false])
 })
 
 test('rejects unsafe persisted note attachment metadata', () => {

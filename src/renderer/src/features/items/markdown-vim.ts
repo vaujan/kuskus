@@ -67,19 +67,51 @@ interface VimDialogOptions {
   onInput?: (event: Event, value: string, close: (newVal?: string) => void) => void
 }
 
+interface VimNotificationOptions {
+  duration?: number
+}
+
 type OpenDialog = (
   template: Element,
   callback: ((value: string) => void) | undefined,
   options: VimDialogOptions | undefined
 ) => (newVal?: string) => void
 
+type OpenNotification = (
+  template: Element,
+  options: VimNotificationOptions | undefined
+) => () => void
+
+function prepareVimPrompt(template: Element, input: HTMLInputElement): void {
+  const prefix = input.parentElement?.textContent?.trim() ?? ''
+  const description = input.parentElement?.nextElementSibling
+  description?.remove()
+
+  const isSearch = prefix === '/' || prefix === '?'
+  input.placeholder = isSearch ? 'Search' : 'Command'
+  input.setAttribute('aria-label', isSearch ? 'Search note' : 'Vim command')
+
+  const hint = document.createElement('span')
+  hint.className = 'vim-command-hint'
+  hint.textContent = isSearch ? 'Enter to search · Esc to cancel' : 'Enter to run · Esc to cancel'
+  template.appendChild(hint)
+}
+
+function prepareVimNotification(template: Element): void {
+  const message = template.textContent?.trim() ?? ''
+  const yank = /^(\d+) lines yanked(.*)$/u.exec(message)
+  if (!yank) return
+
+  const count = Number(yank[1])
+  template.textContent = `Yanked ${count} ${count === 1 ? 'line' : 'lines'}${yank[2]}`
+}
+
 const commandLinePatches = new WeakMap<EditorView, () => void>()
 
 /**
- * Redirects the CodeMirror vim prompts ('/', '?', ':' and message dialogs like
- * "recording @q") from the editor's bottom cm-vim-panel into the status-bar
- * host element, so both note engines render their command line on the vim
- * status line. The patched openDialog keeps the original contract: the
+ * Redirects CodeMirror's Vim prompts, confirmations, and message dialogs from
+ * its own bottom panel into the shared note status bar. The patched openDialog
+ * keeps the original contract: the
  * template (a prompt element wrapping a real, focused <input>) is mounted
  * as-is, Enter invokes the callback, `close(value)` pre-fills the input
  * (search history), and close refocuses the editor.
@@ -92,6 +124,7 @@ export function wireMarkdownVimCommandLine(
   const cm = getCM(view)
   if (!cm) return
   const originalOpenDialog = cm.openDialog.bind(cm) as OpenDialog
+  const originalOpenNotification = cm.openNotification.bind(cm) as OpenNotification
   let activeClose: ((newVal?: string) => void) | null = null
 
   cm.openDialog = ((template, callback, options) => {
@@ -100,6 +133,8 @@ export function wireMarkdownVimCommandLine(
     activeClose?.()
     host.replaceChildren(template)
     const input = template.getElementsByTagName('input')[0] as HTMLInputElement | null
+    host.dataset.state = input ? 'prompt' : 'message'
+    if (input) prepareVimPrompt(template, input)
     let closed = false
     const close = (newVal?: string): void => {
       if (typeof newVal === 'string') {
@@ -110,6 +145,7 @@ export function wireMarkdownVimCommandLine(
       closed = true
       activeClose = null
       template.remove()
+      delete host.dataset.state
       options?.onClose?.(template)
       if (!host.firstChild) cm.focus()
     }
@@ -148,9 +184,34 @@ export function wireMarkdownVimCommandLine(
     return close
   }) as OpenDialog
 
+  cm.openNotification = ((template, options) => {
+    const host = commandLineHost?.current
+    if (!host) return originalOpenNotification(template, options)
+    activeClose?.()
+    prepareVimNotification(template)
+    host.replaceChildren(template)
+    host.dataset.state = 'message'
+    let closed = false
+    let timeout: number | null = null
+    const close = (): void => {
+      if (closed) return
+      closed = true
+      if (timeout !== null) window.clearTimeout(timeout)
+      activeClose = null
+      template.remove()
+      delete host.dataset.state
+    }
+    activeClose = close
+    template.addEventListener('click', close, { once: true })
+    const duration = options?.duration ?? 5000
+    if (duration > 0) timeout = window.setTimeout(close, duration)
+    return close
+  }) as OpenNotification
+
   commandLinePatches.set(view, () => {
     activeClose?.()
     cm.openDialog = originalOpenDialog
+    cm.openNotification = originalOpenNotification
     commandLinePatches.delete(view)
   })
 }

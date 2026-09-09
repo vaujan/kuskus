@@ -32,7 +32,7 @@ import {
 } from '@codemirror/view'
 import { GFM } from '@lezer/markdown'
 import { classHighlighter } from '@lezer/highlight'
-import { highlightSelectionMatches, searchKeymap } from '@codemirror/search'
+import { highlightSelectionMatches } from '@codemirror/search'
 import {
   forwardRef,
   useCallback,
@@ -62,7 +62,8 @@ import { markdownTableGuides } from '@/features/items/markdown-table-guides'
 import { indentationMarkers } from '@replit/codemirror-indentation-markers'
 import { cn } from '@/lib/utils'
 import { markdownCodeLanguage } from '@/features/items/markdown-code'
-import { markdownSearchTheme } from '@/features/items/markdown-search-theme'
+import type { NoteFindTargetRef } from '@/features/items/note-editor'
+import { liveFindExtensions, unwireLiveFind, wireLiveFind } from '@/features/items/live/live-find'
 import {
   markdownVim,
   registerMarkdownVimActions,
@@ -97,6 +98,7 @@ interface MarkdownEditorProps {
   onVimWrite?: () => void
   onVimQuit?: () => void
   vimCommandLineHost?: React.RefObject<HTMLElement | null>
+  findTarget?: NoteFindTargetRef
 }
 
 const editorTheme = EditorView.theme({
@@ -114,7 +116,10 @@ const editorTheme = EditorView.theme({
   },
   // Match the shared ScrollArea design (10px lane, 8px rounded border-colored thumb,
   // transparent track, no buttons) instead of Chromium's flat thin standard scrollbar.
-  '.cm-scroller::-webkit-scrollbar': { width: '0.625rem', height: '0.625rem' },
+  '.cm-scroller::-webkit-scrollbar': {
+    width: 'var(--detail-editor-scrollbar-size, 0.625rem)',
+    height: 'var(--detail-editor-scrollbar-size, 0.625rem)'
+  },
   '.cm-scroller::-webkit-scrollbar-track': { backgroundColor: 'transparent' },
   '.cm-scroller::-webkit-scrollbar-thumb': {
     backgroundColor: 'var(--border)',
@@ -130,7 +135,7 @@ const editorTheme = EditorView.theme({
     // full-width scroller leaves its scrollbar at the pane edge.
     maxWidth: 'var(--detail-document-max-width)',
     margin: '0 auto',
-    padding: '2.5rem var(--typeset-detail-gutter)',
+    padding: 'var(--typeset-detail-padding-block) var(--typeset-detail-gutter)',
     caretColor: 'currentColor'
   },
   '.cm-line': { padding: '0' },
@@ -397,7 +402,8 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       onVimModeChange,
       onVimWrite,
       onVimQuit,
-      vimCommandLineHost
+      vimCommandLineHost,
+      findTarget
     },
     forwardedRef
   ): React.JSX.Element {
@@ -418,6 +424,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     const baseExtensionsRef = useRef<Extension[]>([])
     const vimActiveRef = useRef(false)
     const initialVimEnabledRef = useRef(vimEnabled === true)
+    const findTargetRef = useRef<NoteFindTargetRef | null>(findTarget ?? null)
     useLayoutEffect(() => {
       onChangeRef.current = onChange
       onPasteImageRef.current = onPasteImage
@@ -426,6 +433,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       onVimWriteRef.current = onVimWrite
       onVimQuitRef.current = onVimQuit
       vimCommandLineHostRef.current = vimCommandLineHost ?? null
+      findTargetRef.current = findTarget ?? null
     })
 
     // Single activation path for vim, used both when the editor is created
@@ -517,7 +525,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         markdownTableGuides,
         editorTheme,
         vimModeTheme,
-        markdownSearchTheme,
+        liveFindExtensions(),
         // Token classes for fenced code (tok-keyword, tok-string, …) shared with
         // the live editor and preview; the app's markdownHighlightStyle still
         // wins for Markdown markup itself.
@@ -536,8 +544,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
           { key: 'Alt-ArrowDown', run: (view) => moveTableRow(view, 1) },
           indentWithTab,
           ...defaultKeymap,
-          ...historyKeymap,
-          ...searchKeymap
+          ...historyKeymap
         ]),
         EditorView.contentAttributes.of({
           'aria-label': 'Markdown editor',
@@ -622,6 +629,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       })
       viewRef.current = view
       if (initialVimEnabledRef.current) activateMarkdownVim(view)
+      if (findTargetRef.current) wireLiveFind(view, findTargetRef.current)
       setHeaderHost(view.dom.querySelector<HTMLElement>('.cm-markdown-header'))
 
       const handleScroll = (): void => onScrollRef.current?.(view.scrollDOM)
@@ -632,6 +640,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         unwireMarkdownVimMode(view)
         unwireMarkdownVimCommandLine(view)
         unregisterMarkdownVimActions(view)
+        if (findTargetRef.current) unwireLiveFind(findTargetRef.current)
         view.destroy()
         viewRef.current = null
         // The flag describes vim state of THIS view; StrictMode's simulated

@@ -9,6 +9,35 @@ import {
 } from '@/features/items/markdown-code'
 import { MarkdownMermaid } from '@/features/items/markdown-mermaid'
 
+export function MarkdownCodeCardHeader({
+  code,
+  label
+}: {
+  code: string
+  label: string
+}): React.JSX.Element {
+  const [copied, setCopied] = useState(false)
+
+  return (
+    <div className="kuskus-code-block-header">
+      <span>{label}</span>
+      <button
+        type="button"
+        className="kuskus-code-copy"
+        aria-label={`Copy ${label}`}
+        onClick={async () => {
+          if (await copyMarkdownCode(code)) {
+            setCopied(true)
+            window.setTimeout(() => setCopied(false), 1500)
+          }
+        }}
+      >
+        {copied ? 'Copied' : 'Copy'}
+      </button>
+    </div>
+  )
+}
+
 export function MarkdownCodeBlock({
   code,
   language,
@@ -18,7 +47,6 @@ export function MarkdownCodeBlock({
   language: string
   diagrams?: boolean
 }): React.JSX.Element {
-  const [copied, setCopied] = useState(false)
   const [grammarTick, setGrammarTick] = useState(0)
 
   // Registry languages lazy-load their grammar; re-highlight once it arrives.
@@ -56,21 +84,7 @@ export function MarkdownCodeBlock({
 
   return (
     <div className="kuskus-code-block not-typeset" data-not-typeset>
-      <div className="kuskus-code-block-header">
-        <span>{codeLanguageLabel(language)}</span>
-        <button
-          type="button"
-          className="kuskus-code-copy"
-          onClick={async () => {
-            if (await copyMarkdownCode(code)) {
-              setCopied(true)
-              window.setTimeout(() => setCopied(false), 1500)
-            }
-          }}
-        >
-          {copied ? 'Copied' : 'Copy'}
-        </button>
-      </div>
+      <MarkdownCodeCardHeader code={code} label={codeLanguageLabel(language)} />
       <pre>
         <code>{highlighted}</code>
       </pre>
