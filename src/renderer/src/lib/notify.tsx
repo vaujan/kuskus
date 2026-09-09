@@ -1,20 +1,7 @@
-import {
-  IconAlertOctagon,
-  IconArchive,
-  IconArchiveOff,
-  IconArrowUpRight,
-  IconFolderMinus,
-  IconFolderSymlink,
-  IconKeyboard,
-  IconKeyboardOff,
-  IconLinkOff,
-  IconPencil,
-  IconRestore,
-  IconTrash,
-  IconTrashX
-} from '@tabler/icons-react'
 import { toast } from 'sonner'
 import type { CSSProperties, ReactNode } from 'react'
+
+import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 
 const UNDO_TOAST_DURATION = 6000
@@ -73,31 +60,31 @@ function ensureUndoShortcut(): void {
 
 interface UndoableToastOptions {
   title: string
-  icon: ReactNode
   onUndo: () => void
   description?: ReactNode
 }
 
-function showUndoableToast({ title, icon, onUndo, description }: UndoableToastOptions): void {
+function showUndoableToast({ title, onUndo, description }: UndoableToastOptions): void {
   ensureUndoShortcut()
   const entry: UndoEntry = { id: 0, run: onUndo, settled: false }
   const id = toast(title, {
-    icon,
     description,
     duration: UNDO_TOAST_DURATION,
     className: 'notify-undo',
     style: { '--notify-undo-duration': `${UNDO_TOAST_DURATION}ms` } as CSSProperties,
-    action: {
-      label: (
-        <>
-          Undo{' '}
-          <Kbd className="ml-0.5 h-[18px] min-w-[18px] rounded-md bg-foreground/10 px-1 text-[10px]">
-            Ctrl+Z
-          </Kbd>
-        </>
-      ),
-      onClick: () => runUndo(entry)
-    },
+    action: (
+      <Button
+        className="ml-auto shrink-0"
+        size="sm"
+        variant="secondary"
+        onClick={() => runUndo(entry)}
+      >
+        Undo
+        <Kbd className="ml-0.5 h-[18px] min-w-[18px] rounded-md bg-foreground/10 px-1 text-[10px]">
+          Ctrl+Z
+        </Kbd>
+      </Button>
+    ),
     onDismiss: () => settleUndo(entry),
     onAutoClose: () => settleUndo(entry)
   })
@@ -107,48 +94,44 @@ function showUndoableToast({ title, icon, onUndo, description }: UndoableToastOp
 
 interface VerbToastOptions {
   title: string
-  icon: ReactNode
   description?: ReactNode
   destructive?: boolean
   duration?: number
   id?: string
-  action?: {
-    label: ReactNode
-    onClick: () => void
-  }
+  action?: ReactNode
 }
 
 function showVerbToast({
   title,
-  icon,
   description,
   destructive = false,
   duration,
   id,
   action
 }: VerbToastOptions): void {
-  toast(title, {
-    icon,
+  const options = {
     description,
     duration,
     id,
-    action,
-    classNames: destructive ? { icon: '!text-destructive' } : undefined
-  })
+    action
+  }
+  if (destructive) {
+    toast.error(title, options)
+    return
+  }
+  toast(title, options)
 }
 
 export function notifyActionError(error: string): void {
   toast.error('Unable to Complete Action', {
     description: error,
-    duration: 6000,
-    icon: <IconAlertOctagon />
+    duration: 6000
   })
 }
 
 export function notifyArchived(count: number, onUndo: () => void, description?: string): void {
   showUndoableToast({
     title: count === 1 ? 'Item archived' : `${count} items archived`,
-    icon: <IconArchive />,
     onUndo,
     description
   })
@@ -157,7 +140,6 @@ export function notifyArchived(count: number, onUndo: () => void, description?: 
 export function notifyUnarchived(count: number, description?: string): void {
   showVerbToast({
     title: count === 1 ? 'Item unarchived' : `${count} items unarchived`,
-    icon: <IconArchiveOff />,
     description
   })
 }
@@ -165,7 +147,6 @@ export function notifyUnarchived(count: number, description?: string): void {
 export function notifyTrashed(count: number, onUndo: () => void): void {
   showUndoableToast({
     title: count === 1 ? 'Item moved to Trash' : `${count} items moved to Trash`,
-    icon: <IconTrash />,
     onUndo
   })
 }
@@ -174,7 +155,6 @@ export function notifyEmptyNoteTrashed(onUndo: () => void): void {
   showUndoableToast({
     title: 'Note moved to Trash',
     description: 'It was empty.',
-    icon: <IconTrash />,
     onUndo
   })
 }
@@ -182,13 +162,23 @@ export function notifyEmptyNoteTrashed(onUndo: () => void): void {
 export function notifyRestored(count: number, description?: string): void {
   showVerbToast({
     title: count === 1 ? 'Item restored' : `${count} items restored`,
-    icon: <IconRestore />,
     description
   })
 }
 
 export function notifyRenamed(): void {
-  showVerbToast({ title: 'Item renamed', icon: <IconPencil /> })
+  showVerbToast({ title: 'Item renamed' })
+}
+
+export function notifyExternalChangesMerged(overlappingChanges: boolean): void {
+  showVerbToast({
+    title: 'External changes merged',
+    description: overlappingChanges
+      ? 'Your edits were kept where both versions changed.'
+      : undefined,
+    duration: 3000,
+    id: 'external-note-changes-merged'
+  })
 }
 
 export function notifyReferenceAwareMove(input: {
@@ -214,7 +204,6 @@ export function notifyReferenceAwareMove(input: {
   }
   showVerbToast({
     title: input.movedImages > 0 ? 'Moved note and its images' : 'References kept up to date',
-    icon: <IconFolderSymlink />,
     description: descriptions.join(' ')
   })
 }
@@ -222,7 +211,6 @@ export function notifyReferenceAwareMove(input: {
 export function notifyPermanentlyDeleted(count: number): void {
   showVerbToast({
     title: count === 1 ? 'Item permanently deleted' : `${count} items permanently deleted`,
-    icon: <IconTrashX />,
     destructive: true
   })
 }
@@ -230,7 +218,6 @@ export function notifyPermanentlyDeleted(count: number): void {
 export function notifyCollectionRemoved(name: string): void {
   showVerbToast({
     title: `Removed “${name}”`,
-    icon: <IconFolderMinus />,
     description: 'Its items were moved to Inbox.'
   })
 }
@@ -238,7 +225,6 @@ export function notifyCollectionRemoved(name: string): void {
 export function notifyLinkOpened(hostname?: string): void {
   showVerbToast({
     title: 'Opened in browser',
-    icon: <IconArrowUpRight />,
     description: hostname ? <span className="font-mono">{hostname}</span> : undefined,
     duration: 2500,
     id: EXTERNAL_LINK_TOAST_ID
@@ -248,19 +234,21 @@ export function notifyLinkOpened(hostname?: string): void {
 export function notifyLinkOpenFailed(error: string, onRetry: () => void): void {
   showVerbToast({
     title: 'Could not open link',
-    icon: <IconLinkOff />,
     description: error,
     destructive: true,
     duration: 6000,
     id: EXTERNAL_LINK_TOAST_ID,
-    action: { label: 'Try again', onClick: onRetry }
+    action: (
+      <Button className="ml-auto shrink-0" size="sm" variant="secondary" onClick={onRetry}>
+        Try again
+      </Button>
+    )
   })
 }
 
 export function notifyGlobalCapturePrepared(): void {
   showVerbToast({
     title: 'New item is ready in Inbox',
-    icon: <IconKeyboard />,
     description: 'Finish the current dialog to continue capturing.',
     duration: 4000,
     id: 'global-capture-prepared'
@@ -270,10 +258,8 @@ export function notifyGlobalCapturePrepared(): void {
 export function notifyGlobalCaptureUnavailable(accelerator: string): void {
   showVerbToast({
     title: 'Global capture shortcut unavailable',
-    icon: <IconKeyboardOff />,
     description:
-      window.electron.window.platform === 'linux' &&
-      window.navigator.userAgent.includes('Wayland')
+      window.electron.window.platform === 'linux' && window.navigator.userAgent.includes('Wayland')
         ? `Kuskus could not register ${accelerator} with your Wayland compositor.`
         : `Another application may already use ${accelerator}.`,
     destructive: true,

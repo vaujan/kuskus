@@ -241,6 +241,12 @@ test('moves, archives, trashes, restores, renames, and permanently deletes items
     expectedMarkdown: renamed.body
   })
   assert.equal(updated.title, 'Custom note title')
+  assert.equal(updated.titleSource, 'custom')
+
+  library = await service.renameItem({ itemId: note.id, titleSource: 'derived' })
+  const derivedAgain = library.items.find((item) => item.id === note.id)
+  assert.equal(derivedAgain.title, 'A different derived title')
+  assert.equal(derivedAgain.titleSource, 'derived')
 
   await service.trashItems({ itemIds: [image.id] })
   library = await service.permanentlyDeleteItems({ itemIds: [image.id] })
@@ -257,7 +263,7 @@ test('moves, archives, trashes, restores, renames, and permanently deletes items
   assert.equal(reopenedState.status, 'ready')
   assert.equal(
     reopenedState.library.items.find((item) => item.id === note.id).title,
-    'Custom note title'
+    'A different derived title'
   )
 })
 

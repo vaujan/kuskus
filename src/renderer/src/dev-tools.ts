@@ -1,5 +1,7 @@
 import { scan } from 'react-scan'
 
+import './dev-notification-preview'
+
 scan({
   enabled: true,
   showToolbar: true,

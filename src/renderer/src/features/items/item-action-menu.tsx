@@ -14,6 +14,7 @@ import {
   IconRulerMeasure,
   IconTextCaption,
   IconRestore,
+  IconRefresh,
   IconTrash,
   IconTrashX,
   IconWindowMaximize
@@ -69,6 +70,7 @@ export interface NoteDetailMenuOptions {
   onReadableLineLengthChange: (checked: boolean) => void
   onManageAttachments: () => void
   onShowDetails: () => void
+  onUseFirstLineAsTitle?: () => void
 }
 
 export interface ItemActionHandlers {
@@ -262,6 +264,12 @@ function ItemActions({
               <IconInfoCircle aria-hidden="true" />
               Note details
             </DropdownMenuItem>
+            {props.detailOptions.onUseFirstLineAsTitle ? (
+              <DropdownMenuItem onClick={props.detailOptions.onUseFirstLineAsTitle}>
+                <IconRefresh aria-hidden="true" />
+                Use first line as title
+              </DropdownMenuItem>
+            ) : null}
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
         </>
@@ -414,7 +422,9 @@ export function ItemActionMenu(props: ItemActionMenuProps): React.JSX.Element {
               size="icon"
               variant={props.triggerSurface === 'caption' ? 'ghost' : 'secondary'}
               className={cn(
-                props.triggerSurface === 'caption' ? 'size-10' : actionButtonClassName,
+                props.triggerSurface === 'caption'
+                  ? 'size-10 text-muted-foreground'
+                  : actionButtonClassName,
                 menuOpen && 'opacity-100'
               )}
               aria-label={`Actions for ${props.item.title}`}

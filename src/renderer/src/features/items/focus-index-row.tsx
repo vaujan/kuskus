@@ -1,3 +1,4 @@
+import { Badge } from '@/components/ui/badge'
 import { focusIndexSupportingText } from '@/features/items/focus-index-row-text'
 import type { LibraryItemDto } from '../../../../shared/library-contract'
 
@@ -8,7 +9,7 @@ const MONTH = 30 * DAY
 const YEAR = 365 * DAY
 const RELATIVE_TIME = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
 
-function relativeUpdatedTime(value: string, now = Date.now()): string {
+function relativeAddedTime(value: string, now = Date.now()): string {
   const elapsed = Math.max(0, now - Date.parse(value))
   if (!Number.isFinite(elapsed)) return 'Recently'
   if (elapsed < MINUTE) return 'Just now'
@@ -31,6 +32,11 @@ function itemTypeLabel(item: LibraryItemDto): string {
   if (item.type === 'url') return 'Link'
   if (item.type === 'image') return item.mediaType.split('/').pop()?.toLocaleUpperCase() || 'Image'
   return extensionFromFilename(item.contentFilename)
+}
+
+function itemTypeBadgeVariant(item: LibraryItemDto): 'note' | 'linkType' | 'image' | 'file' {
+  if (item.type === 'url') return 'linkType'
+  return item.type
 }
 
 function itemDetail(item: LibraryItemDto): string | null {
@@ -61,7 +67,7 @@ export function FocusIndexRow({
   onNavigate: (key: 'ArrowUp' | 'ArrowDown' | 'Home' | 'End') => void
   actions: React.ReactNode
 } & React.ComponentProps<'div'>): React.JSX.Element {
-  const updatedTime = relativeUpdatedTime(item.updatedAt)
+  const addedTime = relativeAddedTime(item.createdAt)
   const typeLabel = itemTypeLabel(item)
   const detail = itemDetail(item)
   const supportingText = focusIndexSupportingText(item)
@@ -98,12 +104,12 @@ export function FocusIndexRow({
           {item.title}
         </span>
         <span className="mt-1 flex min-w-0 items-center gap-2.5 text-[0.6875rem] leading-4 text-muted-foreground">
-          <time className="shrink-0 tabular-nums" dateTime={item.updatedAt}>
-            {updatedTime}
+          <time className="shrink-0 tabular-nums" dateTime={item.createdAt}>
+            {addedTime}
           </time>
-          <span className="kuskus-type-badge" data-type={item.type}>
+          <Badge size="sm" variant={itemTypeBadgeVariant(item)}>
             {typeLabel}
-          </span>
+          </Badge>
           {detail ? <span className="truncate text-foreground/55">{detail}</span> : null}
         </span>
         <span className="mt-0.5 truncate text-[0.8125rem] leading-[1.125rem] text-muted-foreground/85">

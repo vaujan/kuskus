@@ -260,7 +260,7 @@ function Sidebar({
       <div
         data-slot="sidebar-gap"
         className={cn(
-          'relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear',
+          'relative w-(--sidebar-width) bg-transparent transition-[width] duration-350 ease-out',
           'group-data-[side=right]:rotate-180',
           state === 'collapsed' && !flyout && 'w-0',
           (isNarrow || isOverlay) && 'w-0'
@@ -279,7 +279,7 @@ function Sidebar({
         data-slot="sidebar-container"
         data-side={side}
         className={cn(
-          'fixed inset-y-0 z-10 flex h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear data-[side=left]:left-0 data-[side=right]:right-0',
+          'fixed inset-y-0 z-10 flex h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-out data-[side=left]:left-0 data-[side=right]:right-0',
           // Hidden offcanvas when collapsed (but not while the flyout is open).
           state === 'collapsed' &&
             !flyout &&
@@ -291,7 +291,6 @@ function Sidebar({
             'data-[side=left]:left-[calc(var(--sidebar-width)*-1)] data-[side=right]:right-[calc(var(--sidebar-width)*-1)]',
           flyout &&
             'z-[70] w-(--sidebar-width) shadow-[0_24px_64px_-20px_rgb(0_0_0/0.45),0_0_0_1px_color-mix(in_oklch,var(--sidebar-border)_80%,transparent)]',
-          'group-data-[side=left]:border-r group-data-[side=right]:border-l',
           className
         )}
         {...props}
@@ -317,7 +316,7 @@ function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<t
       data-slot="sidebar-trigger"
       variant="ghost"
       size="icon-sm"
-      className={cn(className)}
+      className={cn('text-muted-foreground', className)}
       onClick={(event) => {
         onClick?.(event)
         toggleSidebar()

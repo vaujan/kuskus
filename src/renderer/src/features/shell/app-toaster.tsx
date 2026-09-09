@@ -2,13 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { Toaster as Sonner, type ToasterProps } from 'sonner'
-import {
-  IconCircleCheck,
-  IconInfoCircle,
-  IconAlertTriangle,
-  IconAlertOctagon,
-  IconLoader
-} from '@tabler/icons-react'
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const [theme, setTheme] = useState<ToasterProps['theme']>(() =>
@@ -28,11 +21,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme={theme}
       className="toaster group"
       icons={{
-        success: <IconCircleCheck className="size-4" />,
-        info: <IconInfoCircle className="size-4" />,
-        warning: <IconAlertTriangle className="size-4" />,
-        error: <IconAlertOctagon className="size-4" />,
-        loading: <IconLoader className="size-4 animate-spin motion-reduce:animate-none" />
+        success: null,
+        info: null,
+        warning: null,
+        error: null,
+        loading: null
       }}
       style={
         {

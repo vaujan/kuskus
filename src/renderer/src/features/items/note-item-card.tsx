@@ -60,7 +60,7 @@ export function NoteItemCard({
           </div>
         ) : !item.body.trim() ? (
           <div className="flex size-full min-h-28 flex-col items-center justify-center gap-2 px-5 text-center text-muted-foreground">
-            <Note className="size-5" stroke={1.5} aria-hidden="true" />
+            <Note className="size-5" aria-hidden="true" />
             <span className="max-w-full truncate text-sm font-medium text-foreground">
               {item.title}
             </span>
