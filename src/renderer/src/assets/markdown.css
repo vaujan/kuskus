@@ -24,6 +24,26 @@
     --typeset-size: 12px;
   }
 
+  .kuskus-typeset:is(
+    [data-typeset-presentation='snippet'],
+    [data-typeset-presentation='snippet-compact']
+  ) {
+    --typeset-flow: 1em;
+    --typeset-h1-size: 1.4em;
+    --typeset-h2-size: 1.15em;
+    --typeset-h3-size: 1.05em;
+    --typeset-heading-weight: 500;
+  }
+
+  .kuskus-typeset:is(
+      [data-typeset-presentation='snippet'],
+      [data-typeset-presentation='snippet-compact']
+    )
+    *:not(:where(.not-typeset, [data-not-typeset], .not-typeset *, [data-not-typeset] *))
+    :where(h1, h2, h3, h4, h5, h6) {
+    border-bottom: 0;
+  }
+
   .kuskus-typeset :not(pre) > code {
     background-color: var(--typeset-code-background);
   }
@@ -75,7 +95,6 @@
     *:not(:where(.not-typeset, [data-not-typeset], .not-typeset *, [data-not-typeset] *)) {
     &:where(h1, h2, h3, h4, h5, h6) {
       padding: 0;
-      font-weight: 400;
       text-wrap: balance;
     }
 

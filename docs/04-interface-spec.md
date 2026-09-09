@@ -28,11 +28,15 @@ The shell supports two explicit states.
 
 ### Expanded sidebar
 
-- Sidebar appears on the left at a 256-pixel initial width, can be resized from 208 to 384 pixels, and spans the full application height.
+- On wide screens, the standard edge-aligned sidebar appears on the left at a 256-pixel initial
+  width, can be resized from 208 to 384 pixels, and spans the full application height.
 - The action toolbar and title bar begin to the right of the sidebar; the sidebar must not sit below them.
 - Menu and Hide Sidebar controls remain accessible near the top.
 - Inbox, All Items, nested folders, Archive, and Trash are displayed in the sidebar.
-- The toolbar and content occupy the remaining width.
+- The toolbar and content occupy the remaining width as one edge-to-edge surface. No hard border
+  separates that surface from the sidebar.
+- Narrow and medium sidebar flyouts use the floating sidebar surface and a short opacity transition.
+  They do not shift, dim, or blur the canvas.
 
 ### Hidden sidebar
 
@@ -235,10 +239,11 @@ Rules:
 - Normal activation updates the detail and clears bulk selection. Ctrl-click, Cmd-click, and
   Shift-click retain the existing multi-selection without changing the active detail; active and
   selected rows use distinct accessible states.
-- Index presents one fixed-height 52-pixel text-first row per item with a one-line title and a
-  truncated metadata line containing relative modified time, a secondary Note, URL, Image, or File
-  badge, and optional domain, dimensions/format, or file-extension detail. It renders no thumbnails
-  or replacement type icons and acquires no previews; Visual remains the media-rich density.
+- Index presents one minimum-height 88-pixel text-first row per item with a title of up to two lines,
+  a compact metadata line containing relative modified time, a secondary Note, URL, Image, or File
+  badge, and optional domain, dimensions/format, or file-extension detail, followed by one truncated
+  supporting-text line. It renders no thumbnails or replacement type icons and acquires no media
+  previews; Visual remains the media-rich density.
 - Active and bulk-selected Index rows use the same full-width semantic tint. The active detail row
   alone retains a three-pixel leading accent and `aria-current`; bulk selection retains
   `aria-pressed` without adding a border, halo, check icon, or text indentation. Hover, keyboard
@@ -563,7 +568,9 @@ The detail dialog exposes:
 - At desktop split widths, an available note shows **Expand note** at the caption's leading edge.
   Expanding enters a transient Zen presentation: the application sidebar, mounted item rail, and
   rail resize divider are hidden; the detail fills the workspace; and the document identity and
-  metadata header are omitted. Restoring the item rail also restores the sidebar to its prior state.
+  metadata header are omitted. The sidebar and rail leave over the shared short spatial transition
+  while the document settles into the expanded canvas; reduced motion makes the change immediate.
+  Restoring the item rail also restores the sidebar to its prior state.
   The caption title, note-mode and More menus, window controls, document canvas, attachments, and
   critical save or conflict feedback remain available. The control becomes **Restore item rail**;
   `Escape` also restores the rail unless an editor, menu, popover, or dialog owns the key. Expansion
@@ -723,11 +730,12 @@ Required states include:
 - Reduced-motion preferences are respected.
 - Reduced-transparency, increased-contrast, and forced-color preferences replace translucent shell
   tokens with their opaque theme equivalents without changing the stored user preference.
-- Shortcut-driven sidebar, search, selection, editor-overlay, item-detail, and dialog state changes
-  are instantaneous. Dialog backdrops dim without blurring the workspace. Tooltips, capture
-  transitions, and drag-over feedback use the shared motion timings; reduced motion removes
-  positional and scale movement while retaining brief opacity or color feedback where it aids
-  comprehension.
+- Sidebar visibility uses the shared short spatial transition whether triggered by its control or
+  shortcut, while pointer resizing tracks directly without interpolation. Shortcut-driven search,
+  selection, editor-overlay, item-detail, and dialog state changes are instantaneous. Dialog
+  backdrops dim without blurring the workspace. Tooltips, capture transitions, Zen mode, and
+  drag-over feedback use the shared motion timings; reduced motion removes positional and scale
+  movement while retaining brief opacity or color feedback where it aids comprehension.
 - Contextual editor controls preserve the document selection during pointer use and expose their
   expanded, active, and selected states to assistive technology.
 

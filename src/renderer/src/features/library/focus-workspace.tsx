@@ -87,16 +87,18 @@ export function FocusWorkspace({
       {split || !detailOpen ? (
         <aside
           ref={listRef}
+          data-zen-hidden={expanded}
           className={cn(
-            'focus-rail-surface relative flex min-h-0 min-w-0 shrink-0 flex-col',
-            expanded && 'hidden',
+            'focus-rail-surface focus-zen-rail relative flex min-h-0 min-w-0 shrink-0 flex-col overflow-hidden',
             hasRendererCaptionControls &&
               !split &&
               !detailOpen &&
               '[&_[data-focus-list-header]]:pr-[8.875rem]'
           )}
-          style={{ width: split ? boundedWidth : '100%' }}
+          style={{ width: split ? (expanded ? 0 : boundedWidth) : '100%' }}
           aria-label="Item list"
+          aria-hidden={expanded || undefined}
+          inert={expanded || undefined}
         >
           {list}
           {hasRendererCaptionControls && !split && !detailOpen ? (
@@ -106,16 +108,17 @@ export function FocusWorkspace({
           ) : null}
         </aside>
       ) : null}
-      {split && !expanded ? (
+      {split ? (
         <div
+          data-zen-hidden={expanded}
           role="separator"
           aria-label="Resize item list"
           aria-orientation="vertical"
           aria-valuemin={MIN_FOCUS_LIST_WIDTH}
           aria-valuemax={Math.min(MAX_FOCUS_LIST_WIDTH, Math.floor(availableWidth * 0.45))}
           aria-valuenow={Math.round(boundedWidth)}
-          tabIndex={0}
-          className="group relative z-10 w-0 shrink-0 cursor-col-resize outline-none after:absolute after:inset-y-0 after:left-1/2 after:w-3 after:-translate-x-1/2"
+          tabIndex={expanded ? -1 : 0}
+          className="focus-zen-divider group relative z-10 w-0 shrink-0 cursor-col-resize outline-none before:absolute before:inset-y-0 before:left-1/2 before:w-3 before:-translate-x-1/2 after:pointer-events-none after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-ring after:opacity-0 after:transition-opacity hover:after:opacity-30 focus-visible:after:opacity-100 motion-reduce:after:transition-none"
           onPointerDown={(event) => {
             dragStartRef.current = { pointerX: event.clientX, width: boundedWidth }
             event.currentTarget.setPointerCapture(event.pointerId)

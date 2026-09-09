@@ -75,7 +75,7 @@ export function FocusIndexRow({
   return (
     <div
       {...rest}
-      className="group/focus-index-row group/saved-item relative min-h-[88px] min-w-0 overflow-hidden data-[active=true]:border-b border-border/30 bg-transparent outline-none [content-visibility:auto] [contain-intrinsic-size:96px] transition-[background-color,opacity,box-shadow] [transition-duration:var(--motion-duration-ui)] [transition-timing-function:var(--motion-ease-out)] before:pointer-events-none before:absolute before:inset-y-2.5 before:left-0 before:z-10 before:w-0.5 before:rounded-r-full before:bg-primary before:opacity-0 hover:bg-muted/45 data-[active=true]:bg-primary/9 data-[active=true]:before:opacity-100 data-[dragging=true]:opacity-40 data-[selected=true]:bg-accent/10"
+      className="group/focus-index-row group/saved-item relative min-h-[88px] min-w-0 overflow-hidden border-b border-border/20 bg-transparent outline-none [content-visibility:auto] [contain-intrinsic-size:96px] transition-opacity [transition-duration:var(--motion-duration-ui)] [transition-timing-function:var(--motion-ease-out)] before:pointer-events-none before:absolute before:inset-y-2.5 before:left-0 before:z-10 before:w-[3px] before:rounded-r-full before:bg-primary before:opacity-0 hover:bg-muted/40 data-[active=true]:bg-primary/12 data-[active=true]:before:opacity-100 data-[dragging=true]:opacity-40 data-[selected=true]:bg-primary/12"
       data-item-id={item.id}
       data-active={active || undefined}
       data-selected={selected || undefined}
@@ -110,9 +110,9 @@ export function FocusIndexRow({
           <Badge size="sm" variant={itemTypeBadgeVariant(item)}>
             {typeLabel}
           </Badge>
-          {detail ? <span className="truncate text-foreground/55">{detail}</span> : null}
+          {detail ? <span className="max-w-20 shrink-0 truncate">{detail}</span> : null}
         </span>
-        <span className="mt-0.5 truncate text-[0.8125rem] leading-[1.125rem] text-muted-foreground/85">
+        <span className="mt-0.5 truncate text-[0.8125rem] leading-[1.125rem] text-foreground/65">
           {supportingText || 'No preview available'}
         </span>
       </div>

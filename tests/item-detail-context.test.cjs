@@ -109,6 +109,10 @@ test('detail modes share the compact toolbar and inline document flow', () => {
     require.resolve('../src/renderer/src/assets/window-material.css'),
     'utf8'
   )
+  const motionStyles = readFileSync(
+    require.resolve('../src/renderer/src/assets/motion.css'),
+    'utf8'
+  )
   const actionMenuSource = readFileSync(
     require.resolve('../src/renderer/src/features/items/item-action-menu.tsx'),
     'utf8'
@@ -136,9 +140,9 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.match(focusToolbarSource, /data-detail-focus-title/)
   assert.match(
     focusToolbarSource,
-    /absolute left-1\/2 max-w-\[min\(32rem,calc\(100%-28rem\)\)\] -translate-x-1\/2 truncate/
+    /absolute left-1\/2 max-w-\[min\(32rem,calc\(100%-24rem\)\)\] -translate-x-1\/2 truncate/
   )
-  assert.match(focusToolbarSource, /max-\[1080px\]:hidden/)
+  assert.match(focusToolbarSource, /max-\[760px\]:hidden/)
   assert.match(focusToolbarSource, /Exit zen mode \(Ctrl\+Shift\+\\\\\)/)
   assert.match(focusToolbarSource, /Enter zen mode \(Ctrl\+Shift\+\\\\\)/)
   assert.match(focusToolbarSource, /aria-pressed=\{expanded\}/)
@@ -210,9 +214,12 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.match(actionMenuSource, /'size-10 text-muted-foreground'/)
   assert.doesNotMatch(actionMenuSource, /CaptionTileButton/)
   assert.match(focusWorkspaceSource, /data-focus-single-pane={!split}/)
-  assert.match(focusWorkspaceSource, /expanded && 'hidden'/)
-  assert.match(focusWorkspaceSource, /split && !expanded/)
+  assert.match(focusWorkspaceSource, /data-zen-hidden={expanded}/)
+  assert.match(focusWorkspaceSource, /expanded \? 0 : boundedWidth/)
+  assert.match(focusWorkspaceSource, /tabIndex={expanded \? -1 : 0}/)
   assert.match(focusWorkspaceSource, /data-focus-expanded={expanded}/)
+  assert.match(motionStyles, /focus-zen-enter/)
+  assert.match(motionStyles, /prefers-reduced-motion: reduce/)
   assert.match(
     windowMaterialStyles,
     /\.focus-detail-surface\[data-focus-expanded='true'\] \{[^}]*background-color: transparent;/
@@ -287,7 +294,7 @@ test('detail modes share the compact toolbar and inline document flow', () => {
     detailSource,
     /data-detail-pane[\s\S]{0,240}window-canvas[\s\S]{0,240}bg-background\/50/
   )
-  assert.match(detailSource, /rounded-tl-2xl border-t border-l border-border/)
+  assert.doesNotMatch(detailSource, /rounded-tl-2xl|border-t border-l border-border/)
   assert.match(detailSource, /function DetailInspector/)
   assert.match(detailSource, /function FileCanvas/)
   assert.match(detailSource, /<article className="kuskus-detail-document-frame/)

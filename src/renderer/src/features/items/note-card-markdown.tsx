@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react'
+import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
@@ -14,6 +14,26 @@ export const NoteCardMarkdown = memo(function NoteCardMarkdown({
   compact?: boolean
 }): React.JSX.Element {
   const balancedMarkdown = useMemo(() => closeUnbalancedCodeFences(markdown), [markdown])
+  const previewRef = useRef<HTMLDivElement>(null)
+  const [isClipped, setIsClipped] = useState(false)
+
+  useLayoutEffect(() => {
+    const preview = previewRef.current
+    if (!preview) return
+
+    const updateClipped = (): void => {
+      const nextClipped = preview.scrollHeight > preview.clientHeight
+      setIsClipped((current) => (current === nextClipped ? current : nextClipped))
+    }
+    const observer = new ResizeObserver(updateClipped)
+    const frame = requestAnimationFrame(updateClipped)
+
+    observer.observe(preview)
+    return () => {
+      cancelAnimationFrame(frame)
+      observer.disconnect()
+    }
+  }, [balancedMarkdown, compact])
 
   const components = useMemo<Components>(
     () => ({
@@ -32,10 +52,12 @@ export const NoteCardMarkdown = memo(function NoteCardMarkdown({
 
   return (
     <div
+      ref={previewRef}
       data-typeset-presentation={compact ? 'snippet-compact' : 'snippet'}
       className={cn(
         'kuskus-note-card-markdown typeset kuskus-typeset overflow-hidden [--typeset-body-color:var(--muted-foreground)]',
-        compact ? 'max-h-[13rem]' : 'max-h-[20rem]'
+        compact ? 'max-h-[13rem]' : 'max-h-[20rem]',
+        isClipped && 'kuskus-card-content-fade'
       )}
     >
       <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={components}>

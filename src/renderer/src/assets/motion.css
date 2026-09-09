@@ -6,6 +6,83 @@
   --motion-duration-press: 150ms;
   --motion-duration-ui: 180ms;
   --motion-duration-dialog: 200ms;
+  --motion-duration-spatial: 240ms;
+}
+
+.sidebar-motion-gap {
+  transition: width var(--motion-duration-spatial) var(--motion-ease-drawer);
+}
+
+.sidebar-motion-container {
+  transition: transform var(--motion-duration-spatial) var(--motion-ease-drawer);
+}
+
+.sidebar-motion-container[data-hidden='true'][data-side='left'] {
+  transform: translateX(-100%);
+}
+
+.sidebar-motion-container[data-hidden='true'][data-side='right'] {
+  transform: translateX(100%);
+}
+
+.sidebar-motion-container[data-overlay='true'] {
+  transition: opacity var(--motion-duration-ui) var(--motion-ease-out);
+}
+
+.sidebar-motion-container[data-overlay='true'][data-hidden='true'] {
+  pointer-events: none;
+  opacity: 0;
+  transform: none;
+}
+
+[data-slot='sidebar-wrapper'][data-resizing='true'] .sidebar-motion-gap,
+[data-slot='sidebar-wrapper'][data-resizing='true'] .sidebar-motion-container {
+  transition: none;
+}
+
+.focus-zen-rail {
+  transition:
+    width var(--motion-duration-spatial) var(--motion-ease-drawer),
+    opacity var(--motion-duration-ui) var(--motion-ease-out),
+    transform var(--motion-duration-spatial) var(--motion-ease-drawer);
+}
+
+.focus-zen-rail[data-zen-hidden='true'] {
+  opacity: 0;
+  transform: translateX(-12px);
+}
+
+.focus-zen-divider {
+  transition:
+    opacity var(--motion-duration-press) var(--motion-ease-out),
+    transform var(--motion-duration-ui) var(--motion-ease-out);
+}
+
+.focus-zen-divider[data-zen-hidden='true'] {
+  pointer-events: none;
+  opacity: 0;
+  transform: scaleX(0.5);
+}
+
+.focus-detail-surface[data-focus-expanded='true'] {
+  transform-origin: 50% 20%;
+  animation: focus-zen-enter var(--motion-duration-spatial) var(--motion-ease-out) both;
+}
+
+.focus-detail-surface :is([data-detail-focus-header] > *, [data-focus-caption-controls]) {
+  transition: opacity var(--motion-duration-ui) var(--motion-ease-out);
+}
+
+@keyframes focus-zen-enter {
+  from {
+    opacity: 0.94;
+    transform: translateY(4px) scale(0.992);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 [data-sonner-toaster] {
@@ -106,6 +183,18 @@
 
   [data-slot='button']:active {
     scale: 1;
+  }
+
+  .sidebar-motion-gap,
+  .sidebar-motion-container,
+  .focus-zen-rail,
+  .focus-zen-divider,
+  .focus-detail-surface :is([data-detail-focus-header] > *, [data-focus-caption-controls]) {
+    transition: none;
+  }
+
+  .focus-detail-surface[data-focus-expanded='true'] {
+    animation: none;
   }
 
   [data-sonner-toaster] {

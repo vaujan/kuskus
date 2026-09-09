@@ -77,6 +77,11 @@
   background-color: var(--window-canvas);
 }
 
+.focus-rail-surface {
+  background-color: color-mix(in oklch, var(--window-canvas) 97%, var(--foreground));
+  box-shadow: inset -1px 0 color-mix(in oklch, var(--foreground) 7%, transparent);
+}
+
 .focus-detail-surface[data-focus-expanded='true'] {
   background-color: transparent;
 }

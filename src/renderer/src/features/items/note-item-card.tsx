@@ -35,7 +35,7 @@ export function NoteItemCard({
   showSelectionVisual?: boolean
 }): React.JSX.Element {
   const { nearViewport, observe } = useNearViewport()
-  const snippet = useMemo(() => noteCardSnippet(item.body), [item.body])
+  const snippet = useMemo(() => noteCardSnippet(item.body, item.title), [item.body, item.title])
 
   return (
     <ItemCard ref={observe} data-selected={selected && showSelectionVisual}>
@@ -58,7 +58,7 @@ export function NoteItemCard({
             <FileWarning className="size-5" aria-hidden="true" />
             <span className="text-xs font-medium">The note file is missing from the library.</span>
           </div>
-        ) : !item.body.trim() ? (
+        ) : !snippet ? (
           <div className="flex size-full min-h-28 flex-col items-center justify-center gap-2 px-5 text-center text-muted-foreground">
             <Note className="size-5" aria-hidden="true" />
             <span className="max-w-full truncate text-sm font-medium text-foreground">
@@ -75,7 +75,7 @@ export function NoteItemCard({
           />
         )}
       </ItemCardSurface>
-      {!item.missingContent && item.body.trim() ? (
+      {!item.missingContent && snippet ? (
         <ItemCardCaption compact={compact}>
           <p className="min-w-0 flex-1 truncate font-normal text-foreground/80">{item.title}</p>
         </ItemCardCaption>

@@ -66,7 +66,7 @@ export function FocusListHeader({
   return (
     <header
       data-focus-list-header
-      className="@container/focus-header flex p-2 shrink-0 select-none items-center gap-1 [-webkit-app-region:drag]"
+      className="@container/focus-header flex h-10 shrink-0 select-none items-center gap-0.5 px-1 [-webkit-app-region:drag] [&_[data-slot=button]]:size-10"
     >
       <ShellSidebarTrigger />
 

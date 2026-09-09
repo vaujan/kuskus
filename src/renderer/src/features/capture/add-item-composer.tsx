@@ -281,8 +281,6 @@ export function AddItemComposer({
   } | null>(null)
   const [fileCandidate, setFileCandidate] = useState<CaptureDraftFileDto | null>(null)
   const [morphedItem, setMorphedItem] = useState<LibraryItemDto | null>(null)
-  const [exiting, setExiting] = useState(false)
-  const [exitingDraft, setExitingDraft] = useState('')
   const [savingLink, setSavingLink] = useState<{
     domain: string
     phase: 'saving' | 'preview'
@@ -306,8 +304,6 @@ export function AddItemComposer({
       setFailedStage(null)
       setSavingLink(null)
       setMorphedItem(null)
-      setExiting(false)
-      setExitingDraft('')
     }
     previousRevision.current = captureSession.revision
   }, [captureSession.busy, captureSession.markdown, captureSession.revision])
@@ -336,8 +332,8 @@ export function AddItemComposer({
     fileCandidate !== null
   const hasTransientWork = saving || stagingCount > 0
   const surfaceActive = captureSession.owner === surface
-  const captureBlocked = hasTransientWork || exiting || (captureSession.loaded && !surfaceActive)
-  const savingFeedback = saving || exiting
+  const captureBlocked = hasTransientWork || (captureSession.loaded && !surfaceActive)
+  const savingFeedback = saving
   const captureKind = detectCaptureKind(draft, attachments.length)
   const effectiveKind = fileCandidate ? 'file' : captureKind
   const canContinueInEditor =
@@ -757,7 +753,7 @@ export function AddItemComposer({
   if (morphedItem) {
     return (
       <div
-        className="animate-in fade-in zoom-in-[0.98] [animation-duration:var(--capture-morph-duration)] [animation-timing-function:var(--motion-ease-out)] motion-reduce:animate-none"
+        className="scale-100 opacity-100 transition-[scale,opacity] [transition-duration:var(--capture-morph-duration)] [transition-timing-function:var(--motion-ease-out)] starting:scale-[0.98] starting:opacity-0 motion-reduce:transition-none"
         style={MORPH_STYLE}
       >
         <SavedItemCard
@@ -784,7 +780,7 @@ export function AddItemComposer({
       <ComposerLiveMarkdownEditor
         ref={editorRef}
         className={surface === 'quick' || presentation === 'pane' ? 'h-full' : undefined}
-        value={exiting ? exitingDraft : draft}
+        value={draft}
         placeholder={
           captureKind === 'image'
             ? 'Add text to turn this into a note…'
@@ -823,13 +819,13 @@ export function AddItemComposer({
       ref={rootRef}
       aria-busy={savingFeedback}
       className={cn(
-        'gap-0 overflow-hidden rounded-sm py-0 transition-[opacity,transform,filter] [transition-duration:80ms] ease-in',
+        'gap-0 overflow-hidden rounded-sm py-0',
         surface === 'quick' && 'h-full',
+        surface !== 'quick' &&
+          'scale-100 opacity-100 transition-[scale,opacity] [transition-duration:var(--capture-morph-duration)] [transition-timing-function:var(--motion-ease-out)] starting:scale-[0.98] starting:opacity-0',
         presentation === 'pane' &&
           'focus-detail-composer-surface size-full rounded-none border-0 shadow-none',
-        'animate-in fade-in zoom-in-[0.98] [animation-duration:var(--capture-morph-duration)] [animation-timing-function:var(--motion-ease-out)]',
-        exiting && '-translate-y-3 opacity-0 blur-[4px]',
-        'motion-reduce:translate-y-0 motion-reduce:animate-none motion-reduce:blur-none motion-reduce:transition-none'
+        'motion-reduce:scale-100 motion-reduce:transition-none'
       )}
       style={MORPH_STYLE}
     >

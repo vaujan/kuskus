@@ -245,6 +245,7 @@ function Sidebar({
   // The sidebar floats over the content as a flyout in narrow and overlay
   // modes, or when a collapsed wide-window sidebar is click-revealed.
   const flyout = flyoutOpen && (state !== 'expanded' || isNarrow || isOverlay)
+  const hidden = (state === 'collapsed' && !flyout) || ((isNarrow || isOverlay) && !flyout)
 
   return (
     <div
@@ -260,17 +261,17 @@ function Sidebar({
       <div
         data-slot="sidebar-gap"
         className={cn(
-          'relative w-(--sidebar-width) bg-transparent transition-[width] duration-350 ease-out',
+          'sidebar-motion-gap relative bg-transparent',
+          variant === 'floating' ? 'w-[calc(var(--sidebar-width)+1rem)]' : 'w-(--sidebar-width)',
           'group-data-[side=right]:rotate-180',
-          state === 'collapsed' && !flyout && 'w-0',
-          (isNarrow || isOverlay) && 'w-0'
+          hidden && 'w-0'
         )}
       />
       {flyout ? (
         <button
           type="button"
           data-slot="sidebar-backdrop"
-          className="fixed inset-0 z-[60] cursor-default bg-foreground/10 backdrop-blur-[1px] [-webkit-app-region:no-drag] motion-reduce:backdrop-blur-none"
+          className="fixed inset-0 z-[60] cursor-default bg-transparent [-webkit-app-region:no-drag]"
           aria-label="Close sidebar"
           onClick={toggleSidebar}
         />
@@ -278,19 +279,14 @@ function Sidebar({
       <div
         data-slot="sidebar-container"
         data-side={side}
+        data-hidden={hidden}
+        data-overlay={isNarrow || isOverlay}
         className={cn(
-          'fixed inset-y-0 z-10 flex h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-out data-[side=left]:left-0 data-[side=right]:right-0',
-          // Hidden offcanvas when collapsed (but not while the flyout is open).
-          state === 'collapsed' &&
-            !flyout &&
-            'data-[side=left]:left-[calc(var(--sidebar-width)*-1)] data-[side=right]:right-[calc(var(--sidebar-width)*-1)]',
-          // Narrow and overlay modes stay off-canvas until toggled; both
-          // reveal the full sidebar as an overlay flyout instead of a rail.
-          (isNarrow || isOverlay) &&
-            !flyout &&
-            'data-[side=left]:left-[calc(var(--sidebar-width)*-1)] data-[side=right]:right-[calc(var(--sidebar-width)*-1)]',
-          flyout &&
-            'z-[70] w-(--sidebar-width) shadow-[0_24px_64px_-20px_rgb(0_0_0/0.45),0_0_0_1px_color-mix(in_oklch,var(--sidebar-border)_80%,transparent)]',
+          'sidebar-motion-container fixed inset-y-0 z-10 flex h-svh data-[side=left]:left-0 data-[side=right]:right-0',
+          variant === 'floating'
+            ? 'w-[calc(var(--sidebar-width)+1rem)] p-2'
+            : 'w-(--sidebar-width)',
+          flyout && 'z-[70]',
           className
         )}
         {...props}
@@ -298,7 +294,7 @@ function Sidebar({
         <div
           data-sidebar="sidebar"
           data-slot="sidebar-inner"
-          className="flex size-full flex-col overflow-hidden bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:shadow-sm group-data-[variant=floating]:ring-1 group-data-[variant=floating]:ring-sidebar-border"
+          className="flex size-full flex-col overflow-hidden bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:shadow-[0_1px_2px_rgb(0_0_0/0.08),0_12px_32px_-16px_rgb(0_0_0/0.5)]"
         >
           {children}
         </div>
@@ -331,6 +327,8 @@ function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<t
 
 function SidebarRail({ className, ...props }: React.ComponentProps<'div'>) {
   const { width, setWidth, minWidth, maxWidth, isResizing, setIsResizing } = useSidebar()
+  const resizeFrame = React.useRef<number | null>(null)
+  const pendingWidth = React.useRef<number | null>(null)
   const dragState = React.useRef<{
     pointerId: number
     startX: number
@@ -339,6 +337,27 @@ function SidebarRail({ className, ...props }: React.ComponentProps<'div'>) {
   } | null>(null)
 
   const resizeBy = React.useCallback((delta: number) => setWidth(width + delta), [setWidth, width])
+
+  const scheduleWidth = React.useCallback(
+    (nextWidth: number) => {
+      pendingWidth.current = nextWidth
+      if (resizeFrame.current !== null) return
+      resizeFrame.current = window.requestAnimationFrame(() => {
+        resizeFrame.current = null
+        if (pendingWidth.current === null) return
+        setWidth(pendingWidth.current)
+        pendingWidth.current = null
+      })
+    },
+    [setWidth]
+  )
+
+  React.useEffect(
+    () => () => {
+      if (resizeFrame.current !== null) window.cancelAnimationFrame(resizeFrame.current)
+    },
+    []
+  )
 
   return (
     <div
@@ -387,7 +406,7 @@ function SidebarRail({ className, ...props }: React.ComponentProps<'div'>) {
         const drag = dragState.current
         if (!drag || drag.pointerId !== event.pointerId) return
         const direction = drag.side === 'right' ? -1 : 1
-        setWidth(drag.startWidth + (event.clientX - drag.startX) * direction)
+        scheduleWidth(drag.startWidth + (event.clientX - drag.startX) * direction)
       }}
       onPointerUp={(event) => {
         if (dragState.current?.pointerId !== event.pointerId) return
@@ -574,7 +593,7 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<'li'>) {
 }
 
 const sidebarMenuButtonVariants = cva(
-  'peer/menu-button group/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm ring-sidebar-ring outline-hidden transition-[width,height,padding,background-color,color,box-shadow] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[state=narrow]:size-10! group-data-[state=narrow]:p-3! hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-open:hover:text-sidebar-accent-foreground data-active:bg-sidebar-accent data-active:font-medium data-active:text-sidebar-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate',
+  'peer/menu-button group/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm ring-sidebar-ring outline-hidden transition-[width,height,padding,background-color,color,box-shadow] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[state=narrow]:size-10! group-data-[state=narrow]:p-3! hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-open:hover:text-sidebar-accent-foreground data-active:bg-sidebar-accent/70 data-active:font-medium data-active:text-sidebar-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate',
   {
     variants: {
       variant: {

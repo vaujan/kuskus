@@ -289,7 +289,7 @@ const InlineItemTitle = forwardRef<InlineItemTitleHandle, InlineItemTitleProps>(
               aria-multiline="false"
               aria-disabled={state.pending || undefined}
               className={cn(
-                '-my-2.5 block min-w-[1ch] max-w-full bg-transparent px-0 py-2.5 outline-none',
+                '-my-2.5 block min-w-[1ch] max-w-full rounded-sm bg-transparent px-0 py-2.5 outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
                 className,
                 textClassName,
                 state.pending && 'cursor-wait opacity-60',
@@ -333,7 +333,7 @@ const InlineItemTitle = forwardRef<InlineItemTitleHandle, InlineItemTitleProps>(
           <button
             type="button"
             className={cn(
-              '-my-2.5 flex max-w-full items-center py-2.5 text-left outline-none',
+              '-my-2.5 flex max-w-full items-center rounded-sm py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
               className,
               centered && 'justify-center text-center'
             )}
@@ -537,7 +537,7 @@ function DetailToolbar({
         </div>
         <p
           data-detail-focus-title
-          className="absolute left-1/2 max-w-[min(32rem,calc(100%-28rem))] -translate-x-1/2 truncate px-4 text-center text-sm font-light max-[1080px]:hidden"
+          className="absolute left-1/2 max-w-[min(32rem,calc(100%-24rem))] -translate-x-1/2 truncate px-4 text-center text-sm font-normal text-foreground/70 max-[760px]:hidden"
           title={title}
         >
           {title}
@@ -2379,10 +2379,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
         <section
           data-detail-pane
           data-detail-structural-surface
-          className={cn(
-            'window-canvas relative flex min-h-0 min-w-0 flex-1 overflow-hidden !bg-background/50',
-            !expanded && 'rounded-tl-2xl border-t border-l border-border'
-          )}
+          className="window-canvas relative flex min-h-0 min-w-0 flex-1 overflow-hidden !bg-background/50"
         >
           {presentation === 'focus' && !expanded ? (
             <Tooltip>

@@ -9,11 +9,11 @@
   --typeset-font-body: var(--font-sans);
   --typeset-font-heading: var(--font-sans);
   --typeset-font-mono: var(--font-mono);
-  --typeset-leading: 1.75;
+  --typeset-leading: 1.7;
   --typeset-flow: 1.25em;
-  --typeset-body-color: color-mix(in oklch, var(--foreground) 85%, transparent);
+  --typeset-body-color: color-mix(in oklch, var(--foreground) 88%, transparent);
   --typeset-muted: var(--muted-foreground);
-  --typeset-rule: color-mix(in oklch, var(--foreground) 30%, transparent);
+  --typeset-rule: color-mix(in oklch, var(--foreground) 22%, transparent);
 
   --typeset-h1-size: 1.75em;
   --typeset-h1-leading: 1.3;
@@ -27,7 +27,10 @@
   --typeset-h5-leading: 1.5;
   --typeset-h6-size: 0.8125em;
   --typeset-h6-leading: 1.5;
-  --typeset-heading-weight: 400;
+  --typeset-heading-weight: 500;
+  --typeset-h1-weight: 500;
+  --typeset-h2-weight: 500;
+  --typeset-h3-weight: 550;
 
   --typeset-inline-code-size: 0.85em;
   --typeset-inline-code-radius: min(calc(var(--radius) * 0.6), 0.35em);

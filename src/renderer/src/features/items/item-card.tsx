@@ -31,7 +31,7 @@ export function ItemCardPrimaryAction({
         'peer absolute inset-0 z-20 cursor-pointer rounded-[inherit] outline-none disabled:cursor-default',
         focusSurface
           ? 'focus-visible:ring-0'
-          : 'transition-transform [transition-duration:var(--motion-duration-press)] [transition-timing-function:var(--motion-ease-out)] active:scale-[0.97] focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/60 disabled:active:scale-100 motion-reduce:active:scale-100',
+          : 'focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/60',
         className
       )}
       type="button"
@@ -45,7 +45,7 @@ export function ItemCardSurface({ className, ...props }: ComponentProps<'div'>):
     <div
       data-slot="item-card-surface"
       className={cn(
-        'relative overflow-hidden rounded-sm bg-card shadow-[0_0_0_1px_rgba(0,0,0,0.05),0_1px_2px_-1px_rgba(0,0,0,0.04),0_2px_4px_rgba(0,0,0,0.03)] ring-inset transition-[scale] [transition-duration:var(--motion-duration-press)] [transition-timing-function:var(--motion-ease-out)] after:pointer-events-none after:absolute after:inset-0 after:z-10 after:bg-primary/10 after:opacity-0 group-hover/item-card:bg-card/95 group-hover/item-card:shadow-[0_0_0_1px_rgba(0,0,0,0.07),0_1px_2px_-1px_rgba(0,0,0,0.05),0_4px_10px_-6px_rgba(0,0,0,0.08)] group-data-[selected=true]/item-card:shadow-[0_0_0_2px_var(--primary),0_0_0_4px_var(--background),0_8px_20px_-12px_var(--primary)] group-data-[selected=true]/item-card:after:opacity-100 peer-focus-visible:ring-3 peer-focus-visible:ring-ring/60 peer-active:scale-[0.97] peer-disabled:scale-100 motion-reduce:peer-active:scale-100 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06)] dark:group-hover/item-card:shadow-[0_0_0_1px_rgba(255,255,255,0.1)]',
+        'relative overflow-hidden rounded-lg bg-card shadow-[0_0_0_1px_rgba(0,0,0,0.06),0_1px_2px_-1px_rgba(0,0,0,0.04),0_2px_4px_rgba(0,0,0,0.03)] ring-inset transition-[background-color,box-shadow] [transition-duration:var(--motion-duration-ui)] [transition-timing-function:var(--motion-ease-out)] after:pointer-events-none after:absolute after:inset-0 after:z-10 after:bg-primary/10 after:opacity-0 group-hover/item-card:bg-card/95 group-hover/item-card:shadow-[0_0_0_1px_rgba(0,0,0,0.08),0_1px_2px_-1px_rgba(0,0,0,0.05),0_4px_10px_-6px_rgba(0,0,0,0.08)] group-data-[selected=true]/item-card:shadow-[0_0_0_2px_var(--primary),0_0_0_4px_var(--background),0_8px_20px_-12px_var(--primary)] group-data-[selected=true]/item-card:after:opacity-100 peer-focus-visible:ring-3 peer-focus-visible:ring-ring/60 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.08)] dark:group-hover/item-card:shadow-[0_0_0_1px_rgba(255,255,255,0.13)]',
         className
       )}
       {...props}
@@ -73,7 +73,7 @@ export function ItemCardCaption({
     <CardFooter
       data-slot="item-card-caption"
       className={cn(
-        'pointer-events-none -mt-1 gap-2 rounded-b-sm px-1 pb-1 pt-3 text-xs text-muted-foreground group-data-[selected=true]/item-card:bg-primary/8 group-data-[selected=true]/item-card:text-foreground',
+        'pointer-events-none -mt-1 gap-2 rounded-b-lg px-1 pb-1 pt-3 text-xs text-muted-foreground group-data-[selected=true]/item-card:bg-primary/8 group-data-[selected=true]/item-card:text-foreground',
         compact && '-mt-px gap-1.5 rounded-b-md px-0.5 pb-0.5 pt-2 text-[0.6875rem]',
         className
       )}

@@ -348,7 +348,7 @@ function FolderTreeItem({
               className={cn(
                 'group/folder-row relative flex h-(--control-height-md) w-full min-w-0 items-center overflow-hidden rounded-md text-sidebar-foreground ring-inset ring-sidebar-ring outline-hidden transition-[background-color,color,box-shadow,scale] [transition-duration:var(--motion-duration-tooltip)] [transition-timing-function:var(--motion-ease-out)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground has-[:focus-visible]:ring-3 motion-reduce:scale-100 motion-reduce:transition-none',
                 selectedId === folder.id &&
-                  'bg-sidebar-accent font-medium text-sidebar-accent-foreground',
+                  'bg-sidebar-accent/70 font-medium text-sidebar-accent-foreground',
                 dropActive &&
                   'scale-[1.01] bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--sidebar-ring)_45%,transparent),0_8px_18px_-14px_rgba(0,0,0,0.35)] ring-2 ring-sidebar-ring'
               )}
@@ -541,7 +541,8 @@ export function LibrarySidebar({
   librarySwitchBlocked: boolean
   onOpenSettings: () => void
 }): React.JSX.Element {
-  const { flyoutOpen, toggleSidebar } = useSidebar()
+  const { flyoutOpen, isNarrow, isOverlay, toggleSidebar } = useSidebar()
+  const sidebarVariant = isNarrow || isOverlay ? 'floating' : 'sidebar'
   const [folderDialog, setFolderDialog] = useState<FolderDialogState>(null)
   const [folderName, setFolderName] = useState('')
   const [folderOperationBusy, setFolderOperationBusy] = useState(false)
@@ -810,7 +811,7 @@ export function LibrarySidebar({
 
   return (
     <>
-      <AppSidebar>
+      <AppSidebar variant={sidebarVariant}>
         <SidebarContent>
           <SidebarGroup>
             <SidebarGroupContent>

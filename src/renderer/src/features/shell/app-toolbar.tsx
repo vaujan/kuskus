@@ -65,7 +65,7 @@ export function AppToolbar({
   }, [newItemFocusRequest])
 
   return (
-    <header className="window-toolbar flex h-12 shrink-0 select-none items-center [-webkit-app-region:drag]">
+    <header className="window-toolbar flex h-12 shrink-0 select-none items-center [-webkit-app-region:drag] [&_[data-slot=sidebar-trigger]]:size-10">
       <div className="@container/toolbar min-w-0 flex-1">
         <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 px-2 @min-[44rem]/toolbar:grid-cols-[minmax(12rem,1fr)_minmax(16rem,40rem)_minmax(12rem,1fr)] @min-[44rem]/toolbar:gap-2 @min-[44rem]/toolbar:px-5 @min-[64rem]/toolbar:px-7">
           <div className="flex justify-start">
@@ -74,7 +74,7 @@ export function AppToolbar({
 
           <div className="flex min-w-0 items-center gap-1 [-webkit-app-region:no-drag]">
             <Button
-              className="min-w-0 flex-1 justify-start"
+              className="h-10 min-w-0 flex-1 justify-start"
               size="sm"
               variant="secondary"
               aria-label="Search the entire library"
@@ -90,7 +90,7 @@ export function AppToolbar({
               <DropdownMenuTrigger
                 render={
                   <Button
-                    className="min-w-8 px-2.5"
+                    className="h-10 min-w-10 px-2.5"
                     variant={
                       typeFilters.length > 0 ||
                       showReferencedAttachments ||
@@ -126,8 +126,9 @@ export function AppToolbar({
 
           <div className="flex min-w-0 items-center justify-end gap-1">
             <Button
+              className="h-10"
               size="sm"
-              variant="secondary"
+              variant="ghost"
               aria-keyshortcuts="Control+N"
               aria-label="Create new note"
               onClick={onNewNote}
@@ -141,8 +142,8 @@ export function AppToolbar({
                 render={
                   <Button
                     ref={newItemRef}
-                    className="relative"
-                    size="icon-sm"
+                    className="relative size-10"
+                    size="icon"
                     variant="ghost"
                     data-new-item-button
                     aria-expanded={newItemOpen}
@@ -168,8 +169,8 @@ export function AppToolbar({
                 <TooltipTrigger
                   render={
                     <Button
-                      className="rounded-xl"
-                      size="icon-sm"
+                      className="size-10 rounded-xl"
+                      size="icon"
                       variant="ghost"
                       aria-label="Discard New item draft"
                       onClick={onDiscardDraft}

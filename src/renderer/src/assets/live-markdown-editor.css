@@ -56,12 +56,12 @@
 /* Headings — typeset rhythm ported to line padding (CM6 doesn't measure
  * margins, only padding-in-box). Read mode: h2 margin-top 1.4×flow with
  * the blank line above collapsed; live: blank line (1×flow) + the
- * remainder as padding. Border-bottom comes from typeset.css. Also
+ * remainder as padding. Only h1 keeps the document-title rule. Also
  * resets atomic's h1 letter-spacing. */
 .cm-kuskus-live .cm-line.cm-atomic-h1 {
   font-family: var(--typeset-font-heading);
   font-size: var(--typeset-h1-size);
-  font-weight: var(--typeset-heading-weight);
+  font-weight: var(--typeset-h1-weight, var(--typeset-heading-weight));
   letter-spacing: normal;
   line-height: var(--typeset-h1-leading);
   color: var(--foreground);
@@ -71,22 +71,20 @@
 .cm-kuskus-live .cm-line.cm-atomic-h2 {
   font-family: var(--typeset-font-heading);
   font-size: var(--typeset-h2-size);
-  font-weight: var(--typeset-heading-weight);
+  font-weight: var(--typeset-h2-weight, var(--typeset-heading-weight));
   letter-spacing: normal;
   line-height: var(--typeset-h2-leading);
   padding-top: calc(var(--typeset-flow) * 0.4);
   color: var(--foreground);
-  border-bottom: 1px solid var(--typeset-rule);
   text-wrap: balance;
 }
 .cm-kuskus-live .cm-line.cm-atomic-h3 {
   font-family: var(--typeset-font-heading);
   font-size: var(--typeset-h3-size);
-  font-weight: var(--typeset-heading-weight);
+  font-weight: var(--typeset-h3-weight, var(--typeset-heading-weight));
   letter-spacing: normal;
   line-height: var(--typeset-h3-leading);
   color: var(--foreground);
-  border-bottom: 1px solid var(--typeset-rule);
   text-wrap: balance;
 }
 .cm-kuskus-live .cm-line.cm-atomic-h4 {
@@ -95,7 +93,6 @@
   font-weight: var(--typeset-heading-weight);
   line-height: var(--typeset-h4-leading);
   color: var(--foreground);
-  border-bottom: 1px solid var(--typeset-rule);
 }
 .cm-kuskus-live .cm-line.cm-atomic-h5 {
   font-size: var(--typeset-h5-size);
@@ -103,7 +100,6 @@
   line-height: var(--typeset-h5-leading);
   padding-top: calc(var(--typeset-flow) * 0.43);
   color: var(--typeset-muted);
-  border-bottom: 1px solid var(--typeset-rule);
 }
 .cm-kuskus-live .cm-line.cm-atomic-h6 {
   font-size: var(--typeset-h6-size);
@@ -113,7 +109,6 @@
   text-transform: uppercase;
   padding-top: calc(var(--typeset-flow) * 0.54);
   color: var(--typeset-muted);
-  border-bottom: 1px solid var(--typeset-rule);
 }
 
 /* CodeMirror's Markdown highlighter assigns 600 directly to syntax spans

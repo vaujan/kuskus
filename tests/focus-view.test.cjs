@@ -94,6 +94,17 @@ test('visual notes use the same compact title caption as other item types', () =
   assert.match(source, /\{item\.title\}/)
 })
 
+test('Focus Index drafts align flush with saved rows', () => {
+  const source = readFileSync(
+    require.resolve('../src/renderer/src/features/items/focus-item-list.tsx'),
+    'utf8'
+  )
+  const indexBranch = source.slice(source.indexOf("density === 'index'"), source.indexOf(') : ('))
+
+  assert.match(indexBranch, /\{composer\}/)
+  assert.doesNotMatch(indexBranch, /p-\d[^\n]*\{composer\}/)
+})
+
 test('Focus Index uses text-first rows with previews and distinct active and selected states', () => {
   const source = readFileSync(
     require.resolve('../src/renderer/src/features/items/focus-index-row.tsx'),
@@ -110,7 +121,7 @@ test('Focus Index uses text-first rows with previews and distinct active and sel
   assert.match(source, /pr-14 pl-4/)
   assert.match(source, /\[&_\[data-slot=button\]\]:bg-transparent/)
   assert.match(source, /data-\[active=true\].*before:opacity-100/)
-  assert.match(source, /data-\[selected=true\]:bg-accent\/10/)
+  assert.match(source, /data-\[selected=true\]:bg-primary\/12/)
   assert.doesNotMatch(source, /aria-hidden="true">·/)
 })
 

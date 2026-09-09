@@ -77,8 +77,7 @@ export function FocusItemList({
     if (!viewport || !activeItemId) return
     const row = viewport.querySelector<HTMLElement>(`[data-item-id="${CSS.escape(activeItemId)}"]`)
     if (!row) return
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    row.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest' })
+    row.scrollIntoView({ behavior: 'auto', block: 'nearest' })
   }, [activeItemId, renderLimit])
 
   return (
@@ -91,7 +90,7 @@ export function FocusItemList({
     >
       {density === 'index' ? (
         <div className="min-h-full pt-2" role="group" aria-label="Items">
-          {composer ? <div className="p-2">{composer}</div> : null}
+          {composer}
 
           {mountedItems.map((item) => {
             const active = item.id === activeItemId
@@ -136,7 +135,7 @@ export function FocusItemList({
                   key={item.id}
                   className={cn(
                     'group/focus-card group/saved-item relative min-w-0 rounded-sm p-1 outline-none',
-                    'transition-[background-color,opacity] [transition-duration:var(--motion-duration-ui)]',
+                    'transition-opacity [transition-duration:var(--motion-duration-ui)]',
                     'data-[active=true]:bg-primary/10 data-[selected=true]:bg-primary/10 data-[dragging=true]:opacity-40'
                   )}
                   data-item-id={item.id}
