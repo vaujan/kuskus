@@ -1,17 +1,8 @@
 import { useEffect, useState } from 'react'
-import {
-  IconBolt,
-  IconChevronDown,
-  IconDeviceDesktop,
-  IconKeyboard,
-  IconLayoutGrid,
-  IconLayoutDashboard,
-  IconMoon,
-  IconPalette,
-  IconSun
-} from '@tabler/icons-react'
+import { IconCheck, IconChevronDown } from '@tabler/icons-react'
 
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Field,
   FieldContent,
@@ -22,13 +13,7 @@ import {
   FieldSet
 } from '@/components/ui/field'
 import { Kbd } from '@/components/ui/kbd'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
   SelectContent,
@@ -37,30 +22,50 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { Separator } from '@/components/ui/separator'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle
+} from '@/components/ui/sheet'
 import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { ITEM_SORT_OPTIONS, type ItemSort } from '@/features/items/item-sort'
-import type { LibraryView } from '@/features/items/item-view'
-import type { NoteReadingWidth } from '@/features/items/note-reading-width'
-import type { FocusRailDensity } from '@/features/items/focus-view-state'
+import { FontPicker } from '@/features/settings/font-picker'
 import { useAppZoom } from '@/hooks/use-app-zoom'
-import type { Theme } from '@/hooks/theme'
-import { useSetting } from '@/settings/settings-context'
+import {
+  DEFAULT_TYPOGRAPHY,
+  type ColorMode,
+  type ColorTheme,
+  type FontPreference
+} from '@/hooks/theme'
+import { useLocalFonts } from '@/hooks/use-local-fonts'
 import type { TranslucentBackgroundPreference } from '@/hooks/use-translucent-background'
+import { useSetting } from '@/settings/settings-context'
 import {
   APP_ZOOM_FACTORS,
   type GlobalCaptureShortcutStatus
 } from '../../../../shared/window-contract'
 
-const VIEW_OPTIONS: Array<{ value: LibraryView; label: string; icon: typeof IconLayoutGrid }> = [
-  { value: 'visual', label: 'Masonry', icon: IconLayoutDashboard },
-  { value: 'grid', label: 'Grid', icon: IconLayoutGrid }
+const COLOR_THEMES: ReadonlyArray<{
+  value: ColorTheme
+  label: string
+  description: string
+}> = [
+  { value: 'kuskus', label: 'Kuskus', description: 'Vivid violet' },
+  { value: 'graphite', label: 'Graphite', description: 'Quiet neutral' },
+  { value: 'moss', label: 'Moss', description: 'Restful green' },
+  { value: 'clay', label: 'Clay', description: 'Warm earth' },
+  { value: 'solarized', label: 'Solarized', description: 'Precision contrast' },
+  { value: 'catppuccin', label: 'Catppuccin', description: 'Soothing pastel' },
+  { value: 'one', label: 'One Dark', description: 'Atom original' }
 ]
 
-const iconTileClass =
-  'grid size-9 shrink-0 place-items-center rounded-[calc(var(--radius)-2px)] bg-background/60 text-foreground shadow-[inset_0_0_0_1px_rgb(0_0_0/0.04)] dark:shadow-[inset_0_0_0_1px_rgb(255_255_255/0.06)]'
-const controlClass = 'shrink-0'
+const COLOR_MODES: ReadonlyArray<{ value: ColorMode; label: string }> = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'system', label: 'System' }
+]
 
 function CaptureShortcutControl({
   status,
@@ -108,7 +113,7 @@ function CaptureShortcutControl({
           onStatusChange(nextStatus)
           setError(
             nextStatus.registered && nextStatus.accelerator !== accelerator
-              ? 'That shortcut is taken by another app. Keeping your previous shortcut.'
+              ? 'That shortcut is taken. Your previous shortcut is still active.'
               : null
           )
         })
@@ -120,36 +125,34 @@ function CaptureShortcutControl({
   }, [recording, onStatusChange])
 
   const accelerator = status?.accelerator ?? 'Ctrl+Shift+Space'
-  const registered = status?.registered ?? false
 
   return (
-    <Field orientation="horizontal">
-      <FieldLabel>Shortcut</FieldLabel>
-      <FieldContent className="items-end gap-1.5">
-        {error ? <p className="text-xs text-destructive">{error}</p> : null}
-        <div className="flex items-center gap-2">
-          {!registered ? <Badge variant="destructive">Unavailable</Badge> : null}
-          {recording ? (
-            <span className="inline-flex h-7 items-center rounded-md bg-background/70 px-2 text-sm text-foreground shadow-sm">
-              Press keys…
-            </span>
-          ) : (
-            <button
-              type="button"
-              className="inline-flex h-7 items-center gap-1 rounded-md bg-background/70 px-2 text-sm text-foreground shadow-sm transition-[background-color,scale] hover:bg-background active:scale-[0.96] disabled:pointer-events-none disabled:opacity-50"
-              onClick={() => {
-                setError(null)
-                setRecording(true)
-              }}
-              disabled={pending}
-              aria-label="Change global capture shortcut"
-            >
-              <Kbd>{accelerator}</Kbd>
-              <IconChevronDown className="size-3 text-muted-foreground" aria-hidden="true" />
-            </button>
-          )}
-        </div>
+    <Field orientation="horizontal" className="min-h-12">
+      <FieldContent>
+        <FieldLabel>Shortcut</FieldLabel>
+        {error ? <FieldDescription className="text-destructive">{error}</FieldDescription> : null}
       </FieldContent>
+      {recording ? (
+        <span className="inline-flex h-8 items-center rounded-lg bg-muted px-3 text-sm text-foreground shadow-inner">
+          Press keys…
+        </span>
+      ) : (
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            setError(null)
+            setRecording(true)
+          }}
+          disabled={pending}
+          aria-label="Change global capture shortcut"
+          className="transition-transform active:scale-[0.96]"
+        >
+          <Kbd>{accelerator}</Kbd>
+          <IconChevronDown data-icon="inline-end" />
+        </Button>
+      )}
     </Field>
   )
 }
@@ -167,82 +170,192 @@ export function SettingsDialog({
   globalCaptureShortcutStatus: GlobalCaptureShortcutStatus | null
   onGlobalCaptureShortcutStatusChange: (status: GlobalCaptureShortcutStatus) => void
 }): React.JSX.Element {
-  const [theme, setTheme] = useSetting<Theme>('theme')
-  const [view, setView] = useSetting<LibraryView>('libraryView')
-  const [sort, setSort] = useSetting<ItemSort>('itemSort')
+  const [colorMode, setColorMode] = useSetting<ColorMode>('colorMode')
+  const [colorTheme, setColorTheme] = useSetting<ColorTheme>('colorTheme')
+  const [uiFont, setUiFont] = useSetting<FontPreference>('uiFont')
+  const [uiFontFallback, setUiFontFallback] = useSetting<FontPreference>('uiFontFallback')
+  const [codeFont, setCodeFont] = useSetting<FontPreference>('codeFont')
+  const [codeFontFallback, setCodeFontFallback] = useSetting<FontPreference>('codeFontFallback')
   const [vimEnabled, setVimEnabled] = useSetting<boolean>('vimEnabled')
-  const [readingWidth, setReadingWidth] = useSetting<NoteReadingWidth>('readingWidth')
-  const [inlineTitle, setInlineTitle] = useSetting<boolean>('inlineTitle')
-  const [railDensity, setRailDensity] = useSetting<FocusRailDensity>('railDensity')
+  const localFonts = useLocalFonts()
   const zoom = useAppZoom()
-
   const translucencyDisabled =
     translucentBackground.supported !== true || translucentBackground.reducedTransparency
 
+  const resetAppearance = (): void => {
+    setColorTheme('kuskus')
+    setColorMode('dark')
+    setUiFont(DEFAULT_TYPOGRAPHY.uiFont)
+    setUiFontFallback(DEFAULT_TYPOGRAPHY.uiFontFallback)
+    setCodeFont(DEFAULT_TYPOGRAPHY.codeFont)
+    setCodeFontFallback(DEFAULT_TYPOGRAPHY.codeFontFallback)
+    zoom.resetZoom()
+    if (translucentBackground.supported) translucentBackground.setEnabled(true)
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="h-[min(38rem,calc(100vh-4rem))] w-[min(34rem,calc(100vw-2rem))] gap-0 overflow-hidden p-0 sm:max-w-none">
-        <DialogHeader className="gap-1 px-6 pt-5">
-          <DialogTitle>Settings</DialogTitle>
-          <DialogDescription>Configure how Kuskus looks, edits, and captures.</DialogDescription>
-        </DialogHeader>
-        <div className="scroll-fade-y min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-6">
-          <FieldGroup className="gap-6">
-            <FieldSet>
+    <Sheet open={open} onOpenChange={onOpenChange} modal={false} disablePointerDismissal>
+      <SheetContent side="right" variant="floating" showOverlay={false} className="overflow-hidden">
+        <SheetHeader className="gap-1 px-5 pt-5 pb-4">
+          <SheetTitle className="text-balance">Settings</SheetTitle>
+          <SheetDescription className="text-pretty">
+            Changes appear immediately across Kuskus.
+          </SheetDescription>
+        </SheetHeader>
+
+        <ScrollArea className="scroll-fade-y min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:focus-visible:ring-0 [&_[data-slot=scroll-area-viewport]]:focus-visible:outline-none">
+          <FieldGroup className="gap-7 px-5 pb-5">
+            <FieldSet className="gap-4">
               <FieldLegend variant="label" className="text-muted-foreground">
                 Appearance
               </FieldLegend>
-              <Field orientation="horizontal">
-                <span className={iconTileClass} aria-hidden="true">
-                  <IconPalette className="size-4" />
-                </span>
-                <FieldLabel>Color mode</FieldLabel>
+
+              <Field>
+                <FieldContent>
+                  <FieldLabel>Theme</FieldLabel>
+                  <FieldDescription>Choose the character of the entire workspace.</FieldDescription>
+                </FieldContent>
                 <ToggleGroup
-                  value={[theme]}
+                  value={[colorTheme]}
                   onValueChange={(values) => {
-                    const mode = values[0]
-                    if (mode) setTheme(mode as Theme)
+                    const nextTheme = values[0]
+                    if (nextTheme) setColorTheme(nextTheme as ColorTheme)
                   }}
-                  spacing={1}
-                  aria-label="Color mode"
-                  className="shrink-0 gap-1 rounded-lg bg-background/55 p-1 shadow-inner"
+                  spacing={2}
+                  aria-label="Color theme"
+                  className="grid w-full grid-cols-2 gap-2"
                 >
-                  <ToggleGroupItem
-                    value="light"
-                    aria-label="Light mode"
-                    className="size-10 rounded-md p-0 data-[state=on]:bg-background data-[state=on]:shadow-sm"
-                  >
-                    <IconSun />
-                  </ToggleGroupItem>
-                  <ToggleGroupItem
-                    value="dark"
-                    aria-label="Dark mode"
-                    className="size-10 rounded-md p-0 data-[state=on]:bg-background data-[state=on]:shadow-sm"
-                  >
-                    <IconMoon />
-                  </ToggleGroupItem>
-                  <ToggleGroupItem
-                    value="system"
-                    aria-label="System mode"
-                    className="size-10 rounded-md p-0 data-[state=on]:bg-background data-[state=on]:shadow-sm"
-                  >
-                    <IconDeviceDesktop />
-                  </ToggleGroupItem>
+                  {COLOR_THEMES.map((option) => (
+                    <ToggleGroupItem
+                      key={option.value}
+                      value={option.value}
+                      data-theme-choice={option.value}
+                      className="relative h-auto min-w-0 items-start justify-start rounded-xl px-3 py-3 text-left shadow-[inset_0_0_0_1px_var(--border)] transition-[scale,background-color,box-shadow] active:scale-[0.96] data-[state=on]:bg-muted data-[state=on]:shadow-[inset_0_0_0_1.5px_var(--primary)]"
+                    >
+                      <span className="flex min-w-0 flex-1 flex-col gap-2.5">
+                        <span className="flex items-center gap-1.5" aria-hidden="true">
+                          <span className="size-4 rounded-full bg-[var(--theme-preview-canvas)] shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)]" />
+                          <span className="size-4 rounded-full bg-[var(--theme-preview-sidebar)] shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)]" />
+                          <span className="size-4 rounded-full bg-[var(--theme-preview-accent)] shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)]" />
+                        </span>
+                        <span className="flex min-w-0 flex-col gap-0.5">
+                          <span className="truncate font-medium">{option.label}</span>
+                          <span className="truncate text-xs font-normal text-muted-foreground">
+                            {option.description}
+                          </span>
+                        </span>
+                      </span>
+                      <IconCheck
+                        data-theme-check
+                        className="absolute top-3 right-3 size-4 scale-25 text-primary opacity-0 blur-[4px] transition-[scale,opacity,filter]"
+                        aria-hidden="true"
+                      />
+                    </ToggleGroupItem>
+                  ))}
                 </ToggleGroup>
               </Field>
+
+              <Field orientation="horizontal" className="min-h-12">
+                <FieldContent>
+                  <FieldLabel>Color mode</FieldLabel>
+                </FieldContent>
+                <ToggleGroup
+                  value={[colorMode]}
+                  onValueChange={(values) => {
+                    const nextMode = values[0]
+                    if (nextMode) setColorMode(nextMode as ColorMode)
+                  }}
+                  spacing={0}
+                  variant="outline"
+                  size="sm"
+                  aria-label="Color mode"
+                >
+                  {COLOR_MODES.map((option) => (
+                    <ToggleGroupItem key={option.value} value={option.value}>
+                      {option.label}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              </Field>
+
+              <Field className="gap-3">
+                <FieldContent>
+                  <FieldLabel>Typography</FieldLabel>
+                  <FieldDescription>
+                    Choose primary and fallback fonts for interface and code.
+                  </FieldDescription>
+                </FieldContent>
+                <div
+                  role="group"
+                  aria-label="Font preferences"
+                  className="grid grid-cols-[minmax(0,1fr)_7rem_7rem] items-center gap-2"
+                >
+                  <span aria-hidden="true" />
+                  <span className="text-xs font-medium text-muted-foreground">Primary</span>
+                  <span className="text-xs font-medium text-muted-foreground">Fallback</span>
+
+                  <span className="text-sm">UI font</span>
+                  <FontPicker
+                    value={uiFont}
+                    onValueChange={setUiFont}
+                    kind="ui"
+                    localFonts={localFonts}
+                    ariaLabel="Primary UI font"
+                  />
+                  <FontPicker
+                    value={uiFontFallback}
+                    onValueChange={setUiFontFallback}
+                    kind="ui"
+                    localFonts={localFonts}
+                    allowGenericOnly
+                    ariaLabel="UI font fallback"
+                  />
+
+                  <span className="text-sm">Code font</span>
+                  <FontPicker
+                    value={codeFont}
+                    onValueChange={setCodeFont}
+                    kind="code"
+                    localFonts={localFonts}
+                    ariaLabel="Primary code font"
+                  />
+                  <FontPicker
+                    value={codeFontFallback}
+                    onValueChange={setCodeFontFallback}
+                    kind="code"
+                    localFonts={localFonts}
+                    allowGenericOnly
+                    ariaLabel="Code font fallback"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2 rounded-xl bg-muted/60 p-3 shadow-inner">
+                  <p className="truncate text-sm" style={{ fontFamily: 'var(--font-ui)' }}>
+                    Capture ideas without breaking your flow.
+                  </p>
+                  <code
+                    className="truncate text-xs text-muted-foreground"
+                    style={{ fontFamily: 'var(--font-code)' }}
+                  >
+                    {'const saved = await library.add(note)'}
+                  </code>
+                </div>
+              </Field>
+
               {window.electron.window.platform === 'win32' ? (
-                <Field orientation="horizontal">
-                  <span className={iconTileClass} aria-hidden="true">
-                    <IconPalette className="size-4" />
-                  </span>
+                <Field
+                  orientation="horizontal"
+                  className="min-h-12"
+                  data-disabled={translucencyDisabled || undefined}
+                >
                   <FieldContent>
-                    <FieldLabel htmlFor="settings-translucent">Translucent background</FieldLabel>
+                    <FieldLabel htmlFor="settings-translucent">Window material</FieldLabel>
                     <FieldDescription>
                       {translucentBackground.supported === false
                         ? 'Requires Windows 11 22H2 or newer.'
                         : translucentBackground.reducedTransparency
                           ? 'Enable Windows Transparency effects to use this.'
-                          : 'Let the desktop material show through the app shell.'}
+                          : 'Let the desktop softly show through the app shell.'}
                     </FieldDescription>
                   </FieldContent>
                   <Switch
@@ -250,17 +363,13 @@ export function SettingsDialog({
                     checked={translucentBackground.enabled}
                     disabled={translucencyDisabled}
                     onCheckedChange={translucentBackground.setEnabled}
-                    className={controlClass}
                   />
                 </Field>
               ) : null}
-              <Field orientation="horizontal">
-                <span className={iconTileClass} aria-hidden="true">
-                  <IconKeyboard className="size-4" />
-                </span>
+
+              <Field orientation="horizontal" className="min-h-12">
                 <FieldContent>
-                  <FieldLabel>Zoom</FieldLabel>
-                  <FieldDescription>Interface scale for the whole app.</FieldDescription>
+                  <FieldLabel>Interface scale</FieldLabel>
                 </FieldContent>
                 <Select
                   value={String(zoom.factor)}
@@ -269,159 +378,54 @@ export function SettingsDialog({
                     if (Number.isFinite(parsed)) zoom.setFactor(parsed)
                   }}
                 >
-                  <SelectTrigger size="sm" aria-label="Zoom" className="w-24 justify-between">
-                    <SelectValue />
+                  <SelectTrigger size="sm" aria-label="Interface scale" className="w-24">
+                    <SelectValue>{`${Math.round(zoom.factor * 100)}%`}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
                       {APP_ZOOM_FACTORS.map((factor) => (
                         <SelectItem key={factor} value={String(factor)}>
-                          {factor === 1 ? '100%' : `${Math.round(factor * 100)}%`}
+                          {`${Math.round(factor * 100)}%`}
                         </SelectItem>
                       ))}
                     </SelectGroup>
                   </SelectContent>
                 </Select>
               </Field>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={resetAppearance}
+                className="self-start transition-transform active:scale-[0.96]"
+              >
+                Reset appearance
+              </Button>
             </FieldSet>
 
-            <FieldSet>
+            <FieldSet className="gap-4">
               <FieldLegend variant="label" className="text-muted-foreground">
-                Library
+                Editing
               </FieldLegend>
-              <Field orientation="horizontal">
-                <FieldLabel>Default view</FieldLabel>
-                <ToggleGroup
-                  value={[view]}
-                  onValueChange={(values) => {
-                    const nextView = values[0]
-                    if (nextView) setView(nextView as LibraryView)
-                  }}
-                  spacing={1}
-                  aria-label="Library layout"
-                  className="shrink-0 gap-1 rounded-lg bg-background/55 p-1 shadow-inner"
-                >
-                  {VIEW_OPTIONS.map((option) => {
-                    const Icon = option.icon
-                    return (
-                      <ToggleGroupItem
-                        key={option.value}
-                        value={option.value}
-                        aria-label={option.label}
-                        className="size-10 rounded-md p-0 data-[state=on]:bg-background data-[state=on]:shadow-sm"
-                      >
-                        <Icon />
-                      </ToggleGroupItem>
-                    )
-                  })}
-                </ToggleGroup>
-              </Field>
-              <Field orientation="horizontal">
-                <FieldLabel>Sort items by</FieldLabel>
-                <Select value={sort} onValueChange={(value) => setSort(value as ItemSort)}>
-                  <SelectTrigger
-                    size="sm"
-                    aria-label="Sort items by"
-                    className="w-32 justify-between"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {ITEM_SORT_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field orientation="horizontal">
-                <FieldLabel>Focus rail density</FieldLabel>
-                <Select
-                  value={railDensity}
-                  onValueChange={(value) => setRailDensity(value as FocusRailDensity)}
-                >
-                  <SelectTrigger
-                    size="sm"
-                    aria-label="Focus rail density"
-                    className="w-32 justify-between"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="visual">Visual</SelectItem>
-                      <SelectItem value="index">Compact index</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-            </FieldSet>
-
-            <FieldSet>
-              <FieldLegend variant="label" className="text-muted-foreground">
-                Editor
-              </FieldLegend>
-              <Field orientation="horizontal">
-                <span className={iconTileClass} aria-hidden="true">
-                  <IconKeyboard className="size-4" />
-                </span>
+              <Field orientation="horizontal" className="min-h-12">
                 <FieldContent>
-                  <FieldLabel htmlFor="settings-vim-mode">Vim mode</FieldLabel>
-                  <FieldDescription>Use Vim keybindings when editing notes.</FieldDescription>
+                  <FieldLabel htmlFor="settings-vim-mode">Vim keybindings</FieldLabel>
+                  <FieldDescription>Use Vim motions while editing notes.</FieldDescription>
                 </FieldContent>
                 <Switch
                   id="settings-vim-mode"
                   checked={vimEnabled}
                   onCheckedChange={setVimEnabled}
-                  className={controlClass}
-                />
-              </Field>
-              <Field orientation="horizontal">
-                <FieldLabel>Note reading width</FieldLabel>
-                <Select
-                  value={readingWidth}
-                  onValueChange={(value) => setReadingWidth(value as NoteReadingWidth)}
-                >
-                  <SelectTrigger
-                    size="sm"
-                    aria-label="Note reading width"
-                    className="w-32 justify-between"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="comfortable">Comfortable</SelectItem>
-                      <SelectItem value="wide">Wide</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field orientation="horizontal">
-                <FieldContent>
-                  <FieldLabel htmlFor="settings-inline-title">Inline title</FieldLabel>
-                  <FieldDescription>Show the note title inline while editing.</FieldDescription>
-                </FieldContent>
-                <Switch
-                  id="settings-inline-title"
-                  checked={inlineTitle}
-                  onCheckedChange={setInlineTitle}
-                  className={controlClass}
                 />
               </Field>
             </FieldSet>
 
-            <FieldSet>
+            <FieldSet className="gap-4">
               <FieldLegend variant="label" className="text-muted-foreground">
                 Capture
               </FieldLegend>
-              <Field orientation="horizontal">
-                <span className={iconTileClass} aria-hidden="true">
-                  <IconBolt className="size-4" />
-                </span>
+              <Field orientation="horizontal" className="min-h-12">
                 <FieldContent>
                   <FieldLabel>Global capture</FieldLabel>
                   <FieldDescription>Capture from any app while Kuskus is running.</FieldDescription>
@@ -431,7 +435,6 @@ export function SettingsDialog({
                   variant={
                     globalCaptureShortcutStatus?.registered === false ? 'destructive' : 'secondary'
                   }
-                  className={controlClass}
                 >
                   {globalCaptureShortcutStatus === null
                     ? 'Checking…'
@@ -440,15 +443,14 @@ export function SettingsDialog({
                       : 'Unavailable'}
                 </Badge>
               </Field>
-              <Separator />
               <CaptureShortcutControl
                 status={globalCaptureShortcutStatus}
                 onStatusChange={onGlobalCaptureShortcutStatusChange}
               />
             </FieldSet>
           </FieldGroup>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </ScrollArea>
+      </SheetContent>
+    </Sheet>
   )
 }

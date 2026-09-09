@@ -11,6 +11,7 @@ import {
   type AppZoomShortcut,
   type ElectronWindowApi,
   type GlobalCaptureShortcutStatus,
+  type NativeThemeSource,
   type TranslucentBackgroundStatus
 } from '../shared/window-contract'
 
@@ -53,6 +54,8 @@ const windowApi: ElectronWindowApi = {
   isMaximized: (): Promise<boolean> => ipcRenderer.invoke(WINDOW_CHANNELS.isMaximized),
   setZoomFactor: (zoomFactor): Promise<number> =>
     ipcRenderer.invoke(WINDOW_CHANNELS.setZoomFactor, zoomFactor),
+  setNativeThemeSource: (source: NativeThemeSource): void =>
+    ipcRenderer.send(WINDOW_CHANNELS.setNativeThemeSource, source),
   setTranslucentBackground: (enabled): Promise<TranslucentBackgroundStatus> =>
     ipcRenderer.invoke(WINDOW_CHANNELS.setTranslucentBackground, enabled),
   onReducedTransparencyChange: (callback: (reduced: boolean) => void): (() => void) => {

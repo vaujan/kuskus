@@ -10,7 +10,10 @@ const {
   parseWindowsBuild,
   resolveTranslucentBackgroundStatus
 } = require('../src/main/window/window-material.ts')
-const { resolveTranslucentBackgroundPreference } = require('../src/shared/window-contract.ts')
+const {
+  parseNativeThemeSource,
+  resolveTranslucentBackgroundPreference
+} = require('../src/shared/window-contract.ts')
 
 test('derives Acrylic colors from active theme tokens', () => {
   const css = readFileSync(
@@ -31,6 +34,14 @@ test('enables translucency by default and preserves an explicit opt-out', () => 
   assert.equal(resolveTranslucentBackgroundPreference(null), true)
   assert.equal(resolveTranslucentBackgroundPreference('true'), true)
   assert.equal(resolveTranslucentBackgroundPreference('false'), false)
+})
+
+test('accepts only supported native theme sources', () => {
+  assert.equal(parseNativeThemeSource('dark'), 'dark')
+  assert.equal(parseNativeThemeSource('light'), 'light')
+  assert.equal(parseNativeThemeSource('system'), 'system')
+  assert.throws(() => parseNativeThemeSource('sepia'), /Unsupported native theme source/)
+  assert.throws(() => parseNativeThemeSource(null), /Unsupported native theme source/)
 })
 
 test('parses Windows build numbers and rejects malformed versions', () => {

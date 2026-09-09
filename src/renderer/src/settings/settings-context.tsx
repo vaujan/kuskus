@@ -1,6 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 
-import { applyTheme, resolveAppliedTheme } from '@/hooks/theme'
+import {
+  applyTheme,
+  DEFAULT_TYPOGRAPHY,
+  resolveAppliedTheme,
+  type ColorMode,
+  type ColorTheme,
+  type FontPreference
+} from '@/hooks/theme'
 import { SETTINGS_SCHEMA, findSetting, type SettingKey, type SettingValue } from './settings-schema'
 
 // Split into a values context and a stable dispatch context (Redux-style) so
@@ -36,21 +43,52 @@ export function SettingsProvider({ children }: { children: ReactNode }): React.J
     }
   }, [values])
 
-  // The theme preference is the one setting with a DOM side effect. Apply it
+  useEffect(() => {
+    const settingsByStorageKey = new Map(
+      SETTINGS_SCHEMA.map((definition) => [definition.storageKey, definition])
+    )
+    const handleStorage = (event: StorageEvent): void => {
+      if (!event.key) return
+      const definition = settingsByStorageKey.get(event.key)
+      if (!definition) return
+      const nextValue = definition.parse(event.newValue)
+      setValues((current) =>
+        current[definition.key] === nextValue
+          ? current
+          : { ...current, [definition.key]: nextValue }
+      )
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [])
+
+  // Appearance preferences are the settings with DOM side effects. Apply them
   // here so every surface (main window, note window, quick capture) stays in
   // sync with the stored value, including live OS changes when set to
-  // 'system'. main.tsx still applies the stored theme once at startup to
+  // 'system'. main.tsx still applies the stored appearance once at startup to
   // avoid a flash before this provider mounts.
-  const theme = values.theme
+  const colorMode = values.colorMode as ColorMode
+  const colorTheme = values.colorTheme as ColorTheme
+  const uiFont = values.uiFont as FontPreference
+  const uiFontFallback = values.uiFontFallback as FontPreference
+  const codeFont = values.codeFont as FontPreference
+  const codeFontFallback = values.codeFontFallback as FontPreference
   useEffect(() => {
-    const apply = (): void => applyTheme(resolveAppliedTheme(theme as 'dark' | 'light' | 'system'))
+    window.electron.window.setNativeThemeSource(colorMode)
+    const apply = (): void =>
+      applyTheme(resolveAppliedTheme(colorMode), colorTheme, {
+        uiFont: uiFont ?? DEFAULT_TYPOGRAPHY.uiFont,
+        uiFontFallback: uiFontFallback ?? DEFAULT_TYPOGRAPHY.uiFontFallback,
+        codeFont: codeFont ?? DEFAULT_TYPOGRAPHY.codeFont,
+        codeFontFallback: codeFontFallback ?? DEFAULT_TYPOGRAPHY.codeFontFallback
+      })
     apply()
-    if (theme !== 'system') return
+    if (colorMode !== 'system') return
     const query = window.matchMedia('(prefers-color-scheme: dark)')
     const onChange = (): void => apply()
     query.addEventListener('change', onChange)
     return () => query.removeEventListener('change', onChange)
-  }, [theme])
+  }, [colorMode, colorTheme, uiFont, uiFontFallback, codeFont, codeFontFallback])
 
   const setSetting = useCallback(<T extends SettingValue>(key: SettingKey, value: T): void => {
     // Reject unknown keys instead of silently storing values no consumer reads.

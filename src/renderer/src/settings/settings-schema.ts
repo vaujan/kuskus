@@ -4,23 +4,24 @@ import {
 } from '@/features/items/focus-view-state'
 import { ITEM_SORT_STORAGE_KEY, parseItemSort } from '@/features/items/item-sort'
 import { parseLibraryView } from '@/features/items/item-view'
-import {
-  NOTE_INLINE_TITLE_STORAGE_KEY,
-  parseNoteInlineTitle
-} from '@/features/items/note-inline-title'
-import {
-  NOTE_READING_WIDTH_STORAGE_KEY,
-  parseNoteReadingWidth
-} from '@/features/items/note-reading-width'
 import { NOTE_VIM_MODE_STORAGE_KEY, parseNoteVimEnabled } from '@/features/items/note-vim-mode'
+import {
+  DEFAULT_TYPOGRAPHY,
+  resolveColorMode,
+  resolveColorTheme,
+  resolveFontPreference
+} from '@/hooks/theme'
 
 export type SettingKey =
-  | 'theme'
+  | 'colorMode'
+  | 'colorTheme'
+  | 'uiFont'
+  | 'uiFontFallback'
+  | 'codeFont'
+  | 'codeFontFallback'
   | 'libraryView'
   | 'itemSort'
   | 'vimEnabled'
-  | 'readingWidth'
-  | 'inlineTitle'
   | 'railDensity'
 
 export type SettingValue = string | boolean
@@ -34,10 +35,40 @@ export interface SettingDefinition<T extends SettingValue = SettingValue> {
 
 export const SETTINGS_SCHEMA: readonly SettingDefinition[] = [
   {
-    key: 'theme',
-    storageKey: 'kuskus-theme',
+    key: 'colorMode',
+    storageKey: 'kuskus-color-mode',
     default: 'dark',
-    parse: (stored) => (stored === 'light' || stored === 'system' ? stored : 'dark')
+    parse: resolveColorMode
+  },
+  {
+    key: 'colorTheme',
+    storageKey: 'kuskus-color-theme',
+    default: 'kuskus',
+    parse: resolveColorTheme
+  },
+  {
+    key: 'uiFont',
+    storageKey: 'kuskus-ui-font',
+    default: DEFAULT_TYPOGRAPHY.uiFont,
+    parse: (value) => resolveFontPreference(value, DEFAULT_TYPOGRAPHY.uiFont)
+  },
+  {
+    key: 'uiFontFallback',
+    storageKey: 'kuskus-ui-font-fallback',
+    default: DEFAULT_TYPOGRAPHY.uiFontFallback,
+    parse: (value) => resolveFontPreference(value, DEFAULT_TYPOGRAPHY.uiFontFallback, true)
+  },
+  {
+    key: 'codeFont',
+    storageKey: 'kuskus-code-font',
+    default: DEFAULT_TYPOGRAPHY.codeFont,
+    parse: (value) => resolveFontPreference(value, DEFAULT_TYPOGRAPHY.codeFont)
+  },
+  {
+    key: 'codeFontFallback',
+    storageKey: 'kuskus-code-font-fallback',
+    default: DEFAULT_TYPOGRAPHY.codeFontFallback,
+    parse: (value) => resolveFontPreference(value, DEFAULT_TYPOGRAPHY.codeFontFallback, true)
   },
   {
     key: 'libraryView',
@@ -56,18 +87,6 @@ export const SETTINGS_SCHEMA: readonly SettingDefinition[] = [
     storageKey: NOTE_VIM_MODE_STORAGE_KEY,
     default: false,
     parse: parseNoteVimEnabled
-  },
-  {
-    key: 'readingWidth',
-    storageKey: NOTE_READING_WIDTH_STORAGE_KEY,
-    default: 'comfortable',
-    parse: parseNoteReadingWidth
-  },
-  {
-    key: 'inlineTitle',
-    storageKey: NOTE_INLINE_TITLE_STORAGE_KEY,
-    default: true,
-    parse: parseNoteInlineTitle
   },
   {
     key: 'railDensity',

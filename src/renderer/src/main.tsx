@@ -2,13 +2,45 @@ import './assets/main.css'
 
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { applyTheme, resolveAppliedTheme, resolveTheme } from './hooks/theme'
+import {
+  applyTheme,
+  DEFAULT_TYPOGRAPHY,
+  resolveAppliedTheme,
+  resolveColorMode,
+  resolveColorTheme,
+  resolveFontPreference
+} from './hooks/theme'
 import { initializeTranslucentBackground } from './hooks/use-translucent-background'
 import { SettingsProvider } from './settings/settings-context'
 
 performance.mark('kuskus:renderer-entry')
 
-applyTheme(resolveAppliedTheme(resolveTheme(localStorage.getItem('kuskus-theme'))))
+const initialColorMode = resolveColorMode(localStorage.getItem('kuskus-color-mode'))
+window.electron.window.setNativeThemeSource(initialColorMode)
+applyTheme(
+  resolveAppliedTheme(initialColorMode),
+  resolveColorTheme(localStorage.getItem('kuskus-color-theme')),
+  {
+    uiFont: resolveFontPreference(
+      localStorage.getItem('kuskus-ui-font'),
+      DEFAULT_TYPOGRAPHY.uiFont
+    ),
+    uiFontFallback: resolveFontPreference(
+      localStorage.getItem('kuskus-ui-font-fallback'),
+      DEFAULT_TYPOGRAPHY.uiFontFallback,
+      true
+    ),
+    codeFont: resolveFontPreference(
+      localStorage.getItem('kuskus-code-font'),
+      DEFAULT_TYPOGRAPHY.codeFont
+    ),
+    codeFontFallback: resolveFontPreference(
+      localStorage.getItem('kuskus-code-font-fallback'),
+      DEFAULT_TYPOGRAPHY.codeFontFallback,
+      true
+    )
+  }
+)
 const searchParams = new URLSearchParams(window.location.search)
 const surface = searchParams.get('surface')
 const isQuickCapture = surface === 'quick-capture'

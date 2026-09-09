@@ -10,6 +10,7 @@ import {
 import {
   APP_ZOOM_FACTORS,
   WINDOW_CHANNELS,
+  parseNativeThemeSource,
   type GlobalCaptureShortcutStatus
 } from '../../shared/window-contract'
 import {
@@ -23,8 +24,7 @@ function windowFromEvent(event: IpcMainEvent | IpcMainInvokeEvent): BrowserWindo
 
 export function registerWindowIpc(
   getGlobalCaptureShortcutStatus: () =>
-    | GlobalCaptureShortcutStatus
-    | Promise<GlobalCaptureShortcutStatus>,
+    GlobalCaptureShortcutStatus | Promise<GlobalCaptureShortcutStatus>,
   setGlobalCaptureShortcut: (
     accelerator: string
   ) => GlobalCaptureShortcutStatus | Promise<GlobalCaptureShortcutStatus>,
@@ -55,6 +55,9 @@ export function registerWindowIpc(
     if (!window) throw new Error('The app window is unavailable.')
     window.webContents.setZoomFactor(zoomFactor)
     return zoomFactor
+  })
+  ipcMain.on(WINDOW_CHANNELS.setNativeThemeSource, (_event, source: unknown) => {
+    nativeTheme.themeSource = parseNativeThemeSource(source)
   })
   ipcMain.handle(WINDOW_CHANNELS.setTranslucentBackground, (event, enabled: unknown) => {
     const requested = parseTranslucentBackgroundRequest(enabled)
