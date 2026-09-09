@@ -1706,3 +1706,36 @@ title editing, and conflict review are not moved behind the seam.
 - Cursor persistence across note modes keeps its tested meaning: offsets are positions in the Markdown
   source string in both directions.
 - Split scroll, undo/redo, and note-save behaviour remain unchanged.
+
+## DEC-054: Keep provisional and persisted notes on one detail surface
+
+Date: 2026-09-09
+Status: Accepted
+
+### Context
+
+New Note used a dedicated creation header and editor, then replaced that tree with the saved-note
+detail after the first meaningful edit. The replacement changed toolbar content, document padding,
+rail presentation, focus ownership, and available keyboard commands at the moment the user began
+writing. Creation errors inserted another layout-changing block above the editor.
+
+### Decision
+
+Render an ephemeral note through the normal saved-note `ItemDetailDialog` in Live Preview mode. Give
+the existing autosave coordinator a creation-aware save function: its first non-empty save creates
+and places the note, while later saves update the resulting item ID. Feed the persisted DTO back into
+the same mounted detail instance and keep a same-size placeholder for saved-only actions until the
+item exists. Stage pasted images before creation and use normal note-image import afterward.
+
+The Focus rail uses its ordinary saved-note row or card for the ephemeral item. Autosave errors float
+over the document instead of participating in its layout. `Ctrl+N` passes through the detail's flush
+guard; it opens a fresh provisional note after meaningful content is durable and refocuses an
+untouched provisional editor.
+
+### Consequences
+
+- The first keystroke no longer remounts the editor or changes the note-detail geometry.
+- New notes inherit the saved editor's modes, find, formatting, undo/redo, Vim, and flush commands.
+- Untouched notes still leave no vault item, while first-save failures retain the editable draft.
+- General-file capture remains the separate Add Item workflow; New Note supports note text and
+  embedded images through the same attachment path as saved notes.

@@ -52,10 +52,24 @@ Sidebar visibility and the most recently selected width should persist between l
 - The current library is shown as context in the final row at the bottom of the sidebar. Clicking
   anywhere on that row opens **Open Another Library**, **Create New Library**, and **Copy Library
   Path** actions without presenting the identity row as a destination selector.
-- A **Settings** row appears immediately above the library identity. It opens the **Settings**
-  dialog, which presents Appearance, Library, Editor, and Capture groups in one scrollable column.
-  Settings apply immediately without closing the dialog; unavailable future controls are omitted
-  until implemented. Outside click or `Escape` closes the dialog.
+- A **Settings** row appears immediately above the library identity. It opens a floating,
+  non-modal **Settings** panel at the right edge. The workspace remains visible and interactive so
+  appearance changes can be judged against real content. The panel presents Appearance, Editing,
+  and Capture groups in one scrollable column, remains open during workspace interaction, and
+  closes from its close action or `Escape`.
+- Appearance separates a curated color theme (**Kuskus**, **Graphite**, **Moss**, **Clay**,
+  **Solarized**, **Catppuccin**, or **One Dark**) from color mode (**Light**, **Dark**, or
+  **System**). Solarized uses its canonical paired schemes, Catppuccin pairs Latte with Mocha, and
+  One Dark pairs with Atom's One Light colors. Every theme supplies both light and dark semantic
+  tokens. A compact **Typography** matrix exposes primary and fallback choices for both **UI font**
+  and **Code font**. Font pickers are searchable and preview every option in its own typeface.
+  Bundled and generic choices are available immediately; **Use fonts from this computer…** requests
+  local-font access only after explicit interaction, then adds installed font families to every
+  picker. Generic `sans-serif` and `monospace` families always terminate their respective stacks.
+  A live UI-and-code sample makes both changes observable even when the workspace has no code in
+  view. Changes apply and persist immediately across the main workspace, detached note windows, and
+  quick capture. Appearance also exposes interface scale, supported native window
+  material, and a reset to the default Kuskus dark appearance with Inter.
 - On Windows, Appearance includes **Translucent background**. It is enabled by default on Windows
   11 22H2 or newer, applies native Acrylic behind a visibly translucent, continuous toolbar/content
   material and a slightly heavier sidebar, and persists as app-local presentation state. Borders,
@@ -123,12 +137,14 @@ Requirements:
 - Move menus and dialogs preserve tree indentation and icons, identify the current destination, and
   disambiguate same-name folders in different branches.
 
-The Capture group in Settings shows the fixed `Ctrl+Shift+Space` **Global capture** shortcut
-and whether its system-wide registration is checking, available, or unavailable. A registration
-conflict also produces one non-blocking notice per app run. The shortcut cannot be changed or
-disabled in the first version.
+The Capture group in Settings shows the **Global capture** shortcut and whether its system-wide
+registration is checking, available, or unavailable. The registered key combination can be
+recorded directly from the panel. A registration conflict keeps the previous shortcut and reports
+the failure without closing Settings.
 
-Settings has no empty Library category. **Show referenced attachments** lives in a
+Settings has no Library category. Library layout and sorting stay in the library toolbar, Focus
+rail density stays in the Focus toolbar, and note reading width and inline title stay in the note
+View menu so their effects remain directly observable. **Show referenced attachments** lives in a
 **Visibility** group in the Masonry/Grid toolbar Filter menu and Focus rail Filter menu. It is off by default so images already embedded by
 notes do not duplicate the visual canvas. The preference persists per device, contributes to the
 active-filter badge, applies in Masonry, Grid, and Focus, and resets with **Clear filters**.
@@ -145,13 +161,15 @@ without exposing arbitrary native paths to renderer operations.
 Masonry and Grid use the complete retrieval toolbar. It contains, in responsive order:
 
 - A left zone containing only Show or Hide Sidebar.
-- A centered retrieval zone containing scoped Search and the combined Sort and Filter menu.
-- A right action zone containing New item, its `Ctrl+N` shortcut, and its retained-draft discard
-  action when applicable.
+- A centered retrieval zone containing the global Search trigger and the combined Sort and Filter
+  menu.
+- A right action zone containing primary New note, secondary Add item, and the retained-capture
+  discard action when applicable. `Ctrl+N` belongs to New note.
 - Windows minimize, maximize/restore, and close controls.
 
 Focus removes the global toolbar and starts both panes at the top of the window. One integrated rail
-row contains Show or Hide Sidebar, scoped Search, a combined Sort and Filter menu, and New item.
+row contains Show or Hide Sidebar, a compact global Search trigger, the active destination label, a
+combined Sort and Filter menu, New note, and Add item.
 Windows controls occupy the detail pane's upper-right corner, or the full-width rail row during
 narrow list-first navigation. Unoccupied pane chrome remains draggable.
 
@@ -162,13 +180,15 @@ Rules:
 - On Windows, renderer-owned caption controls use the documented Segoe Fluent `ChromeMinimize`,
   `ChromeMaximize`, `ChromeRestore`, and `ChromeClose` glyphs. Their neutral hover and pressed fills
   follow the active light or dark appearance, and Close uses the standard Windows red states.
-- Search grows within a centered retrieval zone and names its active scope, for example
-  **Search Inbox…**.
+- The overview Search trigger grows within the centered retrieval zone, names its library-wide
+  behavior, and shows `Ctrl+K` when space permits. The Focus rail uses an icon button so search does
+  not compete with the item detail.
 - Interactive controls must be excluded from the draggable title-bar region.
-- The active context must remain understandable when the sidebar is hidden through the scoped
-  search copy.
-- Narrow layouts collapse the Filter label and secondary search status before reducing the usable
-  search width. New item may collapse to its accessible icon only after those secondary labels.
+- The active context remains visible beside the compact Search trigger in Focus when the sidebar is
+  hidden.
+- Narrow layouts collapse the Filter label and Search shortcut hint before reducing the usable
+  Search trigger width. New item may collapse to its accessible icon only after those secondary
+  labels.
 - Toolbar controls match the compact sidebar menu-row height and use the same theme radius token.
 - Toolbar horizontal gutters match the saved-content workspace gutters at ordinary and large
   desktop widths.
@@ -229,8 +249,7 @@ Rules:
   existing selection treatment. Up, Down, Home, and End follow the shared logical item order in both
   Focus densities.
 - One rail row contains the sidebar trigger, destination-scoped Search, the combined Sort and Filter
-  menu, and New item. `Ctrl+K` and `Ctrl+F` focus Search; `Ctrl+N` opens or continues the capture card
-  at the beginning of the rail without replacing the current detail.
+  menu, New note, and Add item. `Ctrl+K` and `Ctrl+F` focus Search; `Ctrl+N` opens the full note editor.
 - Search, filters, and sorting do not forcibly close an active detail. Destination, view, library,
   item, and window-close transitions flush guarded note work before leaving.
 - At content widths below 760 pixels, Focus becomes list-first drill-in navigation. Activating an
@@ -246,9 +265,29 @@ As the saved-content viewport scrolls beneath the fixed toolbar, its top edge us
 gradient mask that grows with the scroll offset up to 24 pixels. The mask is absent at the scroll
 origin, applies consistently across Masonry, Grid, and each Focus scroll owner, and does not fade the scrollbar.
 
+## New Note
+
+- `Ctrl+N` and the primary **New note** action open the same full-detail editor from every library
+  view, preserving the previous workspace state for Back or empty Escape.
+- An ephemeral selected **Untitled note** rail entry anchors the editor before persistence. It
+  disappears silently when abandoned without a meaningful edit.
+- The ephemeral entry uses the active density's normal saved-note row or card, and the detail pane
+  starts in the normal Live Preview note surface. The mode controls, title region, canvas padding,
+  and toolbar geometry remain identical when the first edit creates the backing file; saved-only
+  actions reserve their normal space until they become available.
+- Non-whitespace Markdown and embedded attachments create the note. A single URL remains Markdown
+  note content. The body receives initial focus; there is no required title field or Save button.
+- `Ctrl+N` opens a fresh note after flushing meaningful edits, but only refocuses an untouched
+  ephemeral note. Normal note-mode, formatting, find, undo/redo, Vim, and explicit flush shortcuts
+  apply before and after persistence.
+- Creation failures appear in the normal overlaid note recovery notice with Retry and Restore. The
+  notice never pushes, resizes, replaces, or remounts the editor.
+- The first human-readable line derives the title and continues to track edits. Explicit rename
+  switches to a custom title; **Use first line as title** restores derived behavior.
+
 ## New Item
 
-A primary **New item** button appears in the Masonry/Grid toolbar's right action zone and as an icon
+A secondary **Add item** button appears in the Masonry/Grid toolbar's right action zone and as an icon
 action in the Focus rail header. The resting content canvas contains saved items only; activating the
 button summons one temporary draft at the beginning of the active view.
 
@@ -257,8 +296,8 @@ button summons one temporary draft at the beginning of the active view.
 - The action uses a plus icon and visible label at ordinary widths, collapsing to an accessible icon at narrow widths.
 - When a hidden draft exists, the action reads **Continue draft**, shows a quiet indicator, and exposes explicit discard.
 - Repeated activation scrolls to and focuses the existing card rather than creating another draft.
-- `Ctrl+N` performs the same action while Kuskus is focused. Dialogs suspend it, but a Focus detail
-  does not, so capture remains available while reading or editing an item.
+- Add item remains available independently of `Ctrl+N`; the global capture shortcut remains
+  `Ctrl+Shift+Space`.
 
 ### Draft card
 
@@ -421,7 +460,7 @@ remote renderer requests.
 - Single-click opens the item's focused detail dialog without leaving it selected after the dialog closes.
 - Ctrl-click or Cmd-click toggles an item in multi-selection without opening it.
 - Shift-click selects a range where ordering is stable without opening an item.
-- Ctrl+A or Cmd+A selects every item matching the current destination, search, and filters when
+- Ctrl+A or Cmd+A selects every item matching the current destination and filters when
   focus is outside a text field or editor. The selection is a snapshot rather than a live query.
 - Enter opens the selected item's focused detail dialog.
 - Space opens quick preview when implemented.
@@ -616,11 +655,25 @@ The detail interface must not become a general-purpose knowledge-management prop
 
 ## Search and filtering
 
-- Search is scoped to the active context by default.
-- The interface makes the scope visible.
+- `Ctrl+K` or either toolbar trigger opens one modal search surface from Overview, Focus rail, or an
+  open item detail. Search is library-wide and independent of the active destination and filters.
+- Opening search with an empty query shows up to eight recently opened items in recency order.
 - Search covers title, note text, domain/URL, and filename.
+- Every query term must match somewhere in the item. Exact, prefix, and partial title matches rank
+  ahead of matches found only in supporting content.
 - Full-note matching uses the main-process library index; card payloads need only bounded Markdown
   previews. Out-of-order search responses never replace results for newer input.
+- Results use a compact text-first list with type and collection context. On wide layouts, the
+  search field and result list occupy the left pane while the right pane presents the highlighted
+  item's complete read-only content directly, without nesting another card surface. Truncated note
+  summaries resolve to the complete note for this preview. Both panes use the shared ScrollArea
+  treatment, and the preview identifies the item in one compact header row. Referenced note
+  attachments remain hidden.
+- Highlighting or moving through results never changes the workspace beneath the modal. `Escape`
+  closes search with destination, selection, detail, and scroll context untouched.
+- Opening a result closes search, selects the item's real Inbox, collection, Archive, or Trash
+  destination, and opens its normal detail surface. Active type filters clear so the chosen item is
+  present in its destination.
 - Filter supports item type and a Visibility group for referenced attachments. Non-default type or
   visibility values activate the Filter badge and **Clear filters** resets both.
 - Sorting offers newest first, oldest first, title A–Z, title Z–A, and grouping by item type within
@@ -628,13 +681,14 @@ The detail interface must not become a general-purpose knowledge-management prop
   and an active non-default sort is visible on that control at rest.
 - The selected sort persists between launches, applies to every view, and never changes the item
   selection.
-- Clearing search and filters returns to the previous collection view.
-- Empty results distinguish "no saved items" from "no matches."
+- Closing search returns to the untouched workspace. Clearing filters preserves the current
+  destination.
+- Empty filter results distinguish "no saved items" from "no matches"; empty global search results
+  remain inside the modal.
 - Empty capture destinations (All Items, Inbox, and collections) offer a primary **New item**
   action and a quiet hint of capture methods, including the global capture shortcut when it is
   registered. Archive and Trash keep explanatory copy without capture actions.
-- No-results states expose separate **Clear search** and **Remove type filters** actions that
-  appear only when the corresponding retrieval input is active.
+- No-results states expose **Remove type filters** only when type filtering is active.
 
 ## States
 
@@ -649,7 +703,7 @@ Required states include:
 - Metadata unavailable.
 - Missing local content.
 - Read-only or unavailable library.
-- No search results.
+- No global search results.
 - Referenced-image Trash review, missing-image warnings, and a distinct referenced-attachment
   warning within permanent-delete confirmation. The warning names affected notes and explains that
   Trash restore will no longer be available. Eligible note deletion also offers an unchecked
@@ -669,10 +723,11 @@ Required states include:
 - Reduced-motion preferences are respected.
 - Reduced-transparency, increased-contrast, and forced-color preferences replace translucent shell
   tokens with their opaque theme equivalents without changing the stored user preference.
-- Shortcut-driven sidebar, search, selection, editor-overlay, and item-detail state changes are
-  instantaneous. Occasional dialogs, tooltips, capture transitions, and drag-over feedback use the
-  shared motion timings; reduced motion removes positional and scale movement while retaining
-  brief opacity or color feedback where it aids comprehension.
+- Shortcut-driven sidebar, search, selection, editor-overlay, item-detail, and dialog state changes
+  are instantaneous. Dialog backdrops dim without blurring the workspace. Tooltips, capture
+  transitions, and drag-over feedback use the shared motion timings; reduced motion removes
+  positional and scale movement while retaining brief opacity or color feedback where it aids
+  comprehension.
 - Contextual editor controls preserve the document selection during pointer use and expose their
   expanded, active, and selected states to assistive technology.
 

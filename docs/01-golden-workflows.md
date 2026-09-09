@@ -19,6 +19,28 @@ These workflows define the behavior Kuskus must preserve as its implementation e
   vault reconciles within 300 ms, search computation stays within 50 ms, and durable capture
   acceptance stays within one second on the reference Windows SSD environment.
 
+## Note authoring contract
+
+- `Ctrl+N` always opens one canonical full-detail note editor, regardless of whether the current
+  library view is Masonry, Grid, or Focus. It never opens or converts into mixed-content capture.
+- Before the first meaningful edit, the note is ephemeral and appears as a selected **Untitled
+  note** entry in the rail. Leaving an untouched note removes it silently and restores the previous
+  view, selection, detail, and scroll context.
+- The ephemeral note uses the same rail row, detail toolbar, Live Preview editor, document geometry,
+  and keyboard commands as a saved note from its first frame. Creating the backing file updates that
+  surface in place; it never replaces or remounts the editor, moves the canvas, or introduces a
+  creation-only header.
+- Non-whitespace Markdown or an embedded attachment is meaningful. Whitespace, caret movement,
+  formatting controls, and menu activity are not.
+- The first meaningful edit creates the local note and normal note autosave takes over. A lone URL
+  remains note content; it is never promoted into a link item.
+- `Ctrl+N` flushes an edited note and opens a fresh ephemeral note. If the current ephemeral note is
+  still untouched, the shortcut only refocuses its editor.
+- Creation and autosave failures retain the editable draft and use an overlaid recovery notice, so
+  Retry and Restore never change the document's layout.
+- The first human-readable Markdown line supplies the title. It keeps tracking that line until an
+  explicit rename makes the title custom; **Use first line as title** restores automatic tracking.
+
 ## 1. Create or open a library
 
 ### Scenario
@@ -64,8 +86,8 @@ The user wants one obvious place to add any supported kind of content without ch
 
 ### Flow
 
-1. The user clicks **New item** or presses `Ctrl+N` while the Kuskus workspace owns the keyboard.
-   From another application, the user may press `Ctrl+Shift+Space` while Kuskus is running.
+1. The user clicks **Add item**. From another application, the user may press
+   `Ctrl+Shift+Space` while Kuskus is running.
 2. In-app capture appears as a normal-width draft card at the beginning of the active content view.
    Global capture appears as the same composer in a focused bottom-right Inbox popup without
    restoring or changing the main window.
@@ -107,7 +129,7 @@ The user wants one obvious place to add any supported kind of content without ch
 ### Destination and ordering
 
 - In Inbox or a collection, the item is saved into that active context.
-- From All Items, search results, Archive, or Trash, capture defaults to Inbox unless the user explicitly chooses a collection.
+- From All Items, Archive, or Trash, capture defaults to Inbox unless the user explicitly chooses a collection.
 - Under the default newest-first sort, newly saved items appear first. With another sort active,
   the saved item joins its sorted position and is scrolled into view.
 - Metadata loading may continue after the initial card appears and must not change the item's position unexpectedly.
@@ -124,8 +146,7 @@ The user wants one obvious place to add any supported kind of content without ch
 - Opening the draft in the other surface during staging or submission waits for that transient work
   and transfers editing ownership automatically when it finishes; the user does not need to summon
   the composer again, and a hidden destination does not take ownership later.
-- `Ctrl+N` opens or refocuses that card only while Kuskus is focused and does not override an open
-  item detail or dialog.
+- Add item opens or refocuses that card without changing the `Ctrl+N` note-authoring contract.
 - A successful save produces exactly one item per detected URL, image, note, or imported file.
 - Reopening quick capture immediately after Save presents a fresh editable session even while one
   or more accepted submissions are still being written.
@@ -358,19 +379,24 @@ The user returns to a project and wants to rediscover a saved reference.
 2. Kuskus displays mixed-format items together.
 3. The user browses in Masonry, Grid, or Focus view. Table remains unavailable while its product
    direction is reconsidered.
-4. The user optionally searches or filters the current context.
+4. The user optionally opens global search or filters the current context.
 5. The user opens, previews, or reveals the desired item.
 
 ### Acceptance criteria
 
-- The active destination remains visible as a persistent scope label inside Search, including when
-  the sidebar is hidden and while a query is entered.
-- Search covers at least title, note text, domain, and filename.
-- Search, item-type filters, and **Show referenced attachments** combine within the active context
-  and can be cleared without navigating away. Referenced files are hidden by default, the visibility
-  filter persists per device, and its active state contributes to the Filter badge.
-- `Ctrl+F` or `Ctrl+K` focuses the scoped search; `Escape` clears an active query before leaving search.
-- `Ctrl+A` selects every item matching the current destination, search, and item-type filters when
+- `Ctrl+K` opens library-wide search from Overview, Focus, and item details without changing the
+  workspace underneath it. `Ctrl+F` remains local find inside an open note.
+- Empty search shows up to eight recently opened items. Typed search covers at least title, complete
+  note text, domain/URL, and filename; all query terms must match, with title matches ranked first.
+- Search results identify their item type and real collection path. On wide layouts, search and
+  results remain in the left pane while the right pane displays the highlighted item's complete
+  read-only content directly rather than wrapping it in another card. Moving the highlight never
+  navigates. `Escape` restores the untouched workspace.
+- Opening a result navigates to its real destination, selects it, and opens its normal detail.
+- Item-type filters and **Show referenced attachments** remain scoped to the active context and do
+  not constrain global search. Referenced files are hidden from search and from ordinary views by
+  default; the visibility filter persists per device and contributes to the Filter badge.
+- `Ctrl+A` selects every item matching the current destination and item-type filters when
   focus is outside a text field or editor. All Items does not cross into Archive or Trash.
 - `F2` opens the existing rename dialog for the sole selected item, or the focused visible card or
   table row when nothing is selected. Multiple selections and Trash leave rename unchanged.
