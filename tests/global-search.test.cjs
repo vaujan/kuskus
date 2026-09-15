@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict')
-const { readFileSync } = require('node:fs')
+const { existsSync, readFileSync } = require('node:fs')
 const { mkdtemp, rm } = require('node:fs/promises')
 const { tmpdir } = require('node:os')
 const { join } = require('node:path')
@@ -9,6 +9,7 @@ require('./helpers/install-ts-require.cjs')()
 const { LibraryService } = require('../src/main/library/library-service.ts')
 const {
   addRecentSearchItem,
+  resolveQuickOpenItems,
   resolveRecentSearchItems
 } = require('../src/renderer/src/features/search/global-search-state.ts')
 
@@ -65,24 +66,99 @@ test('recent search items are unique, bounded, ordered, and omit internal attach
   )
 })
 
-test('global search uses a left-column input and a full content preview', () => {
-  const dialog = readFileSync(
-    require.resolve('../src/renderer/src/features/search/global-search-dialog.tsx'),
+test('quick open matches titles and filenames without searching note contents', () => {
+  const items = [
+    {
+      id: 'title',
+      type: 'note',
+      title: 'Pricing notes',
+      body: 'Unrelated',
+      relativePath: 'notes/Pricing notes.md',
+      referencedAttachment: false
+    },
+    {
+      id: 'filename',
+      type: 'file',
+      title: 'Proposal',
+      sourceFilename: 'pricing-roadmap.pdf',
+      contentFilename: 'file-1.pdf',
+      relativePath: 'files/file-1.pdf',
+      referencedAttachment: false
+    },
+    {
+      id: 'body',
+      type: 'note',
+      title: 'Meeting notes',
+      body: 'Pricing details',
+      relativePath: 'notes/Meeting notes.md',
+      referencedAttachment: false
+    }
+  ]
+
+  assert.deepEqual(
+    resolveQuickOpenItems(items, 'pricing').map((item) => item.id),
+    ['title', 'filename']
+  )
+})
+
+test('global search uses inline overview and rail inputs without a dialog', () => {
+  const toolbar = readFileSync(
+    require.resolve('../src/renderer/src/features/shell/app-toolbar.tsx'),
     'utf8'
   )
-  const preview = readFileSync(
-    require.resolve('../src/renderer/src/features/search/global-search-preview.tsx'),
+  const railHeader = readFileSync(
+    require.resolve('../src/renderer/src/features/items/focus-list-header.tsx'),
+    'utf8'
+  )
+  const search = readFileSync(
+    require.resolve('../src/renderer/src/features/search/use-library-search.ts'),
     'utf8'
   )
 
-  assert.match(dialog, /grid-rows-\[auto_minmax\(0,1fr\)\]/)
-  assert.match(dialog, /<GlobalSearchPreview/)
-  assert.match(dialog, /<ScrollArea/)
-  assert.doesNotMatch(dialog, /SavedItemCard/)
-  assert.match(preview, /getItemDetail\(item\.id\)/)
-  assert.match(preview, /presentation="detail"/)
-  assert.match(preview, /<ScrollArea/)
-  assert.match(preview, /className="flex h-11/)
+  assert.match(toolbar, /<LibrarySearchInput/)
+  assert.match(railHeader, /aria-controls="focus-library-search"/)
+  assert.match(railHeader, /searchOpen \? \(/)
+  assert.match(railHeader, /<LibrarySearchInput/)
+  assert.match(search, /window\.kuskus\.queryItems/)
+  assert.match(search, /currentRequest !== requestId\.current/)
+  assert.equal(
+    existsSync(join(__dirname, '../src/renderer/src/features/search/global-search-dialog.tsx')),
+    false
+  )
+})
+
+test('quick open creates notes while full-text search remains separate', () => {
+  const searchInput = readFileSync(
+    require.resolve('../src/renderer/src/features/search/library-search-input.tsx'),
+    'utf8'
+  )
+  const quickOpen = readFileSync(
+    require.resolve('../src/renderer/src/features/search/quick-open-dialog.tsx'),
+    'utf8'
+  )
+  const toolbar = readFileSync(
+    require.resolve('../src/renderer/src/features/shell/app-toolbar.tsx'),
+    'utf8'
+  )
+  const workspace = readFileSync(
+    require.resolve('../src/renderer/src/features/library/workspace.tsx'),
+    'utf8'
+  )
+
+  assert.match(searchInput, /aria-label="Search library"/)
+  assert.match(searchInput, /aria-keyshortcuts="Control\+Shift\+F Meta\+Shift\+F"/)
+  assert.doesNotMatch(searchInput, /onCreateNote|Create note/)
+  assert.match(quickOpen, /title="Quick Open"/)
+  assert.match(quickOpen, /event\.key\.toLocaleLowerCase\(\) !== 'o'/)
+  assert.match(quickOpen, /aria-keyshortcuts="Control\+O Meta\+O"/)
+  assert.match(quickOpen, /resolveQuickOpenItems/)
+  assert.doesNotMatch(quickOpen, /GlobalSearchPreview/)
+  assert.match(toolbar, /<LibrarySearchInput/)
+  assert.doesNotMatch(toolbar, /Find or create…/)
+  assert.match(quickOpen, /onCreateNote\(normalizedQuery\)/)
+  assert.match(quickOpen, /Create note “\{normalizedQuery\}”/)
+  assert.match(workspace, /createNote\(\{ markdown: `# \$\{title\}`, attachmentIds: \[\] \}\)/)
+  assert.match(workspace, /onCreateNote=\{createNoteFromSearch\}/)
 })
 
 test('dialog surfaces open without animation and dim without backdrop blur', () => {

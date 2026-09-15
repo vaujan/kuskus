@@ -1,11 +1,5 @@
 import { useEffect, useRef } from 'react'
-import {
-  IconAdjustmentsHorizontal,
-  IconNote,
-  IconPlus,
-  IconSearch,
-  IconTrash
-} from '@tabler/icons-react'
+import { IconAdjustmentsHorizontal, IconNote, IconPlus, IconTrash } from '@tabler/icons-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -20,6 +14,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ItemFilterMenuGroups, ItemSortMenuGroup } from '@/features/items/item-retrieval-menu'
 import { DEFAULT_ITEM_SORT, type ItemSort } from '@/features/items/item-sort'
 import type { ItemTypeFilter } from '@/features/items/item-view'
+import { LibrarySearchInput } from '@/features/search/library-search-input'
 import { ShellSidebarTrigger } from '@/features/shell/shell-sidebar-trigger'
 import { WindowControls } from '@/features/shell/window-controls'
 
@@ -31,7 +26,10 @@ export function AppToolbar({
   onNewItem,
   onDiscardDraft,
   destinationLabel,
-  onOpenSearch,
+  searchQuery,
+  searchPending,
+  searchFocusRequest,
+  onSearchQueryChange,
   typeFilters,
   onTypeFilterChange,
   showReferencedAttachments,
@@ -48,7 +46,10 @@ export function AppToolbar({
   onNewItem: () => void
   onDiscardDraft: () => void
   destinationLabel: string
-  onOpenSearch: () => void
+  searchQuery: string
+  searchPending: boolean
+  searchFocusRequest: number
+  onSearchQueryChange: (query: string) => void
   typeFilters: ItemTypeFilter[]
   onTypeFilterChange: (type: ItemTypeFilter, selected: boolean) => void
   showReferencedAttachments: boolean
@@ -59,6 +60,7 @@ export function AppToolbar({
   onWindowClose?: () => void
 }): React.JSX.Element {
   const newItemRef = useRef<HTMLButtonElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const filterCount = typeFilters.length + Number(showReferencedAttachments)
   const retrievalActive = filterCount > 0 || sort !== DEFAULT_ITEM_SORT
 
@@ -66,10 +68,14 @@ export function AppToolbar({
     if (newItemFocusRequest > 0) newItemRef.current?.focus()
   }, [newItemFocusRequest])
 
+  useEffect(() => {
+    if (searchFocusRequest > 0) searchInputRef.current?.focus()
+  }, [searchFocusRequest])
+
   return (
     <header className="window-toolbar flex h-12 shrink-0 select-none items-center [-webkit-app-region:drag] [&_[data-slot=sidebar-trigger]]:size-10">
       <div className="@container/toolbar min-w-0 flex-1">
-        <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 px-2 @min-[44rem]/toolbar:grid-cols-[minmax(12rem,1fr)_minmax(18rem,28rem)_minmax(12rem,1fr)] @min-[44rem]/toolbar:gap-3 @min-[44rem]/toolbar:px-5 @min-[64rem]/toolbar:px-7">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(10rem,28rem)_minmax(0,1fr)] items-center gap-3 px-2 @min-[44rem]/toolbar:px-5 @min-[64rem]/toolbar:px-7">
           <div className="flex min-w-0 items-center justify-start gap-1">
             <ShellSidebarTrigger />
             <span className="hidden min-w-0 truncate px-1 text-sm font-medium text-foreground/80 @min-[44rem]/toolbar:block">
@@ -78,18 +84,12 @@ export function AppToolbar({
           </div>
 
           <div className="min-w-0 [-webkit-app-region:no-drag]">
-            <Button
-              className="h-10 w-full min-w-0 justify-start"
-              size="sm"
-              variant="secondary"
-              aria-label="Search the entire library"
-              aria-keyshortcuts="Control+K Meta+K"
-              onClick={onOpenSearch}
-            >
-              <IconSearch data-icon="inline-start" aria-hidden="true" />
-              <span className="truncate">Search library…</span>
-              <Kbd className="ml-auto hidden @min-[64rem]/toolbar:inline-flex">Ctrl+K</Kbd>
-            </Button>
+            <LibrarySearchInput
+              inputRef={searchInputRef}
+              value={searchQuery}
+              onValueChange={onSearchQueryChange}
+              pending={searchPending}
+            />
           </div>
 
           <div className="flex min-w-0 items-center justify-end gap-1 [-webkit-app-region:no-drag]">

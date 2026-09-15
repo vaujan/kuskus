@@ -129,6 +129,10 @@ export function notifyActionError(error: string): void {
   })
 }
 
+export function notifyCopiedAsMarkdown(): void {
+  showVerbToast({ title: 'Copied as Markdown' })
+}
+
 export function notifyArchived(count: number, onUndo: () => void, description?: string): void {
   showUndoableToast({
     title: count === 1 ? 'Item archived' : `${count} items archived`,
@@ -172,12 +176,12 @@ export function notifyRenamed(): void {
 
 export function notifyExternalChangesMerged(overlappingChanges: boolean): void {
   showVerbToast({
-    title: 'External changes merged',
+    title: 'Concurrent edits merged',
     description: overlappingChanges
-      ? 'Your edits were kept where both versions changed.'
+      ? 'Review the note where two editors changed the same text.'
       : undefined,
     duration: 3000,
-    id: 'external-note-changes-merged'
+    id: 'concurrent-note-edits-merged'
   })
 }
 

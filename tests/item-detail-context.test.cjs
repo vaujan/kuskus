@@ -289,11 +289,11 @@ test('detail modes share the compact toolbar and inline document flow', () => {
     /localStorage\.setItem\(NOTE_INLINE_TITLE_STORAGE_KEY, String\(showInlineTitle\)\)/
   )
   assert.match(detailSource, /data-reading-width={readingWidth}/)
+  assert.match(detailSource, /const scrollTop = viewport\?\.scrollTop/)
+  assert.match(detailSource, /viewport\.scrollTop = scrollTop/)
   assert.equal((detailSource.match(/data-detail-pane/g) ?? []).length, 1)
-  assert.match(
-    detailSource,
-    /data-detail-pane[\s\S]{0,240}window-canvas[\s\S]{0,240}bg-background\/50/
-  )
+  assert.match(detailSource, /data-detail-pane[\s\S]{0,240}className="relative flex/)
+  assert.doesNotMatch(detailSource, /function DetailInspector[\s\S]{0,160}border-l/)
   assert.doesNotMatch(detailSource, /rounded-tl-2xl|border-t border-l border-border/)
   assert.match(detailSource, /function DetailInspector/)
   assert.match(detailSource, /function FileCanvas/)

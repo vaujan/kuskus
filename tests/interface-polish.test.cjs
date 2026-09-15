@@ -17,10 +17,13 @@ test('main workspace uses borderless navigation and quiet text-first empty state
   )
 
   assert.doesNotMatch(sidebar, /group-data-\[side=left\]:border-r/)
+  assert.match(sidebar, /peer-data-active\/menu-button:text-sidebar-selection-foreground/)
+  assert.match(sidebar, /data-active:hover:bg-sidebar-selection/)
+  assert.match(librarySidebar, /bg-sidebar-selection font-medium/)
   assert.doesNotMatch(sidebar, /sidebar-backdrop[\s\S]{0,180}backdrop-blur/)
   assert.doesNotMatch(sidebar, /0_0_0_1px_color-mix\(in_oklch,var\(--sidebar-border\)/)
   assert.match(sidebar, /sidebar-backdrop[\s\S]{0,180}bg-transparent/)
-  assert.match(librarySidebar, /isNarrow \|\| isOverlay \? 'floating' : 'sidebar'/)
+  assert.match(librarySidebar, /isFloating \? 'floating' : 'sidebar'/)
   assert.match(librarySidebar, /<AppSidebar variant={sidebarVariant}>/)
   assert.doesNotMatch(librarySidebar, /<AppSidebar variant="inset">/)
   assert.doesNotMatch(workspace, /<EmptyMedia/)
@@ -101,6 +104,16 @@ test('shared controls transition only the properties they change', () => {
   for (const control of controls) assert.doesNotMatch(control, /transition-all/)
 })
 
+test('editable note scrollers never expose app-level horizontal overflow', () => {
+  const editors = ['markdown-editor.tsx', 'live/live-markdown-editor.tsx'].map((file) =>
+    readFileSync(require.resolve(`../src/renderer/src/features/items/${file}`), 'utf8')
+  )
+
+  for (const editor of editors) {
+    assert.match(editor, /'\.cm-scroller': \{[\s\S]{0,120}overflowX: 'hidden'/)
+  }
+})
+
 test('sidebar visibility is animated without compromising resize or keyboard focus response', () => {
   const sidebar = readFileSync(
     require.resolve('../src/renderer/src/features/shell/app-sidebar.tsx'),
@@ -119,10 +132,16 @@ test('sidebar visibility is animated without compromising resize or keyboard foc
   assert.match(sidebar, /sidebar-motion-gap/)
   assert.match(sidebar, /sidebar-motion-container/)
   assert.match(sidebar, /data-hidden={hidden}/)
-  assert.match(sidebar, /data-overlay={isNarrow \|\| isOverlay}/)
+  assert.match(sidebar, /SIDEBAR_FLOATING_QUERY = SIDEBAR_NARROW_QUERY/)
+  assert.match(sidebar, /\(hidden \|\| isFloating\) && 'w-0'/)
+  assert.match(sidebar, /data-overlay={isFloating}/)
+  assert.match(sidebar, /group-data-\[variant=floating\]:shadow-/)
   assert.match(motion, /\.sidebar-motion-gap \{[\s\S]*?--motion-ease-drawer/)
-  assert.match(motion, /data-overlay='true'[\s\S]*?transition: opacity/)
-  assert.match(motion, /data-overlay='true'\]\[data-hidden='true'[\s\S]*?transform: none/)
+  assert.match(motion, /data-overlay='true'[\s\S]*?opacity[\s\S]*?transform/)
+  assert.match(
+    motion,
+    /data-overlay='true'\]\[data-hidden='true'\]\[data-side='left'\][\s\S]*?translateX\(-12px\)/
+  )
   assert.match(motion, /data-resizing='true'[\s\S]*?transition: none/)
   assert.match(sidebar, /scheduleWidth\(drag\.startWidth/)
   assert.doesNotMatch(focusList, /behavior: reduceMotion \? 'auto' : 'smooth'/)

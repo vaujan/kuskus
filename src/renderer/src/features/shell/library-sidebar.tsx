@@ -348,7 +348,7 @@ function FolderTreeItem({
               className={cn(
                 'group/folder-row relative flex h-(--control-height-md) w-full min-w-0 items-center overflow-hidden rounded-md text-sidebar-foreground ring-inset ring-sidebar-ring outline-hidden transition-[background-color,color,box-shadow,scale] [transition-duration:var(--motion-duration-tooltip)] [transition-timing-function:var(--motion-ease-out)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground has-[:focus-visible]:ring-3 motion-reduce:scale-100 motion-reduce:transition-none',
                 selectedId === folder.id &&
-                  'bg-sidebar-accent/70 font-medium text-sidebar-accent-foreground',
+                  'bg-sidebar-selection font-medium text-sidebar-selection-foreground hover:bg-sidebar-selection hover:text-sidebar-selection-foreground',
                 dropActive &&
                   'scale-[1.01] bg-sidebar-accent text-sidebar-accent-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--sidebar-ring)_45%,transparent),0_8px_18px_-14px_rgba(0,0,0,0.35)] ring-2 ring-sidebar-ring'
               )}
@@ -434,7 +434,7 @@ function FolderTreeItem({
           {hasChildren && showLabels ? (
             <button
               type="button"
-              className="absolute inset-y-0 z-10 flex w-5 shrink-0 items-center justify-center text-inherit outline-hidden hover:text-sidebar-accent-foreground [&_svg]:size-4"
+              className="absolute inset-y-0 z-10 flex w-5 shrink-0 items-center justify-center text-inherit outline-hidden hover:text-inherit [&_svg]:size-4"
               style={{ left: `${contentLeft}px` }}
               aria-controls={childListId}
               aria-expanded={expanded}
@@ -541,8 +541,8 @@ export function LibrarySidebar({
   librarySwitchBlocked: boolean
   onOpenSettings: () => void
 }): React.JSX.Element {
-  const { flyoutOpen, isNarrow, isOverlay, toggleSidebar } = useSidebar()
-  const sidebarVariant = isNarrow || isOverlay ? 'floating' : 'sidebar'
+  const { flyoutOpen, isFloating, toggleSidebar } = useSidebar()
+  const sidebarVariant = isFloating ? 'floating' : 'sidebar'
   const [folderDialog, setFolderDialog] = useState<FolderDialogState>(null)
   const [folderName, setFolderName] = useState('')
   const [folderOperationBusy, setFolderOperationBusy] = useState(false)

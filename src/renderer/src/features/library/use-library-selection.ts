@@ -36,6 +36,7 @@ export function useLibrarySelection(announceStatus: (message: string) => void): 
   anchorId: string | null
   clearSelection: () => void
   clearSelectionSilently: () => void
+  restoreSelection: (itemIds: readonly string[], anchorId: string | null) => void
   pruneSelection: (itemIds: ReadonlySet<string>) => void
   selectAll: (itemIds: readonly string[]) => void
   selectItem: (itemId: string, visibleIds: readonly string[], modifiers: SelectionModifiers) => void
@@ -54,6 +55,13 @@ export function useLibrarySelection(announceStatus: (message: string) => void): 
     clearSelectionSilently()
     announceStatus('Selection cleared')
   }, [announceStatus, clearSelectionSilently])
+
+  const restoreSelection = useCallback(
+    (itemIds: readonly string[], anchorId: string | null): void => {
+      setSelection({ selectedIds: new Set(itemIds), anchorId })
+    },
+    []
+  )
 
   const pruneSelection = useCallback((itemIds: ReadonlySet<string>): void => {
     setSelection((current) => {
@@ -95,6 +103,7 @@ export function useLibrarySelection(announceStatus: (message: string) => void): 
     anchorId: selection.anchorId,
     clearSelection,
     clearSelectionSilently,
+    restoreSelection,
     pruneSelection,
     selectAll,
     selectItem,

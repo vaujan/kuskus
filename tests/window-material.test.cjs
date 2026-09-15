@@ -15,7 +15,7 @@ const {
   resolveTranslucentBackgroundPreference
 } = require('../src/shared/window-contract.ts')
 
-test('derives Acrylic colors from active theme tokens', () => {
+test('derives Acrylic colors from active theme tokens with neutral sidebar interactions', () => {
   const css = readFileSync(
     require.resolve('../src/renderer/src/assets/window-material.css'),
     'utf8'
@@ -24,7 +24,23 @@ test('derives Acrylic colors from active theme tokens', () => {
   assert.doesNotMatch(css, /oklch\(/)
   assert.match(css, /var\(--background\)/)
   assert.match(css, /var\(--popover\)/)
-  assert.match(css, /var\(--sidebar-primary\)/)
+  assert.match(
+    css,
+    /--sidebar-selection: color-mix\(in oklch, var\(--sidebar-foreground\) 14%, transparent\)/
+  )
+  assert.match(
+    css,
+    /--sidebar-accent: color-mix\(in oklch, var\(--sidebar-foreground\) 8%, transparent\)/
+  )
+  assert.match(css, /--sidebar-selection-foreground: var\(--sidebar-foreground\)/)
+  assert.match(css, /--sidebar-accent-foreground: var\(--sidebar-foreground\)/)
+  assert.doesNotMatch(css, /--sidebar-selection: var\(--sidebar-primary\)/)
+  assert.doesNotMatch(css, /material-sidebar-(?:accent|selection)/)
+  assert.match(
+    css,
+    /\[data-slot='sidebar'\]\[data-variant='floating'\][\s\S]*?background-color: color-mix\(in oklch, var\(--sidebar\) 72%, transparent\)[\s\S]*?backdrop-filter: blur\(32px\) saturate\(1\.25\)/
+  )
+  assert.match(css, /prefers-reduced-transparency[\s\S]*?backdrop-filter: none/)
   assert.match(css, /:root\.dark\[data-window-material='acrylic'\]/)
   assert.match(css, /html\[data-window-material='acrylic'\] body/)
   assert.match(css, /html\[data-window-material='acrylic'\] #root/)

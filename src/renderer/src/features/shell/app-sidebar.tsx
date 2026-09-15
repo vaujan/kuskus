@@ -16,7 +16,7 @@ const SIDEBAR_MIN_WIDTH = 208
 const SIDEBAR_MAX_WIDTH = 384
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b'
 const SIDEBAR_NARROW_QUERY = '(max-width: 767px)'
-const SIDEBAR_OVERLAY_QUERY = '(min-width: 768px) and (max-width: 1023px)'
+const SIDEBAR_FLOATING_QUERY = SIDEBAR_NARROW_QUERY
 
 type SidebarState = 'expanded' | 'collapsed' | 'narrow'
 
@@ -25,7 +25,7 @@ type SidebarContextProps = {
   open: boolean
   setOpen: (open: boolean) => void
   isNarrow: boolean
-  isOverlay: boolean
+  isFloating: boolean
   flyoutOpen: boolean
   toggleSidebar: () => void
   width: number
@@ -73,7 +73,7 @@ function SidebarProvider({
   maxWidth?: number
 }) {
   const [isNarrow, setIsNarrow] = React.useState(false)
-  const [isOverlay, setIsOverlay] = React.useState(false)
+  const [isFloating, setIsFloating] = React.useState(false)
   const [flyoutOpen, setFlyoutOpen] = React.useState(false)
   const [_width, _setWidth] = React.useState(defaultWidth)
   const [isResizing, setIsResizing] = React.useState(false)
@@ -105,35 +105,34 @@ function SidebarProvider({
     [setOpenProp, open]
   )
 
-  // Narrow windows get a persistent icon rail and medium windows a hover
-  // overlay; both reveal the full sidebar without shifting the layout.
+  // Compact windows reveal the full sidebar above the workspace without
+  // changing the workspace width.
   React.useEffect(() => {
     const narrowQuery = window.matchMedia(SIDEBAR_NARROW_QUERY)
-    const overlayQuery = window.matchMedia(SIDEBAR_OVERLAY_QUERY)
+    const floatingQuery = window.matchMedia(SIDEBAR_FLOATING_QUERY)
     const update = (): void => {
       setIsNarrow(narrowQuery.matches)
-      setIsOverlay(overlayQuery.matches)
+      setIsFloating(floatingQuery.matches)
       setFlyoutOpen(false)
     }
     update()
     narrowQuery.addEventListener('change', update)
-    overlayQuery.addEventListener('change', update)
+    floatingQuery.addEventListener('change', update)
     return () => {
       narrowQuery.removeEventListener('change', update)
-      overlayQuery.removeEventListener('change', update)
+      floatingQuery.removeEventListener('change', update)
     }
   }, [])
 
-  // Helper to toggle the sidebar. Narrow and overlay modes are click-driven
-  // flyouts; wide windows toggle the in-flow sidebar.
+  // Floating mode is click-driven; wide windows toggle the in-flow sidebar.
   const toggleSidebar = React.useCallback(() => {
-    if (isNarrow || isOverlay) {
+    if (isFloating) {
       setFlyoutOpen((value) => !value)
       return
     }
     setFlyoutOpen(false)
     setOpen(!open)
-  }, [isNarrow, isOverlay, setOpen, open])
+  }, [isFloating, setOpen, open])
 
   // Adds a keyboard shortcut to toggle the sidebar.
   React.useEffect(() => {
@@ -181,7 +180,7 @@ function SidebarProvider({
       open,
       setOpen,
       isNarrow,
-      isOverlay,
+      isFloating,
       flyoutOpen,
       toggleSidebar,
       width,
@@ -196,7 +195,7 @@ function SidebarProvider({
       open,
       setOpen,
       isNarrow,
-      isOverlay,
+      isFloating,
       flyoutOpen,
       toggleSidebar,
       width,
@@ -240,12 +239,10 @@ function Sidebar({
   side?: 'left' | 'right'
   variant?: 'sidebar' | 'floating' | 'inset'
 }) {
-  const { state, isNarrow, isOverlay, flyoutOpen, toggleSidebar } = useSidebar()
+  const { state, isFloating, flyoutOpen, toggleSidebar } = useSidebar()
 
-  // The sidebar floats over the content as a flyout in narrow and overlay
-  // modes, or when a collapsed wide-window sidebar is click-revealed.
-  const flyout = flyoutOpen && (state !== 'expanded' || isNarrow || isOverlay)
-  const hidden = (state === 'collapsed' && !flyout) || ((isNarrow || isOverlay) && !flyout)
+  const flyout = isFloating && flyoutOpen
+  const hidden = isFloating ? !flyout : state === 'collapsed'
 
   return (
     <div
@@ -255,16 +252,14 @@ function Sidebar({
       data-side={side}
       data-slot="sidebar"
     >
-      {/* Gap that reserves space beside the sidebar. It collapses to zero when
-          the sidebar is hidden (collapsed or flyout-only narrow/overlay modes)
-          so the sidebar never shifts the layout as an icon rail. */}
+      {/* Floating sidebars never participate in layout, including while open. */}
       <div
         data-slot="sidebar-gap"
         className={cn(
           'sidebar-motion-gap relative bg-transparent',
           variant === 'floating' ? 'w-[calc(var(--sidebar-width)+1rem)]' : 'w-(--sidebar-width)',
           'group-data-[side=right]:rotate-180',
-          hidden && 'w-0'
+          (hidden || isFloating) && 'w-0'
         )}
       />
       {flyout ? (
@@ -280,7 +275,7 @@ function Sidebar({
         data-slot="sidebar-container"
         data-side={side}
         data-hidden={hidden}
-        data-overlay={isNarrow || isOverlay}
+        data-overlay={isFloating}
         className={cn(
           'sidebar-motion-container fixed inset-y-0 z-10 flex h-svh data-[side=left]:left-0 data-[side=right]:right-0',
           variant === 'floating'
@@ -294,7 +289,7 @@ function Sidebar({
         <div
           data-sidebar="sidebar"
           data-slot="sidebar-inner"
-          className="flex size-full flex-col overflow-hidden bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:shadow-[0_1px_2px_rgb(0_0_0/0.08),0_12px_32px_-16px_rgb(0_0_0/0.5)]"
+          className="flex size-full flex-col overflow-hidden bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:shadow-[0_1px_3px_rgb(0_0_0/0.18),0_20px_56px_-12px_rgb(0_0_0/0.55)]"
         >
           {children}
         </div>
@@ -593,7 +588,7 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<'li'>) {
 }
 
 const sidebarMenuButtonVariants = cva(
-  'peer/menu-button group/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm ring-sidebar-ring outline-hidden transition-[width,height,padding,background-color,color,box-shadow] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[state=narrow]:size-10! group-data-[state=narrow]:p-3! hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-open:hover:text-sidebar-accent-foreground data-active:bg-sidebar-accent/70 data-active:font-medium data-active:text-sidebar-accent-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate',
+  'peer/menu-button group/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm ring-sidebar-ring outline-hidden transition-[width,height,padding,background-color,color,box-shadow] group-has-data-[sidebar=menu-action]/menu-item:pr-8 group-data-[state=narrow]:size-10! group-data-[state=narrow]:p-3! hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-open:hover:bg-sidebar-accent data-open:hover:text-sidebar-accent-foreground data-active:bg-sidebar-selection data-active:font-medium data-active:text-sidebar-selection-foreground data-active:hover:bg-sidebar-selection data-active:hover:text-sidebar-selection-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&>span:last-child]:truncate',
   {
     variants: {
       variant: {
@@ -679,7 +674,7 @@ function SidebarMenuAction({
         className: cn(
           'absolute top-1.5 right-1 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground ring-sidebar-ring outline-hidden transition-transform group-data-[state=narrow]:hidden peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 peer-data-[size=sm]/menu-button:top-1 after:absolute after:-inset-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 md:after:hidden [&>svg]:size-4 [&>svg]:shrink-0',
           showOnHover &&
-            'group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 peer-data-active/menu-button:text-sidebar-accent-foreground aria-expanded:opacity-100 md:opacity-0',
+            'group-focus-within/menu-item:opacity-100 group-hover/menu-item:opacity-100 peer-data-active/menu-button:text-sidebar-selection-foreground aria-expanded:opacity-100 md:opacity-0',
           className
         )
       },
@@ -699,7 +694,7 @@ function SidebarMenuBadge({ className, ...props }: React.ComponentProps<'div'>) 
       data-slot="sidebar-menu-badge"
       data-sidebar="menu-badge"
       className={cn(
-        'pointer-events-none absolute right-1 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs font-medium text-sidebar-foreground tabular-nums select-none group-data-[state=narrow]:hidden peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 peer-data-[size=sm]/menu-button:top-1 peer-data-active/menu-button:text-sidebar-accent-foreground',
+        'pointer-events-none absolute right-1 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs font-medium text-sidebar-foreground tabular-nums select-none group-data-[state=narrow]:hidden peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[size=default]/menu-button:top-1.5 peer-data-[size=lg]/menu-button:top-2.5 peer-data-[size=sm]/menu-button:top-1 peer-data-active/menu-button:text-sidebar-selection-foreground',
         className
       )}
       {...props}
@@ -781,7 +776,7 @@ function SidebarMenuSubButton({
     props: mergeProps<'a'>(
       {
         className: cn(
-          'flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground ring-sidebar-ring outline-hidden group-data-[state=narrow]:hidden hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[size=md]:text-sm data-[size=sm]:text-xs data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-sidebar-accent-foreground',
+          'flex h-7 min-w-0 -translate-x-px items-center gap-2 overflow-hidden rounded-md px-2 text-sidebar-foreground ring-sidebar-ring outline-hidden group-data-[state=narrow]:hidden hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[size=md]:text-sm data-[size=sm]:text-xs data-active:bg-sidebar-selection data-active:text-sidebar-selection-foreground data-active:hover:bg-sidebar-selection data-active:hover:text-sidebar-selection-foreground [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 [&>svg]:text-sidebar-accent-foreground',
           className
         )
       },

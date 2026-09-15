@@ -1,4 +1,5 @@
-import { startTransition, useEffect, useRef, useState } from 'react'
+import { startTransition, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Empty, EmptyTitle } from '@/components/ui/empty'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { FocusIndexRow } from '@/features/items/focus-index-row'
 import {
@@ -21,6 +22,8 @@ export function FocusItemList({
   draggedIds,
   composer,
   pageKey,
+  searchActive,
+  emptyMessage,
   onActivate,
   onDragStart,
   onDragEnd,
@@ -34,6 +37,8 @@ export function FocusItemList({
   draggedIds: ReadonlySet<string>
   composer: React.ReactNode
   pageKey: string
+  searchActive: boolean
+  emptyMessage: string | null
   onActivate: (
     itemId: string,
     event: Pick<React.MouseEvent, 'shiftKey' | 'ctrlKey' | 'metaKey'>
@@ -45,6 +50,8 @@ export function FocusItemList({
 }): React.JSX.Element {
   const itemIds = items.map((item) => item.id)
   const viewportRef = useRef<HTMLElement | null>(null)
+  const returnScrollTopRef = useRef(0)
+  const previousSearchActiveRef = useRef(searchActive)
   const sentinelRef = useRef<HTMLDivElement | null>(null)
   const [page, setPage] = useState({ key: pageKey, limit: FOCUS_PAGE_SIZE })
   const pageLimit = page.key === pageKey ? page.limit : FOCUS_PAGE_SIZE
@@ -80,15 +87,31 @@ export function FocusItemList({
     row.scrollIntoView({ behavior: 'auto', block: 'nearest' })
   }, [activeItemId, renderLimit])
 
+  useLayoutEffect(() => {
+    if (!searchActive && previousSearchActiveRef.current && viewportRef.current) {
+      viewportRef.current.scrollTop = returnScrollTopRef.current
+    }
+    previousSearchActiveRef.current = searchActive
+  }, [searchActive])
+
   return (
     <ScrollArea
       ref={(root) => {
         viewportRef.current =
           root?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]') ?? null
       }}
+      onScrollCapture={(event) => {
+        if (!previousSearchActiveRef.current && event.target instanceof HTMLElement) {
+          returnScrollTopRef.current = event.target.scrollTop
+        }
+      }}
       className="library-scroll-container min-h-0 min-w-0 flex-1 [&_[data-slot=scroll-area-viewport]]:focus-visible:ring-0 [&_[data-slot=scroll-area-viewport]]:focus-visible:outline-none"
     >
-      {density === 'index' ? (
+      {emptyMessage ? (
+        <Empty className="mt-8 gap-1" aria-live="polite">
+          <EmptyTitle className="text-sm text-muted-foreground">{emptyMessage}</EmptyTitle>
+        </Empty>
+      ) : density === 'index' ? (
         <div className="min-h-full pt-2" role="group" aria-label="Items">
           {composer}
 

@@ -35,8 +35,8 @@ The shell supports two explicit states.
 - Inbox, All Items, nested folders, Archive, and Trash are displayed in the sidebar.
 - The toolbar and content occupy the remaining width as one edge-to-edge surface. No hard border
   separates that surface from the sidebar.
-- Narrow and medium sidebar flyouts use the floating sidebar surface and a short opacity transition.
-  They do not shift, dim, or blur the canvas.
+- Narrow sidebar flyouts use the floating sidebar surface and a short opacity transition. Medium and
+  wide layouts keep the sidebar docked. Opening the narrow flyout does not shift, dim, or blur the canvas.
 
 ### Hidden sidebar
 
@@ -62,10 +62,13 @@ Sidebar visibility and the most recently selected width should persist between l
   and Capture groups in one scrollable column, remains open during workspace interaction, and
   closes from its close action or `Escape`.
 - Appearance separates a curated color theme (**Kuskus**, **Graphite**, **Moss**, **Clay**,
-  **Solarized**, **Catppuccin**, or **One Dark**) from color mode (**Light**, **Dark**, or
-  **System**). Solarized uses its canonical paired schemes, Catppuccin pairs Latte with Mocha, and
-  One Dark pairs with Atom's One Light colors. Every theme supplies both light and dark semantic
-  tokens. A compact **Typography** matrix exposes primary and fallback choices for both **UI font**
+  **Solarized**, **Catppuccin**, **Tokyo Storm**, **Monokai**, **One Dark**, **One Dark Pro Flat**,
+  **One Dark Pro Darker**, **Dracula**, **Gruvbox**, or **Nord**) from color mode (**Light**,
+  **Dark**, or **System**). The themes appear in a compact dropdown. Solarized and Gruvbox use
+  their canonical paired schemes, Catppuccin pairs Latte with Mocha, Tokyo Storm pairs with Tokyo
+  Night Light, Dracula pairs with Alucard, and the One Dark variants pair with Atom's One Light
+  colors. Every theme supplies both light and dark semantic tokens. A compact
+  **Typography** matrix exposes primary and fallback choices for both **UI font**
   and **Code font**. Font pickers are searchable and preview every option in its own typeface.
   Bundled and generic choices are available immediately; **Use fonts from this computer…** requests
   local-font access only after explicit interaction, then adds installed font families to every
@@ -165,15 +168,15 @@ without exposing arbitrary native paths to renderer operations.
 Masonry and Grid use the complete retrieval toolbar. It contains, in responsive order:
 
 - A left zone containing only Show or Hide Sidebar.
-- A centered retrieval zone containing the global Search trigger and the combined Sort and Filter
-  menu.
-- A right action zone containing primary New note, secondary Add item, and the retained-capture
-  discard action when applicable. `Ctrl+N` belongs to New note.
+- A quiet centered Search input between the active destination and right-side actions.
+- A right action zone containing the combined Sort and Filter menu, primary New note, secondary Add
+  item, and the retained-capture discard action when applicable. `Ctrl+N` belongs to New note.
 - Windows minimize, maximize/restore, and close controls.
 
 Focus removes the global toolbar and starts both panes at the top of the window. One integrated rail
 row contains Show or Hide Sidebar, a compact global Search trigger, the active destination label, a
-combined Sort and Filter menu, New note, and Add item.
+combined Sort and Filter menu, New note, and Add item. Activating Search reveals its input in a row
+immediately below this header.
 Windows controls occupy the detail pane's upper-right corner, or the full-width rail row during
 narrow list-first navigation. Unoccupied pane chrome remains draggable.
 
@@ -184,15 +187,13 @@ Rules:
 - On Windows, renderer-owned caption controls use the documented Segoe Fluent `ChromeMinimize`,
   `ChromeMaximize`, `ChromeRestore`, and `ChromeClose` glyphs. Their neutral hover and pressed fills
   follow the active light or dark appearance, and Close uses the standard Windows red states.
-- The overview Search trigger grows within the centered retrieval zone, names its library-wide
-  behavior, and shows `Ctrl+K` when space permits. The Focus rail uses an icon button so search does
-  not compete with the item detail.
+- Overview uses a restrained VS Code-style Search input. Focus uses a compact icon that toggles the
+  same input immediately below its rail header. `Ctrl+Shift+F` focuses or reveals the applicable
+  input.
 - Interactive controls must be excluded from the draggable title-bar region.
 - The active context remains visible beside the compact Search trigger in Focus when the sidebar is
   hidden.
-- Narrow layouts collapse the Filter label and Search shortcut hint before reducing the usable
-  Search trigger width. New item may collapse to its accessible icon only after those secondary
-  labels.
+- Narrow layouts collapse the Filter label before New item collapses to its accessible icon.
 - Toolbar controls match the compact sidebar menu-row height and use the same theme radius token.
 - Toolbar horizontal gutters match the saved-content workspace gutters at ordinary and large
   desktop widths.
@@ -253,8 +254,9 @@ Rules:
   check icon, while `aria-current` and `aria-pressed` remain distinct. Masonry and Grid retain their
   existing selection treatment. Up, Down, Home, and End follow the shared logical item order in both
   Focus densities.
-- One rail row contains the sidebar trigger, destination-scoped Search, the combined Sort and Filter
-  menu, New note, and Add item. `Ctrl+K` and `Ctrl+F` focus Search; `Ctrl+N` opens the full note editor.
+- One rail row contains the sidebar trigger, library-wide Search, the combined Sort and Filter menu,
+  New note, and Add item. `Ctrl+O` opens Quick Open, `Ctrl+Shift+F` opens Search, and `Ctrl+N` opens
+  the full note editor.
 - Search, filters, and sorting do not forcibly close an active detail. Destination, view, library,
   item, and window-close transitions flush guarded note work before leaving.
 - At content widths below 760 pixels, Focus becomes list-first drill-in navigation. Activating an
@@ -597,7 +599,7 @@ The detail dialog exposes:
 - `Ctrl+E` toggles Read and Live and returns Markdown or Split to Live. `Ctrl+Alt+E` toggles Markdown
   source and Live. `Ctrl+Shift+E` toggles Split and returns to the previous single-pane mode.
 - Live edits the authoritative source in one Obsidian-style CodeMirror canvas. Heading, emphasis,
-  strikethrough, code, link, list, task, quote, fenced-code, rule, local-image, math, and wikilink
+  strikethrough, code, link, list, task, quote, fenced-code, rule, local and remote image, Mermaid, math, and wikilink
   decorations render in place. Markdown markers reappear on every line touched by the selection;
   decorations never modify, normalize, or independently persist document text. Its body and semantic
   decorations derive from the same 16-pixel typesetting preset as Read, so revealing markers does not
@@ -625,8 +627,9 @@ The detail dialog exposes:
   source selection and pane positions. The source selection highlight uses the shared neutral
   selection color only while the editor is focused; the logical selection remains after focus moves.
   Extending a selection beyond the viewport edge may still scroll intentionally.
-- Typing `/` inserts an ordinary slash; the editor has no slash menu, block handles, drag controls,
-  floating formatting toolbar, or fixed formatting toolbar.
+- Typing `/` at an eligible line opens the slash command menu. Choosing a command inserts its Markdown
+  syntax through the normal editor transaction; block handles, drag controls, and floating or fixed
+  formatting toolbars remain absent.
 - `Ctrl+Enter` flushes autosave immediately from Live, Markdown, or Split without adding routine save chrome. The header does not
   show Saved, Saving, or pending-save states; write failures and conflicts remain persistently visible
   and exposed to assistive technology. Empty content is a quiet temporary editing state and is not
@@ -662,25 +665,23 @@ The detail interface must not become a general-purpose knowledge-management prop
 
 ## Search and filtering
 
-- `Ctrl+K` or either toolbar trigger opens one modal search surface from Overview, Focus rail, or an
-  open item detail. Search is library-wide and independent of the active destination and filters.
+- `Ctrl+O` opens a compact, single-pane **Quick Open** surface from Overview, Focus rail, or an open
+  item detail. It matches item titles and filenames, shows recent items for an empty query, and offers
+  to create a note from any non-empty query. It has no content preview.
+- Masonry and Grid keep a quiet **Search library** input in the title bar. Focus toggles the same
+  input below its rail header. `Ctrl+Shift+F` focuses or reveals the applicable input. Search covers
+  the complete library and is independent of the active destination and filters.
 - Opening search with an empty query shows up to eight recently opened items in recency order.
 - Search covers title, note text, domain/URL, and filename.
 - Every query term must match somewhere in the item. Exact, prefix, and partial title matches rank
   ahead of matches found only in supporting content.
 - Full-note matching uses the main-process library index; card payloads need only bounded Markdown
   previews. Out-of-order search responses never replace results for newer input.
-- Results use a compact text-first list with type and collection context. On wide layouts, the
-  search field and result list occupy the left pane while the right pane presents the highlighted
-  item's complete read-only content directly, without nesting another card surface. Truncated note
-  summaries resolve to the complete note for this preview. Both panes use the shared ScrollArea
-  treatment, and the preview identifies the item in one compact header row. Referenced note
-  attachments remain hidden.
-- Highlighting or moving through results never changes the workspace beneath the modal. `Escape`
-  closes search with destination, selection, detail, and scroll context untouched.
-- Opening a result closes search, selects the item's real Inbox, collection, Archive, or Trash
-  destination, and opens its normal detail surface. Active type filters clear so the chosen item is
-  present in its destination.
+- Results replace the Masonry, Grid, or Focus rail collection without replacing the surrounding
+  workspace. Focus keeps its active detail open until the user chooses another result. Referenced
+  note attachments remain hidden.
+- Clearing Search restores the previous destination, filters, selection, active Focus item, and
+  scroll position. In Focus, `Escape` first clears a query and then collapses an empty search row.
 - Filter supports item type and a Visibility group for referenced attachments. Non-default type or
   visibility values activate the Filter badge and **Clear filters** resets both.
 - Sorting offers newest first, oldest first, title A–Z, title Z–A, and grouping by item type within

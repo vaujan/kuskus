@@ -101,6 +101,23 @@ test('continues Quick Capture notes in the main editor', () => {
   assert.match(contractSource, /openMainItem: \(itemId: string\) => void/)
 })
 
+test('applies the saved window material preference to Quick Capture', () => {
+  const source = readFileSync(require.resolve('../src/renderer/src/main.tsx'), 'utf8')
+  assert.match(source, /resolveTranslucentBackgroundPreference/)
+  assert.match(source, /setTranslucentBackground\(requested\)/)
+  assert.match(source, /event\.key === TRANSLUCENT_BACKGROUND_STORAGE_KEY/)
+})
+
+test('loads Markdown files into a note draft instead of staging a generic file', () => {
+  const source = readFileSync(
+    require.resolve('../src/renderer/src/features/capture/add-item-composer.tsx'),
+    'utf8'
+  )
+  assert.match(source, /file\.name\.toLocaleLowerCase\(\)\.endsWith\('\.md'\)/)
+  assert.match(source, /const markdown = await file\.text\(\)/)
+  assert.match(source, /setDraft\(markdown\)/)
+})
+
 test('keeps pasted images inline once the composer is a note', () => {
   const source = readFileSync(
     require.resolve('../src/renderer/src/features/capture/add-item-composer.tsx'),

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  IconCopy,
   IconDots,
   IconFolderOpen,
   IconInfoCircle,
@@ -74,6 +75,10 @@ function NoteWindowActions({
           </DropdownMenuCheckboxItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={options.onCopyAsMarkdown}>
+          <IconCopy aria-hidden="true" />
+          Copy as Markdown
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={options.onShowDetails}>
           <IconInfoCircle aria-hidden="true" />
           Note details

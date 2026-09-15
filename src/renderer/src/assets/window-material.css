@@ -1,28 +1,42 @@
 @theme inline {
   --color-sidebar-selection: var(--sidebar-selection);
+  --color-sidebar-selection-foreground: var(--sidebar-selection-foreground);
 }
 
 :root {
-  --sidebar-selection: var(--sidebar-primary);
+  --sidebar-selection: color-mix(in oklch, var(--sidebar-foreground) 14%, transparent);
+  --sidebar-selection-foreground: var(--sidebar-foreground);
   --backdrop: color-mix(in oklch, var(--foreground) 30%, transparent);
   --backdrop-strong: color-mix(in oklch, var(--foreground) 55%, transparent);
   --editor-control-ring: var(--primary);
   --window-canvas: var(--background);
+  --window-detail: color-mix(in srgb, var(--window-canvas) 92%, white);
   --window-sidebar: var(--sidebar);
   --window-toolbar: var(--background);
+}
+
+[data-slot='sidebar-inner'] {
+  --sidebar-accent: color-mix(in oklch, var(--sidebar-foreground) 8%, transparent);
+  --sidebar-accent-foreground: var(--sidebar-foreground);
+  --sidebar-ring: color-mix(in oklch, var(--sidebar-foreground) 45%, transparent);
+}
+
+[data-slot='sidebar'][data-variant='floating'] [data-slot='sidebar-inner'] {
+  background-color: color-mix(in oklch, var(--sidebar) 72%, transparent);
+  -webkit-backdrop-filter: blur(32px) saturate(1.25);
+  backdrop-filter: blur(32px) saturate(1.25);
 }
 
 :root.dark {
   --backdrop: color-mix(in oklch, var(--background) 62%, transparent);
   --backdrop-strong: color-mix(in oklch, var(--background) 68%, transparent);
   --editor-control-ring: var(--sidebar-primary);
+  --window-detail: color-mix(in srgb, var(--window-canvas) 92%, black);
 }
 
 :root[data-window-material='acrylic'] {
   --material-card: color-mix(in oklch, var(--popover) 66%, transparent);
   --material-border: color-mix(in oklch, var(--input) 72%, transparent);
-  --material-sidebar-accent: color-mix(in oklch, var(--accent) 34%, transparent);
-  --material-sidebar-selection: color-mix(in oklch, var(--sidebar-primary) 92%, transparent);
   --window-canvas: color-mix(in oklch, var(--background) 62%, transparent);
   --window-sidebar: color-mix(in oklch, var(--sidebar) 50%, transparent);
   --window-toolbar: var(--window-canvas);
@@ -31,12 +45,6 @@
 :root.dark[data-window-material='acrylic'] {
   --material-card: color-mix(in oklch, var(--popover) 62%, transparent);
   --material-border: color-mix(in oklch, var(--input) 87%, transparent);
-  --material-sidebar-accent: color-mix(in oklch, var(--accent) 89%, transparent);
-  --material-sidebar-selection: color-mix(
-    in oklch,
-    var(--sidebar-primary) 72%,
-    var(--sidebar-foreground)
-  );
   --window-canvas: color-mix(in oklch, var(--background) 56%, transparent);
   --window-sidebar: color-mix(in oklch, var(--sidebar) 46%, transparent);
 }
@@ -44,11 +52,6 @@
 :root[data-window-material='acrylic'] .window-root {
   --card: var(--material-card);
   --border: var(--material-border);
-}
-
-:root[data-window-material='acrylic'] [data-slot='sidebar-inner'] {
-  --sidebar-accent: var(--material-sidebar-accent);
-  --sidebar-selection: var(--material-sidebar-selection);
 }
 
 :root[data-window-material='acrylic'] [data-slot='sidebar-container'] {
@@ -77,9 +80,18 @@
   background-color: var(--window-canvas);
 }
 
+[data-slot='sidebar-inner'],
+.focus-rail-surface {
+  box-shadow: inset -1px 0 color-mix(in oklch, var(--foreground) 7%, transparent);
+}
+
 .focus-rail-surface {
   background-color: color-mix(in oklch, var(--window-canvas) 97%, var(--foreground));
-  box-shadow: inset -1px 0 color-mix(in oklch, var(--foreground) 7%, transparent);
+}
+
+.focus-detail-surface,
+[data-detail-content-stack] {
+  background-color: var(--window-detail);
 }
 
 .focus-detail-surface[data-focus-expanded='true'] {
@@ -123,6 +135,12 @@ html[data-window-material='acrylic'] [data-slot='sidebar-inset'] {
 }
 
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  [data-slot='sidebar'][data-variant='floating'] [data-slot='sidebar-inner'] {
+    background-color: var(--sidebar);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
   :root[data-window-material='acrylic'] {
     --window-canvas: var(--background);
     --window-sidebar: var(--sidebar);
@@ -133,14 +151,15 @@ html[data-window-material='acrylic'] [data-slot='sidebar-inset'] {
     --card: var(--popover);
     --border: var(--input);
   }
-
-  :root[data-window-material='acrylic'] [data-slot='sidebar-inner'] {
-    --sidebar-accent: var(--accent);
-    --sidebar-selection: var(--sidebar-primary);
-  }
 }
 
 @media (forced-colors: active) {
+  [data-slot='sidebar'][data-variant='floating'] [data-slot='sidebar-inner'] {
+    background-color: Canvas;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
   :root[data-window-material='acrylic'] {
     --window-canvas: Canvas;
     --window-sidebar: Canvas;
@@ -156,5 +175,6 @@ html[data-window-material='acrylic'] [data-slot='sidebar-inset'] {
     --sidebar-accent: Highlight;
     --sidebar-accent-foreground: HighlightText;
     --sidebar-selection: Highlight;
+    --sidebar-selection-foreground: HighlightText;
   }
 }

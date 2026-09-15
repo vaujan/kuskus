@@ -12,6 +12,20 @@ const menuSource = readFileSync(
   'utf8'
 )
 const entrySource = readFileSync(require.resolve('../src/renderer/src/main.tsx'), 'utf8')
+const mainWindowSource = readFileSync(
+  require.resolve('../src/main/window/create-main-window.ts'),
+  'utf8'
+)
+const windowControlsSource = readFileSync(
+  require.resolve('../src/renderer/src/features/shell/window-controls.tsx'),
+  'utf8'
+)
+
+test('uses native window-manager controls on Linux', () => {
+  assert.match(mainWindowSource, /frame: !isWindows/)
+  assert.match(controllerSource, /frame: !isWindows/)
+  assert.match(windowControlsSource, /if \(!isWindows\) return null/)
+})
 
 test('deduplicates note windows and rejects non-note items', () => {
   assert.match(controllerSource, /private readonly windows = new Map<string, BrowserWindow>\(\)/)
@@ -38,4 +52,16 @@ test('routes note windows to the focused note surface and exposes a note-only ac
   assert.match(rendererSource, /expandable=\{false\}/)
   assert.match(menuSource, /!bulk && item\.type === 'note'/)
   assert.match(menuSource, /Open in new window/)
+})
+
+test('copies the current note draft as Markdown from note action menus', () => {
+  assert.match(menuSource, /onClick=\{props\.detailOptions\.onCopyAsMarkdown\}/)
+  assert.match(rendererSource, /onClick=\{options\.onCopyAsMarkdown\}/)
+
+  const detailSource = readFileSync(
+    require.resolve('../src/renderer/src/features/items/item-detail-dialog.tsx'),
+    'utf8'
+  )
+  assert.match(detailSource, /copyTextToClipboard\(snapshot\.draft\)/)
+  assert.match(detailSource, /if \(copied\) notifyCopiedAsMarkdown\(\)/)
 })

@@ -379,19 +379,20 @@ The user returns to a project and wants to rediscover a saved reference.
 2. Kuskus displays mixed-format items together.
 3. The user browses in Masonry, Grid, or Focus view. Table remains unavailable while its product
    direction is reconsidered.
-4. The user optionally opens global search or filters the current context.
+4. The user optionally types in the inline library search or filters the current context.
 5. The user opens, previews, or reveals the desired item.
 
 ### Acceptance criteria
 
-- `Ctrl+K` opens library-wide search from Overview, Focus, and item details without changing the
-  workspace underneath it. `Ctrl+F` remains local find inside an open note.
+- `Ctrl+O` opens compact Quick Open for titles and filenames from Overview, Focus, and item details;
+  any non-empty query can create a note. `Ctrl+Shift+F` focuses the inline library-wide full-text
+  search, revealing it below the Focus rail header when necessary. `Ctrl+F` remains local find inside
+  an open note.
 - Empty search shows up to eight recently opened items. Typed search covers at least title, complete
   note text, domain/URL, and filename; all query terms must match, with title matches ranked first.
-- Search results identify their item type and real collection path. On wide layouts, search and
-  results remain in the left pane while the right pane displays the highlighted item's complete
-  read-only content directly rather than wrapping it in another card. Moving the highlight never
-  navigates. `Escape` restores the untouched workspace.
+- Search results replace the current Masonry, Grid, or Focus rail collection. Focus keeps its active
+  detail until another result is selected. Clearing search restores the prior destination, filters,
+  selection, active item, and scroll position.
 - Opening a result navigates to its real destination, selects it, and opens its normal detail.
 - Item-type filters and **Show referenced attachments** remain scoped to the active context and do
   not constrain global search. Referenced files are hidden from search and from ordinary views by

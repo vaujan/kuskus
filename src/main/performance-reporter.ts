@@ -42,21 +42,21 @@ const TYPING_RESET = `(() => { const s = window.__kuskusTyping; if (s) { s.keyLa
 const TYPING_READ = `(() => { const s = window.__kuskusTyping; return s ? { keyLatencies: s.keyLatencies, droppedFrames: s.droppedFrames, longTasks: s.longTasks, rafTicks: s.rafTicks } : null })()`
 
 const FOCUS_SEARCH = `(() => {
-  const input = document.querySelector('input[aria-label="Search the entire library"]');
+  const input = document.querySelector('input[aria-label="Search library"]');
   if (!input) return false;
   input.focus();
   return true;
 })()`
 
 const OPEN_SEARCH = `(() => {
-  const trigger = document.querySelector('button[aria-label="Search the entire library"]');
-  if (!trigger) return false;
-  trigger.click();
+  const input = document.querySelector('input[aria-label="Search library"]');
+  if (!input) return false;
+  input.focus();
   return true;
 })()`
 
 const CLEAR_SEARCH = `(() => {
-  const input = document.querySelector('input[aria-label="Search the entire library"]');
+  const input = document.querySelector('input[aria-label="Search library"]');
   if (!input) return;
   const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
   setter.call(input, '');
@@ -151,11 +151,13 @@ export function startPerformanceReporter(
     const processes = app.getAppMetrics().map((metric) => ({
       type: metric.type,
       pid: metric.pid,
+      cpuPercent: metric.cpu.percentCPUUsage,
       workingSetKb: metric.memory.workingSetSize,
       peakWorkingSetKb: metric.memory.peakWorkingSetSize
     }))
     writePerformanceEvent(checkpoint, {
       processes,
+      totalCpuPercent: processes.reduce((total, metric) => total + metric.cpuPercent, 0),
       totalWorkingSetKb: processes.reduce((total, metric) => total + metric.workingSetKb, 0),
       main: await process.getProcessMemoryInfo()
     })
@@ -201,9 +203,7 @@ export function startPerformanceReporter(
     const ready = await waitFor(
       () =>
         window.webContents
-          .executeJavaScript(
-            `!!document.querySelector('button[aria-label="Search the entire library"]')`
-          )
+          .executeJavaScript(`!!document.querySelector('input[aria-label="Search library"]')`)
           .catch(() => false),
       250,
       60_000
@@ -221,9 +221,7 @@ export function startPerformanceReporter(
         (await waitFor(
           () =>
             window.webContents
-              .executeJavaScript(
-                `!!document.querySelector('input[aria-label="Search the entire library"]')`
-              )
+              .executeJavaScript(`!!document.querySelector('input[aria-label="Search library"]')`)
               .catch(() => false),
           100,
           5_000

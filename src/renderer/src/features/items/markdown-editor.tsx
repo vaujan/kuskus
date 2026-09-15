@@ -74,13 +74,14 @@ import {
   wireMarkdownVimMode
 } from '@/features/items/markdown-vim'
 import type { NoteVimMode } from '@/features/items/note-vim-mode'
+import { clampNoteSelection, type NoteSelection } from '@/features/items/note-editor'
 
 export interface MarkdownEditorHandle {
   focus: () => void
   getScroller: () => HTMLElement | null
   requestMeasure: () => void
-  getCursorOffset: () => number | null
-  setCursorOffset: (offset: number | null) => void
+  getSelection: () => NoteSelection | null
+  setSelection: (selection: NoteSelection | null) => void
   redo: () => boolean
   undo: () => boolean
 }
@@ -109,7 +110,8 @@ const editorTheme = EditorView.theme({
   },
   '&.cm-focused': { outline: 'none' },
   '.cm-scroller': {
-    overflow: 'auto',
+    overflowY: 'auto',
+    overflowX: 'hidden',
     fontFamily: 'var(--font-mono)',
     fontSize: '0.875rem',
     lineHeight: '1.7'
@@ -461,19 +463,20 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         focus: () => {
           const view = viewRef.current
           if (!view) return
-          const { head } = view.state.selection.main
-          view.dispatch({ selection: EditorSelection.cursor(head) })
           view.focus()
         },
         getScroller: () => viewRef.current?.scrollDOM ?? null,
         requestMeasure: () => viewRef.current?.requestMeasure(),
-        getCursorOffset: () => viewRef.current?.state.selection.main.head ?? null,
-        setCursorOffset: (offset) => {
+        getSelection: () => {
+          const selection = viewRef.current?.state.selection.main
+          return selection ? { anchor: selection.anchor, head: selection.head } : null
+        },
+        setSelection: (selection) => {
           const view = viewRef.current
-          if (!view || offset == null) return
-          const clamped = Math.max(0, Math.min(offset, view.state.doc.length))
+          if (!view || selection == null) return
+          const { anchor, head } = clampNoteSelection(selection, view.state.doc.length)
           view.dispatch({
-            selection: EditorSelection.cursor(clamped),
+            selection: EditorSelection.range(anchor, head),
             scrollIntoView: true
           })
           view.focus()

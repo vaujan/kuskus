@@ -521,6 +521,17 @@ export function AddItemComposer({
       setStagingCount((count) => count + 1)
       setError('')
       try {
+        if (file.name.toLocaleLowerCase().endsWith('.md')) {
+          const markdown = await file.text()
+          if (!markdown.trim()) {
+            setError('The Markdown file is empty.')
+            return
+          }
+          setDraft(markdown)
+          onStatus('Markdown loaded into a note draft.')
+          window.requestAnimationFrame(() => editorRef.current?.focus())
+          return
+        }
         const result = await window.kuskus.stageCaptureDraftFile({
           bytes: await file.arrayBuffer(),
           sourceFilename: file.name,
@@ -539,7 +550,7 @@ export function AddItemComposer({
         setStagingCount((count) => Math.max(0, count - 1))
       }
     },
-    [attachments.length, draft, onStatus, touchAssets]
+    [attachments.length, draft, onStatus, setDraft, touchAssets]
   )
 
   const finishCreate = useCallback(

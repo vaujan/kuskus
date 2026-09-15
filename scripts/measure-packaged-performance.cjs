@@ -121,12 +121,20 @@ async function main() {
     const settledMemory = entries
       .filter((entry) => entry.event === 'settled-memory')
       .map((entry) => entry.data.totalWorkingSetKb / 1024)
+    const settledCpu = entries
+      .filter((entry) => entry.event === 'settled-memory')
+      .map((entry) => entry.data.totalCpuPercent)
+    const settledProcessCounts = entries
+      .filter((entry) => entry.event === 'settled-memory')
+      .map((entry) => entry.data.processes.length)
 
     const summary = {
       runs,
       itemCount,
       cachedFirstCardMedianMs: median(cachedFirstCards),
       settledWorkingSetMedianMb: median(settledMemory),
+      settledCpuMedianPercent: median(settledCpu),
+      settledProcessCountMedian: median(settledProcessCounts),
       output
     }
 

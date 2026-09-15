@@ -715,7 +715,32 @@ test('automatically merges concurrent disk and editor changes before retrying au
   assert.equal(coordinator.getSnapshot().draft, 'Title\nLocal edit\nDisk edit')
   assert.equal(calls[1].expectedMarkdown, disk.body)
   assert.equal(calls[1].markdown, 'Title\nLocal edit\nDisk edit')
-  assert.deepEqual(mergeNotices, [false])
+  assert.deepEqual(mergeNotices, [])
+})
+
+test('alerts when concurrent note edits overlap', async (context) => {
+  const disk = noteDto('Title\nDisk edit', '2026-07-21T01:00:00.000Z')
+  const mergeNotices = []
+  let attempt = 0
+  const coordinator = new NoteAutosaveCoordinator({
+    itemId: disk.id,
+    initialMarkdown: 'Title\nBase',
+    delay: 10_000,
+    save: async (input) => {
+      attempt += 1
+      return attempt === 1
+        ? { ok: false, code: 'conflict', error: 'Changed on disk', conflict: { current: disk } }
+        : { ok: true, data: noteDto(input.markdown, '2026-07-21T02:00:00.000Z') }
+    },
+    onSaved: () => undefined,
+    onDraftReplaced: () => undefined,
+    onExternalChangesMerged: (overlapping) => mergeNotices.push(overlapping)
+  })
+  context.after(() => coordinator.dispose())
+
+  coordinator.updateDraft('Title\nLocal edit')
+  assert.equal(await coordinator.flush(), true)
+  assert.deepEqual(mergeNotices, [true])
 })
 
 test('rejects unsafe persisted note attachment metadata', () => {

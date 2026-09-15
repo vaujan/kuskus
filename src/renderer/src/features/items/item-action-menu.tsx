@@ -1,6 +1,7 @@
 import {
   IconArchive,
   IconArchiveOff,
+  IconCopy,
   IconDots,
   IconEye,
   IconExternalLink,
@@ -70,6 +71,7 @@ export interface NoteDetailMenuOptions {
   onReadableLineLengthChange: (checked: boolean) => void
   onManageAttachments: () => void
   onShowDetails: () => void
+  onCopyAsMarkdown: () => void
   onUseFirstLineAsTitle?: () => void
 }
 
@@ -256,6 +258,10 @@ function ItemActions({
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
+            <DropdownMenuItem onClick={props.detailOptions.onCopyAsMarkdown}>
+              <IconCopy aria-hidden="true" />
+              Copy as Markdown
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={props.detailOptions.onManageAttachments}>
               <IconPaperclip aria-hidden="true" />
               Manage attachments

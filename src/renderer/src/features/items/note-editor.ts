@@ -9,8 +9,18 @@ import type { NoteVimMode } from '@/features/items/note-vim-mode'
  */
 export interface NoteEditorHandle {
   focus: () => void
-  getCursorOffset: () => number | null
-  setCursorOffset: (offset: number | null) => void
+  getSelection: () => NoteSelection | null
+  setSelection: (selection: NoteSelection | null) => void
+}
+
+export interface NoteSelection {
+  anchor: number
+  head: number
+}
+
+export function clampNoteSelection(selection: NoteSelection, length: number): NoteSelection {
+  const clamp = (offset: number): number => Math.max(0, Math.min(offset, length))
+  return { anchor: clamp(selection.anchor), head: clamp(selection.head) }
 }
 
 /**

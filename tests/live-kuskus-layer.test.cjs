@@ -48,6 +48,25 @@ test('renders standard markdown images as block widgets below the source line', 
   assert.equal(decorations[0]?.from, state.doc.line(3).to)
 })
 
+test('loads remote markdown images directly in Live mode', () => {
+  const source = readFileSync(
+    require.resolve('../src/renderer/src/features/items/live/live-preview.ts'),
+    'utf8'
+  )
+  assert.match(source, /const remote = \/\^https\?:\\\/\\\//)
+  assert.match(source, /this\.resolution\?\.src \?\? \(remote \? this\.target : null\)/)
+  assert.match(source, /image\.referrerPolicy = 'no-referrer'/)
+})
+
+test('renders inactive Mermaid fences as diagrams in Live mode', () => {
+  const state = createState(['Cursor', '', '```mermaid', 'graph TD; A-->B', '```'].join('\n'))
+  const widgets = []
+  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (_from, _to, value) => {
+    if (value.spec.widget) widgets.push(value.spec.widget.constructor.name)
+  })
+  assert.deepEqual(widgets, ['MermaidWidget'])
+})
+
 test('skips table images that atomic renders in-cell', () => {
   const state = createState(
     ['Cursor', '', '| A | B |', '| --- | --- |', '| ![x](./x.png) | y |'].join('\n')

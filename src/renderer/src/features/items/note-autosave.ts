@@ -196,7 +196,7 @@ export class NoteAutosaveCoordinator {
               savedUpdatedAt: result.conflict.current.updatedAt,
               error: null
             })
-            this.options.onExternalChangesMerged?.(merged.overlappingChanges)
+            if (merged.overlappingChanges) this.options.onExternalChangesMerged?.(true)
           } else {
             this.setSnapshot({
               ...this.snapshot,

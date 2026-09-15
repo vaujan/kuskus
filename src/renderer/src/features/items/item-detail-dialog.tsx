@@ -91,6 +91,7 @@ import {
 import type {
   NoteEditorVimContract,
   NoteFindTarget,
+  NoteSelection,
   SourceNoteHandle
 } from '@/features/items/note-editor'
 import { createDomFindTarget } from '@/features/items/note-find-dom'
@@ -122,7 +123,11 @@ import {
   type NoteMode,
   type SinglePaneNoteMode
 } from '@/features/items/note-view-mode'
-import { notifyExternalChangesMerged } from '@/lib/notify'
+import {
+  notifyActionError,
+  notifyCopiedAsMarkdown,
+  notifyExternalChangesMerged
+} from '@/lib/notify'
 import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
 import { useImagePreview } from '@/features/items/use-image-preview'
 import { useNoteAttachmentPreviews } from '@/features/items/use-note-attachment-previews'
@@ -463,10 +468,7 @@ function DetailToolbar({
     return (
       <header
         data-detail-focus-header
-        className={cn(
-          'pointer-events-none relative z-40 flex h-10 shrink-0 items-center justify-between',
-          expanded && '!bg-background/50'
-        )}
+        className="pointer-events-none relative z-40 flex h-10 shrink-0 items-center justify-between"
       >
         <div
           data-detail-focus-leading-actions
@@ -563,7 +565,7 @@ function DetailToolbar({
     <header
       data-detail-utility-bar
       className={cn(
-        'flex min-h-14 shrink-0 items-center gap-3 border-b bg-popover px-3',
+        'flex min-h-14 shrink-0 items-center gap-3 px-3',
         leadingControls ? 'justify-between' : 'justify-end'
       )}
     >
@@ -999,9 +1001,10 @@ function NoteReadContextMenu({ children }: { children: React.ReactNode }): React
   )
 }
 
-async function copyTextToClipboard(text: string): Promise<void> {
+async function copyTextToClipboard(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text)
+    return true
   } catch {
     const textarea = document.createElement('textarea')
     textarea.value = text
@@ -1009,8 +1012,11 @@ async function copyTextToClipboard(text: string): Promise<void> {
     textarea.style.opacity = '0'
     document.body.appendChild(textarea)
     textarea.select()
-    document.execCommand('copy')
-    textarea.remove()
+    try {
+      return document.execCommand('copy')
+    } finally {
+      textarea.remove()
+    }
   }
 }
 
@@ -1030,8 +1036,8 @@ function NoteCanvas({
   noteTitleRef,
   sourceTitleRef,
   previewTitleRef,
-  noteCursorCaptureRef,
-  noteCursorOffsetRef,
+  noteSelectionCaptureRef,
+  noteSelectionRef,
   onRenameTitle,
   onDraftChange,
   onModeChange,
@@ -1057,8 +1063,8 @@ function NoteCanvas({
   noteTitleRef: React.Ref<InlineItemTitleHandle>
   sourceTitleRef: React.Ref<InlineItemTitleHandle>
   previewTitleRef: React.Ref<InlineItemTitleHandle>
-  noteCursorCaptureRef: React.MutableRefObject<(() => number | null) | null>
-  noteCursorOffsetRef: React.RefObject<number | null>
+  noteSelectionCaptureRef: React.MutableRefObject<(() => NoteSelection | null) | null>
+  noteSelectionRef: React.RefObject<NoteSelection | null>
   onRenameTitle?: (title: string) => Promise<DetailTitleRenameResult>
   onDraftChange: (value: string) => void
   onModeChange: (mode: NoteMode) => void
@@ -1108,17 +1114,25 @@ function NoteCanvas({
     onOpenVaultLinkRef.current(target)
   }, [])
   const handlePreviewChange = useCallback((value: string): void => {
+    const viewport = noteViewportRef.current
+    const scrollTop = viewport?.scrollTop
     onDraftChangeRef.current(value)
+    if (viewport && scrollTop !== undefined) {
+      requestAnimationFrame(() => {
+        viewport.scrollTop = scrollTop
+        noteScrollTopRef.current = scrollTop
+      })
+    }
   }, [])
   useEffect(() => {
     return () => noteScrollDetachRef.current?.()
   }, [])
   useEffect(() => {
-    noteCursorCaptureRef.current = () => noteEditorRef.current?.getCursorOffset() ?? null
+    noteSelectionCaptureRef.current = () => noteEditorRef.current?.getSelection() ?? null
     return () => {
-      noteCursorCaptureRef.current = null
+      noteSelectionCaptureRef.current = null
     }
-  }, [noteCursorCaptureRef])
+  }, [noteSelectionCaptureRef])
   const importPastedImage = useCallback(
     async (file: File, insertAtSelection: (src: string) => void): Promise<void> => {
       try {
@@ -1281,11 +1295,11 @@ function NoteCanvas({
 
   useEffect(() => {
     if (mode !== 'markdown' && mode !== 'split') return
-    const offset = noteCursorOffsetRef.current
-    if (offset == null) return
-    const frame = requestAnimationFrame(() => noteEditorRef.current?.setCursorOffset(offset))
+    const selection = noteSelectionRef.current
+    if (selection == null) return
+    const frame = requestAnimationFrame(() => noteEditorRef.current?.setSelection(selection))
     return () => cancelAnimationFrame(frame)
-  }, [mode, noteCursorOffsetRef])
+  }, [mode, noteSelectionRef])
 
   useEffect(() => {
     if (mode !== 'split') return
@@ -1756,7 +1770,7 @@ function NoteAttachmentsPanel({
 
 function DetailInspector({ children }: { children: React.ReactNode }): React.JSX.Element {
   return (
-    <aside className="min-w-0 border-t @min-[860px]/detail:border-t-0 @min-[860px]/detail:border-l">
+    <aside className="min-w-0">
       <div className="flex flex-col gap-6 p-6">{children}</div>
     </aside>
   )
@@ -1986,8 +2000,8 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
   ): React.JSX.Element {
     const [openedNote] = useState(() => (item?.type === 'note' ? item : null))
     const [noteHistoryRevision, setNoteHistoryRevision] = useState(0)
-    const noteCursorOffsetRef = useRef<number | null>(null)
-    const noteCursorCaptureRef = useRef<(() => number | null) | null>(null)
+    const noteSelectionRef = useRef<NoteSelection | null>(null)
+    const noteSelectionCaptureRef = useRef<(() => NoteSelection | null) | null>(null)
     const detailSurfaceRef = useRef<HTMLElement | null>(null)
     const coordinator = useMemo(
       () =>
@@ -2088,8 +2102,8 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
     const changeMode = useCallback(
       (nextMode: NoteMode): void => {
         if (nextMode === mode) return
-        const captured = noteCursorCaptureRef.current?.() ?? null
-        if (captured != null) noteCursorOffsetRef.current = captured
+        const captured = noteSelectionCaptureRef.current?.() ?? null
+        if (captured != null) noteSelectionRef.current = captured
         if (nextMode === 'markdown' || nextMode === 'split') setSourceActivated(true)
         setMode(nextMode)
         setModeHudVisible(true)
@@ -2358,6 +2372,12 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
                   onInlineTitleChange: setShowInlineTitle,
                   onReadableLineLengthChange: (checked) =>
                     setReadingWidth(checked ? 'comfortable' : 'wide'),
+                  onCopyAsMarkdown: () => {
+                    void copyTextToClipboard(snapshot.draft).then((copied) => {
+                      if (copied) notifyCopiedAsMarkdown()
+                      else notifyActionError('The note could not be copied to the clipboard.')
+                    })
+                  },
                   onManageAttachments: () => setAttachmentsOpen(true),
                   onShowDetails: () => setNoteDetailsOpen(true),
                   onUseFirstLineAsTitle:
@@ -2379,7 +2399,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
         <section
           data-detail-pane
           data-detail-structural-surface
-          className="window-canvas relative flex min-h-0 min-w-0 flex-1 overflow-hidden !bg-background/50"
+          className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden"
         >
           {presentation === 'focus' && !expanded ? (
             <Tooltip>
@@ -2417,8 +2437,8 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
                 noteTitleRef={noteTitleRef}
                 sourceTitleRef={sourceTitleRef}
                 previewTitleRef={previewTitleRef}
-                noteCursorCaptureRef={noteCursorCaptureRef}
-                noteCursorOffsetRef={noteCursorOffsetRef}
+                noteSelectionCaptureRef={noteSelectionCaptureRef}
+                noteSelectionRef={noteSelectionRef}
                 onRenameTitle={provisionalNote ? undefined : renameCurrentItem}
                 onDraftChange={handleNoteDraftChange}
                 onModeChange={changeMode}

@@ -15,7 +15,10 @@ import { tables } from './atomic/table-widget'
 import { readOnlyFacet } from './atomic/read-only'
 import { treeGrowthEffect } from './atomic/tree-progress'
 import { autoCloseCodeFence } from './atomic/edit-helpers'
-import { codeLanguageLabel, copyMarkdownCode } from '../markdown-code'
+import { codeLanguageLabel, copyMarkdownCode, isMermaidLanguage } from '../markdown-code'
+import { renderMermaid } from '../mermaid-renderer'
+
+let liveMermaidSequence = 0
 
 export interface LivePreviewImage {
   src: string | null
@@ -182,14 +185,19 @@ class MarkdownImageBlockWidget extends WidgetType {
   toDOM(): HTMLElement {
     const wrapper = document.createElement('div')
     wrapper.className = 'cm-kuskus-image-block'
-    if (this.resolution?.src) {
+    const remote = /^https?:\/\//i.test(this.target)
+    const src = this.resolution?.src ?? (remote ? this.target : null)
+    if (src) {
       const image = document.createElement('img')
       image.className = 'kuskus-markdown-image cm-kuskus-image'
-      image.src = this.resolution.src
-      image.alt = this.alt || this.resolution.label
+      image.src = src
+      image.alt = this.alt || this.resolution?.label || ''
       image.loading = 'lazy'
-      image.width = this.resolution.width
-      image.height = this.resolution.height
+      if (remote) image.referrerPolicy = 'no-referrer'
+      if (this.resolution) {
+        image.width = this.resolution.width
+        image.height = this.resolution.height
+      }
       wrapper.appendChild(image)
       return wrapper
     }
@@ -204,6 +212,71 @@ class MarkdownImageBlockWidget extends WidgetType {
     }
     wrapper.appendChild(chip)
     return wrapper
+  }
+}
+
+class MermaidWidget extends WidgetType {
+  private observer: MutationObserver | null = null
+  private renderId = 0
+
+  constructor(private readonly code: string) {
+    super()
+  }
+
+  eq(other: MermaidWidget): boolean {
+    return other.code === this.code
+  }
+
+  toDOM(): HTMLElement {
+    const wrapper = document.createElement('div')
+    wrapper.className = 'kuskus-code-block kuskus-mermaid not-typeset'
+    wrapper.dataset.notTypeset = ''
+    const body = document.createElement('div')
+    body.className = 'kuskus-mermaid-loading'
+    body.setAttribute('role', 'status')
+    wrapper.append(createCodeBlockHeader(this.code, 'mermaid'), body)
+
+    const render = (): void => {
+      const renderId = ++this.renderId
+      const dark = document.documentElement.classList.contains('dark')
+      body.className = 'kuskus-mermaid-loading'
+      body.textContent = 'Rendering diagram…'
+      void renderMermaid(`kuskus-live-mermaid-${++liveMermaidSequence}`, this.code, dark).then(
+        (svg) => {
+          if (renderId !== this.renderId) return
+          body.className = 'kuskus-mermaid-diagram'
+          body.setAttribute('role', 'img')
+          body.setAttribute('aria-label', 'Mermaid diagram')
+          body.innerHTML = svg
+        },
+        () => {
+          if (renderId !== this.renderId) return
+          body.className = ''
+          body.removeAttribute('role')
+          body.removeAttribute('aria-label')
+          body.replaceChildren(
+            Object.assign(document.createElement('pre'), { textContent: this.code })
+          )
+        }
+      )
+    }
+    render()
+    this.observer = new MutationObserver(render)
+    this.observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    })
+    return wrapper
+  }
+
+  destroy(): void {
+    this.renderId += 1
+    this.observer?.disconnect()
+    this.observer = null
+  }
+
+  ignoreEvent(event: Event): boolean {
+    return event.type === 'mousedown' || event.type === 'click'
   }
 }
 
@@ -446,7 +519,17 @@ class KuskusLiveDecorationBuilder {
         if (!anyLineActive) {
           const info = node.getChildren('CodeInfo')[0]
           const language = info ? this.state.doc.sliceString(info.from, info.to).trim() : ''
-          const code = this.state.doc.sliceString(marks[0].to, marks[marks.length - 1].from)
+          const code = this.state.doc
+            .sliceString(openLine.to + 1, closeLine.from)
+            .replace(/\n$/, '')
+          if (isMermaidLanguage(language)) {
+            this.addReplace(
+              node.from,
+              node.to,
+              Decoration.replace({ widget: new MermaidWidget(code), block: true })
+            )
+            return
+          }
           this.addReplace(
             openLine.from,
             openLine.to,

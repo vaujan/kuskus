@@ -1,7 +1,20 @@
 export type ColorMode = 'dark' | 'light' | 'system'
 
 export type ColorTheme =
-  'kuskus' | 'graphite' | 'moss' | 'clay' | 'solarized' | 'catppuccin' | 'one'
+  | 'kuskus'
+  | 'graphite'
+  | 'moss'
+  | 'clay'
+  | 'solarized'
+  | 'catppuccin'
+  | 'tokyo-storm'
+  | 'monokai'
+  | 'one'
+  | 'one-pro-flat'
+  | 'one-pro-darker'
+  | 'dracula'
+  | 'gruvbox'
+  | 'nord'
 
 export type FontPreference =
   'inter' | 'plex' | 'system-ui' | 'system-mono' | 'none' | `local:${string}`
@@ -32,7 +45,14 @@ export function resolveColorTheme(value: string | null): ColorTheme {
     value === 'clay' ||
     value === 'solarized' ||
     value === 'catppuccin' ||
-    value === 'one'
+    value === 'tokyo-storm' ||
+    value === 'monokai' ||
+    value === 'one' ||
+    value === 'one-pro-flat' ||
+    value === 'one-pro-darker' ||
+    value === 'dracula' ||
+    value === 'gruvbox' ||
+    value === 'nord'
     ? value
     : 'kuskus'
 }

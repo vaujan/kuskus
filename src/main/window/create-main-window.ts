@@ -10,6 +10,7 @@ import { installTextContextMenu } from './text-context-menu'
 
 export function createMainWindow(): BrowserWindow {
   const isMac = process.platform === 'darwin'
+  const isWindows = process.platform === 'win32'
   const mainWindow = new BrowserWindow({
     width: 1120,
     height: 720,
@@ -18,7 +19,7 @@ export function createMainWindow(): BrowserWindow {
     show: false,
     backgroundColor: OPAQUE_WINDOW_BACKGROUND,
     autoHideMenuBar: true,
-    frame: isMac,
+    frame: !isWindows,
     ...(isMac ? { titleBarStyle: 'hiddenInset' as const } : {}),
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {

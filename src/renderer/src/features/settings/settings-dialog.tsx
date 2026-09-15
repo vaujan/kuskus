@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { IconCheck, IconChevronDown } from '@tabler/icons-react'
+import { IconChevronDown } from '@tabler/icons-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -50,15 +50,21 @@ import {
 const COLOR_THEMES: ReadonlyArray<{
   value: ColorTheme
   label: string
-  description: string
 }> = [
-  { value: 'kuskus', label: 'Kuskus', description: 'Vivid violet' },
-  { value: 'graphite', label: 'Graphite', description: 'Quiet neutral' },
-  { value: 'moss', label: 'Moss', description: 'Restful green' },
-  { value: 'clay', label: 'Clay', description: 'Warm earth' },
-  { value: 'solarized', label: 'Solarized', description: 'Precision contrast' },
-  { value: 'catppuccin', label: 'Catppuccin', description: 'Soothing pastel' },
-  { value: 'one', label: 'One Dark', description: 'Atom original' }
+  { value: 'kuskus', label: 'Kuskus' },
+  { value: 'graphite', label: 'Graphite' },
+  { value: 'moss', label: 'Moss' },
+  { value: 'clay', label: 'Clay' },
+  { value: 'solarized', label: 'Solarized' },
+  { value: 'catppuccin', label: 'Catppuccin' },
+  { value: 'tokyo-storm', label: 'Tokyo Storm' },
+  { value: 'monokai', label: 'Monokai' },
+  { value: 'one', label: 'One Dark' },
+  { value: 'one-pro-flat', label: 'One Dark Pro Flat' },
+  { value: 'one-pro-darker', label: 'One Dark Pro Darker' },
+  { value: 'dracula', label: 'Dracula' },
+  { value: 'gruvbox', label: 'Gruvbox' },
+  { value: 'nord', label: 'Nord' }
 ]
 
 const COLOR_MODES: ReadonlyArray<{ value: ColorMode; label: string }> = [
@@ -210,49 +216,39 @@ export function SettingsDialog({
                 Appearance
               </FieldLegend>
 
-              <Field>
+              <Field orientation="horizontal" className="min-h-12">
                 <FieldContent>
                   <FieldLabel>Theme</FieldLabel>
                   <FieldDescription>Choose the character of the entire workspace.</FieldDescription>
                 </FieldContent>
-                <ToggleGroup
-                  value={[colorTheme]}
-                  onValueChange={(values) => {
-                    const nextTheme = values[0]
-                    if (nextTheme) setColorTheme(nextTheme as ColorTheme)
-                  }}
-                  spacing={2}
-                  aria-label="Color theme"
-                  className="grid w-full grid-cols-2 gap-2"
+                <Select
+                  value={colorTheme}
+                  onValueChange={(value) => setColorTheme(value as ColorTheme)}
                 >
-                  {COLOR_THEMES.map((option) => (
-                    <ToggleGroupItem
-                      key={option.value}
-                      value={option.value}
-                      data-theme-choice={option.value}
-                      className="relative h-auto min-w-0 items-start justify-start rounded-xl px-3 py-3 text-left shadow-[inset_0_0_0_1px_var(--border)] transition-[scale,background-color,box-shadow] active:scale-[0.96] data-[state=on]:bg-muted data-[state=on]:shadow-[inset_0_0_0_1.5px_var(--primary)]"
-                    >
-                      <span className="flex min-w-0 flex-1 flex-col gap-2.5">
-                        <span className="flex items-center gap-1.5" aria-hidden="true">
-                          <span className="size-4 rounded-full bg-[var(--theme-preview-canvas)] shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)]" />
-                          <span className="size-4 rounded-full bg-[var(--theme-preview-sidebar)] shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)]" />
-                          <span className="size-4 rounded-full bg-[var(--theme-preview-accent)] shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)]" />
-                        </span>
-                        <span className="flex min-w-0 flex-col gap-0.5">
-                          <span className="truncate font-medium">{option.label}</span>
-                          <span className="truncate text-xs font-normal text-muted-foreground">
-                            {option.description}
+                  <SelectTrigger size="sm" aria-label="Color theme" className="w-52">
+                    <SelectValue>
+                      {COLOR_THEMES.find((option) => option.value === colorTheme)?.label}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent alignItemWithTrigger={false} align="end">
+                    <SelectGroup>
+                      {COLOR_THEMES.map((option) => (
+                        <SelectItem
+                          key={option.value}
+                          value={option.value}
+                          data-theme-choice={option.value}
+                        >
+                          <span className="flex items-center gap-1" aria-hidden="true">
+                            <span className="size-2.5 rounded-full bg-[var(--theme-preview-canvas)] shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)]" />
+                            <span className="size-2.5 rounded-full bg-[var(--theme-preview-sidebar)] shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)]" />
+                            <span className="size-2.5 rounded-full bg-[var(--theme-preview-accent)] shadow-[inset_0_0_0_1px_rgb(0_0_0/0.1)]" />
                           </span>
-                        </span>
-                      </span>
-                      <IconCheck
-                        data-theme-check
-                        className="absolute top-3 right-3 size-4 scale-25 text-primary opacity-0 blur-[4px] transition-[scale,opacity,filter]"
-                        aria-hidden="true"
-                      />
-                    </ToggleGroupItem>
-                  ))}
-                </ToggleGroup>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </Field>
 
               <Field orientation="horizontal" className="min-h-12">

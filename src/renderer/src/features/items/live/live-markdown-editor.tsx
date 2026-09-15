@@ -48,6 +48,7 @@ import {
 import { markdownCodeLanguage } from '@/features/items/markdown-code'
 import { markdownCodeSpellcheck } from '@/features/items/markdown-code-spellcheck'
 import { liveFindExtensions, wireLiveFind, unwireLiveFind } from '@/features/items/live/live-find'
+import { slashMenu } from '@/features/items/live/slash-menu'
 import {
   kuskusLiveExtensions,
   readOnlyFacet,
@@ -62,7 +63,11 @@ import {
   wireMarkdownVimCommandLine,
   wireMarkdownVimMode
 } from '@/features/items/markdown-vim'
-import type { NoteFindTargetRef, SourceNoteHandle } from '@/features/items/note-editor'
+import {
+  clampNoteSelection,
+  type NoteFindTargetRef,
+  type SourceNoteHandle
+} from '@/features/items/note-editor'
 import type { NoteVimMode } from '@/features/items/note-vim-mode'
 import { cn } from '@/lib/utils'
 
@@ -89,7 +94,8 @@ const editorTheme = EditorView.theme({
   '&': { height: '100%', color: 'var(--foreground)', backgroundColor: 'transparent' },
   '&.cm-focused': { outline: 'none' },
   '.cm-scroller': {
-    overflow: 'auto',
+    overflowY: 'auto',
+    overflowX: 'hidden',
     fontFamily: 'var(--font-mono)',
     fontSize: '0.875rem',
     lineHeight: '1.7'
@@ -145,6 +151,11 @@ const detailContentTheme = EditorView.theme({
     margin: '0 auto',
     padding: 'var(--typeset-detail-padding-block) var(--typeset-detail-gutter)'
   }
+})
+
+const cardScrollerTheme = EditorView.theme({
+  '.cm-scroller': { overflowX: 'hidden', scrollbarWidth: 'none' },
+  '.cm-scroller::-webkit-scrollbar': { display: 'none' }
 })
 
 const liveEditorTheme = EditorView.theme({
@@ -273,16 +284,17 @@ export const LiveMarkdownEditor = forwardRef<SourceNoteHandle, LiveMarkdownEdito
         focus: () => {
           const view = viewRef.current
           if (!view) return
-          const { head } = view.state.selection.main
-          view.dispatch({ selection: EditorSelection.cursor(head) })
           view.focus()
         },
-        getCursorOffset: () => viewRef.current?.state.selection.main.head ?? null,
-        setCursorOffset: (offset) => {
+        getSelection: () => {
+          const selection = viewRef.current?.state.selection.main
+          return selection ? { anchor: selection.anchor, head: selection.head } : null
+        },
+        setSelection: (selection) => {
           const view = viewRef.current
-          if (!view || offset == null) return
-          const clamped = Math.max(0, Math.min(offset, view.state.doc.length))
-          view.dispatch({ selection: EditorSelection.cursor(clamped), scrollIntoView: true })
+          if (!view || selection == null) return
+          const { anchor, head } = clampNoteSelection(selection, view.state.doc.length)
+          view.dispatch({ selection: EditorSelection.range(anchor, head), scrollIntoView: true })
           view.focus()
         },
         getScroller: () => viewRef.current?.scrollDOM ?? null,
@@ -320,10 +332,12 @@ export const LiveMarkdownEditor = forwardRef<SourceNoteHandle, LiveMarkdownEdito
         vimModeTheme,
         editorTheme,
         ...(presentation === 'detail' ? [detailContentTheme] : []),
+        ...(presentation === 'card' ? [cardScrollerTheme] : []),
         markdownCodeSpellcheck,
         syntaxHighlighting(classHighlighter),
         syntaxHighlighting(markdownHighlightStyle),
         liveFindExtensions(),
+        slashMenu(),
         keymap.of([
           { key: 'Mod-b', preventDefault: true, run: markerCommand('**') },
           { key: 'Mod-i', preventDefault: true, run: markerCommand('*') },

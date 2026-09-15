@@ -83,6 +83,7 @@ export class NoteWindowController {
 
   private createWindow(itemId: string, title: string): BrowserWindow {
     const isMac = process.platform === 'darwin'
+    const isWindows = process.platform === 'win32'
     const window = new BrowserWindow({
       title,
       width: 960,
@@ -92,7 +93,7 @@ export class NoteWindowController {
       show: false,
       backgroundColor: OPAQUE_WINDOW_BACKGROUND,
       autoHideMenuBar: true,
-      frame: isMac,
+      frame: !isWindows,
       ...(isMac ? { titleBarStyle: 'hiddenInset' as const } : {}),
       ...(process.platform === 'linux' ? { icon } : {}),
       webPreferences: {

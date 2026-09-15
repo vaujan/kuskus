@@ -39,6 +39,22 @@ test('keeps large-vault work bounded to changed items and near-viewport cards', 
   assert.match(benchmark, /archiveItemMs/)
 })
 
+test('packaged performance summary includes CPU and process counts', () => {
+  const reporter = require('node:fs').readFileSync(
+    require.resolve('../src/main/performance-reporter.ts'),
+    'utf8'
+  )
+  const runner = require('node:fs').readFileSync(
+    require.resolve('../scripts/measure-packaged-performance.cjs'),
+    'utf8'
+  )
+
+  assert.match(reporter, /cpuPercent: metric\.cpu\.percentCPUUsage/)
+  assert.match(reporter, /totalCpuPercent/)
+  assert.match(runner, /settledCpuMedianPercent/)
+  assert.match(runner, /settledProcessCountMedian/)
+})
+
 test('counts shared JavaScript chunks once across multiple entries', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-performance-budget-'))
   context.after(() => rm(root, { recursive: true, force: true }))

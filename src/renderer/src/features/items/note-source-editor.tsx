@@ -43,8 +43,8 @@ export const NoteSourceEditor = forwardRef<SourceNoteHandle, NoteSourceEditorPro
       forwardedRef,
       (): SourceNoteHandle => ({
         focus: () => editorRef.current?.focus(),
-        getCursorOffset: () => editorRef.current?.getCursorOffset() ?? null,
-        setCursorOffset: (offset) => editorRef.current?.setCursorOffset(offset),
+        getSelection: () => editorRef.current?.getSelection() ?? null,
+        setSelection: (selection) => editorRef.current?.setSelection(selection),
         getScroller: () => editorRef.current?.getScroller() ?? null,
         requestMeasure: () => editorRef.current?.requestMeasure(),
         redo: () => editorRef.current?.redo() ?? false,

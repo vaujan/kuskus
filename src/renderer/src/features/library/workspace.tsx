@@ -5,6 +5,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState
@@ -74,8 +75,9 @@ import type { NoteMode } from '@/features/items/note-view-mode'
 import { AppToolbar } from '@/features/shell/app-toolbar'
 import { LibrarySidebar, type LibraryDestination } from '@/features/shell/library-sidebar'
 import { SettingsDialog } from '@/features/settings/settings-dialog'
-import { GlobalSearchDialog } from '@/features/search/global-search-dialog'
 import { addRecentSearchItem } from '@/features/search/global-search-state'
+import { QuickOpenDialog } from '@/features/search/quick-open-dialog'
+import { useLibrarySearch } from '@/features/search/use-library-search'
 import { useSetting } from '@/settings/settings-context'
 import { useNoteVim } from '@/hooks/use-note-vim'
 import type { TranslucentBackgroundPreference } from '@/hooks/use-translucent-background'
@@ -162,12 +164,8 @@ function hasFileDrag(dataTransfer: DataTransfer): boolean {
   return Array.from(dataTransfer.types).includes('Files')
 }
 
-function hasSupportedImageDrag(dataTransfer: DataTransfer): boolean {
-  return (
-    Array.from(dataTransfer.items).some(
-      (item) => item.kind === 'file' && item.type.startsWith('image/')
-    ) || Array.from(dataTransfer.files).some((file) => file.type.startsWith('image/'))
-  )
+function hasSupportedFileDrag(dataTransfer: DataTransfer): boolean {
+  return Array.from(dataTransfer.items).some((item) => item.kind === 'file')
 }
 
 export function Workspace({
@@ -206,7 +204,10 @@ export function Workspace({
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [draggedItemIds, setDraggedItemIds] = useState<ReadonlySet<string>>(() => new Set())
-  const [globalSearchOpen, setGlobalSearchOpen] = useState(false)
+  const [quickOpenOpen, setQuickOpenOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [focusSearchOpen, setFocusSearchOpen] = useState(false)
+  const [searchFocusRequest, setSearchFocusRequest] = useState(0)
   const [recentItemIds, setRecentItemIds] = useState<string[]>(
     () => initialSession?.recentItemIds ?? []
   )
@@ -263,6 +264,13 @@ export function Workspace({
   } | null>(null)
   const newlyCreatedNoteIdRef = useRef<string | null>(null)
   const previousVisibleItemIdsRef = useRef<string[]>([])
+  const searchReturnFocusItemIdRef = useRef<string | null>(null)
+  const searchReturnSelectionRef = useRef<{ itemIds: string[]; anchorId: string | null } | null>(
+    null
+  )
+  const overviewViewportRef = useRef<HTMLElement | null>(null)
+  const overviewReturnScrollTopRef = useRef(0)
+  const overviewSearchActiveRef = useRef(false)
   const draftStorageKey = `kuskus-note-draft:${library.path}`
 
   const announceStatus = useCallback((message: string): void => {
@@ -275,6 +283,7 @@ export function Workspace({
     anchorId,
     clearSelection,
     clearSelectionSilently,
+    restoreSelection,
     prepareItem: prepareItemMenu,
     pruneSelection: pruneSelectionToItemIds,
     selectAll: selectAllVisibleItems,
@@ -302,6 +311,79 @@ export function Workspace({
     },
     [library.items]
   )
+
+  const changeSearchQuery = useCallback(
+    (nextQuery: string): void => {
+      const searchWasActive = searchQuery.trim().length > 0
+      const searchWillBeActive = nextQuery.trim().length > 0
+      if (!searchWasActive && searchWillBeActive) {
+        searchReturnFocusItemIdRef.current = focusWorkspaceOpen ? focusItemId : null
+        searchReturnSelectionRef.current = { itemIds: [...selectedIds], anchorId }
+      }
+      if (searchWasActive && !searchWillBeActive) {
+        const returnItemId = searchReturnFocusItemIdRef.current
+        const returnSelection = searchReturnSelectionRef.current
+        searchReturnFocusItemIdRef.current = null
+        searchReturnSelectionRef.current = null
+        if (returnSelection) {
+          const existingItemIds = new Set(library.items.map((item) => item.id))
+          const itemIds = returnSelection.itemIds.filter((itemId) => existingItemIds.has(itemId))
+          restoreSelection(
+            itemIds,
+            returnSelection.anchorId && existingItemIds.has(returnSelection.anchorId)
+              ? returnSelection.anchorId
+              : null
+          )
+        }
+        if (returnItemId && library.items.some((item) => item.id === returnItemId)) {
+          requestFocusTransition(() => changeFocusItemId(returnItemId))
+        }
+      }
+      setSearchQuery(nextQuery)
+    },
+    [
+      anchorId,
+      changeFocusItemId,
+      focusItemId,
+      focusWorkspaceOpen,
+      library.items,
+      requestFocusTransition,
+      restoreSelection,
+      searchQuery,
+      selectedIds
+    ]
+  )
+
+  const openFocusSearch = useCallback((): void => {
+    setFocusNoteExpanded(false)
+    setFocusSearchOpen(true)
+    setSearchFocusRequest((request) => request + 1)
+  }, [])
+
+  const closeFocusSearch = useCallback((): void => {
+    changeSearchQuery('')
+    setFocusSearchOpen(false)
+  }, [changeSearchQuery])
+
+  useEffect(() => {
+    const handleSearchShortcut = (event: KeyboardEvent): void => {
+      if (
+        event.defaultPrevented ||
+        (!event.ctrlKey && !event.metaKey) ||
+        event.altKey ||
+        !event.shiftKey ||
+        event.key.toLocaleLowerCase() !== 'f'
+      ) {
+        return
+      }
+      if (document.querySelector('[role="dialog"]') !== null) return
+      event.preventDefault()
+      if (focusWorkspaceOpen) openFocusSearch()
+      else setSearchFocusRequest((request) => request + 1)
+    }
+    window.addEventListener('keydown', handleSearchShortcut, true)
+    return () => window.removeEventListener('keydown', handleSearchShortcut, true)
+  }, [focusWorkspaceOpen, openFocusSearch])
 
   const openDetail = useCallback(
     (itemId: string, edit = false): void => {
@@ -445,7 +527,11 @@ export function Workspace({
     }
   }, [refreshVault])
 
-  const { destinationItems, matchesCurrentRetrieval, visibleItems } = useLibraryRetrieval({
+  const {
+    destinationItems,
+    matchesCurrentRetrieval,
+    visibleItems: retrievedItems
+  } = useLibraryRetrieval({
     library,
     destination,
     typeFilters,
@@ -453,6 +539,19 @@ export function Workspace({
     showReferencedAttachments,
     excludedItemId: composerOwnedItemId ?? (newNoteOpen ? (newNoteItem?.id ?? null) : null)
   })
+  const searchActive = searchQuery.trim().length > 0
+  const {
+    items: searchItems,
+    pending: searchPending,
+    error: searchError
+  } = useLibrarySearch(library.items, searchQuery)
+  const visibleItems = searchActive ? searchItems : retrievedItems
+  useLayoutEffect(() => {
+    if (!searchActive && overviewSearchActiveRef.current && overviewViewportRef.current) {
+      overviewViewportRef.current.scrollTop = overviewReturnScrollTopRef.current
+    }
+    overviewSearchActiveRef.current = searchActive
+  }, [searchActive])
   const visibleItemIds = useMemo(() => new Set(visibleItems.map((item) => item.id)), [visibleItems])
   const visibleItemIdList = useMemo(() => visibleItems.map((item) => item.id), [visibleItems])
   const retrievalPageKey = `${destination.type}:${destination.type === 'collection' ? destination.collectionId : ''}:${typeFilters.join(',')}:${sort}:${showReferencedAttachments}`
@@ -618,7 +717,7 @@ export function Workspace({
     requestFocusTransition(() => changeFocusItemId(visibleItems[focusVisibleIndex + 1].id))
   }, [changeFocusItemId, focusVisibleIndex, requestFocusTransition, visibleItems])
 
-  const hasActiveRetrieval = typeFilters.length > 0
+  const hasActiveRetrieval = typeFilters.length > 0 || searchActive
 
   const changeDestination = useCallback(
     (next: LibraryDestination): void => {
@@ -626,6 +725,7 @@ export function Workspace({
         setDestination(next)
         clearSelectionSilently()
         setFocusWorkspaceOpen(false)
+        setFocusSearchOpen(false)
         setFocusNoteExpanded(false)
         setFocusItemId(null)
         setFocusDetailOpen(false)
@@ -640,6 +740,7 @@ export function Workspace({
   const returnToMasonry = useCallback((): void => {
     setView('visual')
     setFocusWorkspaceOpen(false)
+    setFocusSearchOpen(false)
     setFocusItemId(null)
     setFocusDetailOpen(false)
     setFocusNoteExpanded(false)
@@ -676,7 +777,7 @@ export function Workspace({
     [library.items, pruneSelectionToItemIds, typeFilters]
   )
 
-  const openGlobalSearchItem = useCallback(
+  const openQuickOpenItem = useCallback(
     (itemId: string): void => {
       const item = library.items.find((candidate) => candidate.id === itemId)
       if (!item) return
@@ -790,6 +891,33 @@ export function Workspace({
       return nextNote.type === 'note' ? nextNote : note
     },
     [updateItem]
+  )
+
+  const createNoteFromSearch = useCallback(
+    (title: string): void => {
+      requestFocusTransition(() => {
+        void window.kuskus.createNote({ markdown: `# ${title}`, attachmentIds: [] }).then(
+          async (result) => {
+            if (!result.ok) {
+              notifyActionError(result.error)
+              return
+            }
+            const target: ActiveItemLocation =
+              destination.type === 'collection'
+                ? { type: 'collection', collectionId: destination.collectionId }
+                : { type: 'inbox' }
+            const note = await finishNewNote(result.data, target)
+            openDetail(note.id, true)
+          },
+          (error: unknown) => {
+            notifyActionError(
+              error instanceof Error ? error.message : 'The note could not be created.'
+            )
+          }
+        )
+      })
+    },
+    [destination, finishNewNote, openDetail, requestFocusTransition]
   )
 
   const applyLibraryResult = useCallback(
@@ -978,11 +1106,10 @@ export function Workspace({
       if (targetIds.length === 0) return
 
       if (event.key === 'F2') {
-        if (destination.type === 'trash') return
         const renameItemId = resolveRenameShortcutTarget(targetIds)
         if (renameItemId === null) return
         const item = visibleItems.find((candidate) => candidate.id === renameItemId)
-        if (!item) return
+        if (!item || item.location.type === 'trash') return
 
         event.preventDefault()
         guardFocusTargets([item.id], () => {
@@ -993,7 +1120,12 @@ export function Workspace({
       }
 
       event.preventDefault()
-      if (destination.type === 'trash') {
+      const targetItems = targetIds
+        .map((itemId) => visibleItems.find((item) => item.id === itemId))
+        .filter((item): item is LibraryItemDto => item !== undefined)
+      const trashCount = targetItems.filter((item) => item.location.type === 'trash').length
+      if (trashCount > 0 && trashCount < targetItems.length) return
+      if (trashCount === targetItems.length) {
         guardFocusTargets(targetIds, () => requestPermanentDelete(targetIds))
       } else guardFocusTargets(targetIds, () => void trashItemIds(targetIds))
     }
@@ -1001,7 +1133,6 @@ export function Workspace({
     return () => window.removeEventListener('keydown', handleItemShortcut)
   }, [
     deleteTargets.length,
-    destination.type,
     itemOperationBusy,
     renameTarget,
     requestPermanentDelete,
@@ -1218,12 +1349,8 @@ export function Workspace({
     })
   }, [library.items])
 
-  const requestImageImport = useCallback(
+  const requestFileImport = useCallback(
     (file: File, origin: 'clipboard' | 'file' = 'file'): void => {
-      if (!file.type.startsWith('image/')) {
-        notifyActionError('Only image files can be imported here right now.')
-        return
-      }
       importRequestId.current += 1
       setImportRequest({ id: importRequestId.current, file, origin })
       openComposer()
@@ -1260,7 +1387,7 @@ export function Workspace({
       const file = item?.getAsFile()
       if (file) {
         event.preventDefault()
-        requestImageImport(file, 'clipboard')
+        requestFileImport(file, 'clipboard')
         return
       }
       const text = event.clipboardData?.getData('text/plain').trim() ?? ''
@@ -1283,16 +1410,14 @@ export function Workspace({
     }
     window.addEventListener('paste', capturePastedContent)
     return () => window.removeEventListener('paste', capturePastedContent)
-  }, [requestImageImport, requestTextCapture, requestUrlCapture])
+  }, [requestFileImport, requestTextCapture, requestUrlCapture])
 
-  const captureDroppedImage = (event: React.DragEvent<HTMLElement>): void => {
+  const captureDroppedFile = (event: React.DragEvent<HTMLElement>): void => {
     const files = Array.from(event.dataTransfer.files)
     event.preventDefault()
     dragDepth.current = 0
     setIsDragging(false)
-    const image = files.find((file) => file.type.startsWith('image/'))
-    if (image) requestImageImport(image)
-    else if (files.length > 0) notifyActionError('Only image files can be imported here right now.')
+    if (files[0]) requestFileImport(files[0])
   }
 
   const addItemComposer = (
@@ -1351,7 +1476,7 @@ export function Workspace({
       <ExternalDropShadow
         active={showExternalDropShadow}
         label={
-          isDragging ? 'Release the image to add it to New Item' : 'Preparing image in New Item'
+          isDragging ? 'Release the file to add it to New Item' : 'Preparing image in New Item'
         }
         overlay={composerOpen}
       />
@@ -1360,7 +1485,7 @@ export function Workspace({
 
   const cardLayoutContent = (
     <>
-      {captureSlot}
+      {searchActive ? null : captureSlot}
       {renderedItems.map((item) => (
         <ItemContextMenu
           item={item}
@@ -1423,7 +1548,13 @@ export function Workspace({
         newItemFocusRequest={newItemFocusRequest}
         onNewNote={openNewNote}
         onNewItem={openComposer}
-        onOpenSearch={() => setGlobalSearchOpen(true)}
+        searchOpen={focusSearchOpen || searchActive}
+        searchQuery={searchQuery}
+        searchPending={searchPending}
+        searchFocusRequest={searchFocusRequest}
+        onOpenSearch={openFocusSearch}
+        onCloseSearch={closeFocusSearch}
+        onSearchQueryChange={changeSearchQuery}
         typeFilters={typeFilters}
         onTypeFilterChange={changeTypeFilter}
         showReferencedAttachments={showReferencedAttachments}
@@ -1440,12 +1571,22 @@ export function Workspace({
       <FocusItemList
         items={visibleItems}
         pageKey={retrievalPageKey}
+        searchActive={searchActive}
+        emptyMessage={
+          searchPending
+            ? 'Searching…'
+            : searchActive && visibleItems.length === 0
+              ? searchError
+                ? 'Search is temporarily unavailable'
+                : 'No matching items'
+              : null
+        }
         density={focusRailDensity}
         activeItemId={newNoteOpen ? null : focusItemId}
         selectedIds={selectedIds}
         draggedIds={draggedItemIds}
         composer={
-          newNoteOpen && newNoteItem ? (
+          searchActive ? null : newNoteOpen && newNoteItem ? (
             focusRailDensity === 'index' ? (
               <FocusIndexRow
                 item={newNoteItem}
@@ -1471,7 +1612,11 @@ export function Workspace({
               />
             )
           ) : composerOpen || showExternalDropShadow ? (
-            captureSlot
+            focusRailDensity === 'index' ? (
+              <div className="mx-2 mb-2">{captureSlot}</div>
+            ) : (
+              captureSlot
+            )
           ) : null
         }
         onActivate={activateItem}
@@ -1681,7 +1826,12 @@ export function Workspace({
   ) : (
     <Empty className="size-full gap-0">
       <EmptyContent className="gap-0">
-        <Button variant="link" size="sm" aria-keyshortcuts="Control+N" onClick={openNewNote}>
+        <Button
+          variant="link"
+          size="sm"
+          aria-keyshortcuts="Control+N"
+          onClick={() => openNewNote()}
+        >
           Create new note (Ctrl + N)
         </Button>
         <Button variant="link" size="sm" onClick={returnToMasonry}>
@@ -1730,7 +1880,10 @@ export function Workspace({
             onNewItem={openComposer}
             onDiscardDraft={() => setComposerDiscardRequest((request) => request + 1)}
             destinationLabel={destinationLabel(destination, library)}
-            onOpenSearch={() => setGlobalSearchOpen(true)}
+            searchQuery={searchQuery}
+            searchPending={searchPending}
+            searchFocusRequest={searchFocusRequest}
+            onSearchQueryChange={changeSearchQuery}
             typeFilters={typeFilters}
             onTypeFilterChange={changeTypeFilter}
             showReferencedAttachments={showReferencedAttachments}
@@ -1751,12 +1904,12 @@ export function Workspace({
               if (!hasFileDrag(event.dataTransfer)) return
               event.preventDefault()
               dragDepth.current += 1
-              setIsDragging(hasSupportedImageDrag(event.dataTransfer))
+              setIsDragging(hasSupportedFileDrag(event.dataTransfer))
             }}
             onDragOver={(event) => {
               if (!hasFileDrag(event.dataTransfer)) return
               event.preventDefault()
-              const supported = hasSupportedImageDrag(event.dataTransfer)
+              const supported = hasSupportedFileDrag(event.dataTransfer)
               event.dataTransfer.dropEffect = supported ? 'copy' : 'none'
               setIsDragging(supported)
             }}
@@ -1764,7 +1917,7 @@ export function Workspace({
               dragDepth.current = Math.max(0, dragDepth.current - 1)
               if (dragDepth.current === 0) setIsDragging(false)
             }}
-            onDrop={captureDroppedImage}
+            onDrop={captureDroppedFile}
           >
             {library.repairConflicts.length > 0 ? (
               <Alert className="m-3 mb-0 shrink-0">
@@ -1788,19 +1941,30 @@ export function Workspace({
           </main>
         ) : null}
         <Activity mode={focusWorkspaceOpen ? 'hidden' : 'visible'}>
-          <ScrollArea className="library-scroll-container window-canvas min-h-0 min-w-0 flex-1 [&_[data-slot=scroll-area-viewport]]:focus-visible:ring-0 [&_[data-slot=scroll-area-viewport]]:focus-visible:outline-none">
+          <ScrollArea
+            ref={(root) => {
+              overviewViewportRef.current =
+                root?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]') ?? null
+            }}
+            onScrollCapture={(event) => {
+              if (!overviewSearchActiveRef.current && event.target instanceof HTMLElement) {
+                overviewReturnScrollTopRef.current = event.target.scrollTop
+              }
+            }}
+            className="library-scroll-container window-canvas min-h-0 min-w-0 flex-1 [&_[data-slot=scroll-area-viewport]]:focus-visible:ring-0 [&_[data-slot=scroll-area-viewport]]:focus-visible:outline-none"
+          >
             <main
               className="relative min-h-full"
               onDragEnter={(event) => {
                 if (!hasFileDrag(event.dataTransfer)) return
                 event.preventDefault()
                 dragDepth.current += 1
-                setIsDragging(hasSupportedImageDrag(event.dataTransfer))
+                setIsDragging(hasSupportedFileDrag(event.dataTransfer))
               }}
               onDragOver={(event) => {
                 if (!hasFileDrag(event.dataTransfer)) return
                 event.preventDefault()
-                const supported = hasSupportedImageDrag(event.dataTransfer)
+                const supported = hasSupportedFileDrag(event.dataTransfer)
                 event.dataTransfer.dropEffect = supported ? 'copy' : 'none'
                 setIsDragging(supported)
               }}
@@ -1808,7 +1972,7 @@ export function Workspace({
                 dragDepth.current = Math.max(0, dragDepth.current - 1)
                 if (dragDepth.current === 0) setIsDragging(false)
               }}
-              onDrop={captureDroppedImage}
+              onDrop={captureDroppedFile}
             >
               <div
                 className={cn(
@@ -1844,27 +2008,35 @@ export function Workspace({
                     ) : null}
                   </>
                 )}
-                {!isDragging && visibleItems.length === 0 && hasActiveRetrieval && (
-                  <Empty className="mt-8 gap-1">
-                    <EmptyTitle className="text-sm text-muted-foreground">
-                      No matching items
-                    </EmptyTitle>
-                    <EmptyContent className="gap-0">
-                      {typeFilters.length > 0 ? (
-                        <Button
-                          variant="link"
-                          size="sm"
-                          onClick={() => {
-                            setTypeFilters([])
-                            clearSelectionSilently()
-                          }}
-                        >
-                          Remove type filters
-                        </Button>
-                      ) : null}
-                    </EmptyContent>
+                {!isDragging && searchPending ? (
+                  <Empty className="mt-8 gap-1" aria-live="polite">
+                    <EmptyTitle className="text-sm text-muted-foreground">Searching…</EmptyTitle>
                   </Empty>
-                )}
+                ) : null}
+                {!isDragging &&
+                  !searchPending &&
+                  visibleItems.length === 0 &&
+                  hasActiveRetrieval && (
+                    <Empty className="mt-8 gap-1">
+                      <EmptyTitle className="text-sm text-muted-foreground">
+                        {searchError ? 'Search is temporarily unavailable' : 'No matching items'}
+                      </EmptyTitle>
+                      <EmptyContent className="gap-0">
+                        {!searchActive && typeFilters.length > 0 ? (
+                          <Button
+                            variant="link"
+                            size="sm"
+                            onClick={() => {
+                              setTypeFilters([])
+                              clearSelectionSilently()
+                            }}
+                          >
+                            Remove type filters
+                          </Button>
+                        ) : null}
+                      </EmptyContent>
+                    </Empty>
+                  )}
                 {!isDragging && destinationItems.length === 0 && !hasActiveRetrieval && (
                   <Empty className="mt-6 gap-1">
                     <EmptyTitle className="text-sm text-muted-foreground">
@@ -1882,7 +2054,7 @@ export function Workspace({
                           variant="link"
                           size="sm"
                           aria-keyshortcuts="Control+N"
-                          onClick={openNewNote}
+                          onClick={() => openNewNote()}
                         >
                           Create new note (Ctrl + N)
                         </Button>
@@ -1920,12 +2092,13 @@ export function Workspace({
           }
           onClearSelection={clearSelection}
         />
-        <GlobalSearchDialog
-          open={globalSearchOpen}
-          onOpenChange={setGlobalSearchOpen}
+        <QuickOpenDialog
+          open={quickOpenOpen}
+          onOpenChange={setQuickOpenOpen}
           library={library}
           recentItemIds={recentItemIds}
-          onOpenItem={openGlobalSearchItem}
+          onOpenItem={openQuickOpenItem}
+          onCreateNote={createNoteFromSearch}
         />
         <p className="sr-only" aria-live="polite" aria-atomic="true">
           {statusMessage}

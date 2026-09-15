@@ -1,28 +1,9 @@
 import { useEffect, useId, useState } from 'react'
 
 import { copyMarkdownCode } from '@/features/items/markdown-code'
+import { renderMermaid } from '@/features/items/mermaid-renderer'
 
-let renderQueue = Promise.resolve()
 let renderSequence = 0
-
-function renderMermaid(id: string, code: string, dark: boolean): Promise<string> {
-  const render = async (): Promise<string> => {
-    const mermaid = (await import('mermaid')).default
-    mermaid.initialize({
-      startOnLoad: false,
-      securityLevel: 'strict',
-      suppressErrorRendering: true,
-      theme: dark ? 'dark' : 'neutral'
-    })
-    return (await mermaid.render(id, code)).svg
-  }
-  const result = renderQueue.then(render)
-  renderQueue = result.then(
-    () => undefined,
-    () => undefined
-  )
-  return result
-}
 
 export function MarkdownMermaid({ code }: { code: string }): React.JSX.Element {
   const id = `kuskus-mermaid-${useId().replace(/[^a-z0-9]/gi, '')}`

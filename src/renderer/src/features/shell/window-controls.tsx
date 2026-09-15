@@ -1,10 +1,4 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import {
-  IconCopy as Copy,
-  IconMinus as Minus,
-  IconSquare as Square,
-  IconX as X
-} from '@tabler/icons-react'
 
 import { cn } from '@/lib/utils'
 
@@ -57,22 +51,17 @@ export function CaptionTileButton({
 function CaptionButton({
   label,
   glyph,
-  useWindowsGlyph,
   close = false,
   onClick
 }: {
   label: string
   glyph: ReactNode
-  useWindowsGlyph: boolean
   close?: boolean
   onClick: () => void
 }): React.JSX.Element {
   return (
     <CaptionTileButton label={label} close={close} onClick={onClick}>
-      <span
-        className={cn('grid place-items-center', useWindowsGlyph && 'windows-caption-glyph')}
-        aria-hidden="true"
-      >
+      <span className="windows-caption-glyph grid place-items-center" aria-hidden="true">
         {glyph}
       </span>
     </CaptionTileButton>
@@ -82,12 +71,11 @@ function CaptionButton({
 export function WindowControls({
   onClose
 }: { onClose?: () => void } = {}): React.JSX.Element | null {
-  const isMac = window.electron.window.platform === 'darwin'
   const isWindows = window.electron.window.platform === 'win32'
   const [isMaximized, setIsMaximized] = useState(false)
 
   useEffect(() => {
-    if (isMac) return
+    if (!isWindows) return
 
     let mounted = true
     void window.electron.window.isMaximized().then((value) => {
@@ -98,41 +86,26 @@ export function WindowControls({
       mounted = false
       unsubscribe()
     }
-  }, [isMac])
+  }, [isWindows])
 
-  if (isMac) return null
+  if (!isWindows) return null
 
   return (
     <div className="flex h-10 self-stretch [-webkit-app-region:no-drag]">
       <CaptionButton
         label="Minimize window"
-        glyph={isWindows ? WINDOWS_CAPTION_GLYPHS.minimize : <Minus className="size-4" />}
-        useWindowsGlyph={isWindows}
+        glyph={WINDOWS_CAPTION_GLYPHS.minimize}
         onClick={window.electron.window.minimize}
       />
       <CaptionButton
         label={isMaximized ? 'Restore window' : 'Maximize window'}
-        glyph={
-          isWindows ? (
-            isMaximized ? (
-              WINDOWS_CAPTION_GLYPHS.restore
-            ) : (
-              WINDOWS_CAPTION_GLYPHS.maximize
-            )
-          ) : isMaximized ? (
-            <Copy className="size-4" />
-          ) : (
-            <Square className="size-4" />
-          )
-        }
-        useWindowsGlyph={isWindows}
+        glyph={isMaximized ? WINDOWS_CAPTION_GLYPHS.restore : WINDOWS_CAPTION_GLYPHS.maximize}
         onClick={window.electron.window.toggleMaximize}
       />
       <CaptionButton
         close
         label="Close window"
-        glyph={isWindows ? WINDOWS_CAPTION_GLYPHS.close : <X className="size-4" />}
-        useWindowsGlyph={isWindows}
+        glyph={WINDOWS_CAPTION_GLYPHS.close}
         onClick={onClose ?? window.electron.window.close}
       />
     </div>

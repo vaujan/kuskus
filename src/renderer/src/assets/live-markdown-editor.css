@@ -310,3 +310,53 @@
   outline: 3px solid color-mix(in oklch, var(--ring) 50%, transparent);
   outline-offset: 1px;
 }
+
+.cm-kuskus-slash-menu {
+  position: absolute;
+  z-index: 80;
+  width: 18rem;
+  max-height: 20rem;
+  overflow-y: auto;
+  border-radius: var(--radius-3xl);
+  background: color-mix(in oklch, var(--popover) 70%, transparent);
+  padding: 0.375rem;
+  color: var(--popover-foreground);
+  box-shadow:
+    0 0 0 1px color-mix(in oklch, var(--foreground) 6%, transparent),
+    0 12px 32px -16px rgb(0 0 0 / 50%);
+  backdrop-filter: blur(24px) saturate(150%);
+}
+
+.cm-kuskus-slash-item {
+  display: flex;
+  width: 100%;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: calc(var(--radius-3xl) - 6px);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.cm-kuskus-slash-item[aria-selected='true'],
+.cm-kuskus-slash-item:hover {
+  background: var(--muted);
+}
+
+.cm-kuskus-slash-item:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+.cm-kuskus-slash-item kbd {
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.cm-kuskus-slash-empty {
+  padding: 1.5rem 0.75rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  text-align: center;
+}

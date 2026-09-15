@@ -28,7 +28,14 @@ test('resolves curated color themes and rejects stale values', () => {
   assert.equal(resolveColorTheme('clay'), 'clay')
   assert.equal(resolveColorTheme('solarized'), 'solarized')
   assert.equal(resolveColorTheme('catppuccin'), 'catppuccin')
+  assert.equal(resolveColorTheme('tokyo-storm'), 'tokyo-storm')
+  assert.equal(resolveColorTheme('monokai'), 'monokai')
   assert.equal(resolveColorTheme('one'), 'one')
+  assert.equal(resolveColorTheme('one-pro-flat'), 'one-pro-flat')
+  assert.equal(resolveColorTheme('one-pro-darker'), 'one-pro-darker')
+  assert.equal(resolveColorTheme('dracula'), 'dracula')
+  assert.equal(resolveColorTheme('gruvbox'), 'gruvbox')
+  assert.equal(resolveColorTheme('nord'), 'nord')
   assert.equal(resolveColorTheme('custom'), 'kuskus')
   assert.equal(resolveColorTheme(null), 'kuskus')
 })
@@ -121,7 +128,18 @@ test('applies light and dark color modes', () => {
 test('defines light and dark palettes for every iconic theme', () => {
   const css = readFileSync(require.resolve('../src/renderer/src/assets/main.css'), 'utf8')
 
-  for (const theme of ['solarized', 'catppuccin', 'one']) {
+  for (const theme of [
+    'solarized',
+    'catppuccin',
+    'tokyo-storm',
+    'monokai',
+    'one',
+    'one-pro-flat',
+    'one-pro-darker',
+    'dracula',
+    'gruvbox',
+    'nord'
+  ]) {
     assert.match(css, new RegExp(`:root\\[data-color-theme='${theme}'\\]`))
     assert.match(css, new RegExp(`:root\\.dark\\[data-color-theme='${theme}'\\]`))
   }
@@ -159,7 +177,16 @@ test('settings keeps contextual view controls on the surfaces they affect', () =
   assert.match(panel, /Clay/)
   assert.match(panel, /Solarized/)
   assert.match(panel, /Catppuccin/)
+  assert.match(panel, /Tokyo Storm/)
+  assert.match(panel, /Monokai/)
   assert.match(panel, /One Dark/)
+  assert.match(panel, /One Dark Pro Flat/)
+  assert.match(panel, /One Dark Pro Darker/)
+  assert.match(panel, /Dracula/)
+  assert.match(panel, /Gruvbox/)
+  assert.match(panel, /Nord/)
+  assert.match(panel, /<Select[\s\S]*value={colorTheme}/)
+  assert.doesNotMatch(panel, /<ToggleGroup[\s\S]*value=\{\[colorTheme\]\}/)
   assert.match(panel, /Typography/)
   assert.match(panel, /Primary UI font/)
   assert.match(panel, /UI font fallback/)

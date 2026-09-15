@@ -12,6 +12,10 @@ import {
 } from './hooks/theme'
 import { initializeTranslucentBackground } from './hooks/use-translucent-background'
 import { SettingsProvider } from './settings/settings-context'
+import {
+  resolveTranslucentBackgroundPreference,
+  TRANSLUCENT_BACKGROUND_STORAGE_KEY
+} from '../../shared/window-contract'
 
 performance.mark('kuskus:renderer-entry')
 
@@ -47,15 +51,28 @@ const isQuickCapture = surface === 'quick-capture'
 const isNoteWindow = surface === 'note-window'
 if (isQuickCapture) {
   document.documentElement.dataset.surface = 'quick-capture'
-  const acrylicCapable = searchParams.get('acrylic-capable') === 'true'
-  const applyQuickCaptureMaterial = (reducedTransparency: boolean): void => {
-    document.documentElement.dataset.quickCaptureMaterial =
-      acrylicCapable && !reducedTransparency ? 'acrylic' : 'opaque'
+  const applyQuickCaptureMaterial = (): void => {
+    const requested = resolveTranslucentBackgroundPreference(
+      localStorage.getItem(TRANSLUCENT_BACKGROUND_STORAGE_KEY)
+    )
+    void window.electron.window.setTranslucentBackground(requested).then(
+      (status) => {
+        document.documentElement.dataset.quickCaptureMaterial = status.enabled
+          ? 'acrylic'
+          : 'opaque'
+      },
+      () => {
+        document.documentElement.dataset.quickCaptureMaterial = 'opaque'
+      }
+    )
   }
   document.documentElement.dataset.quickCaptureCorners =
     searchParams.get('corners') === 'native' ? 'native' : 'css'
-  applyQuickCaptureMaterial(searchParams.get('reduced-transparency') === 'true')
+  applyQuickCaptureMaterial()
   window.electron.window.onReducedTransparencyChange(applyQuickCaptureMaterial)
+  window.addEventListener('storage', (event) => {
+    if (event.key === TRANSLUCENT_BACKGROUND_STORAGE_KEY) applyQuickCaptureMaterial()
+  })
 } else void initializeTranslucentBackground()
 
 const root = createRoot(document.getElementById('root')!)
