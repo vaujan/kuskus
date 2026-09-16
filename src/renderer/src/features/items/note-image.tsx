@@ -88,5 +88,3 @@ export function NoteImage({
     </button>
   )
 }
-
-export { buildNoteImageDom } from '@/features/items/note-image-dom'

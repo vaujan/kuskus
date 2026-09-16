@@ -5,7 +5,8 @@ import {
   copyMarkdownCode,
   ensureCodeLanguageLoaded,
   highlightedCodeRanges,
-  isMermaidLanguage
+  isMermaidLanguage,
+  markdownCodeUrlRanges
 } from '@/features/items/markdown-code'
 import { MarkdownMermaid } from '@/features/items/markdown-mermaid'
 
@@ -41,11 +42,13 @@ export function MarkdownCodeCardHeader({
 export function MarkdownCodeBlock({
   code,
   language,
-  diagrams = false
+  diagrams = false,
+  onOpenLink
 }: {
   code: string
   language: string
   diagrams?: boolean
+  onOpenLink?: (url: string) => void
 }): React.JSX.Element {
   const [grammarTick, setGrammarTick] = useState(0)
 
@@ -65,20 +68,38 @@ export function MarkdownCodeBlock({
   const highlighted = useMemo(() => {
     // Re-runs when a lazy registry grammar finishes loading.
     void grammarTick
-    const nodes: React.ReactNode[] = []
-    let position = 0
-    for (const range of highlightedCodeRanges(code, language)) {
-      if (range.from > position) nodes.push(code.slice(position, range.from))
-      nodes.push(
-        <span key={`${range.from}-${range.to}`} className={range.classes}>
-          {code.slice(range.from, range.to)}
-        </span>
-      )
-      position = range.to
+    const highlights = highlightedCodeRanges(code, language)
+    const links = onOpenLink ? markdownCodeUrlRanges(code) : []
+    const boundaries = new Set([0, code.length])
+    for (const range of [...highlights, ...links]) {
+      boundaries.add(range.from)
+      boundaries.add(range.to)
     }
-    if (position < code.length) nodes.push(code.slice(position))
-    return nodes
-  }, [code, language, grammarTick])
+    const offsets = [...boundaries].sort((a, b) => a - b)
+    return offsets.slice(0, -1).map((from, index) => {
+      const to = offsets[index + 1]
+      const text = code.slice(from, to)
+      const highlight = highlights.find((range) => range.from <= from && range.to >= to)
+      const link = links.find((range) => range.from <= from && range.to >= to)
+      const content = highlight ? <span className={highlight.classes}>{text}</span> : text
+      return link ? (
+        <a
+          key={`${from}-${to}`}
+          href={link.url}
+          className="kuskus-code-link"
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            onOpenLink?.(link.url)
+          }}
+        >
+          {content}
+        </a>
+      ) : (
+        <span key={`${from}-${to}`}>{content}</span>
+      )
+    })
+  }, [code, language, grammarTick, onOpenLink])
 
   if (diagrams && isMermaidLanguage(language)) return <MarkdownMermaid code={code} />
 

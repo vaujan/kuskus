@@ -73,9 +73,9 @@ export function AppToolbar({
   }, [searchFocusRequest])
 
   return (
-    <header className="window-toolbar flex h-12 shrink-0 select-none items-center [-webkit-app-region:drag] [&_[data-slot=sidebar-trigger]]:size-10">
+    <header className="window-toolbar flex h-12 shrink-0 select-none items-center [-webkit-app-region:drag]">
       <div className="@container/toolbar min-w-0 flex-1">
-        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(10rem,28rem)_minmax(0,1fr)] items-center gap-3 px-2 @min-[44rem]/toolbar:px-5 @min-[64rem]/toolbar:px-7">
+        <div className="grid min-w-0 grid-cols-[auto_minmax(10rem,1fr)_auto] items-center gap-3 px-2 @min-[44rem]/toolbar:px-5 @min-[60rem]/toolbar:grid-cols-[minmax(0,1fr)_minmax(10rem,28rem)_minmax(0,1fr)] @min-[64rem]/toolbar:px-7">
           <div className="flex min-w-0 items-center justify-start gap-1">
             <ShellSidebarTrigger />
             <span className="hidden min-w-0 truncate px-1 text-sm font-medium text-foreground/80 @min-[44rem]/toolbar:block">
@@ -83,84 +83,99 @@ export function AppToolbar({
             </span>
           </div>
 
-          <div className="min-w-0 [-webkit-app-region:no-drag]">
+          <div className="flex min-w-0 items-center gap-1 [-webkit-app-region:no-drag]">
             <LibrarySearchInput
               inputRef={searchInputRef}
               value={searchQuery}
               onValueChange={onSearchQueryChange}
               pending={searchPending}
+              className="h-8 flex-1 rounded-4xl"
             />
+            <Tooltip>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <TooltipTrigger
+                      render={
+                        <Button
+                          className="gap-1"
+                          size={filterCount > 0 ? 'sm' : 'icon-sm'}
+                          variant={retrievalActive ? 'tonal' : 'ghost'}
+                          data-lifted={retrievalActive}
+                          aria-label={`Sort and filter ${destinationLabel}`}
+                        />
+                      }
+                    />
+                  }
+                >
+                  <IconAdjustmentsHorizontal data-icon="inline-start" aria-hidden="true" />
+                  {filterCount > 0 ? (
+                    <Badge
+                      className="min-w-4 justify-center tabular-nums"
+                      size="sm"
+                      variant="default"
+                    >
+                      {filterCount}
+                    </Badge>
+                  ) : null}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <ItemSortMenuGroup sort={sort} onSortChange={onSortChange} />
+                  <DropdownMenuSeparator />
+                  <ItemFilterMenuGroups
+                    typeFilters={typeFilters}
+                    onTypeFilterChange={onTypeFilterChange}
+                    showReferencedAttachments={showReferencedAttachments}
+                    onShowReferencedAttachmentsChange={onShowReferencedAttachmentsChange}
+                    onClearFilters={onClearFilters}
+                  />
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <TooltipContent>Sort and filter items</TooltipContent>
+            </Tooltip>
           </div>
 
           <div className="flex min-w-0 items-center justify-end gap-1 [-webkit-app-region:no-drag]">
-            <DropdownMenu>
-              <DropdownMenuTrigger
+            <Tooltip>
+              <TooltipTrigger
                 render={
                   <Button
-                    className="h-10 min-w-10 px-2.5 @min-[44rem]/toolbar:mr-1"
-                    variant={retrievalActive ? 'secondary' : 'ghost'}
-                    aria-label={`Sort and filter ${destinationLabel}`}
+                    size="sm"
+                    data-lifted="true"
+                    aria-keyshortcuts="Control+N"
+                    aria-label="Create new note"
+                    onClick={onNewNote}
                   />
                 }
               >
-                <IconAdjustmentsHorizontal data-icon="inline-start" aria-hidden="true" />
-                <span className="hidden @min-[60rem]/toolbar:inline">Sort &amp; filter</span>
-                {filterCount > 0 ? (
-                  <Badge variant="default" size="sm" className="tabular-nums">
-                    {filterCount}
-                  </Badge>
-                ) : null}
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <ItemSortMenuGroup sort={sort} onSortChange={onSortChange} />
-                <DropdownMenuSeparator />
-                <ItemFilterMenuGroups
-                  typeFilters={typeFilters}
-                  onTypeFilterChange={onTypeFilterChange}
-                  showReferencedAttachments={showReferencedAttachments}
-                  onShowReferencedAttachmentsChange={onShowReferencedAttachmentsChange}
-                  onClearFilters={onClearFilters}
-                />
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button
-              className="h-10"
-              size="sm"
-              variant="ghost"
-              aria-keyshortcuts="Control+N"
-              aria-label="Create new note"
-              onClick={onNewNote}
-            >
-              <IconNote data-icon="inline-start" aria-hidden="true" />
-              <span className="hidden @min-[68rem]/toolbar:inline">New note</span>
-              <Kbd className="ml-1 hidden @min-[88rem]/toolbar:inline-flex">Ctrl+N</Kbd>
-            </Button>
+                <IconNote data-icon="inline-start" aria-hidden="true" />
+                <span className="hidden @min-[60rem]/toolbar:inline">New note</span>
+              </TooltipTrigger>
+              <TooltipContent>
+                New note <Kbd>Ctrl+N</Kbd>
+              </TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger
                 render={
                   <Button
                     ref={newItemRef}
-                    className="relative h-10 min-w-10 px-3"
                     size="sm"
-                    variant="ghost"
+                    variant={newItemOpen || hasDraft ? 'tonal' : 'ghost'}
+                    data-lifted={newItemOpen || hasDraft}
                     data-new-item-button
                     aria-expanded={newItemOpen}
+                    aria-keyshortcuts="Control+Shift+N"
                     aria-label={hasDraft && !newItemOpen ? 'Continue Add item draft' : 'Add item'}
                     onClick={onNewItem}
                   />
                 }
               >
                 <IconPlus data-icon="inline-start" aria-hidden="true" />
-                <span className="hidden @min-[76rem]/toolbar:inline">Add item</span>
-                {hasDraft ? (
-                  <span
-                    className="absolute top-2 right-2 size-1.5 rounded-full bg-primary"
-                    aria-hidden="true"
-                  />
-                ) : null}
+                <span className="hidden @min-[60rem]/toolbar:inline">Add item</span>
               </TooltipTrigger>
               <TooltipContent>
-                {hasDraft && !newItemOpen ? 'Continue draft' : 'Add item'}
+                {hasDraft && !newItemOpen ? 'Continue draft' : 'Add item'} <Kbd>Ctrl+Shift+N</Kbd>
               </TooltipContent>
             </Tooltip>
             {hasDraft ? (
@@ -168,8 +183,7 @@ export function AppToolbar({
                 <TooltipTrigger
                   render={
                     <Button
-                      className="size-10 rounded-xl"
-                      size="icon"
+                      size="icon-sm"
                       variant="ghost"
                       aria-label="Discard New item draft"
                       onClick={onDiscardDraft}

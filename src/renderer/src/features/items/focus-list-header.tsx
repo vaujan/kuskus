@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { IconAdjustmentsHorizontal, IconNote, IconPlus, IconSearch } from '@tabler/icons-react'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -13,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
+import { Kbd } from '@/components/ui/kbd'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { FocusRailDensity } from '@/features/items/focus-view-state'
 import { ItemFilterMenuGroups, ItemSortMenuGroup } from '@/features/items/item-retrieval-menu'
@@ -91,7 +91,7 @@ export function FocusListHeader({
     <>
       <header
         data-focus-list-header
-        className="@container/focus-header flex h-10 shrink-0 select-none items-center gap-0.5 px-1 [-webkit-app-region:drag] [&_[data-slot=button]]:size-10"
+        className="@container/focus-header flex h-12 shrink-0 select-none items-center px-2 [-webkit-app-region:drag]"
       >
         <ShellSidebarTrigger />
 
@@ -101,28 +101,27 @@ export function FocusListHeader({
           </span>
         </div>
 
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                ref={searchButtonRef}
-                className="[-webkit-app-region:no-drag]"
-                size="icon-sm"
-                variant={searchOpen ? 'secondary' : 'ghost'}
-                aria-label="Search library"
-                aria-keyshortcuts="Control+Shift+F Meta+Shift+F"
-                aria-expanded={searchOpen}
-                aria-controls="focus-library-search"
-                onClick={searchOpen ? closeSearch : onOpenSearch}
-              />
-            }
-          >
-            <IconSearch data-icon="inline-start" aria-hidden="true" />
-          </TooltipTrigger>
-          <TooltipContent>Search library (Ctrl+Shift+F)</TooltipContent>
-        </Tooltip>
+        <div className="flex items-center gap-0.5 [-webkit-app-region:no-drag]">
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  ref={searchButtonRef}
+                  size="icon-sm"
+                  variant={searchOpen ? 'secondary' : 'ghost'}
+                  aria-label="Search library"
+                  aria-keyshortcuts="Control+Shift+F Meta+Shift+F"
+                  aria-expanded={searchOpen}
+                  aria-controls="focus-library-search"
+                  onClick={searchOpen ? closeSearch : onOpenSearch}
+                />
+              }
+            >
+              <IconSearch data-icon="inline-start" aria-hidden="true" />
+            </TooltipTrigger>
+            <TooltipContent>Search library (Ctrl+Shift+F)</TooltipContent>
+          </Tooltip>
 
-        <div className="mr-0.5 [-webkit-app-region:no-drag]">
           <Tooltip>
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -133,7 +132,7 @@ export function FocusListHeader({
                         className="relative"
                         size="icon-sm"
                         variant={retrievalActive ? 'secondary' : 'ghost'}
-                        aria-label={`Sort and filter ${destinationLabel}`}
+                        aria-label={`Sort and filter ${destinationLabel}${filterCount > 0 ? `, ${filterCount} active` : ''}`}
                       />
                     }
                   />
@@ -141,13 +140,10 @@ export function FocusListHeader({
               >
                 <IconAdjustmentsHorizontal data-icon="inline-start" aria-hidden="true" />
                 {filterCount > 0 ? (
-                  <Badge
-                    className="absolute top-0.5 right-0.5 min-w-4 justify-center tabular-nums"
-                    size="sm"
-                    variant="default"
-                  >
-                    {filterCount}
-                  </Badge>
+                  <span
+                    className="absolute top-1 right-1 size-1 rounded-full bg-primary"
+                    aria-hidden="true"
+                  />
                 ) : null}
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52">
@@ -177,54 +173,49 @@ export function FocusListHeader({
           </Tooltip>
         </div>
 
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                className="relative [-webkit-app-region:no-drag]"
-                size="icon-sm"
-                variant="ghost"
-                aria-keyshortcuts="Control+N"
-                aria-label="Create new note"
-                onClick={onNewNote}
-              />
-            }
-          >
-            <IconNote data-icon="inline-start" aria-hidden="true" />
-          </TooltipTrigger>
-          <TooltipContent>New note (Ctrl+N)</TooltipContent>
-        </Tooltip>
+        <div className="ml-1 flex items-center gap-0.5 [-webkit-app-region:no-drag]">
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-keyshortcuts="Control+N"
+                  aria-label="Create new note"
+                  onClick={onNewNote}
+                />
+              }
+            >
+              <IconNote data-icon="inline-start" aria-hidden="true" />
+            </TooltipTrigger>
+            <TooltipContent>New note (Ctrl+N)</TooltipContent>
+          </Tooltip>
 
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                ref={newItemRef}
-                className="relative [-webkit-app-region:no-drag]"
-                size="icon-sm"
-                variant="ghost"
-                data-new-item-button
-                aria-expanded={composerOpen}
-                aria-label={hasDraft && !composerOpen ? 'Continue Add item draft' : 'Add item'}
-                onClick={onNewItem}
-              />
-            }
-          >
-            <IconPlus data-icon="inline-start" aria-hidden="true" />
-            {hasDraft ? (
-              <span
-                className="absolute top-2 right-2 size-1.5 rounded-full bg-primary"
-                aria-hidden="true"
-              />
-            ) : null}
-          </TooltipTrigger>
-          <TooltipContent>
-            {hasDraft && !composerOpen ? 'Continue draft' : 'Add item'}
-          </TooltipContent>
-        </Tooltip>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  ref={newItemRef}
+                  size="icon-sm"
+                  variant={composerOpen || hasDraft ? 'secondary' : 'ghost'}
+                  data-new-item-button
+                  aria-expanded={composerOpen}
+                  aria-keyshortcuts="Control+Shift+N"
+                  aria-label={hasDraft && !composerOpen ? 'Continue Add item draft' : 'Add item'}
+                  onClick={onNewItem}
+                />
+              }
+            >
+              <IconPlus data-icon="inline-start" aria-hidden="true" />
+            </TooltipTrigger>
+            <TooltipContent>
+              {hasDraft && !composerOpen ? 'Continue draft' : 'Add item'} <Kbd>Ctrl+Shift+N</Kbd>
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </header>
       {searchOpen ? (
-        <div id="focus-library-search" className="shrink-0 px-2 pb-2">
+        <div id="focus-library-search" className="shrink-0 px-2 pt-1 pb-2">
           <LibrarySearchInput
             inputRef={searchInputRef}
             value={searchQuery}

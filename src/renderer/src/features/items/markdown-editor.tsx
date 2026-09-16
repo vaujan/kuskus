@@ -9,6 +9,7 @@ import {
 import { markdown } from '@codemirror/lang-markdown'
 import { bracketMatching, indentUnit, syntaxHighlighting, syntaxTree } from '@codemirror/language'
 import {
+  Compartment,
   EditorSelection,
   EditorState,
   Prec,
@@ -59,7 +60,6 @@ import {
   moveTableRow
 } from '@/features/items/markdown-table'
 import { markdownTableGuides } from '@/features/items/markdown-table-guides'
-import { indentationMarkers } from '@replit/codemirror-indentation-markers'
 import { cn } from '@/lib/utils'
 import { markdownCodeLanguage } from '@/features/items/markdown-code'
 import type { NoteFindTargetRef } from '@/features/items/note-editor'
@@ -75,6 +75,7 @@ import {
 } from '@/features/items/markdown-vim'
 import type { NoteVimMode } from '@/features/items/note-vim-mode'
 import { clampNoteSelection, type NoteSelection } from '@/features/items/note-editor'
+import { useSetting } from '@/settings/settings-context'
 
 export interface MarkdownEditorHandle {
   focus: () => void
@@ -113,7 +114,7 @@ const editorTheme = EditorView.theme({
     overflowY: 'auto',
     overflowX: 'hidden',
     fontFamily: 'var(--font-mono)',
-    fontSize: '0.875rem',
+    fontSize: 'var(--markdown-source-font-size, 14px)',
     lineHeight: '1.7'
   },
   // Match the shared ScrollArea design (10px lane, 8px rounded border-colored thumb,
@@ -201,13 +202,13 @@ const vimModeTheme = Prec.highest(
         backgroundColor: 'color-mix(in oklch, var(--primary) 25%, transparent) !important'
       },
     '.cm-vimMode .cm-fat-cursor': {
-      background: 'var(--foreground)',
-      color: 'var(--background) !important',
+      background: 'var(--primary)',
+      color: 'var(--primary-foreground) !important',
       border: 'none'
     },
     '.cm-editor:not(.cm-focused) .cm-vimMode .cm-fat-cursor': {
       background: 'none',
-      outlineColor: 'var(--foreground)',
+      outlineColor: 'var(--primary)',
       color: 'transparent !important'
     }
   })
@@ -412,6 +413,9 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     const hostRef = useRef<HTMLDivElement>(null)
     const [headerHost, setHeaderHost] = useState<HTMLElement | null>(null)
     const viewRef = useRef<EditorView | null>(null)
+    const lineNumbersCompartment = useRef(new Compartment()).current
+    const [showLineNumbers] = useSetting<boolean>('sourceLineNumbers')
+    const initialShowLineNumbersRef = useRef(showLineNumbers)
     const initialValueRef = useRef(value)
     const publishedRef = useRef<string | null>(null)
     const onChangeRef = useRef(onChange)
@@ -502,21 +506,9 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         bracketMatching(),
         highlightSpecialChars(),
         highlightActiveLine(),
-        highlightActiveLineGutter(),
-        lineNumbers(),
-        // Quiet guides along nested indentation (lists, code blocks). CSS
-        // variables keep them on the app theme in both light and dark.
-        indentationMarkers({
-          markerType: 'codeOnly',
-          highlightActiveBlock: true,
-          thickness: 1,
-          colors: {
-            light: 'color-mix(in oklch, var(--border) 80%, transparent)',
-            dark: 'color-mix(in oklch, var(--border) 80%, transparent)',
-            activeLight: 'color-mix(in oklch, var(--muted-foreground) 55%, transparent)',
-            activeDark: 'color-mix(in oklch, var(--muted-foreground) 55%, transparent)'
-          }
-        }),
+        lineNumbersCompartment.of(
+          initialShowLineNumbersRef.current ? [lineNumbers(), highlightActiveLineGutter()] : []
+        ),
         highlightSelectionMatches(),
         EditorView.editorAttributes.of({ class: 'cm-kuskus-detail-editor' }),
         // Keep the cursor roughly four lines above the pane bottom while
@@ -651,7 +643,17 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         // re-run activation effect must see vim as off for the new view.
         vimActiveRef.current = false
       }
-    }, [activateMarkdownVim])
+    }, [activateMarkdownVim, lineNumbersCompartment])
+
+    useEffect(() => {
+      const view = viewRef.current
+      if (!view) return
+      view.dispatch({
+        effects: lineNumbersCompartment.reconfigure(
+          showLineNumbers ? [lineNumbers(), highlightActiveLineGutter()] : []
+        )
+      })
+    }, [lineNumbersCompartment, showLineNumbers])
 
     useEffect(() => {
       const view = viewRef.current

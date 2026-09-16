@@ -34,7 +34,14 @@ import {
 } from '@/components/ui/dialog'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { Empty, EmptyContent, EmptyTitle } from '@/components/ui/empty'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle
+} from '@/components/ui/empty'
+import { Kbd } from '@/components/ui/kbd'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Switch } from '@/components/ui/switch'
 import { SidebarInset, SidebarProvider } from '@/features/shell/app-sidebar'
@@ -74,13 +81,11 @@ import { type ItemTypeFilter, type LibraryView } from '@/features/items/item-vie
 import type { NoteMode } from '@/features/items/note-view-mode'
 import { AppToolbar } from '@/features/shell/app-toolbar'
 import { LibrarySidebar, type LibraryDestination } from '@/features/shell/library-sidebar'
-import { SettingsDialog } from '@/features/settings/settings-dialog'
 import { addRecentSearchItem } from '@/features/search/global-search-state'
 import { QuickOpenDialog } from '@/features/search/quick-open-dialog'
 import { useLibrarySearch } from '@/features/search/use-library-search'
 import { useSetting } from '@/settings/settings-context'
 import { useNoteVim } from '@/hooks/use-note-vim'
-import type { TranslucentBackgroundPreference } from '@/hooks/use-translucent-background'
 import { cn } from '@/lib/utils'
 import type {
   ActiveItemLocation,
@@ -90,7 +95,6 @@ import type {
   NoteItemDto,
   UrlItemDto
 } from '../../../../shared/library-contract'
-import type { GlobalCaptureShortcutStatus } from '../../../../shared/window-contract'
 import type { CaptureSurface } from '../../../../shared/capture-contract'
 import {
   notifyActionError,
@@ -160,6 +164,22 @@ function destinationLabel(destination: LibraryDestination, library: LibraryDto):
   )
 }
 
+function emptyDestinationCopy(destination: LibraryDestination): {
+  title: string
+  description: string
+} {
+  if (destination.type === 'archive') {
+    return { title: 'Archive is empty', description: 'Items you archive will appear here.' }
+  }
+  if (destination.type === 'trash') {
+    return { title: 'Trash is empty', description: 'Items you move to Trash will appear here.' }
+  }
+  if (destination.type === 'collection') {
+    return { title: 'This folder is empty', description: 'Create a note to start filling it.' }
+  }
+  return { title: 'Nothing here yet', description: 'Create a note to start your library.' }
+}
+
 function hasFileDrag(dataTransfer: DataTransfer): boolean {
   return Array.from(dataTransfer.types).includes('Files')
 }
@@ -168,13 +188,7 @@ function hasSupportedFileDrag(dataTransfer: DataTransfer): boolean {
   return Array.from(dataTransfer.items).some((item) => item.kind === 'file')
 }
 
-export function Workspace({
-  initialLibrary,
-  translucentBackground
-}: {
-  initialLibrary: LibraryDto
-  translucentBackground: TranslucentBackgroundPreference
-}): React.JSX.Element {
+export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): React.JSX.Element {
   const [library, setLibrary] = useState(initialLibrary)
   const [initialSession] = useState(() => readAppSession(initialLibrary))
   const [sidebarHidden, setSidebarHidden] = useState(
@@ -199,9 +213,6 @@ export function Workspace({
   const [importRequest, setImportRequest] = useState<ImportRequest | null>(null)
   const [composerHasTransientWork, setComposerHasTransientWork] = useState(false)
   const [composerOwnedItemId, setComposerOwnedItemId] = useState<string | null>(null)
-  const [globalCaptureShortcutStatus, setGlobalCaptureShortcutStatus] =
-    useState<GlobalCaptureShortcutStatus | null>(null)
-  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [draggedItemIds, setDraggedItemIds] = useState<ReadonlySet<string>>(() => new Set())
   const [quickOpenOpen, setQuickOpenOpen] = useState(false)
@@ -718,6 +729,7 @@ export function Workspace({
   }, [changeFocusItemId, focusVisibleIndex, requestFocusTransition, visibleItems])
 
   const hasActiveRetrieval = typeFilters.length > 0 || searchActive
+  const emptyDestination = emptyDestinationCopy(destination)
 
   const changeDestination = useCallback(
     (next: LibraryDestination): void => {
@@ -745,6 +757,25 @@ export function Workspace({
     setFocusDetailOpen(false)
     setFocusNoteExpanded(false)
   }, [setView])
+
+  useEffect(() => {
+    const handleEmptyFocusEscape = (event: KeyboardEvent): void => {
+      if (
+        event.defaultPrevented ||
+        event.key !== 'Escape' ||
+        !focusWorkspaceOpen ||
+        focusItemId !== null ||
+        newNoteOpen ||
+        composerOpen
+      ) {
+        return
+      }
+      event.preventDefault()
+      returnToMasonry()
+    }
+    window.addEventListener('keydown', handleEmptyFocusEscape)
+    return () => window.removeEventListener('keydown', handleEmptyFocusEscape)
+  }, [composerOpen, focusItemId, focusWorkspaceOpen, newNoteOpen, returnToMasonry])
 
   const handleFocusSplitChange = useCallback((split: boolean): void => {
     if (split) setFocusDetailOpen(true)
@@ -1150,7 +1181,7 @@ export function Workspace({
     const handleSettingsShortcut = (event: KeyboardEvent): void => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === ',') {
         event.preventDefault()
-        setSettingsDialogOpen(true)
+        void window.electron.window.openSettingsWindow()
       }
     }
     window.addEventListener('keydown', handleSettingsShortcut)
@@ -1227,24 +1258,29 @@ export function Workspace({
   }, [focusItemId, requestFocusTransition])
 
   useEffect(() => {
-    const handleNewItemShortcut = (event: KeyboardEvent): void => {
+    const handleCreateShortcut = (event: KeyboardEvent): void => {
+      const target = event.target
       if (
         event.defaultPrevented ||
         !event.ctrlKey ||
         event.metaKey ||
         event.altKey ||
-        event.shiftKey ||
         event.key.toLocaleLowerCase() !== 'n' ||
-        document.querySelector('[role="dialog"]') !== null
+        document.querySelector('[role="dialog"]') !== null ||
+        (target instanceof Element &&
+          target.closest(
+            'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]'
+          ) !== null)
       ) {
         return
       }
       event.preventDefault()
-      openNewNote()
+      if (event.shiftKey) openComposer()
+      else openNewNote()
     }
-    window.addEventListener('keydown', handleNewItemShortcut)
-    return () => window.removeEventListener('keydown', handleNewItemShortcut)
-  }, [openNewNote])
+    window.addEventListener('keydown', handleCreateShortcut)
+    return () => window.removeEventListener('keydown', handleCreateShortcut)
+  }, [openComposer, openNewNote])
 
   const prepareGlobalCapture = useCallback((): void => {
     const modalOpen = document.querySelector('[role="dialog"]') !== null
@@ -1264,7 +1300,6 @@ export function Workspace({
     let active = true
     void window.electron.window.getGlobalCaptureShortcutStatus().then((status) => {
       if (!active) return
-      setGlobalCaptureShortcutStatus(status)
       if (!status.registered && !shortcutFailureNotified.current) {
         shortcutFailureNotified.current = true
         notifyGlobalCaptureUnavailable(status.accelerator)
@@ -1575,11 +1610,63 @@ export function Workspace({
         emptyMessage={
           searchPending
             ? 'Searching…'
-            : searchActive && visibleItems.length === 0
+            : hasActiveRetrieval && visibleItems.length === 0
               ? searchError
                 ? 'Search is temporarily unavailable'
                 : 'No matching items'
-              : null
+              : destinationItems.length === 0 &&
+                  !composerOpen &&
+                  !newNoteOpen &&
+                  !showExternalDropShadow
+                ? emptyDestination.title
+                : null
+        }
+        emptyDescription={
+          searchPending
+            ? null
+            : searchError
+              ? 'Try again in a moment.'
+              : hasActiveRetrieval && visibleItems.length === 0
+                ? searchActive
+                  ? 'Try another search.'
+                  : 'Try removing a filter to broaden this view.'
+                : destinationItems.length === 0 &&
+                    !composerOpen &&
+                    !newNoteOpen &&
+                    !showExternalDropShadow
+                  ? emptyDestination.description
+                  : null
+        }
+        emptyAction={
+          !searchActive && typeFilters.length > 0 && visibleItems.length === 0 ? (
+            <Button
+              variant="tonal"
+              onClick={() => {
+                setTypeFilters([])
+                clearSelectionSilently()
+              }}
+            >
+              Remove type filters
+            </Button>
+          ) : destination.type !== 'archive' &&
+            destination.type !== 'trash' &&
+            destinationItems.length === 0 &&
+            !composerOpen &&
+            !newNoteOpen &&
+            !showExternalDropShadow ? (
+            <>
+              <Button aria-keyshortcuts="Control+N" onClick={() => openNewNote()}>
+                Create new note <Kbd>Ctrl+N</Kbd>
+              </Button>
+              <Button
+                variant="tonal"
+                aria-keyshortcuts="Control+Shift+N"
+                onClick={() => openComposer()}
+              >
+                Add item <Kbd>Ctrl+Shift+N</Kbd>
+              </Button>
+            </>
+          ) : null
         }
         density={focusRailDensity}
         activeItemId={newNoteOpen ? null : focusItemId}
@@ -1718,6 +1805,7 @@ export function Workspace({
                   detailOptions={detailOptions}
                   {...actions}
                   onOpenInNewWindow={() => guard(actions.onOpenInNewWindow)}
+                  onDuplicate={() => guard(actions.onDuplicate)}
                   onRename={() => guard(actions.onRename)}
                   onPin={() => guard(actions.onPin)}
                   onUnpin={() => guard(actions.onUnpin)}
@@ -1808,6 +1896,7 @@ export function Workspace({
               detailOptions={detailOptions}
               {...actions}
               onOpenInNewWindow={() => guard(actions.onOpenInNewWindow)}
+              onDuplicate={() => guard(actions.onDuplicate)}
               onRename={() => guard(actions.onRename)}
               onPin={() => guard(actions.onPin)}
               onUnpin={() => guard(actions.onUnpin)}
@@ -1824,18 +1913,30 @@ export function Workspace({
       />
     </Suspense>
   ) : (
-    <Empty className="size-full gap-0">
-      <EmptyContent className="gap-0">
-        <Button
-          variant="link"
-          size="sm"
-          aria-keyshortcuts="Control+N"
-          onClick={() => openNewNote()}
-        >
-          Create new note (Ctrl + N)
-        </Button>
-        <Button variant="link" size="sm" onClick={returnToMasonry}>
-          Return to overview
+    <Empty className="size-full px-6">
+      <EmptyHeader>
+        <EmptyTitle>No item selected</EmptyTitle>
+        <EmptyDescription>
+          Choose an item from the list, create a note, or add something new.
+        </EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent className="max-w-none flex-row flex-wrap justify-center gap-2">
+        {destination.type !== 'archive' && destination.type !== 'trash' ? (
+          <>
+            <Button aria-keyshortcuts="Control+N" onClick={() => openNewNote()}>
+              Create new note <Kbd>Ctrl+N</Kbd>
+            </Button>
+            <Button
+              variant="tonal"
+              aria-keyshortcuts="Control+Shift+N"
+              onClick={() => openComposer()}
+            >
+              Add item <Kbd>Ctrl+Shift+N</Kbd>
+            </Button>
+          </>
+        ) : null}
+        <Button variant="ghost" aria-keyshortcuts="Escape" onClick={returnToMasonry}>
+          Return to overview <Kbd>Esc</Kbd>
         </Button>
       </EmptyContent>
     </Empty>
@@ -1843,7 +1944,6 @@ export function Workspace({
 
   return (
     <SidebarProvider
-      keyboardShortcutEnabled={!focusWorkspaceOpen}
       open={!sidebarHidden && !focusNoteExpansionActive}
       onOpenChange={(open) => setSidebarHidden(!open)}
       width={sidebarWidth}
@@ -1868,7 +1968,7 @@ export function Workspace({
           guardFocusTargets(itemIds, () => void moveItemIds(itemIds, nextDestination))
         }
         librarySwitchBlocked={importRequest !== null || composerHasTransientWork}
-        onOpenSettings={() => setSettingsDialogOpen(true)}
+        onOpenSettings={() => void window.electron.window.openSettingsWindow()}
       />
       <SidebarInset>
         {focusWorkspaceOpen ? null : (
@@ -2017,15 +2117,23 @@ export function Workspace({
                   !searchPending &&
                   visibleItems.length === 0 &&
                   hasActiveRetrieval && (
-                    <Empty className="mt-8 gap-1">
-                      <EmptyTitle className="text-sm text-muted-foreground">
-                        {searchError ? 'Search is temporarily unavailable' : 'No matching items'}
-                      </EmptyTitle>
-                      <EmptyContent className="gap-0">
+                    <Empty className="min-h-72 py-10">
+                      <EmptyHeader>
+                        <EmptyTitle>
+                          {searchError ? 'Search is temporarily unavailable' : 'No matching items'}
+                        </EmptyTitle>
+                        <EmptyDescription>
+                          {searchError
+                            ? 'Try again in a moment.'
+                            : searchActive
+                              ? `Nothing matches “${searchQuery.trim()}”. Try another search.`
+                              : 'Try removing a filter to broaden this view.'}
+                        </EmptyDescription>
+                      </EmptyHeader>
+                      <EmptyContent className="gap-2">
                         {!searchActive && typeFilters.length > 0 ? (
                           <Button
-                            variant="link"
-                            size="sm"
+                            variant="tonal"
                             onClick={() => {
                               setTypeFilters([])
                               clearSelectionSilently()
@@ -2038,26 +2146,25 @@ export function Workspace({
                     </Empty>
                   )}
                 {!isDragging && destinationItems.length === 0 && !hasActiveRetrieval && (
-                  <Empty className="mt-6 gap-1">
-                    <EmptyTitle className="text-sm text-muted-foreground">
-                      {destination.type === 'archive'
-                        ? 'Archive is empty'
-                        : destination.type === 'trash'
-                          ? 'Trash is empty'
-                          : destination.type === 'collection'
-                            ? 'This folder is empty'
-                            : 'Nothing here yet'}
-                    </EmptyTitle>
+                  <Empty className="min-h-72 py-10">
+                    <EmptyHeader>
+                      <EmptyTitle>{emptyDestination.title}</EmptyTitle>
+                      <EmptyDescription>{emptyDestination.description}</EmptyDescription>
+                    </EmptyHeader>
                     {destination.type !== 'archive' && destination.type !== 'trash' ? (
-                      <EmptyContent className="gap-0">
-                        <Button
-                          variant="link"
-                          size="sm"
-                          aria-keyshortcuts="Control+N"
-                          onClick={() => openNewNote()}
-                        >
-                          Create new note (Ctrl + N)
-                        </Button>
+                      <EmptyContent className="gap-2">
+                        <div className="flex flex-wrap justify-center gap-2">
+                          <Button aria-keyshortcuts="Control+N" onClick={() => openNewNote()}>
+                            Create new note <Kbd>Ctrl+N</Kbd>
+                          </Button>
+                          <Button
+                            variant="tonal"
+                            aria-keyshortcuts="Control+Shift+N"
+                            onClick={() => openComposer()}
+                          >
+                            Add item <Kbd>Ctrl+Shift+N</Kbd>
+                          </Button>
+                        </div>
                       </EmptyContent>
                     ) : null}
                   </Empty>
@@ -2099,6 +2206,8 @@ export function Workspace({
           recentItemIds={recentItemIds}
           onOpenItem={openQuickOpenItem}
           onCreateNote={createNoteFromSearch}
+          onNewNote={openNewNote}
+          onAddItem={openComposer}
         />
         <p className="sr-only" aria-live="polite" aria-atomic="true">
           {statusMessage}
@@ -2306,13 +2415,6 @@ export function Workspace({
             setFocusNoteExpanded(false)
             setComposerFocusRequest((request) => request + 1)
           }}
-        />
-        <SettingsDialog
-          open={settingsDialogOpen}
-          onOpenChange={setSettingsDialogOpen}
-          translucentBackground={translucentBackground}
-          globalCaptureShortcutStatus={globalCaptureShortcutStatus}
-          onGlobalCaptureShortcutStatusChange={setGlobalCaptureShortcutStatus}
         />
       </SidebarInset>
     </SidebarProvider>

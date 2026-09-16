@@ -52,6 +52,17 @@ test('routes note windows to the focused note surface and exposes a note-only ac
   assert.match(rendererSource, /expandable=\{false\}/)
   assert.match(menuSource, /!bulk && item\.type === 'note'/)
   assert.match(menuSource, /Open in new window/)
+  assert.match(menuSource, /Duplicate note/)
+})
+
+test('restores live selections and keeps read-mode metrics visible', () => {
+  const detailSource = readFileSync(
+    require.resolve('../src/renderer/src/features/items/item-detail-dialog.tsx'),
+    'utf8'
+  )
+
+  assert.match(detailSource, /if \(mode === 'read'\) return[\s\S]{0,180}setSelection\(selection\)/)
+  assert.match(detailSource, /\{!item\.missingContent \? \([\s\S]{0,180}note-status-bar/)
 })
 
 test('copies the current note draft as Markdown from note action menus', () => {
@@ -64,4 +75,18 @@ test('copies the current note draft as Markdown from note action menus', () => {
   )
   assert.match(detailSource, /copyTextToClipboard\(snapshot\.draft\)/)
   assert.match(detailSource, /if \(copied\) notifyCopiedAsMarkdown\(\)/)
+})
+
+test('exposes native file and image copying from detail context menus', () => {
+  const detailSource = readFileSync(
+    require.resolve('../src/renderer/src/features/items/item-detail-dialog.tsx'),
+    'utf8'
+  )
+  assert.match(detailSource, /<NoteReadContextMenu itemId=\{item\.id\} onError=\{onError\}>/)
+  assert.match(detailSource, /window\.kuskus\.copyItemPath\(itemId\)/)
+  assert.match(detailSource, /window\.kuskus\.copyImage\(itemId\)/)
+  assert.match(
+    detailSource,
+    /<ItemClipboardContextMenu[\s\S]{0,160}image=\{item\.type === 'image'\}/
+  )
 })

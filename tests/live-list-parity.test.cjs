@@ -18,6 +18,10 @@ const liveStyles = readFileSync(
   require.resolve('../src/renderer/src/assets/live-markdown-editor.css'),
   'utf8'
 )
+const liveEditorSource = readFileSync(
+  require.resolve('../src/renderer/src/features/items/live/live-markdown-editor.tsx'),
+  'utf8'
+)
 
 test('live list markers use read-mode geometry and rendered ordered numerals', () => {
   assert.match(previewSource, /var\(--typeset-list-leading\)/)
@@ -55,6 +59,67 @@ test('bullet glyph depth only counts nested bullet lists', () => {
   assert.match(previewSource, /function bulletListDepth/)
   assert.match(previewSource, /parent\.name === 'BulletList'/)
   assert.match(previewSource, /bulletDepth = bulletListDepth\(listItem\)/)
+})
+
+test('read detail renders structural guides for nested lists only', () => {
+  assert.match(
+    presentationStyles,
+    /\[data-typeset-presentation='detail'\][\s\S]*?\.kuskus-list-content[\s\S]*?> \.kuskus-rendered-list::before/
+  )
+  assert.doesNotMatch(
+    presentationStyles,
+    /\[data-typeset-presentation='(?:card|compact|snippet|snippet-compact)'\][\s\S]*?> \.kuskus-rendered-list::before/
+  )
+})
+
+test('read and live detail modes leave folding disabled', () => {
+  assert.doesNotMatch(liveEditorSource, /foldGutter|foldKeymap|foldState/)
+  assert.doesNotMatch(readPreviewSource, /ReadFold|data-kuskus-fold|foldStateRef/)
+})
+
+test('live list guides use parsed list depth without changing editor indentation', () => {
+  assert.match(liveEditorSource, /indentUnit\.of\(' {4}'\)/)
+  assert.doesNotMatch(liveEditorSource, /indentationMarkers/)
+  assert.match(previewSource, /function listLineStyle\([\s\S]*?depth: number/)
+  assert.match(previewSource, /const activeGuideOwners = new Set<string>\(\)/)
+  assert.match(
+    previewSource,
+    /const activeParent = nearestListItem\(activeItem\?\.parent \?\? null\)/
+  )
+  assert.match(previewSource, /var\(--typeset-list-guide-active\)/)
+  assert.match(previewSource, /var\(--typeset-list-guide\)/)
+  assert.match(previewSource, /var\(--typeset-list-marker-axis\)/)
+  assert.match(previewSource, /contentOffset < 0 \? ownedLine\.from/)
+  assert.match(
+    presentationStyles,
+    /\.kuskus-list-content > :first-child \{\s*margin-block-start: 0;/
+  )
+  assert.match(presentationStyles, /--typeset-list-guide:/)
+  assert.match(presentationStyles, /--typeset-list-marker-axis:/)
+  assert.match(previewSource, /const guidePosition = taskLine/)
+  assert.match(previewSource, /background-position: \$\{guidePositions\}/)
+  assert.match(
+    presentationStyles,
+    /inset-inline-start: calc\([\s\S]*?var\(--typeset-list-marker-axis\)[\s\S]*?- var\(--typeset-list-leading\)[\s\S]*?-\s+var\(--typeset-list-marker-column\)/
+  )
+  assert.match(presentationStyles, /--typeset-task-guide-nudge: 0\.1875em/)
+  assert.match(previewSource, /var\(--typeset-task-guide-nudge\)/)
+  assert.match(presentationStyles, /--typeset-list-guide-active:/)
+})
+
+test('read list markers stay single-line and task rows never regain bullet glyphs', () => {
+  assert.match(
+    presentationStyles,
+    /\.kuskus-rendered-list > li::before,[\s\S]*?\.kuskus-list-marker[\s\S]*?white-space: nowrap;/
+  )
+  assert.match(
+    presentationStyles,
+    /\.kuskus-rendered-list--bullet > li:not\(\.task-list-item\)::before/
+  )
+  assert.match(
+    presentationStyles,
+    /\.kuskus-rendered-list--bullet[\s\S]*?> li:not\(\.task-list-item\)::before \{\s*content: '▪';/
+  )
 })
 
 test('one presentation contract covers every rendered markdown family', () => {

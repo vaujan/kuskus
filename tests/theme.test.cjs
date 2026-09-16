@@ -8,6 +8,7 @@ const {
   createFontStack,
   createLocalFontPreference,
   getFontPreferenceLabel,
+  resolveBaseFontSize,
   resolveAppliedTheme,
   resolveColorMode,
   resolveColorTheme,
@@ -96,8 +97,12 @@ test('applies light and dark color modes', () => {
     {
       uiFont: 'plex',
       uiFontFallback: 'system-ui',
+      contentFont: 'local:Literata',
+      contentFontFallback: 'system-ui',
       codeFont: 'local:Iosevka',
-      codeFontFallback: 'system-mono'
+      codeFontFallback: 'system-mono',
+      sourceFontSize: '14',
+      contentFontSize: '17'
     },
     root
   )
@@ -105,7 +110,10 @@ test('applies light and dark color modes', () => {
   assert.equal(root.style.colorScheme, 'dark')
   assert.equal(root.dataset.colorTheme, 'moss')
   assert.equal(properties.get('--font-ui'), "'IBM Plex Sans Variable', system-ui, sans-serif")
+  assert.equal(properties.get('--font-content'), '"Literata", system-ui, sans-serif')
   assert.equal(properties.get('--font-code'), '"Iosevka", ui-monospace, monospace')
+  assert.equal(properties.get('--markdown-source-font-size'), '14px')
+  assert.equal(properties.get('--markdown-content-font-size'), '17px')
 
   applyTheme(
     'light',
@@ -113,8 +121,12 @@ test('applies light and dark color modes', () => {
     {
       uiFont: 'system-ui',
       uiFontFallback: 'none',
+      contentFont: 'inter',
+      contentFontFallback: 'none',
       codeFont: 'system-mono',
-      codeFontFallback: 'none'
+      codeFontFallback: 'none',
+      sourceFontSize: '13',
+      contentFontSize: '16'
     },
     root
   )
@@ -122,7 +134,15 @@ test('applies light and dark color modes', () => {
   assert.equal(root.style.colorScheme, 'light')
   assert.equal(root.dataset.colorTheme, 'graphite')
   assert.equal(properties.get('--font-ui'), 'system-ui, sans-serif')
+  assert.equal(properties.get('--font-content'), "'Inter Variable', sans-serif")
   assert.equal(properties.get('--font-code'), 'ui-monospace, monospace')
+})
+
+test('accepts only supported Markdown base font sizes', () => {
+  assert.equal(resolveBaseFontSize('13', '16'), '13')
+  assert.equal(resolveBaseFontSize('20', '16'), '20')
+  assert.equal(resolveBaseFontSize('19', '16'), '16')
+  assert.equal(resolveBaseFontSize(null, '14'), '14')
 })
 
 test('defines light and dark palettes for every iconic theme', () => {
@@ -164,12 +184,17 @@ test('menu surfaces inherit the active color mode and palette', () => {
 
 test('settings keeps contextual view controls on the surfaces they affect', () => {
   const panel = readFileSync(
-    require.resolve('../src/renderer/src/features/settings/settings-dialog.tsx'),
+    require.resolve('../src/renderer/src/features/settings/settings-window-app.tsx'),
     'utf8'
   )
 
-  assert.match(panel, /showOverlay={false}/)
-  assert.match(panel, /modal={false}/)
+  assert.match(panel, /<SidebarProvider/)
+  assert.match(panel, /<SidebarMenuButton/)
+  assert.match(panel, /md:left-\[208px\]/)
+  assert.match(panel, /isMac && 'pt-10'/)
+  assert.doesNotMatch(panel, /showCustomTitleBar && 'pt-10'/)
+  assert.match(panel, /SettingsSection = 'appearance' \| 'editing'/)
+  assert.doesNotMatch(panel, /IconBolt|>Capture</)
   assert.match(panel, /<ScrollArea/)
   assert.match(panel, /Kuskus/)
   assert.match(panel, /Graphite/)
@@ -188,14 +213,49 @@ test('settings keeps contextual view controls on the surfaces they affect', () =
   assert.match(panel, /<Select[\s\S]*value={colorTheme}/)
   assert.doesNotMatch(panel, /<ToggleGroup[\s\S]*value=\{\[colorTheme\]\}/)
   assert.match(panel, /Typography/)
-  assert.match(panel, /Primary UI font/)
-  assert.match(panel, /UI font fallback/)
-  assert.match(panel, /Primary code font/)
-  assert.match(panel, /Code font fallback/)
-  assert.match(panel, /var\(--font-code\)/)
+  assert.match(panel, /ariaLabel="UI font"/)
+  assert.match(panel, /ariaLabel="Code font"/)
+  assert.doesNotMatch(panel, /font fallback|allowGenericOnly/)
+  assert.match(panel, /Source size/)
+  assert.match(panel, /Live & Read size/)
+  assert.match(panel, /Show line numbers in Markdown Source mode/)
+  assert.doesNotMatch(panel, /theme preview/)
+  assert.match(panel, /Content font/)
   assert.doesNotMatch(panel, /Default view/)
   assert.doesNotMatch(panel, /Sort items by/)
   assert.doesNotMatch(panel, /Focus rail density/)
   assert.doesNotMatch(panel, /Note reading width/)
   assert.doesNotMatch(panel, /Inline title/)
+})
+
+test('applies separate Source and Live plus Read font-size tokens', () => {
+  const sourceEditor = readFileSync(
+    require.resolve('../src/renderer/src/features/items/markdown-editor.tsx'),
+    'utf8'
+  )
+  const markdownCss = readFileSync(
+    require.resolve('../src/renderer/src/assets/markdown.css'),
+    'utf8'
+  )
+
+  assert.match(sourceEditor, /var\(--markdown-source-font-size, 14px\)/)
+  assert.match(
+    markdownCss,
+    /data-typeset-presentation='detail'[\s\S]*var\(--markdown-content-font-size, 16px\)/
+  )
+})
+
+test('toggles line numbers only in Markdown Source mode', () => {
+  const sourceEditor = readFileSync(
+    require.resolve('../src/renderer/src/features/items/markdown-editor.tsx'),
+    'utf8'
+  )
+  const liveEditor = readFileSync(
+    require.resolve('../src/renderer/src/features/items/live/live-markdown-editor.tsx'),
+    'utf8'
+  )
+
+  assert.match(sourceEditor, /useSetting<boolean>\('sourceLineNumbers'\)/)
+  assert.match(sourceEditor, /lineNumbersCompartment\.reconfigure/)
+  assert.doesNotMatch(liveEditor, /sourceLineNumbers/)
 })

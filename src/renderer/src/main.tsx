@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client'
 import {
   applyTheme,
   DEFAULT_TYPOGRAPHY,
+  resolveBaseFontSize,
   resolveAppliedTheme,
   resolveColorMode,
   resolveColorTheme,
@@ -29,19 +30,24 @@ applyTheme(
       localStorage.getItem('kuskus-ui-font'),
       DEFAULT_TYPOGRAPHY.uiFont
     ),
-    uiFontFallback: resolveFontPreference(
-      localStorage.getItem('kuskus-ui-font-fallback'),
-      DEFAULT_TYPOGRAPHY.uiFontFallback,
-      true
+    uiFontFallback: DEFAULT_TYPOGRAPHY.uiFontFallback,
+    contentFont: resolveFontPreference(
+      localStorage.getItem('kuskus-content-font'),
+      DEFAULT_TYPOGRAPHY.contentFont
     ),
+    contentFontFallback: DEFAULT_TYPOGRAPHY.contentFontFallback,
     codeFont: resolveFontPreference(
       localStorage.getItem('kuskus-code-font'),
       DEFAULT_TYPOGRAPHY.codeFont
     ),
-    codeFontFallback: resolveFontPreference(
-      localStorage.getItem('kuskus-code-font-fallback'),
-      DEFAULT_TYPOGRAPHY.codeFontFallback,
-      true
+    codeFontFallback: DEFAULT_TYPOGRAPHY.codeFontFallback,
+    sourceFontSize: resolveBaseFontSize(
+      localStorage.getItem('kuskus-markdown-source-font-size'),
+      DEFAULT_TYPOGRAPHY.sourceFontSize
+    ),
+    contentFontSize: resolveBaseFontSize(
+      localStorage.getItem('kuskus-markdown-content-font-size'),
+      DEFAULT_TYPOGRAPHY.contentFontSize
     )
   }
 )
@@ -49,6 +55,7 @@ const searchParams = new URLSearchParams(window.location.search)
 const surface = searchParams.get('surface')
 const isQuickCapture = surface === 'quick-capture'
 const isNoteWindow = surface === 'note-window'
+const isSettingsWindow = surface === 'settings-window'
 if (isQuickCapture) {
   document.documentElement.dataset.surface = 'quick-capture'
   const applyQuickCaptureMaterial = (): void => {
@@ -94,6 +101,17 @@ if (isQuickCapture) {
       <StrictMode>
         <SettingsProvider>
           <NoteWindowApp itemId={searchParams.get('itemId') ?? ''} />
+        </SettingsProvider>
+      </StrictMode>
+    )
+  })
+} else if (isSettingsWindow) {
+  void import('./features/settings/settings-window-app').then(({ SettingsWindowApp }) => {
+    performance.mark('kuskus:surface-module-loaded')
+    root.render(
+      <StrictMode>
+        <SettingsProvider>
+          <SettingsWindowApp />
         </SettingsProvider>
       </StrictMode>
     )

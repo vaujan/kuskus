@@ -8,6 +8,7 @@ export const KUSKUS_CHANNELS = {
   createLibrary: 'library:create',
   openLibrary: 'library:open',
   createNote: 'library:create-note',
+  duplicateNote: 'library:duplicate-note',
   updateNote: 'library:update-note',
   importNoteImage: 'library:import-note-image',
   listCaptureDraftImages: 'library:list-capture-draft-images',
@@ -41,8 +42,10 @@ export const KUSKUS_CHANNELS = {
   inspectItemDeletion: 'library:inspect-item-deletion',
   getImageThumbnail: 'library:get-image-thumbnail',
   getImagePreview: 'library:get-image-preview',
+  copyImage: 'library:copy-image',
   importFile: 'library:import-file',
   copyLibraryPath: 'library:copy-library-path',
+  copyItemPath: 'library:copy-item-path',
   showItemInExplorer: 'library:show-item-in-explorer',
   openExternalUrl: 'library:open-external-url',
   initializeVault: 'library:initialize-vault',
@@ -413,6 +416,7 @@ export interface KuskusLibraryApi {
   initializeVault: () => Promise<ApiResult<LibraryState>>
   migrateLibrary: () => Promise<ApiResult<{ state: LibraryState; backupPath: string }>>
   createNote: (input: CreateNoteInput) => Promise<ApiResult<NoteItemDto>>
+  duplicateNote: (itemId: string) => Promise<ApiResult<LibraryDto>>
   updateNote: (input: UpdateNoteInput) => Promise<UpdateNoteResult>
   importNoteImage: (input: NoteImageImportInput) => Promise<ApiResult<NoteAttachmentDto>>
   listCaptureDraftImages: () => Promise<ApiResult<CaptureDraftImageDto[]>>
@@ -453,8 +457,10 @@ export interface KuskusLibraryApi {
   permanentlyDeleteItems: (input: PermanentlyDeleteItemsInput) => Promise<ApiResult<LibraryDto>>
   getImageThumbnail: (itemId: string) => Promise<ApiResult<ImagePreviewDto>>
   getImagePreview: (itemId: string) => Promise<ApiResult<ImagePreviewDto>>
+  copyImage: (itemId: string) => Promise<ApiResult<null>>
   importFile: (input: FileImportInput) => Promise<ApiResult<FileItemDto>>
   copyLibraryPath: () => Promise<ApiResult<null>>
+  copyItemPath: (itemId: string) => Promise<ApiResult<null>>
   showItemInExplorer: (itemId: string) => Promise<ApiResult<null>>
   openExternalUrl: (url: string) => Promise<ApiResult<null>>
   onVaultChanged: (callback: () => void) => () => void

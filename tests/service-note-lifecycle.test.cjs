@@ -76,6 +76,35 @@ test('creates, persists, reopens, and reveals a Markdown note path', async (cont
   assert.equal(reopenedState.library.items[0].body, note.body)
 })
 
+test('duplicates a note beside the original with the same Markdown', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-duplicate-note-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+
+  const service = new LibraryService(join(root, 'settings.json'))
+  await service.createIn(root, 'Duplicate note library')
+  const original = await service.createNote({
+    markdown: '# Source note\n\nKeep this body.',
+    attachmentIds: []
+  })
+  await service.renameItem({ itemId: original.id, title: 'Custom title' })
+  const library = await service.duplicateNote(original.id)
+  const duplicate = library.items.find((item) => item.id !== original.id)
+
+  assert.equal(duplicate.type, 'note')
+  assert.equal(duplicate.title, 'Custom title (2)')
+  assert.equal(duplicate.body, original.body)
+  assert.equal(
+    await readFile(await service.getItemContentPath(duplicate.id), 'utf8'),
+    original.body
+  )
+  const updated = await service.updateNote({
+    itemId: duplicate.id,
+    markdown: `${duplicate.body}\n\nEdited copy.`,
+    expectedMarkdown: duplicate.body
+  })
+  assert.equal(updated.title, 'Custom title (2)')
+})
+
 test('rejects unsafe library names and arbitrary item identifiers', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-safety-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))

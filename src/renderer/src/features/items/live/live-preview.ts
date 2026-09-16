@@ -15,7 +15,12 @@ import { tables } from './atomic/table-widget'
 import { readOnlyFacet } from './atomic/read-only'
 import { treeGrowthEffect } from './atomic/tree-progress'
 import { autoCloseCodeFence } from './atomic/edit-helpers'
-import { codeLanguageLabel, copyMarkdownCode, isMermaidLanguage } from '../markdown-code'
+import {
+  codeLanguageLabel,
+  copyMarkdownCode,
+  isMermaidLanguage,
+  markdownCodeUrlRanges
+} from '../markdown-code'
 import { renderMermaid } from '../mermaid-renderer'
 
 let liveMermaidSequence = 0
@@ -438,6 +443,16 @@ class KuskusLiveDecorationBuilder {
       const openerEnd = firstLine.to + 1
       const closerStart = lastLine.from
       const yaml = this.state.doc.sliceString(openerEnd, closerStart)
+      for (const link of markdownCodeUrlRanges(yaml)) {
+        this.addMark(
+          openerEnd + link.from,
+          openerEnd + link.to,
+          Decoration.mark({
+            class: 'cm-kuskus-yaml-link',
+            attributes: { 'data-url': link.url }
+          })
+        )
+      }
       this.addReplace(closerStart, node.to, Decoration.replace({}))
       this.addLine(
         firstLine.from,
@@ -787,8 +802,28 @@ export function kuskusLiveExtensions(getOptions: () => LiveEditorOptions): Exten
     autoCloseCodeFence,
     kuskusLiveField,
     kuskusImageBlockField,
-    wikilinkInteraction(getOptions)
+    wikilinkInteraction(getOptions),
+    yamlLinkInteraction(getOptions)
   ]
+}
+
+function yamlLinkInteraction(getOptions: () => LiveEditorOptions): Extension {
+  return EditorView.domEventHandlers({
+    click: (event) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return false
+      }
+      const link = (event.target as HTMLElement | null)?.closest<HTMLElement>(
+        '.cm-kuskus-yaml-link'
+      )
+      const url = link?.dataset.url
+      if (!url) return false
+      event.preventDefault()
+      event.stopPropagation()
+      getOptions().onOpenLink?.(url)
+      return true
+    }
+  })
 }
 
 function wikilinkInteraction(getOptions: () => LiveEditorOptions): Extension {

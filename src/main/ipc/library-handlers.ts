@@ -1,4 +1,4 @@
-import { BrowserWindow, clipboard, dialog, ipcMain, shell } from 'electron'
+import { BrowserWindow, clipboard, dialog, ipcMain, nativeImage, shell } from 'electron'
 
 import {
   KUSKUS_CHANNELS,
@@ -169,6 +169,17 @@ export function registerLibraryIpc(
     }
     try {
       return { ok: true, data: await libraryService.createNote(input as CreateNoteInput) }
+    } catch (error) {
+      return errorResult(error, 'invalid-input')
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.duplicateNote, async (_event, itemId: unknown) => {
+    if (typeof itemId !== 'string') {
+      return errorResult(new Error('The note identifier is invalid.'), 'invalid-input')
+    }
+    try {
+      return { ok: true, data: await libraryService.duplicateNote(itemId) }
     } catch (error) {
       return errorResult(error, 'invalid-input')
     }
@@ -536,6 +547,21 @@ export function registerLibraryIpc(
     libraryService.getImagePreview(itemId)
   )
 
+  ipcMain.handle(KUSKUS_CHANNELS.copyImage, async (_event, itemId: unknown) => {
+    if (typeof itemId !== 'string') {
+      return errorResult(new Error('The image identifier is invalid.'), 'invalid-input')
+    }
+    try {
+      const preview = await libraryService.getImagePreview(itemId)
+      const image = nativeImage.createFromBuffer(Buffer.from(preview.bytes))
+      if (image.isEmpty()) throw new Error('The saved image could not be copied.')
+      clipboard.writeImage(image)
+      return { ok: true, data: null }
+    } catch (error) {
+      return errorResult(error, 'not-found')
+    }
+  })
+
   ipcMain.handle(KUSKUS_CHANNELS.importFile, async (_event, input: unknown) => {
     try {
       return { ok: true, data: await libraryService.importFile(input as FileImportInput) }
@@ -552,6 +578,18 @@ export function registerLibraryIpc(
       return { ok: true, data: null }
     } catch (error) {
       return errorResult(error)
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.copyItemPath, async (_event, itemId: unknown) => {
+    if (typeof itemId !== 'string') {
+      return errorResult(new Error('The item identifier is invalid.'), 'invalid-input')
+    }
+    try {
+      clipboard.writeText(await libraryService.getItemRevealPath(itemId))
+      return { ok: true, data: null }
+    } catch (error) {
+      return errorResult(error, 'not-found')
     }
   })
 

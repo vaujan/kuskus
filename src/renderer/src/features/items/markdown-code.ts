@@ -51,6 +51,18 @@ export interface HighlightedCodeRange {
   classes: string
 }
 
+export function markdownCodeUrlRanges(
+  code: string
+): Array<{ from: number; to: number; url: string }> {
+  const ranges: Array<{ from: number; to: number; url: string }> = []
+  for (const match of code.matchAll(/\bhttps?:\/\/[^\s<>"']+/gi)) {
+    if (match.index === undefined) continue
+    const url = match[0].replace(/[),.;:!?\]}]+$/, '')
+    ranges.push({ from: match.index, to: match.index + url.length, url })
+  }
+  return ranges
+}
+
 export function highlightedCodeRanges(code: string, info: string): HighlightedCodeRange[] {
   const language = markdownCodeLanguage(info)
   if (!language) return []

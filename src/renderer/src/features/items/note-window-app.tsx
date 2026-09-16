@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   IconCopy,
+  IconCopyPlus,
   IconDots,
   IconFolderOpen,
   IconInfoCircle,
@@ -36,9 +37,13 @@ import type { LibraryDto, LibraryItemDto, NoteItemDto } from '../../../../shared
 
 function NoteWindowActions({
   options,
+  onDuplicate,
+  onCopyPath,
   onShowInExplorer
 }: {
   options: NoteDetailMenuOptions
+  onDuplicate: () => void
+  onCopyPath: () => void
   onShowInExplorer: () => void
 }): React.JSX.Element {
   return (
@@ -78,6 +83,14 @@ function NoteWindowActions({
         <DropdownMenuItem onClick={options.onCopyAsMarkdown}>
           <IconCopy aria-hidden="true" />
           Copy as Markdown
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onDuplicate}>
+          <IconCopyPlus aria-hidden="true" />
+          Duplicate note
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onCopyPath}>
+          <IconCopy aria-hidden="true" />
+          Copy file path
         </DropdownMenuItem>
         <DropdownMenuItem onClick={options.onShowDetails}>
           <IconInfoCircle aria-hidden="true" />
@@ -282,6 +295,21 @@ export function NoteWindowApp({ itemId }: { itemId: string }): React.JSX.Element
               options ? (
                 <NoteWindowActions
                   options={options}
+                  onDuplicate={() =>
+                    guard(() => {
+                      void window.kuskus.duplicateNote(item.id).then((result) => {
+                        if (result.ok) setLibrary(result.data)
+                        else setError(result.error)
+                      })
+                    })
+                  }
+                  onCopyPath={() =>
+                    guard(() => {
+                      void window.kuskus.copyItemPath(item.id).then((result) => {
+                        if (!result.ok) setError(result.error)
+                      })
+                    })
+                  }
                   onShowInExplorer={() =>
                     guard(() => {
                       void window.kuskus.showItemInExplorer(item.id).then((result) => {

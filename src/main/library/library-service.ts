@@ -554,6 +554,33 @@ export class LibraryService {
     return item
   }
 
+  async duplicateNote(itemId: string): Promise<LibraryDto> {
+    this.validateItemId(itemId, 'item')
+    const libraryPath = this.requireCurrentLibrary()
+    const source = await this.store.resolveItem(libraryPath, itemId)
+    if (source.metadata.type !== 'note') throw new Error('Only notes can be duplicated.')
+    if (source.location.type === 'trash')
+      throw new Error('Restore this note before duplicating it.')
+
+    const markdown = (await this.store.readItemContent(libraryPath, source.metadata)).toString(
+      'utf8'
+    )
+    const id = randomUUID()
+    const timestamp = new Date().toISOString()
+    const metadata = {
+      ...createNoteMetadata(id, markdown, timestamp),
+      title: source.metadata.title,
+      titleSource: 'custom' as const
+    }
+    await this.store.finalizeInboxItem(
+      libraryPath,
+      metadata,
+      [{ filename: NOTE_FILENAME, data: markdown }],
+      source.location
+    )
+    return this.refreshLibraryDto(libraryPath, [id])
+  }
+
   async updateNote(input: UpdateNoteInput): Promise<NoteItemDto> {
     const libraryPath = this.requireCurrentLibrary()
     const { itemId, markdown, expectedMarkdown } = input
@@ -1050,20 +1077,31 @@ export class LibraryService {
     this.validateCollectionId(collectionId)
     const libraryPath = this.requireCurrentLibrary()
     const library = await this.currentLibraryDto(libraryPath)
+    const collectionIds = new Set([collectionId])
+    for (const id of collectionIds) {
+      for (const collection of library.collections) {
+        if (collection.parentId === id) collectionIds.add(collection.id)
+      }
+    }
     const items = library.items.filter(
-      (item) => item.location.type === 'collection' && item.location.collectionId === collectionId
+      (item) => item.location.type === 'collection' && collectionIds.has(item.location.collectionId)
     )
     const resolved = await Promise.all(
       items.map((item) => this.store.resolveItem(libraryPath, item.id))
     )
-    const retainedEntries = resolved.flatMap((item) => {
-      const entries = [basename(item.path)]
-      if (item.metadata.type === 'note') {
-        entries.push(`${basename(item.path, extname(item.path))}.assets`)
+    for (const id of collectionIds) {
+      const retainedEntries = library.collections
+        .filter((collection) => collection.parentId === id)
+        .map((collection) => basename(collection.relativePath))
+      for (const item of resolved) {
+        if (item.location.type !== 'collection' || item.location.collectionId !== id) continue
+        retainedEntries.push(basename(item.path))
+        if (item.metadata.type === 'note') {
+          retainedEntries.push(`${basename(item.path, extname(item.path))}.assets`)
+        }
       }
-      return entries
-    })
-    await this.store.assertCollectionRemovable(libraryPath, collectionId, retainedEntries)
+      await this.store.assertCollectionRemovable(libraryPath, id, retainedEntries)
+    }
     if (resolved.length > 0) {
       await this.store.moveItems(
         libraryPath,

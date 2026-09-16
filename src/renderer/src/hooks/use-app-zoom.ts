@@ -5,11 +5,15 @@ import { APP_ZOOM_FACTORS } from '../../../shared/window-contract'
 const ZOOM_STORAGE_KEY = 'kuskus-app-zoom'
 const DEFAULT_ZOOM_FACTOR = 1
 
-function readStoredZoomFactor(): number {
-  const storedFactor = Number(localStorage.getItem(ZOOM_STORAGE_KEY))
+export function resolveStoredZoomFactor(value: string | null): number {
+  const storedFactor = Number(value)
   return APP_ZOOM_FACTORS.some((factor) => factor === storedFactor)
     ? storedFactor
     : DEFAULT_ZOOM_FACTOR
+}
+
+function readStoredZoomFactor(): number {
+  return resolveStoredZoomFactor(localStorage.getItem(ZOOM_STORAGE_KEY))
 }
 
 export interface AppZoom {
@@ -54,6 +58,14 @@ export function useAppZoom(): AppZoom {
     localStorage.setItem(ZOOM_STORAGE_KEY, String(factor))
     void window.electron.window.setZoomFactor(factor).catch(() => undefined)
   }, [factor])
+
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent): void => {
+      if (event.key === ZOOM_STORAGE_KEY) setFactor(resolveStoredZoomFactor(event.newValue))
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [])
 
   useEffect(() => {
     return window.electron.window.onZoomShortcut((shortcut) => {

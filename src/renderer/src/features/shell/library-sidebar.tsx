@@ -709,7 +709,11 @@ export function LibrarySidebar({
       const result = await window.kuskus.deleteCollection(id)
       if (!result.ok) return onError(result.error)
       onLibraryChange(result.data)
-      if (destination.type === 'collection' && destination.collectionId === id) {
+      if (
+        destination.type === 'collection' &&
+        (destination.collectionId === id ||
+          getFolderAncestorIds(library.collections, destination.collectionId).includes(id))
+      ) {
         selectDestination({ type: 'inbox' })
       }
       setFolderToDelete(null)
@@ -795,12 +799,15 @@ export function LibrarySidebar({
 
   const folderRemovalSummary = useMemo(() => {
     if (!folderToDelete) return null
-    const subfolderCount = library.collections.filter(
-      (folder) => folder.parentId === folderToDelete.id
-    ).length
+    const folderIds = new Set([folderToDelete.id])
+    for (const id of folderIds) {
+      for (const folder of library.collections) {
+        if (folder.parentId === id) folderIds.add(folder.id)
+      }
+    }
+    const subfolderCount = folderIds.size - 1
     const itemCount = library.items.filter(
-      (item) =>
-        item.location.type === 'collection' && item.location.collectionId === folderToDelete.id
+      (item) => item.location.type === 'collection' && folderIds.has(item.location.collectionId)
     ).length
     return { subfolderCount, itemCount }
   }, [folderToDelete, library.collections, library.items])
@@ -1170,37 +1177,40 @@ export function LibrarySidebar({
       >
         <AlertDialogContent size="sm">
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {folderRemovalSummary && folderRemovalSummary.subfolderCount > 0
-                ? `“${folderToDelete?.name}” can’t be removed yet`
-                : `Remove “${folderToDelete?.name}”?`}
-            </AlertDialogTitle>
+            <AlertDialogTitle>{`Remove “${folderToDelete?.name}”?`}</AlertDialogTitle>
             <AlertDialogDescription>
               {folderRemovalSummary
                 ? (() => {
                     const { subfolderCount, itemCount } = folderRemovalSummary
-                    if (subfolderCount > 0) {
-                      return `It contains ${subfolderCount} ${
-                        subfolderCount === 1 ? 'subfolder' : 'subfolders'
-                      }. Move or remove ${
-                        subfolderCount === 1 ? 'it' : 'them'
-                      } first. Its items stay where they are.`
+                    if (subfolderCount === 0 && itemCount === 0) {
+                      return 'The empty folder will be removed.'
                     }
+                    const contents = [
+                      subfolderCount > 0
+                        ? `${subfolderCount} ${subfolderCount === 1 ? 'subfolder' : 'subfolders'}`
+                        : '',
+                      itemCount > 0 ? `${itemCount} ${itemCount === 1 ? 'item' : 'items'}` : ''
+                    ].filter(Boolean)
                     return itemCount === 0
-                      ? 'The empty folder will be removed.'
-                      : `${itemCount} ${itemCount === 1 ? 'item' : 'items'} will be moved to Inbox before the folder is removed.`
+                      ? `${contents.join(' and ')} will be removed with this folder.`
+                      : `${contents.join(' and ')} are inside. The folders will be removed and the items moved to Inbox. Unmanaged files block removal.`
                   })()
                 : ''}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={folderOperationBusy}>Cancel</AlertDialogCancel>
-            {folderRemovalSummary !== null && folderRemovalSummary.subfolderCount === 0 && (
+            {folderRemovalSummary !== null && (
               <AlertDialogAction
+                variant={
+                  folderRemovalSummary.itemCount > 0 || folderRemovalSummary.subfolderCount > 0
+                    ? 'destructive'
+                    : 'default'
+                }
                 disabled={folderOperationBusy}
                 onClick={() => void confirmFolderRemoval()}
               >
-                Remove folder
+                {folderRemovalSummary.subfolderCount > 0 ? 'Remove all folders' : 'Remove folder'}
               </AlertDialogAction>
             )}
           </AlertDialogFooter>

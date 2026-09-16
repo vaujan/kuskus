@@ -126,6 +126,14 @@ html[data-window-material='acrylic'] [data-slot='sidebar-inner'] {
   background-color: var(--window-sidebar);
 }
 
+html[data-window-material='acrylic'] .settings-window [data-slot='sidebar-inner'] {
+  background-color: color-mix(in oklch, var(--sidebar) 90%, transparent);
+}
+
+html[data-window-material='acrylic'] .settings-window [data-slot='sidebar-inset'] {
+  background-color: color-mix(in oklch, var(--background) 88%, transparent);
+}
+
 html[data-window-material='acrylic'],
 html[data-window-material='acrylic'] body,
 html[data-window-material='acrylic'] #root,

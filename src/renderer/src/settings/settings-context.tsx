@@ -4,6 +4,7 @@ import {
   applyTheme,
   DEFAULT_TYPOGRAPHY,
   resolveAppliedTheme,
+  type BaseFontSize,
   type ColorMode,
   type ColorTheme,
   type FontPreference
@@ -70,17 +71,22 @@ export function SettingsProvider({ children }: { children: ReactNode }): React.J
   const colorMode = values.colorMode as ColorMode
   const colorTheme = values.colorTheme as ColorTheme
   const uiFont = values.uiFont as FontPreference
-  const uiFontFallback = values.uiFontFallback as FontPreference
+  const contentFont = values.contentFont as FontPreference
   const codeFont = values.codeFont as FontPreference
-  const codeFontFallback = values.codeFontFallback as FontPreference
+  const sourceFontSize = values.sourceFontSize as BaseFontSize
+  const contentFontSize = values.contentFontSize as BaseFontSize
   useEffect(() => {
     window.electron.window.setNativeThemeSource(colorMode)
     const apply = (): void =>
       applyTheme(resolveAppliedTheme(colorMode), colorTheme, {
         uiFont: uiFont ?? DEFAULT_TYPOGRAPHY.uiFont,
-        uiFontFallback: uiFontFallback ?? DEFAULT_TYPOGRAPHY.uiFontFallback,
+        uiFontFallback: DEFAULT_TYPOGRAPHY.uiFontFallback,
+        contentFont: contentFont ?? DEFAULT_TYPOGRAPHY.contentFont,
+        contentFontFallback: DEFAULT_TYPOGRAPHY.contentFontFallback,
         codeFont: codeFont ?? DEFAULT_TYPOGRAPHY.codeFont,
-        codeFontFallback: codeFontFallback ?? DEFAULT_TYPOGRAPHY.codeFontFallback
+        codeFontFallback: DEFAULT_TYPOGRAPHY.codeFontFallback,
+        sourceFontSize: sourceFontSize ?? DEFAULT_TYPOGRAPHY.sourceFontSize,
+        contentFontSize: contentFontSize ?? DEFAULT_TYPOGRAPHY.contentFontSize
       })
     apply()
     if (colorMode !== 'system') return
@@ -88,7 +94,7 @@ export function SettingsProvider({ children }: { children: ReactNode }): React.J
     const onChange = (): void => apply()
     query.addEventListener('change', onChange)
     return () => query.removeEventListener('change', onChange)
-  }, [colorMode, colorTheme, uiFont, uiFontFallback, codeFont, codeFontFallback])
+  }, [colorMode, colorTheme, uiFont, contentFont, codeFont, sourceFontSize, contentFontSize])
 
   const setSetting = useCallback(<T extends SettingValue>(key: SettingKey, value: T): void => {
     // Reject unknown keys instead of silently storing values no consumer reads.

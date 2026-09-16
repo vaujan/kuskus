@@ -2,6 +2,7 @@ import {
   IconArchive,
   IconArchiveOff,
   IconCopy,
+  IconCopyPlus,
   IconDots,
   IconEye,
   IconExternalLink,
@@ -10,6 +11,7 @@ import {
   IconInfoCircle,
   IconPaperclip,
   IconPencil,
+  IconPhoto,
   IconPin,
   IconPinnedOff,
   IconRulerMeasure,
@@ -78,10 +80,13 @@ export interface NoteDetailMenuOptions {
 export interface ItemActionHandlers {
   onOpen: () => void
   onOpenInNewWindow: () => void
+  onDuplicate: () => void
   onRename: () => void
   onPin: () => void
   onUnpin: () => void
   onMove: (destination: ActiveItemLocation) => void
+  onCopyPath: () => void
+  onCopyImage: () => void
   onReveal: () => void
   onArchive: () => void
   onUnarchive: () => void
@@ -306,6 +311,12 @@ function ItemActions({
             Rename
           </ActionItem>
         ) : null}
+        {!inTrash && !bulk && item.type === 'note' ? (
+          <ActionItem surface={surface} onClick={props.onDuplicate}>
+            <IconCopyPlus aria-hidden="true" />
+            Duplicate note
+          </ActionItem>
+        ) : null}
         {!inTrash ? (
           <ActionItem surface={surface} onClick={props.pinned ? props.onUnpin : props.onPin}>
             {props.pinned ? <IconPinnedOff aria-hidden="true" /> : <IconPin aria-hidden="true" />}
@@ -313,6 +324,18 @@ function ItemActions({
           </ActionItem>
         ) : null}
         {!inTrash && !bulk ? <MoveAction surface={surface} {...props} /> : null}
+        {!bulk && item.type === 'image' ? (
+          <ActionItem surface={surface} onClick={props.onCopyImage}>
+            <IconPhoto aria-hidden="true" />
+            Copy image
+          </ActionItem>
+        ) : null}
+        {!bulk ? (
+          <ActionItem surface={surface} onClick={props.onCopyPath}>
+            <IconCopy aria-hidden="true" />
+            Copy file path
+          </ActionItem>
+        ) : null}
         <ActionItem surface={surface} onClick={props.onReveal}>
           <IconFolderOpen aria-hidden="true" />
           Show in Explorer

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { IconNote } from '@tabler/icons-react'
+import { IconNote, IconPlus } from '@tabler/icons-react'
 
 import {
   Command,
@@ -8,7 +8,8 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
-  CommandList
+  CommandList,
+  CommandShortcut
 } from '@/components/ui/command'
 import { Kbd } from '@/components/ui/kbd'
 import {
@@ -23,7 +24,9 @@ export function QuickOpenDialog({
   library,
   recentItemIds,
   onOpenItem,
-  onCreateNote
+  onCreateNote,
+  onNewNote,
+  onAddItem
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -31,6 +34,8 @@ export function QuickOpenDialog({
   recentItemIds: readonly string[]
   onOpenItem: (itemId: string) => void
   onCreateNote: (title: string) => void
+  onNewNote: () => void
+  onAddItem: () => void
 }): React.JSX.Element {
   const [query, setQuery] = useState('')
   const normalizedQuery = query.trim()
@@ -80,6 +85,11 @@ export function QuickOpenDialog({
     onCreateNote(normalizedQuery)
   }
 
+  const runAction = (action: () => void): void => {
+    changeOpen(false)
+    action()
+  }
+
   return (
     <CommandDialog
       open={open}
@@ -118,6 +128,20 @@ export function QuickOpenDialog({
                   </span>
                 </CommandItem>
               ))}
+            </CommandGroup>
+          ) : null}
+          {!normalizedQuery ? (
+            <CommandGroup heading="Create">
+              <CommandItem value="new-note" onSelect={() => runAction(onNewNote)}>
+                <IconNote aria-hidden="true" />
+                <span>New note</span>
+                <CommandShortcut>Ctrl+N</CommandShortcut>
+              </CommandItem>
+              <CommandItem value="add-item" onSelect={() => runAction(onAddItem)}>
+                <IconPlus aria-hidden="true" />
+                <span>Add item</span>
+                <CommandShortcut>Ctrl+Shift+N</CommandShortcut>
+              </CommandItem>
             </CommandGroup>
           ) : null}
           {normalizedQuery ? (

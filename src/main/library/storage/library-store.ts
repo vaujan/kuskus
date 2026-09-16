@@ -1922,18 +1922,25 @@ export class LibraryStore {
   }
 
   async deleteCollection(libraryPath: string, collectionId: string): Promise<void> {
-    const current = (await this.readCollectionRecords(libraryPath)).find(
-      (entry) => entry.id === collectionId
-    )
+    const collections = await this.readCollectionRecords(libraryPath)
+    const current = collections.find((entry) => entry.id === collectionId)
     if (!current) return
     const path = resolveInsideVault(libraryPath, current.relativePath)
-    if ((await readdir(path)).length > 0)
-      throw new Error('Move or remove its subfolders before deleting this folder.')
     await rm(path, { recursive: true })
-    await rm(this.collectionRecordPath(libraryPath, collectionId), { force: true })
+    const removedIds = new Set(
+      collections
+        .filter(
+          (entry) =>
+            entry.id === collectionId || entry.relativePath.startsWith(`${current.relativePath}/`)
+        )
+        .map((entry) => entry.id)
+    )
+    await Promise.all(
+      [...removedIds].map((id) => rm(this.collectionRecordPath(libraryPath, id), { force: true }))
+    )
     const snapshot = this.scanSnapshots.get(resolve(libraryPath))
     if (snapshot) {
-      snapshot.collections = snapshot.collections.filter((entry) => entry.id !== collectionId)
+      snapshot.collections = snapshot.collections.filter((entry) => !removedIds.has(entry.id))
     }
   }
 
@@ -2048,7 +2055,7 @@ export class LibraryStore {
     libraryPath: string,
     metadata: PersistedItem,
     files: Array<{ filename: string; data: string | Uint8Array }>,
-    location: ActiveItemLocation = { type: 'inbox' }
+    location: ItemLocation = { type: 'inbox' }
   ): Promise<void> {
     await this.readPersistedLibrary(libraryPath)
     let filename: string

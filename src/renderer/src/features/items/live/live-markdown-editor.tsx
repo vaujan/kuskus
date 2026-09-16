@@ -182,13 +182,13 @@ const vimModeTheme = Prec.highest(
         backgroundColor: 'color-mix(in oklch, var(--primary) 25%, transparent) !important'
       },
     '.cm-vimMode .cm-fat-cursor': {
-      background: 'var(--foreground)',
-      color: 'var(--background) !important',
+      background: 'var(--primary)',
+      color: 'var(--primary-foreground) !important',
       border: 'none'
     },
     '.cm-editor:not(.cm-focused) .cm-vimMode .cm-fat-cursor': {
       background: 'none',
-      outlineColor: 'var(--foreground)',
+      outlineColor: 'var(--primary)',
       color: 'transparent !important'
     }
   })

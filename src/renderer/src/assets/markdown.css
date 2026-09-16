@@ -13,7 +13,7 @@
   }
 
   .kuskus-typeset[data-typeset-presentation='detail'] {
-    --typeset-size: 16px;
+    --typeset-size: var(--markdown-content-font-size, 16px);
   }
 
   .kuskus-typeset[data-typeset-presentation='snippet'] {
@@ -237,6 +237,16 @@
     color: rgb(255 255 255 / 70%);
   }
 
+  .kuskus-image-detail-preview {
+    max-height: 100%;
+    margin: 0;
+  }
+
+  .kuskus-image-detail-preview:not([data-zoomed='true']) img {
+    max-height: 100%;
+    object-fit: contain;
+  }
+
   .kuskus-rich-image-state {
     display: inline-flex;
     max-width: 100%;
@@ -267,19 +277,27 @@
     white-space: pre;
   }
 
-  /* Visual-rail cards keep long code horizontally scrollable without
-   * exposing scrollbar chrome inside the compact preview surface. */
-  .kuskus-note-card-markdown .kuskus-code-block pre {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-
-  .kuskus-note-card-markdown .kuskus-code-block pre::-webkit-scrollbar {
-    display: none;
+  /* Rail and masonry cards are previews, so wide code clips instead of scrolling. */
+  .kuskus-note-card-markdown pre {
+    overflow-x: hidden;
   }
 
   .kuskus-code-block code {
     font: inherit;
+  }
+
+  .kuskus-code-link {
+    color: var(--primary);
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+  }
+
+  .kuskus-code-link:hover {
+    text-decoration-thickness: 0.12em;
+  }
+
+  .kuskus-typeset:not([data-typeset-presentation='detail']) .kuskus-code-block pre {
+    overflow-x: hidden;
   }
 
   .kuskus-mermaid-diagram {

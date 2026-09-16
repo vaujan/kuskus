@@ -37,6 +37,7 @@ export interface WindowMaterialController {
   getSnapshot: () => WindowMaterialSnapshot
   initialize: () => Promise<TranslucentBackgroundStatus>
   setEnabled: (enabled: boolean) => void
+  syncStoredPreference: () => void
   subscribe: (listener: WindowMaterialListener) => () => void
 }
 
@@ -159,10 +160,16 @@ export function createWindowMaterialController(
       })
   }
 
+  const syncStoredPreference = (): void => {
+    const enabled = readTranslucentBackgroundPreference(environment.storage)
+    if (enabled !== snapshot.preferenceEnabled) setEnabled(enabled)
+  }
+
   return {
     getSnapshot: () => snapshot,
     initialize,
     setEnabled,
+    syncStoredPreference,
     subscribe: (listener) => {
       listeners.add(listener)
       listener(snapshot)
@@ -174,15 +181,22 @@ export function createWindowMaterialController(
 let browserController: WindowMaterialController | null = null
 
 export function getWindowMaterialController(): WindowMaterialController {
-  browserController ??= createWindowMaterialController({
-    platform: window.electron.window.platform,
-    storage: localStorage,
-    applyDocumentState: (enabled) => {
-      document.documentElement.dataset.windowMaterial = enabled ? 'acrylic' : 'opaque'
-    },
-    setNativeState: (enabled) => window.electron.window.setTranslucentBackground(enabled),
-    onReducedTransparencyChange: (callback) =>
-      window.electron.window.onReducedTransparencyChange(callback)
-  })
+  if (!browserController) {
+    browserController = createWindowMaterialController({
+      platform: window.electron.window.platform,
+      storage: localStorage,
+      applyDocumentState: (enabled) => {
+        document.documentElement.dataset.windowMaterial = enabled ? 'acrylic' : 'opaque'
+      },
+      setNativeState: (enabled) => window.electron.window.setTranslucentBackground(enabled),
+      onReducedTransparencyChange: (callback) =>
+        window.electron.window.onReducedTransparencyChange(callback)
+    })
+    window.addEventListener('storage', (event) => {
+      if (event.key === TRANSLUCENT_BACKGROUND_STORAGE_KEY) {
+        browserController?.syncStoredPreference()
+      }
+    })
+  }
   return browserController
 }

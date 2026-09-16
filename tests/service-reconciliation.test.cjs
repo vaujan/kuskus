@@ -121,7 +121,7 @@ test('seeds and resets a cultivated isolated demo profile', async (context) => {
   assert.equal(state.status, 'ready')
   assert.equal(state.library.path, libraryPath)
   assert.equal(state.library.name, LIBRARY_NAME)
-  assert.equal(state.library.items.length, 27)
+  assert.equal(state.library.items.length, 28)
   assert.equal(state.library.collections.length, 5)
   assert.deepEqual(
     state.library.collections.map((collection) => collection.name),
@@ -172,8 +172,17 @@ test('seeds and resets a cultivated isolated demo profile', async (context) => {
   const listsPath = join(markdownLabPath, '02 — Lists, tasks, and tables.md')
   const linksPath = join(markdownLabPath, '03 — Links, wikilinks, and images.md')
   const codePath = join(markdownLabPath, '04 — Code and mathematics.md')
+  const indentationPath = join(markdownLabPath, '05 — Live indentation guides.md')
   const stressPath = join(markdownLabPath, '99 — Long mixed-content stress test.md')
-  const expectedLabNotes = [guidePath, typographyPath, listsPath, linksPath, codePath, stressPath]
+  const expectedLabNotes = [
+    guidePath,
+    typographyPath,
+    listsPath,
+    linksPath,
+    codePath,
+    indentationPath,
+    stressPath
+  ]
   assert.equal(
     expectedLabNotes.every((path) => existsSync(path)),
     true
@@ -184,6 +193,7 @@ test('seeds and resets a cultivated isolated demo profile', async (context) => {
   const lists = await readFile(listsPath, 'utf8')
   const links = await readFile(linksPath, 'utf8')
   const code = await readFile(codePath, 'utf8')
+  const indentation = await readFile(indentationPath, 'utf8')
   const stress = await readFile(stressPath, 'utf8')
   assert.match(guide, /^---\nfixture: markdown-lab/m)
   assert.match(typography, /###### Heading level six/)
@@ -191,6 +201,9 @@ test('seeds and resets a cultivated isolated demo profile', async (context) => {
   assert.match(links, /!\[Intentionally missing image\]\(\.\/missing-image\.png\)/)
   assert.match(links, /!\[Detailed Markdown sample\]\(\.\/Markdown%20sample%20%28detail%29\.png\)/)
   assert.match(code, /\$\$\n\\int_\{-\\infty\}/)
+  assert.match(indentation, /^fixture: live-indentation-guides$/m)
+  assert.match(indentation, /The guide should continue through the blank line/)
+  assert.match(indentation, /function collectGroups\(groups: string\[\]\[\]\)/)
   assert.ok(stress.length > 12_000)
   assert.match(stress, /## Stress section 16/)
 
@@ -209,7 +222,7 @@ test('seeds and resets a cultivated isolated demo profile', async (context) => {
   assert.equal(labCollection.name, 'Markdown Lab')
   assert.equal(labCollection.relativePath, 'Markdown Lab')
 
-  for (let index = 1; index <= 8; index += 1) {
+  for (let index = 1; index <= 9; index += 1) {
     const recordPath = join(
       libraryPath,
       '.kuskus',

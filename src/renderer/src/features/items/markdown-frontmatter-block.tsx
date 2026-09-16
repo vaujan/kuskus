@@ -17,10 +17,12 @@ import { noteFrontmatterSource } from '../../../../shared/note-frontmatter'
  */
 export function MarkdownFrontmatterBlock({
   markdown,
-  className
+  className,
+  onOpenLink
 }: {
   markdown: string
   className?: string
+  onOpenLink?: (url: string) => void
 }): React.JSX.Element | null {
   const source = useMemo(() => noteFrontmatterSource(markdown), [markdown])
   if (!source) return null
@@ -28,7 +30,7 @@ export function MarkdownFrontmatterBlock({
 
   return (
     <div className={cn('typeset kuskus-typeset', className)} data-typeset-presentation="detail">
-      <MarkdownCodeBlock code={yaml} language="yaml" />
+      <MarkdownCodeBlock code={yaml} language="yaml" onOpenLink={onOpenLink} />
     </div>
   )
 }

@@ -202,3 +202,26 @@ test('preserves the preference while reduced transparency disables the material'
   })
   assert.equal(documentStates.at(-1), false)
 })
+
+test('applies a preference changed by another window', async () => {
+  const storage = createStorage([[TRANSLUCENT_BACKGROUND_STORAGE_KEY, 'true']])
+  const nativeRequests = []
+  const controller = createWindowMaterialController({
+    platform: 'win32',
+    storage,
+    applyDocumentState: () => undefined,
+    setNativeState: async (enabled) => {
+      nativeRequests.push(enabled)
+      return { supported: true, enabled, reducedTransparency: false }
+    },
+    onReducedTransparencyChange: () => () => undefined
+  })
+
+  await controller.initialize()
+  storage.setItem(TRANSLUCENT_BACKGROUND_STORAGE_KEY, 'false')
+  controller.syncStoredPreference()
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.equal(controller.getSnapshot().preferenceEnabled, false)
+  assert.deepEqual(nativeRequests, [true, false])
+})

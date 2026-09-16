@@ -1,5 +1,11 @@
 import { startTransition, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Empty, EmptyTitle } from '@/components/ui/empty'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle
+} from '@/components/ui/empty'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { FocusIndexRow } from '@/features/items/focus-index-row'
 import {
@@ -24,6 +30,8 @@ export function FocusItemList({
   pageKey,
   searchActive,
   emptyMessage,
+  emptyDescription,
+  emptyAction,
   onActivate,
   onDragStart,
   onDragEnd,
@@ -39,6 +47,8 @@ export function FocusItemList({
   pageKey: string
   searchActive: boolean
   emptyMessage: string | null
+  emptyDescription: string | null
+  emptyAction: React.ReactNode
   onActivate: (
     itemId: string,
     event: Pick<React.MouseEvent, 'shiftKey' | 'ctrlKey' | 'metaKey'>
@@ -108,8 +118,12 @@ export function FocusItemList({
       className="library-scroll-container min-h-0 min-w-0 flex-1 [&_[data-slot=scroll-area-viewport]]:focus-visible:ring-0 [&_[data-slot=scroll-area-viewport]]:focus-visible:outline-none"
     >
       {emptyMessage ? (
-        <Empty className="mt-8 gap-1" aria-live="polite">
-          <EmptyTitle className="text-sm text-muted-foreground">{emptyMessage}</EmptyTitle>
+        <Empty className="min-h-56 px-6 py-10" aria-live="polite">
+          <EmptyHeader>
+            <EmptyTitle className="text-base">{emptyMessage}</EmptyTitle>
+            {emptyDescription ? <EmptyDescription>{emptyDescription}</EmptyDescription> : null}
+          </EmptyHeader>
+          {emptyAction ? <EmptyContent className="gap-2">{emptyAction}</EmptyContent> : null}
         </Empty>
       ) : density === 'index' ? (
         <div className="min-h-full pt-2" role="group" aria-label="Items">

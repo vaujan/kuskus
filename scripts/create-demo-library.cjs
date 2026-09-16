@@ -25,7 +25,8 @@ const markdownLabIds = {
   code: '70000000-0000-4000-8000-000000000005',
   stress: '70000000-0000-4000-8000-000000000006',
   spacedImage: '70000000-0000-4000-8000-000000000007',
-  parenthesizedImage: '70000000-0000-4000-8000-000000000008'
+  parenthesizedImage: '70000000-0000-4000-8000-000000000008',
+  indentation: '70000000-0000-4000-8000-000000000009'
 }
 
 function timestamp(daysAgo, hour = 9, minute = 0) {
@@ -184,6 +185,7 @@ function markdownLabGuide() {
     '- [[02 — Lists, tasks, and tables]] covers GFM collections.',
     '- [[03 — Links, wikilinks, and images]] covers navigation and attachment resolution.',
     '- [[04 — Code and mathematics]] covers literal and typeset technical content.',
+    '- [[05 — Live indentation guides]] isolates nested scopes and trailing guides.',
     '- [[99 — Long mixed-content stress test]] exercises sustained scrolling and editing.',
     '',
     '## Manual workflow',
@@ -395,6 +397,76 @@ function markdownLabCodeAndMath() {
   ])
 }
 
+function markdownLabIndentation() {
+  return markdownDocument([
+    '---',
+    'fixture: live-indentation-guides',
+    'coverage:',
+    '  modes:',
+    '    - live',
+    '    - source',
+    '  scopes:',
+    '    - lists',
+    '    - tasks',
+    '    - code',
+    '---',
+    '',
+    '# Live indentation guides',
+    '',
+    'Open this note in **Live** mode. Guides should follow every nested scope, including blank and continuation lines. Switch to **Source** mode and confirm the guides disappear.',
+    '',
+    '## Nested list with continuation lines',
+    '',
+    '- Project',
+    '  - Research',
+    '    - Interview notes',
+    '      Continue this item on an indented source line.',
+    '      ',
+    '      The guide should continue through the blank line into this paragraph.',
+    '    - Prototype review',
+    '  - Delivery',
+    '    1. Prepare the release.',
+    '    2. Verify nested numbering.',
+    '       - Check the first build.',
+    '       - Check the fallback build.',
+    '- Retrospective',
+    '',
+    '## Nested tasks',
+    '',
+    '- [ ] Parent task',
+    '  - [x] Completed child',
+    '  - [ ] Open child',
+    '    - [ ] Nested follow-up',
+    '      ',
+    '      This continuation keeps the deepest guide visible.',
+    '',
+    '## Indented code stays separate',
+    '',
+    'Code indentation should not create list guides in Live mode.',
+    '',
+    '```ts',
+    'function collectGroups(groups: string[][]) {',
+    '  for (const group of groups) {',
+    '    if (group.length > 0) {',
+    '      console.log(group)',
+    '',
+    '      for (const item of group) {',
+    '        console.log(item)',
+    '      }',
+    '    }',
+    '  }',
+    '}',
+    '```',
+    '',
+    '## Manual checks',
+    '',
+    '- [ ] Live mode shows semantic nested-list guides through continuation lines.',
+    '- [ ] Indented code does not show list guides.',
+    '- [ ] Source mode shows no indentation guides.',
+    '- [ ] Returning to Live mode restores the guides.'
+  ])
+}
+
 function markdownLabStress() {
   return markdownDocument([
     '# Long mixed-content stress test',
@@ -454,6 +526,7 @@ async function markdownLabItems() {
       }
     ),
     note(markdownLabIds.code, '04 — Code and mathematics', 0, markdownLabCodeAndMath()),
+    note(markdownLabIds.indentation, '05 — Live indentation guides', 0, markdownLabIndentation()),
     note(markdownLabIds.stress, '99 — Long mixed-content stress test', 0, markdownLabStress())
   ]
 }

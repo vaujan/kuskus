@@ -19,18 +19,28 @@ export type ColorTheme =
 export type FontPreference =
   'inter' | 'plex' | 'system-ui' | 'system-mono' | 'none' | `local:${string}`
 
+export type BaseFontSize = '13' | '14' | '15' | '16' | '17' | '18' | '20'
+
 export interface TypographyPreferences {
   uiFont: FontPreference
   uiFontFallback: FontPreference
+  contentFont: FontPreference
+  contentFontFallback: FontPreference
   codeFont: FontPreference
   codeFontFallback: FontPreference
+  sourceFontSize: BaseFontSize
+  contentFontSize: BaseFontSize
 }
 
 export const DEFAULT_TYPOGRAPHY: TypographyPreferences = {
   uiFont: 'inter',
   uiFontFallback: 'system-ui',
+  contentFont: 'inter',
+  contentFontFallback: 'system-ui',
   codeFont: 'system-mono',
-  codeFontFallback: 'none'
+  codeFontFallback: 'none',
+  sourceFontSize: '14',
+  contentFontSize: '16'
 }
 
 export type ResolvedTheme = 'dark' | 'light'
@@ -81,6 +91,18 @@ export function resolveFontPreference(
     return value
   }
   return fallback
+}
+
+export function resolveBaseFontSize(value: string | null, fallback: BaseFontSize): BaseFontSize {
+  return value === '13' ||
+    value === '14' ||
+    value === '15' ||
+    value === '16' ||
+    value === '17' ||
+    value === '18' ||
+    value === '20'
+    ? value
+    : fallback
 }
 
 export function createLocalFontPreference(family: string): FontPreference | null {
@@ -144,4 +166,10 @@ export function applyTheme(
     '--font-code',
     createFontStack(typography.codeFont, typography.codeFontFallback, 'monospace')
   )
+  root.style.setProperty(
+    '--font-content',
+    createFontStack(typography.contentFont, typography.contentFontFallback, 'sans-serif')
+  )
+  root.style.setProperty('--markdown-source-font-size', `${typography.sourceFontSize}px`)
+  root.style.setProperty('--markdown-content-font-size', `${typography.contentFontSize}px`)
 }

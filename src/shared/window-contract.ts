@@ -12,6 +12,7 @@ export const WINDOW_CHANNELS = {
   getGlobalCaptureShortcutStatus: 'window:get-global-capture-shortcut-status',
   setGlobalCaptureShortcut: 'window:set-global-capture-shortcut',
   globalCaptureRequested: 'window:global-capture-requested',
+  openSettingsWindow: 'window:open-settings-window',
   openNoteWindow: 'window:open-note-window',
   noteWindowCloseRequested: 'window:note-window-close-requested',
   resolveNoteWindowClose: 'window:resolve-note-window-close'
@@ -71,6 +72,7 @@ export interface ElectronWindowApi {
   getGlobalCaptureShortcutStatus: () => Promise<GlobalCaptureShortcutStatus>
   setGlobalCaptureShortcut: (accelerator: string) => Promise<GlobalCaptureShortcutStatus>
   onGlobalCaptureRequested: (callback: () => void) => () => void
+  openSettingsWindow: () => Promise<void>
   openNoteWindow: (itemId: string) => Promise<void>
   onNoteWindowCloseRequested: (callback: () => void) => () => void
   resolveNoteWindowClose: (approved: boolean) => void

@@ -168,9 +168,10 @@ without exposing arbitrary native paths to renderer operations.
 Masonry and Grid use the complete retrieval toolbar. It contains, in responsive order:
 
 - A left zone containing only Show or Hide Sidebar.
-- A quiet centered Search input between the active destination and right-side actions.
-- A right action zone containing the combined Sort and Filter menu, primary New note, secondary Add
-  item, and the retained-capture discard action when applicable. `Ctrl+N` belongs to New note.
+- A quiet centered retrieval zone containing Search and an adjacent icon-only combined Sort and
+  Filter menu.
+- A right action zone containing primary New note, tonal Add item, and the retained-capture
+  discard action when applicable. `Ctrl+N` belongs to New note and `Ctrl+Shift+N` to Add item.
 - Windows minimize, maximize/restore, and close controls.
 
 Focus removes the global toolbar and starts both panes at the top of the window. One integrated rail
@@ -294,7 +295,7 @@ origin, applies consistently across Masonry, Grid, and each Focus scroll owner, 
 
 ## New Item
 
-A secondary **Add item** button appears in the Masonry/Grid toolbar's right action zone and as an icon
+A tonal **Add item** button appears in the Masonry/Grid toolbar's right action zone and as an icon
 action in the Focus rail header. The resting content canvas contains saved items only; activating the
 button summons one temporary draft at the beginning of the active view.
 

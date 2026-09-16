@@ -28,6 +28,7 @@ export function registerWindowIpc(
   setGlobalCaptureShortcut: (
     accelerator: string
   ) => GlobalCaptureShortcutStatus | Promise<GlobalCaptureShortcutStatus>,
+  openSettingsWindow: () => void,
   openNoteWindow: (itemId: string) => Promise<void>,
   resolveNoteWindowClose: (sender: WebContents, approved: boolean) => void
 ): void {
@@ -80,6 +81,7 @@ export function registerWindowIpc(
     }
     return setGlobalCaptureShortcut(accelerator)
   })
+  ipcMain.handle(WINDOW_CHANNELS.openSettingsWindow, () => openSettingsWindow())
   ipcMain.handle(WINDOW_CHANNELS.openNoteWindow, async (_event, itemId: unknown) => {
     if (typeof itemId !== 'string' || !itemId) throw new Error('The note identifier is invalid.')
     await openNoteWindow(itemId)

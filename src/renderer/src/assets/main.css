@@ -107,6 +107,7 @@
 :root {
   --icon-stroke-width: 1.25;
   --font-ui: 'Inter Variable', sans-serif;
+  --font-content: 'Inter Variable', sans-serif;
   --font-code: ui-monospace, monospace;
   --background: oklch(0.985 0.005 285);
   --foreground: oklch(0.225 0.015 290);

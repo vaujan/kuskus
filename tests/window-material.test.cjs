@@ -44,6 +44,11 @@ test('derives Acrylic colors from active theme tokens with neutral sidebar inter
   assert.match(css, /:root\.dark\[data-window-material='acrylic'\]/)
   assert.match(css, /html\[data-window-material='acrylic'\] body/)
   assert.match(css, /html\[data-window-material='acrylic'\] #root/)
+  assert.match(css, /\.settings-window \[data-slot='sidebar-inner'\][\s\S]*?var\(--sidebar\) 90%/)
+  assert.match(
+    css,
+    /\.settings-window \[data-slot='sidebar-inset'\][\s\S]*?var\(--background\) 88%/
+  )
 })
 
 test('enables translucency by default and preserves an explicit opt-out', () => {

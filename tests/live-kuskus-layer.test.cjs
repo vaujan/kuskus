@@ -177,6 +177,28 @@ test('moves an inactive code block bottom edge onto its final code line', () => 
   )
 })
 
+test('marks web links in inactive frontmatter as clickable live-mode targets', () => {
+  const doc = ['---', 'source: https://example.com/docs', '---', 'Body'].join('\n')
+  const state = EditorState.create({
+    doc,
+    extensions: [markdown({ extensions: [GFM, markdownFrontmatter] })],
+    selection: { anchor: doc.indexOf('Body') }
+  })
+  const links = []
+  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
+    if (value.spec.attributes?.['data-url']) {
+      links.push({ from, to, url: value.spec.attributes['data-url'] })
+    }
+  })
+  assert.deepEqual(links, [
+    {
+      from: doc.indexOf('https://'),
+      to: doc.indexOf('https://') + 'https://example.com/docs'.length,
+      url: 'https://example.com/docs'
+    }
+  ])
+})
+
 test('renders an inactive fence header widget (language + copy) replacing the first line', () => {
   const state = createState(['Cursor', '', '```ts', 'const a = 1', '```'].join('\n'))
   const decorations = []

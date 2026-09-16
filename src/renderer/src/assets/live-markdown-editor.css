@@ -245,6 +245,13 @@
 .cm-kuskus-live .cm-kuskus-wikilink:hover {
   text-decoration-color: currentColor;
 }
+
+.cm-kuskus-live .cm-kuskus-yaml-link {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+}
 /* Suppress the external-link icon entirely — the click-to-open zone
  * stays functional via the extension's own hit handling. */
 .cm-kuskus-live .cm-atomic-link::after,

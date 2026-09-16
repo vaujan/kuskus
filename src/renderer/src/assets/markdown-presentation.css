@@ -6,8 +6,8 @@
  * here first; renderer-specific styles should only describe editor mechanics.
  */
 .kuskus-typeset {
-  --typeset-font-body: var(--font-sans);
-  --typeset-font-heading: var(--font-sans);
+  --typeset-font-body: var(--font-content);
+  --typeset-font-heading: var(--font-content);
   --typeset-font-mono: var(--font-mono);
   --typeset-leading: 1.7;
   --typeset-flow: 1.25em;
@@ -48,8 +48,14 @@
 
   --typeset-list-leading: 0.4em;
   --typeset-list-marker-column: 1.5em;
+  --typeset-list-marker-axis: calc(
+    var(--typeset-list-leading) + var(--typeset-list-marker-column) / 2
+  );
+  --typeset-task-guide-nudge: 0.1875em;
   --typeset-list-nesting: 1.9em;
   --typeset-list-item-gap: 0.5em;
+  --typeset-list-guide: color-mix(in oklch, var(--foreground) 18%, transparent);
+  --typeset-list-guide-active: color-mix(in oklch, var(--primary) 58%, transparent);
   --typeset-task-size: 1rem;
   --typeset-task-radius: 4px;
   --typeset-task-border-width: 1px;
@@ -83,6 +89,29 @@
   margin-block-start: 0;
 }
 
+.kuskus-typeset[data-typeset-presentation='detail'] .kuskus-list-content > .kuskus-rendered-list {
+  position: relative;
+}
+
+.kuskus-typeset[data-typeset-presentation='detail']
+  .kuskus-list-content
+  > .kuskus-rendered-list::before {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: calc(
+    var(--typeset-list-marker-axis) - var(--typeset-list-leading) -
+      var(--typeset-list-marker-column) - var(--typeset-list-guide-nudge, 0em)
+  );
+  width: 1px;
+  background: var(--typeset-list-guide);
+  content: '';
+  pointer-events: none;
+}
+
+.kuskus-rich-task-content > .kuskus-rendered-list {
+  --typeset-list-guide-nudge: var(--typeset-task-guide-nudge);
+}
+
 .kuskus-rendered-list > li {
   display: grid;
   grid-template-columns: var(--typeset-list-marker-column) minmax(0, 1fr);
@@ -93,6 +122,10 @@
 .kuskus-list-content {
   grid-column: 2;
   min-width: 0;
+}
+
+.kuskus-list-content > :first-child {
+  margin-block-start: 0;
 }
 
 .kuskus-rendered-list > li::before,
@@ -107,6 +140,7 @@
   font-weight: var(--typeset-heading-weight);
   line-height: inherit;
   text-align: end;
+  white-space: nowrap;
 }
 
 .kuskus-list-marker {
@@ -129,18 +163,18 @@
   content: counter(kuskus-list) '.';
 }
 
-.kuskus-rendered-list--bullet > li::before {
+.kuskus-rendered-list--bullet > li:not(.task-list-item)::before {
   content: '•';
 }
 
-.kuskus-rendered-list--bullet .kuskus-rendered-list--bullet > li::before {
+.kuskus-rendered-list--bullet .kuskus-rendered-list--bullet > li:not(.task-list-item)::before {
   content: '◦';
 }
 
 .kuskus-rendered-list--bullet
   .kuskus-rendered-list--bullet
   .kuskus-rendered-list--bullet
-  > li::before {
+  > li:not(.task-list-item)::before {
   content: '▪';
 }
 

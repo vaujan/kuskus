@@ -107,6 +107,7 @@ function MarkdownImage({
       aria-label={`${zoomed ? 'Close' : 'Zoom'} image${alt ? `: ${alt}` : ''}`}
       aria-pressed={interactive ? zoomed : undefined}
       onClick={(event) => {
+        event.preventDefault()
         event.stopPropagation()
         setZoomed((current) => !current)
       }}

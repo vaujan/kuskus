@@ -43,7 +43,6 @@
     "@lezer/common": "^1.5.2",
     "@lezer/highlight": "^1.2.3",
     "@lezer/markdown": "^1.7.2",
-    "@replit/codemirror-indentation-markers": "^6.5.3",
     "@replit/codemirror-vim": "6.4.0",
     "@tabler/icons-react": "^3.44.0",
     "class-variance-authority": "^0.7.1",

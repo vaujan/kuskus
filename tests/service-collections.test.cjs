@@ -299,42 +299,46 @@ test('removing a non-empty folder moves active items to Inbox and archived fallb
   })
 })
 
-test('refuses to remove a folder with subfolders or unmanaged files before moving its items', async (context) => {
+test('removes nested folders but refuses unmanaged files before moving any items', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-folder-removal-guard-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   const created = await service.createIn(root, 'Folder Removal Guard Library')
   const libraryPath = created.library.path
 
-  // A folder with a subfolder keeps its items and stays on disk.
+  // Removing a parent removes its managed subtree and relocates every item.
   const parent = await service.createCollection({ name: 'Parent' })
-  await service.createCollection({ name: 'Child', parentId: parent.id })
+  const child = await service.createCollection({ name: 'Child', parentId: parent.id })
   const guarded = await service.createNote({ markdown: 'Do not relocate me', attachmentIds: [] })
   await service.moveItems({
     itemIds: [guarded.id],
-    destination: { type: 'collection', collectionId: parent.id }
+    destination: { type: 'collection', collectionId: child.id }
   })
 
-  await assert.rejects(() => service.deleteCollection(parent.id), /subfolders/i)
-  let library = await service.getState().then((state) => state.library)
+  let library = await service.deleteCollection(parent.id)
   assert.equal(
     library.collections.some((entry) => entry.id === parent.id),
-    true
+    false
   )
-  assert.deepEqual(library.items.find((item) => item.id === guarded.id).location, {
-    type: 'collection',
-    collectionId: parent.id
-  })
-  assert.equal(existsSync(join(libraryPath, 'Parent', 'Child')), true)
+  assert.equal(
+    library.collections.some((entry) => entry.id === child.id),
+    false
+  )
+  assert.deepEqual(library.items.find((item) => item.id === guarded.id).location, { type: 'inbox' })
+  assert.equal(existsSync(join(libraryPath, 'Parent')), false)
 
-  // A folder with files Kuskus does not index keeps its items and stays on disk.
+  // Unmanaged files anywhere in a subtree keep the entire subtree and its items in place.
   const cluttered = await service.createCollection({ name: 'Cluttered' })
+  const clutteredChild = await service.createCollection({
+    name: 'Child',
+    parentId: cluttered.id
+  })
   const stranded = await service.createNote({ markdown: 'Keep me here too', attachmentIds: [] })
   await service.moveItems({
     itemIds: [stranded.id],
-    destination: { type: 'collection', collectionId: cluttered.id }
+    destination: { type: 'collection', collectionId: clutteredChild.id }
   })
-  await writeFile(join(libraryPath, 'Cluttered', '.DS_Store'), 'noise')
+  await writeFile(join(libraryPath, 'Cluttered', 'Child', '.DS_Store'), 'noise')
 
   await assert.rejects(() => service.deleteCollection(cluttered.id), /does not manage/i)
   library = await service.getState().then((state) => state.library)
@@ -344,7 +348,7 @@ test('refuses to remove a folder with subfolders or unmanaged files before movin
   )
   assert.deepEqual(library.items.find((item) => item.id === stranded.id).location, {
     type: 'collection',
-    collectionId: cluttered.id
+    collectionId: clutteredChild.id
   })
 
   // A note's companion assets directory travels with it and never blocks removal.

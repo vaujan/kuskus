@@ -7,6 +7,7 @@ import { parseLibraryView } from '@/features/items/item-view'
 import { NOTE_VIM_MODE_STORAGE_KEY, parseNoteVimEnabled } from '@/features/items/note-vim-mode'
 import {
   DEFAULT_TYPOGRAPHY,
+  resolveBaseFontSize,
   resolveColorMode,
   resolveColorTheme,
   resolveFontPreference
@@ -16,9 +17,11 @@ export type SettingKey =
   | 'colorMode'
   | 'colorTheme'
   | 'uiFont'
-  | 'uiFontFallback'
+  | 'contentFont'
   | 'codeFont'
-  | 'codeFontFallback'
+  | 'sourceFontSize'
+  | 'contentFontSize'
+  | 'sourceLineNumbers'
   | 'libraryView'
   | 'itemSort'
   | 'vimEnabled'
@@ -53,10 +56,10 @@ export const SETTINGS_SCHEMA: readonly SettingDefinition[] = [
     parse: (value) => resolveFontPreference(value, DEFAULT_TYPOGRAPHY.uiFont)
   },
   {
-    key: 'uiFontFallback',
-    storageKey: 'kuskus-ui-font-fallback',
-    default: DEFAULT_TYPOGRAPHY.uiFontFallback,
-    parse: (value) => resolveFontPreference(value, DEFAULT_TYPOGRAPHY.uiFontFallback, true)
+    key: 'contentFont',
+    storageKey: 'kuskus-content-font',
+    default: DEFAULT_TYPOGRAPHY.contentFont,
+    parse: (value) => resolveFontPreference(value, DEFAULT_TYPOGRAPHY.contentFont)
   },
   {
     key: 'codeFont',
@@ -65,10 +68,22 @@ export const SETTINGS_SCHEMA: readonly SettingDefinition[] = [
     parse: (value) => resolveFontPreference(value, DEFAULT_TYPOGRAPHY.codeFont)
   },
   {
-    key: 'codeFontFallback',
-    storageKey: 'kuskus-code-font-fallback',
-    default: DEFAULT_TYPOGRAPHY.codeFontFallback,
-    parse: (value) => resolveFontPreference(value, DEFAULT_TYPOGRAPHY.codeFontFallback, true)
+    key: 'sourceFontSize',
+    storageKey: 'kuskus-markdown-source-font-size',
+    default: DEFAULT_TYPOGRAPHY.sourceFontSize,
+    parse: (value) => resolveBaseFontSize(value, DEFAULT_TYPOGRAPHY.sourceFontSize)
+  },
+  {
+    key: 'contentFontSize',
+    storageKey: 'kuskus-markdown-content-font-size',
+    default: DEFAULT_TYPOGRAPHY.contentFontSize,
+    parse: (value) => resolveBaseFontSize(value, DEFAULT_TYPOGRAPHY.contentFontSize)
+  },
+  {
+    key: 'sourceLineNumbers',
+    storageKey: 'kuskus-source-line-numbers',
+    default: true,
+    parse: (value) => value !== 'false'
   },
   {
     key: 'libraryView',

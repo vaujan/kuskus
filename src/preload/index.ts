@@ -94,6 +94,7 @@ const windowApi: ElectronWindowApi = {
     }
     return () => globalCaptureCallbacks.delete(callback)
   },
+  openSettingsWindow: (): Promise<void> => ipcRenderer.invoke(WINDOW_CHANNELS.openSettingsWindow),
   openNoteWindow: (itemId): Promise<void> =>
     ipcRenderer.invoke(WINDOW_CHANNELS.openNoteWindow, itemId),
   onNoteWindowCloseRequested: (callback): (() => void) => {
@@ -117,6 +118,7 @@ const libraryApi: KuskusLibraryApi = {
   initializeVault: () => ipcRenderer.invoke(KUSKUS_CHANNELS.initializeVault),
   migrateLibrary: () => ipcRenderer.invoke(KUSKUS_CHANNELS.migrateLibrary),
   createNote: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.createNote, input),
+  duplicateNote: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.duplicateNote, itemId),
   updateNote: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.updateNote, input),
   importNoteImage: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.importNoteImage, input),
   listCaptureDraftImages: () => ipcRenderer.invoke(KUSKUS_CHANNELS.listCaptureDraftImages),
@@ -159,8 +161,10 @@ const libraryApi: KuskusLibraryApi = {
   inspectItemDeletion: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.inspectItemDeletion, input),
   getImageThumbnail: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.getImageThumbnail, itemId),
   getImagePreview: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.getImagePreview, itemId),
+  copyImage: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.copyImage, itemId),
   importFile: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.importFile, input),
   copyLibraryPath: () => ipcRenderer.invoke(KUSKUS_CHANNELS.copyLibraryPath),
+  copyItemPath: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.copyItemPath, itemId),
   showItemInExplorer: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.showItemInExplorer, itemId),
   openExternalUrl: (url) => ipcRenderer.invoke(KUSKUS_CHANNELS.openExternalUrl, url),
   onVaultChanged: (callback) => {

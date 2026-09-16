@@ -118,7 +118,7 @@ export function FontPicker({
             variant="secondary"
             size="sm"
             aria-label={ariaLabel}
-            className="min-w-0 justify-between px-2.5 transition-transform active:scale-[0.96]"
+            className="w-full min-w-0 justify-between px-2.5 transition-transform active:scale-[0.96]"
           />
         }
       >

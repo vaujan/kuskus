@@ -222,7 +222,7 @@ export function notifyPermanentlyDeleted(count: number): void {
 export function notifyCollectionRemoved(name: string): void {
   showVerbToast({
     title: `Removed “${name}”`,
-    description: 'Its items were moved to Inbox.'
+    description: 'Nested folders were removed and their items moved to Inbox.'
   })
 }
 

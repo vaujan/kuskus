@@ -297,6 +297,21 @@ export function useItemMutations(deps: ItemMutationDependencies): ItemMutations 
     [announceStatus, applyLibraryResult, notifyActionError]
   )
 
+  const duplicateNote = useCallback(
+    async (item: LibraryItemDto): Promise<void> => {
+      if (item.type !== 'note') return
+      setItemOperationBusy(true)
+      try {
+        const result = await window.kuskus.duplicateNote(item.id)
+        if (!applyLibraryResult(result)) return
+        announceStatus('Note duplicated.')
+      } finally {
+        setItemOperationBusy(false)
+      }
+    },
+    [announceStatus, applyLibraryResult]
+  )
+
   const trashItemIds = useCallback(
     async (itemIds: string[], showUndo = true): Promise<boolean> => {
       setItemOperationBusy(true)
@@ -515,6 +530,7 @@ export function useItemMutations(deps: ItemMutationDependencies): ItemMutations 
         if (item.type !== 'note') return
         onOpenInNewWindow(item.id)
       },
+      onDuplicate: () => guardFocusTargets([item.id], () => void duplicateNote(item)),
       onRename: () => {
         guardFocusTargets([item.id], () => {
           setRenameTarget(item)
@@ -525,6 +541,19 @@ export function useItemMutations(deps: ItemMutationDependencies): ItemMutations 
       onUnpin: () => guardFocusTargets(targetIds, () => void setItemsPinned(targetIds, false)),
       onMove: (nextDestination) =>
         guardFocusTargets(targetIds, () => void moveItemIds(targetIds, nextDestination)),
+      onCopyPath: () => {
+        void window.kuskus.copyItemPath(item.id).then((result) => {
+          if (result.ok) announceStatus('File path copied.')
+          else notifyActionError(result.error)
+        })
+      },
+      onCopyImage: () => {
+        if (item.type !== 'image') return
+        void window.kuskus.copyImage(item.id).then((result) => {
+          if (result.ok) announceStatus('Image copied.')
+          else notifyActionError(result.error)
+        })
+      },
       onReveal: () => void revealItem(item.id),
       onArchive: () => guardFocusTargets(targetIds, () => void archiveItemIds(targetIds)),
       onUnarchive: () => guardFocusTargets(targetIds, () => void unarchiveItemIds(targetIds)),
@@ -536,11 +565,14 @@ export function useItemMutations(deps: ItemMutationDependencies): ItemMutations 
     }),
     [
       archiveItemIds,
+      announceStatus,
+      duplicateNote,
       guardFocusTargets,
       moveItemIds,
       onOpenInNewWindow,
       openDetail,
       openSource,
+      notifyActionError,
       requestPermanentDelete,
       restoreItemIds,
       revealItem,

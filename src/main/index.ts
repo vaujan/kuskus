@@ -20,12 +20,15 @@ import { CAPTURE_CHANNELS } from '../shared/capture-contract'
 import { QuickCaptureWindowController } from './window/quick-capture-window'
 import { CaptureShortcutStore } from './window/capture-shortcut-store'
 import { NoteWindowController } from './window/note-window'
+import { SettingsWindowController } from './window/settings-window'
 import { startPerformanceReporter } from './performance-reporter'
 import { trackPerformanceIpcTimings } from './performance-log'
 import { HyprlandGlobalCaptureController } from './hyprland/hyprland-global-capture'
 
 type CaptureShortcutBackend = {
-  start: (accelerator?: string) => GlobalCaptureShortcutStatus | Promise<GlobalCaptureShortcutStatus>
+  start: (
+    accelerator?: string
+  ) => GlobalCaptureShortcutStatus | Promise<GlobalCaptureShortcutStatus>
   getStatus: () => GlobalCaptureShortcutStatus
   setAccelerator: (
     accelerator: string
@@ -34,11 +37,8 @@ type CaptureShortcutBackend = {
 }
 
 function isHyprlandSession(): boolean {
-  return (
-    process.env.XDG_CURRENT_DESKTOP?.toLowerCase().includes('hyprland') ?? false
-  )
+  return process.env.XDG_CURRENT_DESKTOP?.toLowerCase().includes('hyprland') ?? false
 }
-
 
 const demoUserDataPath = process.env.KUSKUS_DEMO_USER_DATA
 const performanceUserDataPath = process.env.KUSKUS_PERFORMANCE_USER_DATA
@@ -53,6 +53,7 @@ let mainWindow: BrowserWindow | null = null
 let captureShortcutBackend: CaptureShortcutBackend | null = null
 let quickCaptureWindow: QuickCaptureWindowController | null = null
 let libraryService: LibraryService | null = null
+const settingsWindow = new SettingsWindowController()
 const globalCaptureWindowTargets = new WeakMap<BrowserWindow, GlobalCaptureWindowTarget>()
 
 function ensureMainWindow(): BrowserWindow {
@@ -63,6 +64,7 @@ function ensureMainWindow(): BrowserWindow {
     if (mainWindow === createdWindow) {
       mainWindow = null
       quickCaptureWindow?.destroy()
+      settingsWindow.destroy()
     }
   })
   return createdWindow
@@ -174,9 +176,7 @@ if (!hasSingleInstanceLock) {
       join(app.getPath('userData'), 'capture-shortcut.json')
     ).load()
     const persistAccelerator = (accelerator: string): void => {
-      const store = new CaptureShortcutStore(
-        join(app.getPath('userData'), 'capture-shortcut.json')
-      )
+      const store = new CaptureShortcutStore(join(app.getPath('userData'), 'capture-shortcut.json'))
       void store.save(accelerator)
     }
     if (isHyprlandSession()) {
@@ -198,6 +198,7 @@ if (!hasSingleInstanceLock) {
     registerWindowIpc(
       () => backend.getStatus(),
       (accelerator) => backend.setAccelerator(accelerator),
+      () => settingsWindow.open(),
       (itemId) => noteWindows.open(itemId),
       (sender, approved) => noteWindows.resolveClose(sender, approved)
     )

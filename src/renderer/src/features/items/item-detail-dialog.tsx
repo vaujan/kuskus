@@ -50,6 +50,7 @@ import { ContextMenu as ContextMenuPrimitive } from '@base-ui/react/context-menu
 import {
   ContextMenu,
   ContextMenuContent,
+  ContextMenuGroup,
   ContextMenuItem,
   ContextMenuShortcut
 } from '@/components/ui/context-menu'
@@ -97,6 +98,7 @@ import type {
 import { createDomFindTarget } from '@/features/items/note-find-dom'
 import type { LiveEditorOptions } from '@/features/items/live/live-preview'
 import { MarkdownFrontmatterBlock } from '@/features/items/markdown-frontmatter-block'
+import { NoteImage } from '@/features/items/note-image'
 import { NoteFind } from '@/features/items/note-find'
 import type { NoteVimMode } from '@/features/items/note-vim-mode'
 import { getNoteTextMetrics } from '@/features/items/note-text-metrics'
@@ -894,12 +896,17 @@ function ImageCanvas({
       {item.missingContent ? (
         <MissingContent type="image" onMoveToTrash={onMoveToTrash} />
       ) : preview ? (
-        <img
-          src={preview}
-          alt={item.title}
-          width={item.width}
-          height={item.height}
-          className="max-h-full max-w-full rounded-sm object-contain shadow-[0_20px_60px_-36px_rgb(0_0_0/0.8)] outline -outline-offset-1 outline-black/10 dark:outline-white/10"
+        <NoteImage
+          resolved={{
+            kind: 'image',
+            src: preview,
+            alt: item.title,
+            width: item.width,
+            height: item.height,
+            remote: false
+          }}
+          interactive
+          className="kuskus-image-detail-preview"
         />
       ) : previewError ? (
         <div className="flex max-w-xs flex-col items-center gap-3 px-6 text-center">
@@ -972,30 +979,110 @@ function UrlCanvas({
   )
 }
 
-function NoteReadContextMenu({ children }: { children: React.ReactNode }): React.JSX.Element {
+function NoteReadContextMenu({
+  itemId,
+  children,
+  onError
+}: {
+  itemId: string
+  children: React.ReactNode
+  onError: (message: string) => void
+}): React.JSX.Element {
   const [selectedText, setSelectedText] = useState('')
 
   return (
     <ContextMenu
       onOpenChange={(open) => {
-        if (open) setSelectedText(window.getSelection()?.toString().trim() ?? '')
+        if (!open) setSelectedText('')
+        else {
+          const selection = window.getSelection()?.toString().trim()
+          if (selection) setSelectedText(selection)
+        }
       }}
     >
+      <ContextMenuPrimitive.Trigger
+        render={
+          <div
+            className="contents"
+            onContextMenu={() => {
+              const selection = window.getSelection()?.toString().trim()
+              if (selection) setSelectedText(selection)
+            }}
+          />
+        }
+      >
+        {children}
+      </ContextMenuPrimitive.Trigger>
+      <ContextMenuContent className="w-44">
+        <ContextMenuGroup>
+          <ContextMenuItem
+            disabled={!selectedText}
+            onSelect={() => {
+              const text = selectedText || (window.getSelection()?.toString().trim() ?? '')
+              if (text) void copyTextToClipboard(text)
+            }}
+          >
+            <Copy aria-hidden="true" />
+            Copy
+            <ContextMenuShortcut>Ctrl+C</ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuItem
+            onSelect={() => {
+              void window.kuskus.copyItemPath(itemId).then((result) => {
+                if (!result.ok) onError(result.error)
+              })
+            }}
+          >
+            <Copy aria-hidden="true" />
+            Copy file path
+          </ContextMenuItem>
+        </ContextMenuGroup>
+      </ContextMenuContent>
+    </ContextMenu>
+  )
+}
+
+function ItemClipboardContextMenu({
+  itemId,
+  image,
+  children,
+  onError
+}: {
+  itemId: string
+  image: boolean
+  children: React.ReactNode
+  onError: (message: string) => void
+}): React.JSX.Element {
+  return (
+    <ContextMenu>
       <ContextMenuPrimitive.Trigger render={<div className="contents" />}>
         {children}
       </ContextMenuPrimitive.Trigger>
       <ContextMenuContent className="w-44">
-        <ContextMenuItem
-          disabled={!selectedText}
-          onSelect={() => {
-            const text = selectedText || (window.getSelection()?.toString().trim() ?? '')
-            if (text) void copyTextToClipboard(text)
-          }}
-        >
-          <Copy aria-hidden="true" />
-          Copy
-          <ContextMenuShortcut>Ctrl+C</ContextMenuShortcut>
-        </ContextMenuItem>
+        <ContextMenuGroup>
+          {image ? (
+            <ContextMenuItem
+              onSelect={() => {
+                void window.kuskus.copyImage(itemId).then((result) => {
+                  if (!result.ok) onError(result.error)
+                })
+              }}
+            >
+              <Image aria-hidden="true" />
+              Copy image
+            </ContextMenuItem>
+          ) : null}
+          <ContextMenuItem
+            onSelect={() => {
+              void window.kuskus.copyItemPath(itemId).then((result) => {
+                if (!result.ok) onError(result.error)
+              })
+            }}
+          >
+            <Copy aria-hidden="true" />
+            Copy file path
+          </ContextMenuItem>
+        </ContextMenuGroup>
       </ContextMenuContent>
     </ContextMenu>
   )
@@ -1294,7 +1381,7 @@ function NoteCanvas({
   }, [mode, scheduleScrollSynchronization])
 
   useEffect(() => {
-    if (mode !== 'markdown' && mode !== 'split') return
+    if (mode === 'read') return
     const selection = noteSelectionRef.current
     if (selection == null) return
     const frame = requestAnimationFrame(() => noteEditorRef.current?.setSelection(selection))
@@ -1358,7 +1445,11 @@ function NoteCanvas({
         />
       ) : null}
       {mode === 'read' ? (
-        <MarkdownFrontmatterBlock markdown={snapshot.draft} className="mb-8" />
+        <MarkdownFrontmatterBlock
+          markdown={snapshot.draft}
+          className="mb-8"
+          onOpenLink={handlePreviewOpenLink}
+        />
       ) : null}
       {mode === 'read' ? (
         <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
@@ -1528,7 +1619,7 @@ function NoteCanvas({
               }}
               className={cn('min-h-0 min-w-0', mode === 'read' ? 'flex' : 'hidden')}
             >
-              <NoteReadContextMenu>
+              <NoteReadContextMenu itemId={item.id} onError={onError}>
                 <article className="kuskus-detail-document-frame min-h-full w-full py-[var(--typeset-detail-padding-block)]">
                   {readLiveDocument}
                 </article>
@@ -1556,7 +1647,11 @@ function NoteCanvas({
                   />
                 ) : null}
                 {mode === 'split' ? (
-                  <MarkdownFrontmatterBlock markdown={snapshot.draft} className="mb-8" />
+                  <MarkdownFrontmatterBlock
+                    markdown={snapshot.draft}
+                    className="mb-8"
+                    onOpenLink={handlePreviewOpenLink}
+                  />
                 ) : null}
                 {mode === 'split' ? (
                   <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
@@ -1577,9 +1672,9 @@ function NoteCanvas({
           </div>
         </div>
       )}
-      {mode !== 'read' && !item.missingContent ? (
+      {!item.missingContent ? (
         <div className="note-status-bar flex h-7 shrink-0 items-center gap-3 border-t border-border/30 px-3 text-xs text-muted-foreground">
-          {vimEnabled ? (
+          {mode !== 'read' && vimEnabled ? (
             <div
               ref={vimCommandLineHostRef}
               className="vim-cmdline-host min-w-0 flex-1"
@@ -1589,7 +1684,7 @@ function NoteCanvas({
             />
           ) : null}
           <div className="note-status-metadata ml-auto flex shrink-0 items-center gap-3 tabular-nums">
-            {vimEnabled && vimMode ? (
+            {mode !== 'read' && vimEnabled && vimMode ? (
               <>
                 <span className="sr-only" role="status" aria-live="polite">
                   Vim mode: {vimMode.replace('-', ' ')}
@@ -2423,6 +2518,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
           {item.type === 'note' ? (
             <div className="relative flex min-h-0 min-w-0 flex-1">
               <NoteCanvas
+                key={item.id}
                 item={item}
                 mode={mode}
                 snapshot={snapshot}
@@ -2470,43 +2566,49 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
             </div>
           ) : (
             <ScrollArea className="min-h-0 min-w-0 flex-1 [&_[data-slot=scroll-area-viewport]]:focus-visible:ring-0 [&_[data-slot=scroll-area-viewport]]:focus-visible:outline-none">
-              <div className="min-h-full min-w-0 @min-[860px]/detail:grid @min-[860px]/detail:grid-cols-[minmax(0,1fr)_20rem]">
-                {item.type === 'image' ? (
-                  <>
-                    <ImageCanvas
-                      item={item}
-                      onMoveToTrash={() => requestGuardedAction(() => onMoveToTrash(item.id))}
-                    />
-                    <ImageInspector
-                      item={item}
-                      titleRef={inspectorTitleRef}
-                      onRenameTitle={renameCurrentItem}
-                    />
-                  </>
-                ) : item.type === 'url' ? (
-                  <>
-                    <UrlCanvas item={item} />
-                    <UrlInspector
-                      item={item}
-                      titleRef={inspectorTitleRef}
-                      onRenameTitle={renameCurrentItem}
-                      onOpenLink={() => void openLink()}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <FileCanvas
-                      item={item}
-                      onMoveToTrash={() => requestGuardedAction(() => onMoveToTrash(item.id))}
-                    />
-                    <FileInspector
-                      item={item}
-                      titleRef={inspectorTitleRef}
-                      onRenameTitle={renameCurrentItem}
-                    />
-                  </>
-                )}
-              </div>
+              <ItemClipboardContextMenu
+                itemId={item.id}
+                image={item.type === 'image'}
+                onError={onError}
+              >
+                <div className="min-h-full min-w-0 @min-[860px]/detail:grid @min-[860px]/detail:grid-cols-[minmax(0,1fr)_20rem]">
+                  {item.type === 'image' ? (
+                    <>
+                      <ImageCanvas
+                        item={item}
+                        onMoveToTrash={() => requestGuardedAction(() => onMoveToTrash(item.id))}
+                      />
+                      <ImageInspector
+                        item={item}
+                        titleRef={inspectorTitleRef}
+                        onRenameTitle={renameCurrentItem}
+                      />
+                    </>
+                  ) : item.type === 'url' ? (
+                    <>
+                      <UrlCanvas item={item} />
+                      <UrlInspector
+                        item={item}
+                        titleRef={inspectorTitleRef}
+                        onRenameTitle={renameCurrentItem}
+                        onOpenLink={() => void openLink()}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <FileCanvas
+                        item={item}
+                        onMoveToTrash={() => requestGuardedAction(() => onMoveToTrash(item.id))}
+                      />
+                      <FileInspector
+                        item={item}
+                        titleRef={inspectorTitleRef}
+                        onRenameTitle={renameCurrentItem}
+                      />
+                    </>
+                  )}
+                </div>
+              </ItemClipboardContextMenu>
             </ScrollArea>
           )}
         </section>

@@ -385,12 +385,36 @@ function pushReplace(
 // 0.4em → content starts at 1.9em and advances 1.9em per nested item.
 // Atomic default was 0.8/1.2/0.6 (2.0em + 0.6em/depth), which read as
 // a different indentation scale.
-function listLineStyle(depth: number, markerLine: boolean): string {
+function listLineStyle(
+  depth: number,
+  markerLine: boolean,
+  taskLine: boolean,
+  activeGuides: readonly boolean[]
+): string {
   const nested = ' + var(--typeset-list-nesting)'.repeat(depth)
   const indent = `calc(var(--typeset-list-leading) + var(--typeset-list-marker-column)${nested})`
+  const guidePosition = taskLine
+    ? 'calc(var(--typeset-list-marker-axis) - var(--typeset-task-guide-nudge))'
+    : 'var(--typeset-list-marker-axis)'
+  const guideImages = activeGuides
+    .map((active) => {
+      const color = active ? 'var(--typeset-list-guide-active)' : 'var(--typeset-list-guide)'
+      return `linear-gradient(${color}, ${color})`
+    })
+    .join(', ')
+  const guidePositions = activeGuides
+    .map((_, index) => {
+      const offset = ' + var(--typeset-list-nesting)'.repeat(index)
+      return `calc(${guidePosition}${offset}) 0`
+    })
+    .join(', ')
+  const guide =
+    depth === 0
+      ? ''
+      : `; background-image: ${guideImages}; background-position: ${guidePositions}; background-size: 1px 100%; background-repeat: no-repeat`
   return `padding-left: ${indent}; text-indent: ${
     markerLine ? 'calc(-1 * var(--typeset-list-marker-column))' : '0'
-  }`
+  }${guide}`
 }
 
 function nearestListItem(node: SyntaxNode | null): SyntaxNode | null {
@@ -464,6 +488,14 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
   // are near-free because ensureSyntaxTree short-circuits once the
   // tree reaches the target.
   const tree = ensureSyntaxTree(state, state.doc.length, 200) ?? syntaxTree(state)
+  const activeGuideOwners = new Set<string>()
+  if (view.hasFocus && !readOnly) {
+    for (const range of state.selection.ranges) {
+      const activeItem = nearestListItem(tree.resolve(range.head, -1))
+      const activeParent = nearestListItem(activeItem?.parent ?? null)
+      if (activeParent) activeGuideOwners.add(`${activeParent.from}:${activeParent.to}`)
+    }
+  }
 
   // `from` positions of Link nodes whose range overlaps a selection.
   // Link children (LinkMark/URL/LinkTitle) hide unless their parent
@@ -634,14 +666,20 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
         if (listItem) {
           const depth = listItemDepth(listItem)
           bulletDepth = bulletListDepth(listItem)
+          const ancestors: SyntaxNode[] = []
+          for (let parent = listItem.parent; parent; parent = parent.parent) {
+            if (parent.name === 'ListItem') ancestors.unshift(parent)
+          }
+          const activeGuides = ancestors.map((item) =>
+            activeGuideOwners.has(`${item.from}:${item.to}`)
+          )
           const firstLine = doc.lineAt(listItem.from)
           const lastLine = doc.lineAt(listItem.to)
 
           for (let number = firstLine.number; number <= lastLine.number; number++) {
             const ownedLine = doc.line(number)
             const contentOffset = ownedLine.text.search(/\S/)
-            if (contentOffset < 0) continue
-            const contentFrom = ownedLine.from + contentOffset
+            const contentFrom = contentOffset < 0 ? ownedLine.from : ownedLine.from + contentOffset
             const owner = nearestListItem(tree.resolve(contentFrom, 1))
             if (!sameListItem(owner, listItem)) continue
 
@@ -649,11 +687,11 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
             ranges.push(
               Decoration.line({
                 attributes: {
-                  style: listLineStyle(depth, markerLine)
+                  style: listLineStyle(depth, markerLine, taskFrom !== undefined, activeGuides)
                 }
               }).range(ownedLine.from)
             )
-            if (contentFrom > ownedLine.from) {
+            if (contentOffset > 0) {
               pushReplace(ranges, doc, ownedLine.from, contentFrom)
             }
           }
