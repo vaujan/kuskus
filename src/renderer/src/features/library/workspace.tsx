@@ -2013,7 +2013,7 @@ export function Workspace({
         src={bubuntuLine}
         alt=""
         draggable={false}
-        className="pointer-events-none h-[min(42vh,22rem)] w-auto max-w-full select-none opacity-40 dark:invert"
+        className="pointer-events-none h-[min(42vh,22rem)] w-auto max-w-full select-none opacity-30 dark:invert"
       />
       <EmptyContent className="max-w-none flex-row flex-wrap justify-center gap-2">
         {destination.type !== 'archive' && destination.type !== 'trash' ? (
