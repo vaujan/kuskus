@@ -44,6 +44,15 @@ export function registerWindowIpc(
     WINDOW_CHANNELS.isMaximized,
     (event) => windowFromEvent(event)?.isMaximized() ?? false
   )
+  ipcMain.on(WINDOW_CHANNELS.edit, (event, command: unknown) => {
+    const contents = event.sender
+    if (command === 'undo') contents.undo()
+    else if (command === 'redo') contents.redo()
+    else if (command === 'cut') contents.cut()
+    else if (command === 'copy') contents.copy()
+    else if (command === 'paste') contents.paste()
+    else if (command === 'selectAll') contents.selectAll()
+  })
   ipcMain.handle(WINDOW_CHANNELS.setZoomFactor, (event, zoomFactor: unknown) => {
     if (
       typeof zoomFactor !== 'number' ||

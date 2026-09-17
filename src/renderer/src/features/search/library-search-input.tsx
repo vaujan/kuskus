@@ -10,6 +10,7 @@ export function LibrarySearchInput({
   onValueChange,
   onEscapeEmpty,
   pending,
+  scopeLabel,
   className
 }: {
   inputRef: Ref<HTMLInputElement>
@@ -17,12 +18,18 @@ export function LibrarySearchInput({
   onValueChange: (value: string) => void
   onEscapeEmpty?: () => void
   pending: boolean
+  scopeLabel?: string
   className?: string
 }): React.JSX.Element {
   return (
     <InputGroup className={cn('h-8 rounded-lg bg-input/40', className)}>
       <InputGroupAddon>
         <IconSearch aria-hidden="true" />
+        {scopeLabel ? (
+          <span className="max-w-24 truncate text-xs" title={scopeLabel}>
+            {scopeLabel}
+          </span>
+        ) : null}
       </InputGroupAddon>
       <InputGroupInput
         ref={inputRef}
@@ -36,8 +43,8 @@ export function LibrarySearchInput({
           else if (onEscapeEmpty) onEscapeEmpty()
           else event.currentTarget.blur()
         }}
-        placeholder="Search library"
-        aria-label="Search library"
+        placeholder="Search items"
+        aria-label={scopeLabel ? `Search ${scopeLabel}` : 'Search library'}
         aria-keyshortcuts="Control+Shift+F Meta+Shift+F"
         aria-busy={pending}
       />

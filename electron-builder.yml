@@ -2,8 +2,10 @@ appId: app.kuskus.desktop
 productName: Kuskus
 directories:
   buildResources: build
+icon: icon.png
 files:
   - '!**/.vscode/*'
+  - '!resources/icon-dev.png'
   - '!src/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'

@@ -2,7 +2,7 @@ const assert = require('node:assert/strict')
 const { readFileSync } = require('node:fs')
 const test = require('node:test')
 
-test('main workspace uses borderless navigation and quiet text-first empty states', () => {
+test('main workspace uses borderless navigation and illustrated empty states', () => {
   const sidebar = readFileSync(
     require.resolve('../src/renderer/src/features/shell/app-sidebar.tsx'),
     'utf8'
@@ -19,6 +19,10 @@ test('main workspace uses borderless navigation and quiet text-first empty state
     require.resolve('../src/renderer/src/features/items/focus-item-list.tsx'),
     'utf8'
   )
+  const loading = readFileSync(
+    require.resolve('../src/renderer/src/app/loading-screen.tsx'),
+    'utf8'
+  )
 
   assert.doesNotMatch(sidebar, /group-data-\[side=left\]:border-r/)
   assert.match(sidebar, /peer-data-active\/menu-button:text-sidebar-selection-foreground/)
@@ -31,7 +35,14 @@ test('main workspace uses borderless navigation and quiet text-first empty state
   assert.match(librarySidebar, /<AppSidebar variant={sidebarVariant}>/)
   assert.doesNotMatch(librarySidebar, /<AppSidebar variant="inset">/)
   assert.doesNotMatch(workspace, /<EmptyMedia/)
-  assert.match(workspace, /<EmptyTitle>No item selected<\/EmptyTitle>/)
+  assert.match(workspace, /src=\{bubuntuLine\}/)
+  assert.match(workspace, /src=\{bubuntuLine\}[\s\S]{0,100}draggable=\{false\}/)
+  assert.doesNotMatch(workspace, /No item selected/)
+  assert.doesNotMatch(workspace, /Choose an item from the list/)
+  assert.match(loading, /src=\{bubuntuLine\}/)
+  assert.match(loading, /src=\{bubuntuLine\}[\s\S]{0,100}draggable=\{false\}/)
+  assert.match(loading, /role="progressbar"/)
+  assert.doesNotMatch(loading, /<Spinner|Opening Kuskus…/)
   assert.match(workspace, /Create new note <Kbd>Ctrl\+N<\/Kbd>/)
   assert.match(workspace, /Return to overview/)
   assert.match(workspace, /Return to overview <Kbd>Esc<\/Kbd>/)
@@ -41,7 +52,6 @@ test('main workspace uses borderless navigation and quiet text-first empty state
     /<Button aria-keyshortcuts="Control\+N"[\s\S]{0,160}Create new note <Kbd>Ctrl\+N<\/Kbd>/
   )
   assert.match(workspace, /variant="tonal"[\s\S]{0,180}Add item <Kbd>Ctrl\+Shift\+N<\/Kbd>/)
-  assert.match(workspace, /<EmptyDescription>/)
   assert.match(workspace, /max-w-none flex-row flex-wrap justify-center gap-2/)
   assert.match(workspace, /variant="tonal"/)
   assert.match(workspace, /variant="ghost"/)
@@ -80,14 +90,14 @@ test('overview toolbar separates retrieval from primary and tonal creation', () 
   assert.match(toolbar, /grid-cols-\[auto_minmax\(10rem,1fr\)_auto\]/)
   assert.match(
     toolbar,
-    /@min-\[60rem\]\/toolbar:grid-cols-\[minmax\(0,1fr\)_minmax\(10rem,28rem\)_minmax\(0,1fr\)\]/
+    /@min-\[48rem\]\/toolbar:grid-cols-\[minmax\(0,1fr\)_minmax\(10rem,28rem\)_minmax\(0,1fr\)\]/
   )
-  assert.equal((toolbar.match(/@min-\[60rem\]\/toolbar:inline/g) ?? []).length, 2)
+  assert.equal((toolbar.match(/@min-\[48rem\]\/toolbar:inline/g) ?? []).length, 2)
   assert.doesNotMatch(toolbar, /@min-\[76rem\]\/toolbar:inline/)
   assert.match(toolbar, /size=\{filterCount > 0 \? 'sm' : 'icon-sm'\}[\s\S]{0,220}Sort and filter/)
   assert.match(toolbar, /size="sm"[\s\S]{0,160}Create new note/)
   assert.match(button, /tonal: 'bg-primary\/15 text-primary hover:bg-primary\/20/)
-  assert.match(toolbar, /variant=\{newItemOpen \|\| hasDraft \? 'tonal' : 'ghost'\}/)
+  assert.match(toolbar, /variant="tonal"[\s\S]{0,220}data-new-item-button/)
   assert.match(toolbar, /aria-keyshortcuts="Control\+Shift\+N"/)
   assert.match(workspace, /if \(event\.shiftKey\) openComposer\(\)/)
   assert.match(workspace, /target\.closest\([\s\S]{0,180}\[role="textbox"\]/)
@@ -135,7 +145,7 @@ test('notifications are iconless and expose dev-only visual previews', () => {
   assert.match(preview, /event\.altKey.*event\.shiftKey/)
 })
 
-test('focus rail uses compact ghost and secondary actions without tonal styling', () => {
+test('focus rail keeps compact ghost and secondary actions', () => {
   const header = readFileSync(
     require.resolve('../src/renderer/src/features/items/focus-list-header.tsx'),
     'utf8'
@@ -154,7 +164,7 @@ test('focus rail uses compact ghost and secondary actions without tonal styling'
   assert.match(header, /size="icon-sm"\s+variant="ghost"[\s\S]{0,160}Create new note/)
   assert.match(
     header,
-    /size="icon-sm"\s+variant=\{composerOpen \|\| hasDraft \? 'secondary' : 'ghost'\}/
+    /size="icon-sm"\s+variant=\{composerOpen \|\| hasDraft \? 'secondary' : 'ghost'\}[\s\S]{0,160}data-new-item-button/
   )
 })
 
@@ -177,7 +187,8 @@ test('detail toolbar icon buttons share the quieter foreground treatment', () =>
   assert.match(detail, /aria-label="Back to items"/)
   assert.match(detail, /<ChevronLeft aria-hidden="true"/)
   assert.doesNotMatch(detail, /<ChevronLeft data-icon="inline-start"/)
-  assert.match(actions, /'size-10 text-muted-foreground'/)
+  assert.match(actions, /size=\{props\.triggerSurface === 'caption' \? 'icon-sm' : 'icon'\}/)
+  assert.match(actions, /\? 'text-muted-foreground'/)
   assert.match(styles, /--icon-stroke-width: 1\.25/)
   assert.match(styles, /\.tabler-icon \{\s*stroke-width: var\(--icon-stroke-width\)/)
   assert.doesNotMatch(`${sidebar}\n${detail}\n${actions}`, /stroke=\{/)
@@ -265,9 +276,14 @@ test('capture uses interruptible transitions and keeps Quick Capture static', ()
     require.resolve('../src/renderer/src/features/capture/add-item-composer.tsx'),
     'utf8'
   )
+  const workspace = readFileSync(
+    require.resolve('../src/renderer/src/features/library/workspace.tsx'),
+    'utf8'
+  )
 
   assert.match(composer, /surface !== 'quick'.*\n\s*'scale-100 opacity-100 transition-/)
   assert.match(composer, /starting:scale-\[0\.98\] starting:opacity-0/)
   assert.doesNotMatch(composer, /animate-in fade-in zoom-in/)
   assert.doesNotMatch(composer, /ease-in['"]/)
+  assert.match(workspace, /!composerOpen && !showExternalDropShadow && 'hidden'/)
 })

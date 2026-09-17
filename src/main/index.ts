@@ -141,7 +141,7 @@ if (!hasSingleInstanceLock) {
   })
 
   void app.whenReady().then(async () => {
-    electronApp.setAppUserModelId('app.kuskus.desktop')
+    electronApp.setAppUserModelId(app.isPackaged ? 'app.kuskus.desktop' : 'app.kuskus.desktop.dev')
     installApplicationMenu()
 
     libraryService = new LibraryService(join(app.getPath('userData'), 'kuskus-settings.json'))

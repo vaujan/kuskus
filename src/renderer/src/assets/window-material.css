@@ -11,8 +11,12 @@
   --editor-control-ring: var(--primary);
   --window-canvas: var(--background);
   --window-detail: color-mix(in srgb, var(--window-canvas) 92%, white);
+  --window-rail: color-mix(in oklch, var(--window-canvas) 97%, var(--foreground));
   --window-sidebar: var(--sidebar);
-  --window-toolbar: var(--background);
+}
+
+:root:is([data-color-theme='github'], [data-color-theme='ayu'], [data-color-theme='material']) {
+  --window-rail: color-mix(in srgb, var(--window-sidebar) 72%, var(--window-canvas));
 }
 
 [data-slot='sidebar-inner'] {
@@ -37,15 +41,14 @@
 :root[data-window-material='acrylic'] {
   --material-card: color-mix(in oklch, var(--popover) 66%, transparent);
   --material-border: color-mix(in oklch, var(--input) 72%, transparent);
-  --window-canvas: color-mix(in oklch, var(--background) 62%, transparent);
+  --window-canvas: color-mix(in oklch, var(--background) 78%, transparent);
   --window-sidebar: color-mix(in oklch, var(--sidebar) 50%, transparent);
-  --window-toolbar: var(--window-canvas);
 }
 
 :root.dark[data-window-material='acrylic'] {
   --material-card: color-mix(in oklch, var(--popover) 62%, transparent);
   --material-border: color-mix(in oklch, var(--input) 87%, transparent);
-  --window-canvas: color-mix(in oklch, var(--background) 56%, transparent);
+  --window-canvas: color-mix(in oklch, var(--background) 78%, transparent);
   --window-sidebar: color-mix(in oklch, var(--sidebar) 46%, transparent);
 }
 
@@ -67,12 +70,9 @@
   background-color: var(--background);
 }
 
-.window-canvas {
-  background-color: var(--window-canvas);
-}
-
+.window-canvas,
 .window-toolbar {
-  background-color: var(--window-toolbar);
+  background-color: var(--window-canvas);
 }
 
 .focus-rail-surface,
@@ -86,7 +86,7 @@
 }
 
 .focus-rail-surface {
-  background-color: color-mix(in oklch, var(--window-canvas) 97%, var(--foreground));
+  background-color: var(--window-rail);
 }
 
 .focus-detail-surface,
@@ -108,11 +108,23 @@
   opacity: 0.35;
 }
 
+.focus-detail-surface:has(.cm-editor.cm-focused)
+  :is([data-detail-focus-header] > *, [data-focus-caption-controls]) {
+  opacity: 0.28;
+}
+
 .focus-detail-surface[data-focus-expanded='true']
-  :is([data-detail-focus-header]:is(:hover, :focus-within) > *, [data-focus-caption-controls]):is(
-    :hover,
-    :focus-within
-  ) {
+  [data-detail-focus-header]:is(:hover, :focus-within)
+  > *,
+.focus-detail-surface[data-focus-expanded='true']
+  [data-focus-caption-controls]:is(:hover, :focus-within),
+.focus-detail-surface:has(.cm-editor.cm-focused)
+  [data-detail-focus-header]:is(:hover, :focus-within)
+  > *,
+.focus-detail-surface:has(.cm-editor.cm-focused)
+  [data-focus-caption-controls]:is(:hover, :focus-within),
+.focus-detail-surface:has(.cm-editor.cm-focused):has([data-detail-focus-header]:hover)
+  [data-focus-caption-controls] {
   opacity: 1;
 }
 
@@ -152,7 +164,6 @@ html[data-window-material='acrylic'] [data-slot='sidebar-inset'] {
   :root[data-window-material='acrylic'] {
     --window-canvas: var(--background);
     --window-sidebar: var(--sidebar);
-    --window-toolbar: var(--background);
   }
 
   :root[data-window-material='acrylic'] .window-root {
@@ -171,7 +182,6 @@ html[data-window-material='acrylic'] [data-slot='sidebar-inset'] {
   :root[data-window-material='acrylic'] {
     --window-canvas: Canvas;
     --window-sidebar: Canvas;
-    --window-toolbar: Canvas;
   }
 
   :root[data-window-material='acrylic'] .window-root {

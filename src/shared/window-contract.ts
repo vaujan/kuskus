@@ -9,6 +9,7 @@ export const WINDOW_CHANNELS = {
   setTranslucentBackground: 'window:set-translucent-background',
   reducedTransparencyChanged: 'window:reduced-transparency-changed',
   zoomShortcut: 'window:zoom-shortcut',
+  edit: 'window:edit',
   getGlobalCaptureShortcutStatus: 'window:get-global-capture-shortcut-status',
   setGlobalCaptureShortcut: 'window:set-global-capture-shortcut',
   globalCaptureRequested: 'window:global-capture-requested',
@@ -20,6 +21,7 @@ export const WINDOW_CHANNELS = {
 
 export const APP_ZOOM_FACTORS = [0.8, 0.9, 1, 1.1, 1.2, 1.25] as const
 export type AppZoomShortcut = 'in' | 'out' | 'reset'
+export type EditCommand = 'undo' | 'redo' | 'cut' | 'copy' | 'paste' | 'selectAll'
 export type NativeThemeSource = 'dark' | 'light' | 'system'
 export const TRANSLUCENT_BACKGROUND_STORAGE_KEY = 'kuskus-translucent-background:v1'
 export const LEGACY_TRANSLUCENT_BACKGROUND_STORAGE_KEY = 'kuskus-translucent-background'
@@ -69,6 +71,7 @@ export interface ElectronWindowApi {
   setTranslucentBackground: (enabled: boolean) => Promise<TranslucentBackgroundStatus>
   onReducedTransparencyChange: (callback: (reduced: boolean) => void) => () => void
   onZoomShortcut: (callback: (shortcut: AppZoomShortcut) => void) => () => void
+  edit: (command: EditCommand) => void
   getGlobalCaptureShortcutStatus: () => Promise<GlobalCaptureShortcutStatus>
   setGlobalCaptureShortcut: (accelerator: string) => Promise<GlobalCaptureShortcutStatus>
   onGlobalCaptureRequested: (callback: () => void) => () => void

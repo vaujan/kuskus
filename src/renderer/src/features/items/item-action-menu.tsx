@@ -1,6 +1,7 @@
 import {
   IconArchive,
   IconArchiveOff,
+  IconArrowsDiagonal,
   IconCopy,
   IconCopyPlus,
   IconDots,
@@ -75,6 +76,8 @@ export interface NoteDetailMenuOptions {
   onShowDetails: () => void
   onCopyAsMarkdown: () => void
   onUseFirstLineAsTitle?: () => void
+  zen?: boolean
+  onZenChange?: (checked: boolean) => void
 }
 
 export interface ItemActionHandlers {
@@ -260,6 +263,16 @@ function ItemActions({
               <IconTextCaption aria-hidden="true" />
               Inline title
             </DropdownMenuCheckboxItem>
+            {props.detailOptions.onZenChange ? (
+              <DropdownMenuCheckboxItem
+                checked={props.detailOptions.zen}
+                onCheckedChange={props.detailOptions.onZenChange}
+              >
+                <IconArrowsDiagonal aria-hidden="true" />
+                Zen mode
+                <DropdownMenuShortcut>Ctrl+Shift+\</DropdownMenuShortcut>
+              </DropdownMenuCheckboxItem>
+            ) : null}
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
@@ -448,11 +461,11 @@ export function ItemActionMenu(props: ItemActionMenuProps): React.JSX.Element {
           render={
             <Button
               type="button"
-              size="icon"
+              size={props.triggerSurface === 'caption' ? 'icon-sm' : 'icon'}
               variant={props.triggerSurface === 'caption' ? 'ghost' : 'secondary'}
               className={cn(
                 props.triggerSurface === 'caption'
-                  ? 'size-10 text-muted-foreground'
+                  ? 'text-muted-foreground'
                   : actionButtonClassName,
                 menuOpen && 'opacity-100'
               )}

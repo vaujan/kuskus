@@ -15,8 +15,6 @@ import {
 } from 'react'
 import {
   IconAlignLeft as AlignLeft,
-  IconArrowsDiagonal as ArrowsDiagonal,
-  IconArrowsDiagonalMinimize as ArrowsDiagonalMinimize,
   IconCalendar as Calendar,
   IconChevronLeft as ChevronLeft,
   IconChevronRight as ChevronRight,
@@ -99,7 +97,7 @@ import { createDomFindTarget } from '@/features/items/note-find-dom'
 import type { LiveEditorOptions } from '@/features/items/live/live-preview'
 import { MarkdownFrontmatterBlock } from '@/features/items/markdown-frontmatter-block'
 import { NoteImage } from '@/features/items/note-image'
-import { NoteFind } from '@/features/items/note-find'
+import { NoteFind, type NoteFindHandle } from '@/features/items/note-find'
 import type { NoteVimMode } from '@/features/items/note-vim-mode'
 import { getNoteTextMetrics } from '@/features/items/note-text-metrics'
 import {
@@ -433,6 +431,7 @@ function DetailControl({
 function DetailToolbar({
   itemId,
   title,
+  menu,
   modeControls,
   actions,
   hasPrevious,
@@ -442,12 +441,11 @@ function DetailToolbar({
   onBack,
   onError,
   presentation,
-  expanded = false,
-  onExpandedChange,
   showClose = true
 }: {
   itemId: string
   title: string
+  menu?: React.ReactNode
   modeControls?: React.ReactNode
   actions?: React.ReactNode
   hasPrevious: boolean
@@ -457,15 +455,10 @@ function DetailToolbar({
   onBack?: () => void
   onError: (message: string) => void
   presentation: 'dialog' | 'focus'
-  expanded?: boolean
-  onExpandedChange?: (expanded: boolean) => void
   showClose?: boolean
 }): React.JSX.Element {
   if (presentation === 'focus') {
     const isMac = window.electron.window.platform === 'darwin'
-    const expandLabel = expanded
-      ? 'Exit zen mode (Ctrl+Shift+\\)'
-      : 'Enter zen mode (Ctrl+Shift+\\)'
 
     return (
       <header
@@ -474,20 +467,17 @@ function DetailToolbar({
       >
         <div
           data-detail-focus-leading-actions
-          className={cn(
-            'pointer-events-auto flex items-center [&_button]:[-webkit-app-region:no-drag]',
-            !expanded && 'group-data-[focus-single-pane=true]/focus-detail:pl-10'
-          )}
+          className="pointer-events-auto flex items-center group-data-[focus-single-pane=true]/focus-detail:pl-10 [&_button]:[-webkit-app-region:no-drag]"
         >
-          {!expanded && onBack ? (
+          {onBack ? (
             <Tooltip>
               <TooltipTrigger
                 render={
                   <Button
                     type="button"
-                    size="icon"
+                    size="icon-sm"
                     variant="ghost"
-                    className="hidden size-10 text-muted-foreground group-data-[focus-single-pane=true]/focus-detail:inline-flex"
+                    className="hidden text-muted-foreground group-data-[focus-single-pane=true]/focus-detail:inline-flex"
                     aria-label="Back to items"
                     onClick={onBack}
                   />
@@ -498,50 +488,11 @@ function DetailToolbar({
               <TooltipContent>Back to items</TooltipContent>
             </Tooltip>
           ) : null}
-          {onExpandedChange ? (
-            <div className="group-data-[focus-single-pane=true]/focus-detail:hidden">
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      className="size-10 text-muted-foreground"
-                      aria-label={expandLabel}
-                      aria-keyshortcuts="Control+Shift+\\"
-                      aria-pressed={expanded}
-                      onClick={() => onExpandedChange(!expanded)}
-                    />
-                  }
-                >
-                  <span className="relative size-4" aria-hidden="true">
-                    <ArrowsDiagonal
-                      className={cn(
-                        'absolute inset-0 size-4 transition-[opacity,scale,filter] duration-300 [transition-timing-function:cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none',
-                        expanded
-                          ? 'scale-[0.25] opacity-0 blur-[4px]'
-                          : 'scale-100 opacity-100 blur-0'
-                      )}
-                    />
-                    <ArrowsDiagonalMinimize
-                      className={cn(
-                        'absolute inset-0 size-4 transition-[opacity,scale,filter] duration-300 [transition-timing-function:cubic-bezier(0.2,0,0,1)] motion-reduce:transition-none',
-                        expanded
-                          ? 'scale-100 opacity-100 blur-0'
-                          : 'scale-[0.25] opacity-0 blur-[4px]'
-                      )}
-                    />
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>{expandLabel}</TooltipContent>
-              </Tooltip>
-            </div>
-          ) : null}
+          {menu}
         </div>
         <p
           data-detail-focus-title
-          className="absolute left-1/2 max-w-[min(32rem,calc(100%-24rem))] -translate-x-1/2 truncate px-4 text-center text-sm font-normal text-foreground/70 max-[760px]:hidden"
+          className="absolute left-1/2 max-w-[min(32rem,calc(100%-24rem))] -translate-x-1/2 truncate px-4 text-center text-sm font-normal text-foreground/70 @max-[64rem]/detail:hidden"
           title={title}
         >
           {title}
@@ -704,8 +655,9 @@ function NoteModeControls({
                 render={
                   <Button
                     type="button"
+                    size="sm"
                     variant="ghost"
-                    className="h-10 gap-2 px-3 text-muted-foreground"
+                    className="text-muted-foreground"
                     aria-label={`Note mode: ${activeOption.label}`}
                   />
                 }
@@ -1133,7 +1085,9 @@ function NoteCanvas({
   onPasteImage,
   onOpenVaultLink,
   onError,
-  onMoveToTrash
+  onMoveToTrash,
+  editorRef,
+  findRef
 }: {
   item: Extract<LibraryItemDto, { type: 'note' }>
   mode: NoteMode
@@ -1161,9 +1115,11 @@ function NoteCanvas({
   onOpenVaultLink: (target: string) => void
   onMoveToTrash: (itemId: string) => void
   onError: (message: string) => void
+  editorRef: React.RefObject<SourceNoteHandle | null>
+  findRef: React.RefObject<NoteFindHandle | null>
 }): React.JSX.Element {
   const noteMetrics = useMemo(() => getNoteTextMetrics(snapshot.draft), [snapshot.draft])
-  const noteEditorRef = useRef<SourceNoteHandle>(null)
+  const noteEditorRef = editorRef
   const liveFindTargetRef = useRef<NoteFindTarget | null>(null)
   const sourceFindTargetRef = useRef<NoteFindTarget | null>(null)
   const previewFindTargetRef = useRef<NoteFindTarget | null>(null)
@@ -1219,7 +1175,7 @@ function NoteCanvas({
     return () => {
       noteSelectionCaptureRef.current = null
     }
-  }, [noteSelectionCaptureRef])
+  }, [noteEditorRef, noteSelectionCaptureRef])
   const importPastedImage = useCallback(
     async (file: File, insertAtSelection: (src: string) => void): Promise<void> => {
       try {
@@ -1330,7 +1286,7 @@ function NoteCanvas({
         })
       })
     },
-    [mode]
+    [mode, noteEditorRef]
   )
 
   useEffect(() => {
@@ -1343,7 +1299,7 @@ function NoteCanvas({
 
   const focusWritingSurface = useCallback((): void => {
     noteEditorRef.current?.focus()
-  }, [])
+  }, [noteEditorRef])
 
   useLayoutEffect(() => {
     if (mode === 'read') {
@@ -1378,7 +1334,7 @@ function NoteCanvas({
       }
     })
     return () => cancelAnimationFrame(frame)
-  }, [mode, scheduleScrollSynchronization])
+  }, [mode, noteEditorRef, scheduleScrollSynchronization])
 
   useEffect(() => {
     if (mode === 'read') return
@@ -1386,7 +1342,7 @@ function NoteCanvas({
     if (selection == null) return
     const frame = requestAnimationFrame(() => noteEditorRef.current?.setSelection(selection))
     return () => cancelAnimationFrame(frame)
-  }, [mode, noteSelectionRef])
+  }, [mode, noteEditorRef, noteSelectionRef])
 
   useEffect(() => {
     if (mode !== 'split') return
@@ -1410,7 +1366,7 @@ function NoteCanvas({
     if (sourceContent) observer.observe(sourceContent)
     if (previewContent) observer.observe(previewContent)
     return () => observer.disconnect()
-  }, [mode, scheduleScrollSynchronization])
+  }, [mode, noteEditorRef, scheduleScrollSynchronization])
 
   useEffect(
     () => () => {
@@ -1505,6 +1461,7 @@ function NoteCanvas({
       onKeyDownCapture={handleUndo}
     >
       <NoteFind
+        ref={findRef}
         key={mode}
         enabled={!item.missingContent}
         replaceEnabled={mode !== 'read'}
@@ -2023,10 +1980,14 @@ export interface ItemDetailHandle {
   requestTransition: (action: () => void) => void
   flush: () => Promise<boolean>
   focusEditor: () => void
+  undo: () => void
+  redo: () => void
+  openFind: (replace?: boolean) => void
 }
 
 export interface ItemDetailProps {
   item: LibraryItemDto | null
+  menu?: React.ReactNode
   collections: readonly CollectionDto[]
   hasPrevious: boolean
   hasNext: boolean
@@ -2064,6 +2025,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
   function ItemDetailDialog(
     {
       item,
+      menu,
       hasPrevious,
       hasNext,
       onPrevious,
@@ -2098,6 +2060,8 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
     const noteSelectionRef = useRef<NoteSelection | null>(null)
     const noteSelectionCaptureRef = useRef<(() => NoteSelection | null) | null>(null)
     const detailSurfaceRef = useRef<HTMLElement | null>(null)
+    const noteEditorRef = useRef<SourceNoteHandle>(null)
+    const noteFindRef = useRef<NoteFindHandle>(null)
     const coordinator = useMemo(
       () =>
         openedNote
@@ -2355,7 +2319,10 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
         focusEditor: () => {
           const editor = detailSurfaceRef.current?.querySelector<HTMLElement>('.cm-content')
           editor?.focus({ preventScroll: true })
-        }
+        },
+        undo: () => void noteEditorRef.current?.undo(),
+        redo: () => void noteEditorRef.current?.redo(),
+        openFind: (replace = false) => noteFindRef.current?.open(replace)
       }),
       [flushPendingNote, requestGuardedAction]
     )
@@ -2443,10 +2410,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
         <DetailToolbar
           itemId={item.id}
           title={item.title}
-          expanded={expanded}
-          onExpandedChange={
-            expandable && item.type === 'note' && !item.missingContent ? changeExpanded : undefined
-          }
+          menu={menu}
           modeControls={
             item.type === 'note' ? (
               <>
@@ -2478,7 +2442,9 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
                   onUseFirstLineAsTitle:
                     item.titleSource === 'custom'
                       ? () => void onUseFirstLineAsTitle(item)
-                      : undefined
+                      : undefined,
+                  zen: expanded,
+                  onZenChange: expandable && !item.missingContent ? changeExpanded : undefined
                 }
               : undefined
           )}
@@ -2545,6 +2511,8 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
                 onError={onError}
                 onOpenVaultLink={(target) => requestGuardedAction(() => onOpenVaultLink(target))}
                 onMoveToTrash={(itemId) => requestGuardedAction(() => onMoveToTrash(itemId))}
+                editorRef={noteEditorRef}
+                findRef={noteFindRef}
               />
               <NoteModeHud mode={mode} visible={modeHudVisible} />
               {noteDetailsOpen ? (

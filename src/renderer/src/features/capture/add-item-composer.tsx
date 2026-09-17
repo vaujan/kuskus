@@ -206,6 +206,7 @@ function useCaptureDraftPreviews(attachments: CaptureDraftImageDto[]): Record<st
 export function AddItemComposer({
   open,
   focusRequest,
+  filePickerRequest = 0,
   discardRequest,
   libraryId,
   destination = { type: 'inbox' },
@@ -230,6 +231,7 @@ export function AddItemComposer({
 }: {
   open: boolean
   focusRequest: number
+  filePickerRequest?: number
   discardRequest: number
   libraryId: string
   destination?: ActiveItemLocation
@@ -292,7 +294,20 @@ export function AddItemComposer({
   const renamingAttachmentRef = useRef(false)
   const handledImportRequest = useRef<number | null>(null)
   const handledDiscardRequest = useRef(discardRequest)
+  const handledFilePickerRequest = useRef(0)
   const previousRevision = useRef(captureSession.revision)
+
+  const openFileDialog = useCallback((): void => {
+    onFileDialogActiveChange?.(true)
+    fileInputRef.current?.click()
+    window.addEventListener('focus', () => onFileDialogActiveChange?.(false), { once: true })
+  }, [onFileDialogActiveChange])
+
+  useEffect(() => {
+    if (!open || filePickerRequest === handledFilePickerRequest.current) return
+    handledFilePickerRequest.current = filePickerRequest
+    openFileDialog()
+  }, [filePickerRequest, open, openFileDialog])
 
   useEffect(() => {
     if (
@@ -830,7 +845,7 @@ export function AddItemComposer({
       ref={rootRef}
       aria-busy={savingFeedback}
       className={cn(
-        'gap-0 overflow-hidden rounded-sm py-0',
+        'gap-0 overflow-hidden rounded-lg py-0',
         surface === 'quick' && 'h-full',
         surface !== 'quick' &&
           'scale-100 opacity-100 transition-[scale,opacity] [transition-duration:var(--capture-morph-duration)] [transition-timing-function:var(--motion-ease-out)] starting:scale-[0.98] starting:opacity-0',
@@ -1046,15 +1061,7 @@ export function AddItemComposer({
                     </Kbd>
                   </DropdownMenuItem>
                 ) : null}
-                <DropdownMenuItem
-                  onClick={() => {
-                    onFileDialogActiveChange?.(true)
-                    fileInputRef.current?.click()
-                    window.addEventListener('focus', () => onFileDialogActiveChange?.(false), {
-                      once: true
-                    })
-                  }}
-                >
+                <DropdownMenuItem onClick={openFileDialog}>
                   <IconPhotoPlus aria-hidden="true" />
                   Add file or image
                 </DropdownMenuItem>

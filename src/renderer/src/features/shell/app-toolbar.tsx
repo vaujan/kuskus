@@ -19,6 +19,7 @@ import { ShellSidebarTrigger } from '@/features/shell/shell-sidebar-trigger'
 import { WindowControls } from '@/features/shell/window-controls'
 
 export function AppToolbar({
+  menu,
   newItemOpen,
   hasDraft,
   newItemFocusRequest,
@@ -39,6 +40,7 @@ export function AppToolbar({
   onSortChange,
   onWindowClose
 }: {
+  menu: React.ReactNode
   newItemOpen: boolean
   hasDraft: boolean
   newItemFocusRequest: number
@@ -75,12 +77,10 @@ export function AppToolbar({
   return (
     <header className="window-toolbar flex h-12 shrink-0 select-none items-center [-webkit-app-region:drag]">
       <div className="@container/toolbar min-w-0 flex-1">
-        <div className="grid min-w-0 grid-cols-[auto_minmax(10rem,1fr)_auto] items-center gap-3 px-2 @min-[44rem]/toolbar:px-5 @min-[60rem]/toolbar:grid-cols-[minmax(0,1fr)_minmax(10rem,28rem)_minmax(0,1fr)] @min-[64rem]/toolbar:px-7">
+        <div className="grid min-w-0 grid-cols-[auto_minmax(10rem,1fr)_auto] items-center gap-3 px-2 @min-[44rem]/toolbar:px-5 @min-[48rem]/toolbar:grid-cols-[minmax(0,1fr)_minmax(10rem,28rem)_minmax(0,1fr)] @min-[64rem]/toolbar:px-7">
           <div className="flex min-w-0 items-center justify-start gap-1">
             <ShellSidebarTrigger />
-            <span className="hidden min-w-0 truncate px-1 text-sm font-medium text-foreground/80 @min-[44rem]/toolbar:block">
-              {destinationLabel}
-            </span>
+            {menu}
           </div>
 
           <div className="flex min-w-0 items-center gap-1 [-webkit-app-region:no-drag]">
@@ -89,6 +89,7 @@ export function AppToolbar({
               value={searchQuery}
               onValueChange={onSearchQueryChange}
               pending={searchPending}
+              scopeLabel={destinationLabel}
               className="h-8 flex-1 rounded-4xl"
             />
             <Tooltip>
@@ -149,7 +150,7 @@ export function AppToolbar({
                 }
               >
                 <IconNote data-icon="inline-start" aria-hidden="true" />
-                <span className="hidden @min-[60rem]/toolbar:inline">New note</span>
+                <span className="hidden @min-[48rem]/toolbar:inline">New note</span>
               </TooltipTrigger>
               <TooltipContent>
                 New note <Kbd>Ctrl+N</Kbd>
@@ -161,7 +162,7 @@ export function AppToolbar({
                   <Button
                     ref={newItemRef}
                     size="sm"
-                    variant={newItemOpen || hasDraft ? 'tonal' : 'ghost'}
+                    variant="tonal"
                     data-lifted={newItemOpen || hasDraft}
                     data-new-item-button
                     aria-expanded={newItemOpen}
@@ -172,7 +173,7 @@ export function AppToolbar({
                 }
               >
                 <IconPlus data-icon="inline-start" aria-hidden="true" />
-                <span className="hidden @min-[60rem]/toolbar:inline">Add item</span>
+                <span className="hidden @min-[48rem]/toolbar:inline">Add item</span>
               </TooltipTrigger>
               <TooltipContent>
                 {hasDraft && !newItemOpen ? 'Continue draft' : 'Add item'} <Kbd>Ctrl+Shift+N</Kbd>

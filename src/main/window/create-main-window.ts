@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { is } from '@electron-toolkit/utils'
 
 import icon from '../../../resources/icon.png?asset'
+import devIcon from '../../../resources/icon-dev.png?asset'
 import { WINDOW_CHANNELS, type AppZoomShortcut } from '../../shared/window-contract'
 import { OPAQUE_WINDOW_BACKGROUND } from './window-material'
 import { installDevToolsShortcut } from './devtools-shortcut'
@@ -21,7 +22,7 @@ export function createMainWindow(): BrowserWindow {
     autoHideMenuBar: true,
     frame: !isWindows,
     ...(isMac ? { titleBarStyle: 'hiddenInset' as const } : {}),
-    ...(process.platform === 'linux' ? { icon } : {}),
+    ...(isMac ? {} : { icon: is.dev ? devIcon : icon }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,

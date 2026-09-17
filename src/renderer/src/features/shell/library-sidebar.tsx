@@ -453,7 +453,7 @@ function FolderTreeItem({
             </button>
           ) : null}
           <SidebarMenuButton
-            className="mr-0 h-(--control-height-md) w-auto min-w-0 flex-1 bg-transparent px-0 pr-8 text-inherit before:hidden hover:bg-transparent hover:text-inherit focus-visible:ring-0 active:bg-transparent active:text-inherit data-active:bg-transparent data-active:text-inherit"
+            className="mr-0 h-(--control-height-md) w-auto min-w-0 flex-1 bg-transparent! px-0 pr-8 text-inherit before:hidden hover:bg-transparent! hover:text-inherit focus-visible:ring-0 active:bg-transparent! active:text-inherit data-active:bg-transparent! data-active:text-inherit"
             style={showLabels ? { marginLeft: `${labelLeft}px` } : undefined}
             isActive={selectedId === folder.id}
             tooltip={folder.name}

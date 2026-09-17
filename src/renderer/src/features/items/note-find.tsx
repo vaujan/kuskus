@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import {
   IconChevronDown,
   IconChevronRight,
@@ -14,17 +14,22 @@ import { cn } from '@/lib/utils'
 
 const EMPTY_RESULT = { current: 0, total: 0 }
 
-export function NoteFind({
-  enabled,
-  replaceEnabled,
-  target: targetRef,
-  onOpenChange
-}: {
-  enabled: boolean
-  replaceEnabled: boolean
-  target: NoteFindTargetRef
-  onOpenChange?: (open: boolean) => void
-}): React.JSX.Element {
+export interface NoteFindHandle {
+  open: (replace?: boolean) => void
+}
+
+export const NoteFind = forwardRef<
+  NoteFindHandle,
+  {
+    enabled: boolean
+    replaceEnabled: boolean
+    target: NoteFindTargetRef
+    onOpenChange?: (open: boolean) => void
+  }
+>(function NoteFind(
+  { enabled, replaceEnabled, target: targetRef, onOpenChange },
+  ref
+): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const [replaceOpen, setReplaceOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -57,6 +62,10 @@ export function NoteFind({
   )
 
   const active = enabled && open
+
+  useImperativeHandle(ref, () => ({ open: (replace = false) => changeOpen(true, replace) }), [
+    changeOpen
+  ])
 
   useEffect(() => {
     if (!enabled) return
@@ -281,4 +290,4 @@ export function NoteFind({
       ) : null}
     </section>
   )
-}
+})

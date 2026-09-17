@@ -142,13 +142,11 @@ test('detail modes share the compact toolbar and inline document flow', () => {
     focusToolbarSource,
     /absolute left-1\/2 max-w-\[min\(32rem,calc\(100%-24rem\)\)\] -translate-x-1\/2 truncate/
   )
-  assert.match(focusToolbarSource, /max-\[760px\]:hidden/)
-  assert.match(focusToolbarSource, /Exit zen mode \(Ctrl\+Shift\+\\\\\)/)
-  assert.match(focusToolbarSource, /Enter zen mode \(Ctrl\+Shift\+\\\\\)/)
-  assert.match(focusToolbarSource, /aria-pressed=\{expanded\}/)
-  assert.match(focusToolbarSource, /onClick=\{\(\) => onExpandedChange\(!expanded\)\}/)
+  assert.match(focusToolbarSource, /@max-\[64rem\]\/detail:hidden/)
+  assert.match(focusToolbarSource, /\{menu\}/)
   assert.match(focusToolbarSource, /aria-label="Back to items"/)
-  assert.match(focusToolbarSource, /size="icon"[\s\S]*?<ChevronLeft aria-hidden="true" \/>/)
+  assert.match(focusToolbarSource, /size="icon-sm"[\s\S]*?<ChevronLeft aria-hidden="true" \/>/)
+  assert.match(detailSource, /surface === 'caption'[\s\S]*?size="sm"[\s\S]*?Note mode:/)
   assert.doesNotMatch(focusToolbarSource, />\s*Items\s*</)
   assert.match(detailSource, /onBackToList\?: \(\) => void/)
   assert.match(detailSource, /requestGuardedAction\(onBackToList\)/)
@@ -156,13 +154,9 @@ test('detail modes share the compact toolbar and inline document flow', () => {
     focusToolbarSource,
     /group-data-\[focus-single-pane=true\]\/focus-detail:inline-flex/
   )
-  assert.match(focusToolbarSource, /group-data-\[focus-single-pane=true\]\/focus-detail:hidden/)
-  assert.match(focusToolbarSource, /<ArrowsDiagonal/)
-  assert.match(focusToolbarSource, /<ArrowsDiagonalMinimize/)
-  assert.match(
-    focusToolbarSource,
-    /transition-\[opacity,scale,filter\].*cubic-bezier\(0\.2,0,0,1\).*motion-reduce:transition-none/
-  )
+  assert.doesNotMatch(focusToolbarSource, /ArrowsDiagonal|aria-pressed=\{expanded\}/)
+  assert.match(actionMenuSource, /Zen mode/)
+  assert.match(actionMenuSource, /onCheckedChange=\{props\.detailOptions\.onZenChange\}/)
   assert.doesNotMatch(focusToolbarSource, /data-detail-focus-identity|identityControls/)
   assert.match(focusToolbarSource, /data-detail-focus-actions/)
   assert.match(focusToolbarSource, /pointer-events-auto ml-auto flex/)
@@ -179,7 +173,6 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.match(focusToolbarSource, /!isMac && 'pr-\[8\.625rem\]'/)
   assert.doesNotMatch(focusToolbarSource, /Previous item|Next item/)
   assert.doesNotMatch(focusToolbarSource, /\[-webkit-app-region:drag\]/)
-  assert.match(detailSource, /className="size-10 text-muted-foreground"/)
   assert.doesNotMatch(detailSource, /stroke=\{1\.5\}/)
   assert.match(detailSource, /<span>{activeOption\.shortLabel}<\/span>/)
   assert.doesNotMatch(detailSource, /mode === 'live' && 'bg-muted text-foreground'/)
@@ -211,7 +204,11 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.match(actionMenuSource, /!props\.hideOpenAction/)
   assert.match(workspaceSource, /triggerSurface="caption"[\s\S]*?hideOpenAction/)
   assert.match(actionMenuSource, /props\.triggerSurface === 'caption' \? 'ghost' : 'secondary'/)
-  assert.match(actionMenuSource, /'size-10 text-muted-foreground'/)
+  assert.match(
+    actionMenuSource,
+    /size=\{props\.triggerSurface === 'caption' \? 'icon-sm' : 'icon'\}/
+  )
+  assert.match(actionMenuSource, /\? 'text-muted-foreground'/)
   assert.doesNotMatch(actionMenuSource, /CaptionTileButton/)
   assert.match(focusWorkspaceSource, /data-focus-single-pane={!split}/)
   assert.match(focusWorkspaceSource, /data-zen-hidden={expanded}/)
@@ -229,6 +226,10 @@ test('detail modes share the compact toolbar and inline document flow', () => {
     /\.focus-detail-surface\[data-focus-expanded='true'\] \[data-detail-structural-surface\] \{[\s\S]*?border: 0;[\s\S]*?border-radius: 0;/
   )
   assert.match(windowMaterialStyles, /\[data-focus-caption-controls\][\s\S]*?opacity: 0\.35/)
+  assert.match(
+    windowMaterialStyles,
+    /\.focus-detail-surface:has\(\.cm-editor\.cm-focused\)[\s\S]*?opacity: 0\.28/
+  )
   assert.match(windowMaterialStyles, /:is\(:hover, :focus-within\)[\s\S]*?opacity: 1/)
   assert.match(focusWorkspaceSource, /data-focus-caption-controls/)
   assert.match(focusWorkspaceSource, /WindowControls/)
@@ -254,7 +255,7 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.match(workspaceSource, /Return to overview/)
   assert.doesNotMatch(focusSplitHandlerSource, /setFocusNoteExpanded\(false\)/)
   assert.match(workspaceSource, /announceStatus\(expanded \? 'Zen mode on' : 'Zen mode off'\)/)
-  assert.match(detailSource, /aria-keyshortcuts="Control\+Shift\+\\\\"/)
+  assert.match(actionMenuSource, /Ctrl\+Shift\+\\/)
   assert.match(
     detailSource,
     /\[['"]Backslash['"], ['"]IntlBackslash['"]\]\.includes\(event\.code\)[\s\S]*changeExpanded\(!expanded\)/

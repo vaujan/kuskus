@@ -61,12 +61,13 @@ Sidebar visibility and the most recently selected width should persist between l
   appearance changes can be judged against real content. The panel presents Appearance, Editing,
   and Capture groups in one scrollable column, remains open during workspace interaction, and
   closes from its close action or `Escape`.
-- Appearance separates a curated color theme (**Kuskus**, **Graphite**, **Moss**, **Clay**,
-  **Solarized**, **Catppuccin**, **Tokyo Storm**, **Monokai**, **One Dark**, **One Dark Pro Flat**,
-  **One Dark Pro Darker**, **Dracula**, **Gruvbox**, or **Nord**) from color mode (**Light**,
+- Appearance separates a curated color theme (**Kuskus**, **Graphite**, **GitHub**, **Ayu**,
+  **Material**, **Moss**, **Clay**, **Solarized**, **Catppuccin**, **Tokyo Storm**, **Monokai**,
+  **One Dark**, **Dracula**, **Gruvbox**, or **Nord**) from color mode (**Light**,
   **Dark**, or **System**). The themes appear in a compact dropdown. Solarized and Gruvbox use
   their canonical paired schemes, Catppuccin pairs Latte with Mocha, Tokyo Storm pairs with Tokyo
-  Night Light, Dracula pairs with Alucard, and the One Dark variants pair with Atom's One Light
+  Night Light, GitHub, Ayu, and Material use their established light and dark variants, Dracula
+  pairs with Alucard, and One Dark pairs with Atom's One Light
   colors. Every theme supplies both light and dark semantic tokens. A compact
   **Typography** matrix exposes primary and fallback choices for both **UI font**
   and **Code font**. Font pickers are searchable and preview every option in its own typeface.
@@ -183,14 +184,28 @@ narrow list-first navigation. Unoccupied pane chrome remains draggable.
 
 Rules:
 
+- A single application-menu button follows Show or Hide Sidebar in Overview and list-first Focus.
+  In a Focus detail pane it occupies the former Zen control position. Activating it reveals the
+  horizontal Kuskus, File, Edit, and View menubar in place, replacing the hamburger; it does not
+  open a dropdown directly.
+- The application menu groups File, Edit, and View commands, displays known shortcuts, disables
+  unavailable note commands in place, and routes actions through the same guarded workflows as
+  their keyboard equivalents. macOS retains its native system menu; Windows and Linux use the
+  renderer menu without a competing auto-hidden native menu.
+- Application-menu dropdown commands use icons. Clicking outside the menubar or its open dropdown
+  restores the hamburger button.
+- Zen mode is available from the detail pane's More actions menu.
+- The Focus detail title hides according to detail-pane width before it can overlap leading or
+  trailing actions. While a note editor has focus, header actions recede and return on header hover
+  or focus.
 - The three application zones share one continuous title-bar surface; native window controls remain
   separate operating-system chrome at the far edge.
 - On Windows, renderer-owned caption controls use the documented Segoe Fluent `ChromeMinimize`,
   `ChromeMaximize`, `ChromeRestore`, and `ChromeClose` glyphs. Their neutral hover and pressed fills
   follow the active light or dark appearance, and Close uses the standard Windows red states.
-- Overview uses a restrained VS Code-style Search input. Focus uses a compact icon that toggles the
-  same input immediately below its rail header. `Ctrl+Shift+F` focuses or reveals the applicable
-  input.
+- Overview uses a restrained VS Code-style Search input with the active destination shown as its
+  scope. Focus uses a compact icon that toggles the same input immediately below its rail header.
+  `Ctrl+Shift+F` focuses or reveals the applicable input.
 - Interactive controls must be excluded from the draggable title-bar region.
 - The active context remains visible beside the compact Search trigger in Focus when the sidebar is
   hidden.
@@ -295,9 +310,10 @@ origin, applies consistently across Masonry, Grid, and each Focus scroll owner, 
 
 ## New Item
 
-A tonal **Add item** button appears in the Masonry/Grid toolbar's right action zone and as an icon
-action in the Focus rail header. The resting content canvas contains saved items only; activating the
-button summons one temporary draft at the beginning of the active view.
+A tonal **Add item** button appears in the Masonry/Grid toolbar's right action zone. The equivalent
+Focus rail action uses the same compact styling as its neighboring actions. The resting content
+canvas contains saved items only; activating the button summons one temporary draft at the beginning
+of the active view.
 
 ### Toolbar state
 

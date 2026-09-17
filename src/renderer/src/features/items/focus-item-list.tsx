@@ -162,7 +162,7 @@ export function FocusItemList({
       ) : (
         <div className="min-h-full py-2 pr-3 pl-2" role="group" aria-label="Items">
           <OrderedMasonry gap={8}>
-            {composer ? <div className="rounded-sm p-1">{composer}</div> : null}
+            {composer ? <div className="rounded-xl p-1">{composer}</div> : null}
 
             {mountedItems.map((item) => {
               const active = item.id === activeItemId
@@ -171,7 +171,7 @@ export function FocusItemList({
                 <div
                   key={item.id}
                   className={cn(
-                    'group/focus-card group/saved-item relative min-w-0 rounded-sm p-1 outline-none',
+                    'group/focus-card group/saved-item relative min-w-0 rounded-xl p-1 outline-none',
                     'transition-opacity [transition-duration:var(--motion-duration-ui)]',
                     'data-[active=true]:bg-primary/10 data-[selected=true]:bg-primary/10 data-[dragging=true]:opacity-40'
                   )}

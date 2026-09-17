@@ -25,6 +25,9 @@ test('resolves color modes and rejects stale values', () => {
 test('resolves curated color themes and rejects stale values', () => {
   assert.equal(resolveColorTheme('kuskus'), 'kuskus')
   assert.equal(resolveColorTheme('graphite'), 'graphite')
+  assert.equal(resolveColorTheme('github'), 'github')
+  assert.equal(resolveColorTheme('ayu'), 'ayu')
+  assert.equal(resolveColorTheme('material'), 'material')
   assert.equal(resolveColorTheme('moss'), 'moss')
   assert.equal(resolveColorTheme('clay'), 'clay')
   assert.equal(resolveColorTheme('solarized'), 'solarized')
@@ -32,8 +35,6 @@ test('resolves curated color themes and rejects stale values', () => {
   assert.equal(resolveColorTheme('tokyo-storm'), 'tokyo-storm')
   assert.equal(resolveColorTheme('monokai'), 'monokai')
   assert.equal(resolveColorTheme('one'), 'one')
-  assert.equal(resolveColorTheme('one-pro-flat'), 'one-pro-flat')
-  assert.equal(resolveColorTheme('one-pro-darker'), 'one-pro-darker')
   assert.equal(resolveColorTheme('dracula'), 'dracula')
   assert.equal(resolveColorTheme('gruvbox'), 'gruvbox')
   assert.equal(resolveColorTheme('nord'), 'nord')
@@ -149,13 +150,14 @@ test('defines light and dark palettes for every iconic theme', () => {
   const css = readFileSync(require.resolve('../src/renderer/src/assets/main.css'), 'utf8')
 
   for (const theme of [
+    'github',
+    'ayu',
+    'material',
     'solarized',
     'catppuccin',
     'tokyo-storm',
     'monokai',
     'one',
-    'one-pro-flat',
-    'one-pro-darker',
     'dracula',
     'gruvbox',
     'nord'
@@ -182,6 +184,16 @@ test('menu surfaces inherit the active color mode and palette', () => {
   }
 })
 
+test('scrollable selects use the shared scroll area', () => {
+  const select = readFileSync(
+    require.resolve('../src/renderer/src/components/ui/select.tsx'),
+    'utf8'
+  )
+
+  assert.match(select, /viewportRender=\{<SelectPrimitive\.List \/>\}/)
+  assert.doesNotMatch(select, /overflow-y-auto/)
+})
+
 test('settings keeps contextual view controls on the surfaces they affect', () => {
   const panel = readFileSync(
     require.resolve('../src/renderer/src/features/settings/settings-window-app.tsx'),
@@ -198,15 +210,16 @@ test('settings keeps contextual view controls on the surfaces they affect', () =
   assert.match(panel, /<ScrollArea/)
   assert.match(panel, /Kuskus/)
   assert.match(panel, /Graphite/)
+  assert.match(panel, /GitHub/)
+  assert.match(panel, /Ayu/)
+  assert.match(panel, /Material/)
   assert.match(panel, /Moss/)
   assert.match(panel, /Clay/)
   assert.match(panel, /Solarized/)
   assert.match(panel, /Catppuccin/)
   assert.match(panel, /Tokyo Storm/)
   assert.match(panel, /Monokai/)
-  assert.match(panel, /One Dark/)
-  assert.match(panel, /One Dark Pro Flat/)
-  assert.match(panel, /One Dark Pro Darker/)
+  assert.equal(panel.match(/label: 'One Dark'/g)?.length, 1)
   assert.match(panel, /Dracula/)
   assert.match(panel, /Gruvbox/)
   assert.match(panel, /Nord/)

@@ -42,6 +42,23 @@ test('derives Acrylic colors from active theme tokens with neutral sidebar inter
   )
   assert.match(css, /prefers-reduced-transparency[\s\S]*?backdrop-filter: none/)
   assert.match(css, /:root\.dark\[data-window-material='acrylic'\]/)
+  assert.equal(
+    (
+      css.match(/--window-canvas: color-mix\(in oklch, var\(--background\) 78%, transparent\)/g) ??
+      []
+    ).length,
+    2
+  )
+  assert.match(
+    css,
+    /\.window-canvas,\s*\.window-toolbar \{\s*background-color: var\(--window-canvas\)/
+  )
+  assert.doesNotMatch(css, /--window-toolbar/)
+  assert.match(
+    css,
+    /--window-rail: color-mix\(in srgb, var\(--window-sidebar\) 72%, var\(--window-canvas\)\)/
+  )
+  assert.match(css, /\.focus-rail-surface \{\s*background-color: var\(--window-rail\)/)
   assert.match(css, /html\[data-window-material='acrylic'\] body/)
   assert.match(css, /html\[data-window-material='acrylic'\] #root/)
   assert.match(css, /\.settings-window \[data-slot='sidebar-inner'\][\s\S]*?var\(--sidebar\) 90%/)

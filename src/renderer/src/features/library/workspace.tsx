@@ -80,12 +80,15 @@ import { sortItems, type ItemSort } from '@/features/items/item-sort'
 import { type ItemTypeFilter, type LibraryView } from '@/features/items/item-view'
 import type { NoteMode } from '@/features/items/note-view-mode'
 import { AppToolbar } from '@/features/shell/app-toolbar'
+import { ApplicationMenu, type AppLayout } from '@/features/shell/application-menu'
 import { LibrarySidebar, type LibraryDestination } from '@/features/shell/library-sidebar'
+import bubuntuLine from '@/assets/bubuntu-line.svg'
 import { addRecentSearchItem } from '@/features/search/global-search-state'
 import { QuickOpenDialog } from '@/features/search/quick-open-dialog'
 import { useLibrarySearch } from '@/features/search/use-library-search'
 import { useSetting } from '@/settings/settings-context'
 import { useNoteVim } from '@/hooks/use-note-vim'
+import type { AppZoom } from '@/hooks/use-app-zoom'
 import { cn } from '@/lib/utils'
 import type {
   ActiveItemLocation,
@@ -96,6 +99,7 @@ import type {
   UrlItemDto
 } from '../../../../shared/library-contract'
 import type { CaptureSurface } from '../../../../shared/capture-contract'
+import type { EditCommand } from '../../../../shared/window-contract'
 import {
   notifyActionError,
   notifyArchived,
@@ -188,7 +192,13 @@ function hasSupportedFileDrag(dataTransfer: DataTransfer): boolean {
   return Array.from(dataTransfer.items).some((item) => item.kind === 'file')
 }
 
-export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): React.JSX.Element {
+export function Workspace({
+  initialLibrary,
+  zoom
+}: {
+  initialLibrary: LibraryDto
+  zoom: AppZoom
+}): React.JSX.Element {
   const [library, setLibrary] = useState(initialLibrary)
   const [initialSession] = useState(() => readAppSession(initialLibrary))
   const [sidebarHidden, setSidebarHidden] = useState(
@@ -207,6 +217,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
   const [newNoteItem, setNewNoteItem] = useState<NoteItemDto | null>(null)
   const [composerHasDraft, setComposerHasDraft] = useState(false)
   const [composerFocusRequest, setComposerFocusRequest] = useState(0)
+  const [composerFilePickerRequest, setComposerFilePickerRequest] = useState(0)
   const [composerDiscardRequest, setComposerDiscardRequest] = useState(0)
   const [captureRecoveryOpen, setCaptureRecoveryOpen] = useState(false)
   const [newItemFocusRequest, setNewItemFocusRequest] = useState(0)
@@ -1257,6 +1268,28 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
     else open()
   }, [focusItemId, requestFocusTransition])
 
+  const openComposerFilePicker = useCallback((): void => {
+    const open = (): void => {
+      mainComposerOwnershipRequested.current = captureOwner.current !== 'main'
+      setNewNoteOpen(false)
+      setComposerOpen(true)
+      setFocusDetailOpen(false)
+      setFocusNoteExpanded(false)
+      setComposerFilePickerRequest((request) => request + 1)
+    }
+    if (focusItemId) requestFocusTransition(open)
+    else open()
+  }, [focusItemId, requestFocusTransition])
+
+  const openAnotherLibrary = useCallback(async (): Promise<void> => {
+    const result = await window.kuskus.open()
+    if (!result.ok) {
+      if (result.code !== 'cancelled') notifyActionError(result.error)
+      return
+    }
+    window.location.reload()
+  }, [])
+
   useEffect(() => {
     const handleCreateShortcut = (event: KeyboardEvent): void => {
       const target = event.target
@@ -1460,6 +1493,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
       key={draftStorageKey}
       open={composerOpen}
       focusRequest={composerFocusRequest}
+      filePickerRequest={composerFilePickerRequest}
       discardRequest={composerDiscardRequest}
       libraryId={library.id}
       destination={
@@ -1520,7 +1554,13 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
 
   const cardLayoutContent = (
     <>
-      {searchActive ? null : captureSlot}
+      {searchActive ? null : view === 'visual' ? (
+        <div className={cn('rounded-xl p-1', !composerOpen && !showExternalDropShadow && 'hidden')}>
+          {captureSlot}
+        </div>
+      ) : (
+        captureSlot
+      )}
       {renderedItems.map((item) => (
         <ItemContextMenu
           item={item}
@@ -1540,7 +1580,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
               className={cn(
                 'group/saved-item relative',
                 view === 'visual' &&
-                  'min-w-0 rounded-sm p-1 transition-[background-color] [transition-duration:var(--motion-duration-ui)] [transition-timing-function:var(--motion-ease-out)] hover:bg-muted/45 data-[selected=true]:bg-primary/10'
+                  'min-w-0 rounded-xl p-1 transition-[background-color] [transition-duration:var(--motion-duration-ui)] [transition-timing-function:var(--motion-ease-out)] hover:bg-muted/45 data-[selected=true]:bg-primary/10'
               )}
               data-selected={selectedIds.has(item.id) || undefined}
             >
@@ -1574,9 +1614,62 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
     </>
   )
 
+  const changeAppLayout = (layout: AppLayout): void => {
+    if (layout === 'focus') {
+      if (focusWorkspaceOpen) return
+      const selectedItemId = visibleItems.find((item) => selectedIds.has(item.id))?.id
+      const itemId = selectedItemId ?? visibleItems[0]?.id ?? null
+      setFocusWorkspaceOpen(true)
+      setFocusItemId(itemId)
+      setFocusDetailOpen(itemId !== null)
+      return
+    }
+
+    requestFocusTransition(() => {
+      setView(layout)
+      setFocusWorkspaceOpen(false)
+      setFocusSearchOpen(false)
+      setFocusItemId(null)
+      setFocusDetailOpen(false)
+      setFocusNoteExpanded(false)
+    })
+  }
+
+  const runEditCommand = (command: EditCommand, target: HTMLElement | null): void => {
+    if ((command === 'undo' || command === 'redo') && target?.closest('[data-detail-surface]')) {
+      focusDetailRef.current?.[command]()
+      return
+    }
+    window.electron.window.edit(command)
+  }
+
+  const noteCommandsEnabled =
+    focusWorkspaceOpen &&
+    focusDetailOpen &&
+    (newNoteOpen || (focusItem?.type === 'note' && !focusItem.missingContent))
+  const applicationMenu = (
+    <ApplicationMenu
+      layout={focusWorkspaceOpen ? 'focus' : view}
+      noteCommandsEnabled={noteCommandsEnabled}
+      librarySwitchBlocked={importRequest !== null || composerHasTransientWork}
+      zoom={zoom}
+      onQuickOpen={() => setQuickOpenOpen(true)}
+      onNewNote={openNewNote}
+      onAddItem={openComposer}
+      onAddFile={openComposerFilePicker}
+      onOpenLibrary={() => void openAnotherLibrary()}
+      onOpenSettings={() => void window.electron.window.openSettingsWindow()}
+      onEdit={runEditCommand}
+      onFind={() => focusDetailRef.current?.openFind(false)}
+      onReplace={() => focusDetailRef.current?.openFind(true)}
+      onLayoutChange={changeAppLayout}
+    />
+  )
+
   const focusList = (
     <div className="flex size-full min-h-0 flex-col">
       <FocusListHeader
+        menu={focusDetailOpen ? null : applicationMenu}
         destinationLabel={destinationLabel(destination, library)}
         composerOpen={composerOpen}
         hasDraft={composerHasDraft}
@@ -1749,6 +1842,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
           <ItemDetailDialog
             ref={focusDetailRef}
             presentation="focus"
+            menu={applicationMenu}
             item={state.item}
             initialNoteMode="live"
             onNoteModeChange={setFocusNoteMode}
@@ -1832,6 +1926,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
         ref={focusDetailRef}
         key={`focus-${focusItem.id}`}
         presentation="focus"
+        menu={applicationMenu}
         item={focusItem}
         initialNoteMode={
           focusItemEditOnOpenId === focusItem.id ? 'live' : (focusNoteMode ?? undefined)
@@ -1914,12 +2009,12 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
     </Suspense>
   ) : (
     <Empty className="size-full px-6">
-      <EmptyHeader>
-        <EmptyTitle>No item selected</EmptyTitle>
-        <EmptyDescription>
-          Choose an item from the list, create a note, or add something new.
-        </EmptyDescription>
-      </EmptyHeader>
+      <img
+        src={bubuntuLine}
+        alt=""
+        draggable={false}
+        className="pointer-events-none h-[min(42vh,22rem)] w-auto max-w-full select-none opacity-40 dark:invert"
+      />
       <EmptyContent className="max-w-none flex-row flex-wrap justify-center gap-2">
         {destination.type !== 'archive' && destination.type !== 'trash' ? (
           <>
@@ -1973,6 +2068,7 @@ export function Workspace({ initialLibrary }: { initialLibrary: LibraryDto }): R
       <SidebarInset>
         {focusWorkspaceOpen ? null : (
           <AppToolbar
+            menu={applicationMenu}
             newItemOpen={composerOpen}
             hasDraft={composerHasDraft}
             newItemFocusRequest={newItemFocusRequest}

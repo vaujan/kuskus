@@ -9,6 +9,7 @@ import { KUSKUS_CHANNELS, type KuskusLibraryApi } from '../shared/library-contra
 import {
   WINDOW_CHANNELS,
   type AppZoomShortcut,
+  type EditCommand,
   type ElectronWindowApi,
   type GlobalCaptureShortcutStatus,
   type NativeThemeSource,
@@ -82,6 +83,7 @@ const windowApi: ElectronWindowApi = {
     ipcRenderer.on(WINDOW_CHANNELS.zoomShortcut, listener)
     return () => ipcRenderer.removeListener(WINDOW_CHANNELS.zoomShortcut, listener)
   },
+  edit: (command: EditCommand): void => ipcRenderer.send(WINDOW_CHANNELS.edit, command),
   getGlobalCaptureShortcutStatus: (): Promise<GlobalCaptureShortcutStatus> =>
     ipcRenderer.invoke(WINDOW_CHANNELS.getGlobalCaptureShortcutStatus),
   setGlobalCaptureShortcut: (accelerator): Promise<GlobalCaptureShortcutStatus> =>

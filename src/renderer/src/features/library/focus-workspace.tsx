@@ -152,7 +152,7 @@ export function FocusWorkspace({
         />
       ) : null}
       {detailOpen && !split && !expanded ? (
-        <div className="absolute top-0 left-1 z-50 flex h-10 items-center">
+        <div className="absolute top-0 left-0 z-50 flex h-10 items-center">
           <ShellSidebarTrigger />
         </div>
       ) : null}

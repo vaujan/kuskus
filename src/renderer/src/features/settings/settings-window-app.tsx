@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { IconPalette, IconPencil } from '@tabler/icons-react'
+import { useEffect, useState } from 'react'
+import { IconKeyboard, IconPalette, IconPencil } from '@tabler/icons-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -11,6 +11,7 @@ import {
   FieldLegend,
   FieldSet
 } from '@/components/ui/field'
+import { Kbd } from '@/components/ui/kbd'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
@@ -53,6 +54,9 @@ import { APP_ZOOM_FACTORS } from '../../../../shared/window-contract'
 const COLOR_THEMES: ReadonlyArray<{ value: ColorTheme; label: string }> = [
   { value: 'kuskus', label: 'Kuskus' },
   { value: 'graphite', label: 'Graphite' },
+  { value: 'github', label: 'GitHub' },
+  { value: 'ayu', label: 'Ayu' },
+  { value: 'material', label: 'Material' },
   { value: 'moss', label: 'Moss' },
   { value: 'clay', label: 'Clay' },
   { value: 'solarized', label: 'Solarized' },
@@ -60,8 +64,6 @@ const COLOR_THEMES: ReadonlyArray<{ value: ColorTheme; label: string }> = [
   { value: 'tokyo-storm', label: 'Tokyo Storm' },
   { value: 'monokai', label: 'Monokai' },
   { value: 'one', label: 'One Dark' },
-  { value: 'one-pro-flat', label: 'One Dark Pro Flat' },
-  { value: 'one-pro-darker', label: 'One Dark Pro Darker' },
   { value: 'dracula', label: 'Dracula' },
   { value: 'gruvbox', label: 'Gruvbox' },
   { value: 'nord', label: 'Nord' }
@@ -75,7 +77,7 @@ const COLOR_MODES: ReadonlyArray<{ value: ColorMode; label: string }> = [
 
 const FONT_SIZES: readonly BaseFontSize[] = ['13', '14', '15', '16', '17', '18', '20']
 
-type SettingsSection = 'appearance' | 'editing'
+type SettingsSection = 'appearance' | 'editing' | 'shortcuts'
 
 function FontSizeSelect({
   value,
@@ -106,6 +108,7 @@ function FontSizeSelect({
 
 export function SettingsWindowApp(): React.JSX.Element {
   const [section, setSection] = useState<SettingsSection>('appearance')
+  const [globalCaptureShortcut, setGlobalCaptureShortcut] = useState('Ctrl+Shift+Space')
   const [colorMode, setColorMode] = useSetting<ColorMode>('colorMode')
   const [colorTheme, setColorTheme] = useSetting<ColorTheme>('colorTheme')
   const [uiFont, setUiFont] = useSetting<FontPreference>('uiFont')
@@ -122,6 +125,47 @@ export function SettingsWindowApp(): React.JSX.Element {
     translucentBackground.supported !== true || translucentBackground.reducedTransparency
   const isMac = window.electron.window.platform === 'darwin'
   const showCustomTitleBar = window.electron.window.platform === 'win32' || isMac
+  const commandKey = isMac ? 'Cmd' : 'Ctrl'
+
+  useEffect(() => {
+    void window.electron.window
+      .getGlobalCaptureShortcutStatus()
+      .then((status) => setGlobalCaptureShortcut(status.accelerator))
+  }, [])
+
+  const shortcutGroups = [
+    {
+      label: 'General',
+      shortcuts: [
+        { label: 'Quick capture', keys: globalCaptureShortcut },
+        { label: 'Open settings', keys: `${commandKey}+,` },
+        { label: 'Quick open', keys: `${commandKey}+O` },
+        { label: 'Search library', keys: `${commandKey}+Shift+F` },
+        { label: 'New note', keys: 'Ctrl+N' },
+        { label: 'Add item', keys: 'Ctrl+Shift+N' }
+      ]
+    },
+    {
+      label: 'Items',
+      shortcuts: [
+        { label: 'Select all items', keys: `${commandKey}+A` },
+        { label: 'Rename selected item', keys: 'F2' },
+        { label: 'Move selected items to Trash', keys: 'Delete' },
+        { label: 'Clear selection', keys: 'Esc' }
+      ]
+    },
+    {
+      label: 'Notes',
+      shortcuts: [
+        { label: 'Find in note', keys: `${commandKey}+F` },
+        { label: 'Toggle Read and Live modes', keys: 'Ctrl+E' },
+        { label: 'Toggle Markdown Source mode', keys: 'Ctrl+Alt+E' },
+        { label: 'Toggle Split view', keys: 'Ctrl+Shift+E' },
+        { label: 'Toggle zen mode', keys: 'Ctrl+Shift+\\' },
+        { label: 'Save note', keys: 'Ctrl+Enter' }
+      ]
+    }
+  ]
 
   const resetAppearance = (): void => {
     setColorTheme('kuskus')
@@ -177,6 +221,16 @@ export function SettingsWindowApp(): React.JSX.Element {
                     >
                       <IconPencil aria-hidden="true" />
                       <span>Editing</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      aria-current={section === 'shortcuts' ? 'page' : undefined}
+                      isActive={section === 'shortcuts'}
+                      onClick={() => setSection('shortcuts')}
+                    >
+                      <IconKeyboard aria-hidden="true" />
+                      <span>Keyboard shortcuts</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 </SidebarMenu>
@@ -247,9 +301,7 @@ export function SettingsWindowApp(): React.JSX.Element {
                         orientation="horizontal"
                         className="min-h-16 border-t border-foreground/8 px-4 py-3"
                       >
-                        <FieldContent>
-                          <FieldLabel>Color mode</FieldLabel>
-                        </FieldContent>
+                        <FieldLabel>Color mode</FieldLabel>
                         <ToggleGroup
                           value={[colorMode]}
                           onValueChange={(values) => {
@@ -278,9 +330,7 @@ export function SettingsWindowApp(): React.JSX.Element {
                     </FieldDescription>
                     <div className="overflow-hidden rounded-xl bg-card/70 text-card-foreground shadow-[0_0_0_1px_rgb(0_0_0/0.06),0_1px_2px_rgb(0_0_0/0.04)] dark:shadow-[0_0_0_1px_rgb(255_255_255/0.08),0_1px_2px_rgb(0_0_0/0.18)]">
                       <Field orientation="horizontal" className="min-h-16 px-4 py-3">
-                        <FieldContent>
-                          <FieldLabel>UI font</FieldLabel>
-                        </FieldContent>
+                        <FieldLabel>UI font</FieldLabel>
                         <div className="w-52">
                           <FontPicker
                             value={uiFont}
@@ -317,9 +367,7 @@ export function SettingsWindowApp(): React.JSX.Element {
                         orientation="horizontal"
                         className="min-h-16 border-t border-foreground/8 px-4 py-3"
                       >
-                        <FieldContent>
-                          <FieldLabel>Code font</FieldLabel>
-                        </FieldContent>
+                        <FieldLabel>Code font</FieldLabel>
                         <div className="w-52">
                           <FontPicker
                             value={codeFont}
@@ -403,9 +451,7 @@ export function SettingsWindowApp(): React.JSX.Element {
                             'border-t border-foreground/8'
                         )}
                       >
-                        <FieldContent>
-                          <FieldLabel>Interface scale</FieldLabel>
-                        </FieldContent>
+                        <FieldLabel>Interface scale</FieldLabel>
                         <Select
                           value={String(zoom.factor)}
                           onValueChange={(factor) => {
@@ -441,7 +487,7 @@ export function SettingsWindowApp(): React.JSX.Element {
                   </FieldSet>
                 </FieldGroup>
               </div>
-            ) : (
+            ) : section === 'editing' ? (
               <div
                 className={cn(
                   'mx-auto flex w-full max-w-3xl flex-col gap-7 px-8 pb-8',
@@ -486,6 +532,42 @@ export function SettingsWindowApp(): React.JSX.Element {
                     </Field>
                   </div>
                 </FieldSet>
+              </div>
+            ) : (
+              <div
+                className={cn(
+                  'mx-auto flex w-full max-w-3xl flex-col gap-7 px-8 pb-8',
+                  showCustomTitleBar ? 'pt-12' : 'pt-8'
+                )}
+              >
+                <div className="flex flex-col gap-1">
+                  <h1 className="text-balance text-xl font-semibold">Keyboard shortcuts</h1>
+                  <p className="text-pretty text-sm text-muted-foreground">
+                    View the shortcuts available in Kuskus. Custom shortcuts are coming later.
+                  </p>
+                </div>
+                <FieldGroup className="gap-6">
+                  {shortcutGroups.map((group) => (
+                    <FieldSet key={group.label} className="gap-3">
+                      <FieldLegend variant="label">{group.label}</FieldLegend>
+                      <div className="overflow-hidden rounded-xl bg-card/70 text-card-foreground shadow-[0_0_0_1px_rgb(0_0_0/0.06),0_1px_2px_rgb(0_0_0/0.04)] dark:shadow-[0_0_0_1px_rgb(255_255_255/0.08),0_1px_2px_rgb(0_0_0/0.18)]">
+                        {group.shortcuts.map((shortcut, index) => (
+                          <Field
+                            key={shortcut.label}
+                            orientation="horizontal"
+                            className={cn(
+                              'min-h-14 px-4 py-3',
+                              index > 0 && 'border-t border-foreground/8'
+                            )}
+                          >
+                            <FieldLabel>{shortcut.label}</FieldLabel>
+                            <Kbd>{shortcut.keys}</Kbd>
+                          </Field>
+                        ))}
+                      </div>
+                    </FieldSet>
+                  ))}
+                </FieldGroup>
               </div>
             )}
           </ScrollArea>

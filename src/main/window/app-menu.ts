@@ -9,8 +9,13 @@ function editCommand(handler: (window: BrowserWindow) => void) {
 export function installApplicationMenu(): void {
   const isMac = process.platform === 'darwin'
 
+  if (!isMac) {
+    Menu.setApplicationMenu(null)
+    return
+  }
+
   const template: MenuItemConstructorOptions[] = [
-    ...(isMac ? [{ role: 'appMenu' as const }] : []),
+    { role: 'appMenu' },
     { role: 'fileMenu' },
     {
       label: 'Edit',
@@ -51,8 +56,7 @@ export function installApplicationMenu(): void {
       ]
     },
     { role: 'viewMenu' },
-    { role: 'windowMenu' },
-    ...(isMac ? [] : [{ role: 'help' as const }])
+    { role: 'windowMenu' }
   ]
 
   Menu.setApplicationMenu(Menu.buildFromTemplate(template))

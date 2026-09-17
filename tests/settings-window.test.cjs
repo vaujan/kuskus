@@ -14,6 +14,10 @@ const workspaceSource = readFileSync(
   require.resolve('../src/renderer/src/features/library/workspace.tsx'),
   'utf8'
 )
+const settingsAppSource = readFileSync(
+  require.resolve('../src/renderer/src/features/settings/settings-window-app.tsx'),
+  'utf8'
+)
 
 test('opens one reusable settings window on its own renderer surface', () => {
   assert.match(controllerSource, /private window: BrowserWindow \| null = null/)
@@ -40,4 +44,12 @@ test('accepts only supported zoom factors when settings synchronize across windo
   assert.equal(resolveStoredZoomFactor('1.25'), 1.25)
   assert.equal(resolveStoredZoomFactor('2'), 1)
   assert.equal(resolveStoredZoomFactor(null), 1)
+})
+
+test('shows the current keyboard shortcuts in settings without exposing unfinished editing', () => {
+  assert.match(settingsAppSource, /<span>Keyboard shortcuts<\/span>/)
+  assert.match(settingsAppSource, /getGlobalCaptureShortcutStatus\(\)/)
+  assert.match(settingsAppSource, /Custom shortcuts are coming later\./)
+  assert.match(settingsAppSource, /\{ label: 'New note', keys: 'Ctrl\+N' \}/)
+  assert.doesNotMatch(settingsAppSource, /window\.electron\.window\.setGlobalCaptureShortcut\(/)
 })

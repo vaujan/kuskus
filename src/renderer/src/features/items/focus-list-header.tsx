@@ -22,6 +22,7 @@ import { LibrarySearchInput } from '@/features/search/library-search-input'
 import { ShellSidebarTrigger } from '@/features/shell/shell-sidebar-trigger'
 
 export function FocusListHeader({
+  menu,
   destinationLabel,
   composerOpen,
   hasDraft,
@@ -45,6 +46,7 @@ export function FocusListHeader({
   density,
   onDensityChange
 }: {
+  menu?: React.ReactNode
   destinationLabel: string
   composerOpen: boolean
   hasDraft: boolean
@@ -94,6 +96,7 @@ export function FocusListHeader({
         className="@container/focus-header flex h-12 shrink-0 select-none items-center px-2 [-webkit-app-region:drag]"
       >
         <ShellSidebarTrigger />
+        {menu}
 
         <div className="flex min-w-0 flex-1 items-center [-webkit-app-region:no-drag]">
           <span className="min-w-0 truncate px-1.5 text-sm font-medium text-foreground/80">

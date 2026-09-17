@@ -11,7 +11,7 @@ import type { LibraryState } from '../../shared/library-contract'
 
 function App(): React.JSX.Element {
   const [state, setState] = useState<LibraryState | null>(null)
-  useAppZoom()
+  const zoom = useAppZoom()
 
   useEffect(() => {
     let mounted = true
@@ -40,7 +40,7 @@ function App(): React.JSX.Element {
       {!state ? (
         <LoadingScreen />
       ) : state.status === 'ready' ? (
-        <Workspace initialLibrary={state.library} />
+        <Workspace initialLibrary={state.library} zoom={zoom} />
       ) : (
         <SetupScreen initialState={state} />
       )}

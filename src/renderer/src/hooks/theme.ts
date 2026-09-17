@@ -3,6 +3,9 @@ export type ColorMode = 'dark' | 'light' | 'system'
 export type ColorTheme =
   | 'kuskus'
   | 'graphite'
+  | 'github'
+  | 'ayu'
+  | 'material'
   | 'moss'
   | 'clay'
   | 'solarized'
@@ -10,8 +13,6 @@ export type ColorTheme =
   | 'tokyo-storm'
   | 'monokai'
   | 'one'
-  | 'one-pro-flat'
-  | 'one-pro-darker'
   | 'dracula'
   | 'gruvbox'
   | 'nord'
@@ -51,6 +52,9 @@ export function resolveColorMode(value: string | null): ColorMode {
 
 export function resolveColorTheme(value: string | null): ColorTheme {
   return value === 'graphite' ||
+    value === 'github' ||
+    value === 'ayu' ||
+    value === 'material' ||
     value === 'moss' ||
     value === 'clay' ||
     value === 'solarized' ||
@@ -58,8 +62,6 @@ export function resolveColorTheme(value: string | null): ColorTheme {
     value === 'tokyo-storm' ||
     value === 'monokai' ||
     value === 'one' ||
-    value === 'one-pro-flat' ||
-    value === 'one-pro-darker' ||
     value === 'dracula' ||
     value === 'gruvbox' ||
     value === 'nord'
