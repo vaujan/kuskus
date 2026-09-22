@@ -93,7 +93,7 @@ export function FocusListHeader({
     <>
       <header
         data-focus-list-header
-        className="@container/focus-header flex h-12 shrink-0 select-none items-center px-2 [-webkit-app-region:drag]"
+        className="@container/focus-header flex shrink-0 select-none items-center px-2 pt-2 pb-1 [-webkit-app-region:drag]"
       >
         <ShellSidebarTrigger />
         {menu}
@@ -218,7 +218,7 @@ export function FocusListHeader({
         </div>
       </header>
       {searchOpen ? (
-        <div id="focus-library-search" className="shrink-0 px-2 pt-1 pb-2">
+        <div id="focus-library-search" className="shrink-0 px-2 pb-2">
           <LibrarySearchInput
             inputRef={searchInputRef}
             value={searchQuery}

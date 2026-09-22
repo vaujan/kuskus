@@ -463,7 +463,7 @@ function DetailToolbar({
     return (
       <header
         data-detail-focus-header
-        className="pointer-events-none relative z-40 flex h-10 shrink-0 items-center justify-between"
+        className="pointer-events-none relative z-40 flex p-2 shrink-0 items-center justify-between"
       >
         <div
           data-detail-focus-leading-actions
@@ -500,7 +500,7 @@ function DetailToolbar({
         <div
           data-detail-focus-actions
           className={cn(
-            'pointer-events-auto ml-auto flex min-w-0 items-center justify-end [&_button]:[-webkit-app-region:no-drag]',
+            'pointer-events-auto ml-auto flex min-w-0 items-center gap-1 justify-end [&_button]:[-webkit-app-region:no-drag]',
             !isMac && 'pr-[8.625rem]'
           )}
         >

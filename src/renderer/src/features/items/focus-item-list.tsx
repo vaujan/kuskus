@@ -126,7 +126,7 @@ export function FocusItemList({
           {emptyAction ? <EmptyContent className="gap-2">{emptyAction}</EmptyContent> : null}
         </Empty>
       ) : density === 'index' ? (
-        <div className="min-h-full pt-2" role="group" aria-label="Items">
+        <div className="min-h-full" role="group" aria-label="Items">
           {composer}
 
           {mountedItems.map((item) => {
