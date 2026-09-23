@@ -71,6 +71,44 @@ function extractTaskCheckbox(node: React.ReactNode): {
   return { checkbox: null, rest: node }
 }
 
+function MarkdownReadTable({
+  children,
+  className,
+  ...props
+}: React.ComponentProps<'table'>): React.JSX.Element {
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    const wrap = scrollRef.current
+    const table = wrap?.querySelector('table')
+    if (!wrap || !table) return
+
+    const updateOverflowState = (): void => {
+      const max = Math.max(0, wrap.scrollWidth - wrap.clientWidth)
+      wrap.toggleAttribute('data-overflow-left', wrap.scrollLeft > 1)
+      wrap.toggleAttribute('data-overflow-right', wrap.scrollLeft < max - 1)
+    }
+    const observer = new ResizeObserver(updateOverflowState)
+    observer.observe(wrap)
+    observer.observe(table)
+    wrap.addEventListener('scroll', updateOverflowState, { passive: true })
+    updateOverflowState()
+
+    return () => {
+      observer.disconnect()
+      wrap.removeEventListener('scroll', updateOverflowState)
+    }
+  }, [])
+
+  return (
+    <div ref={scrollRef} className="typeset-scroll kuskus-markdown-table-scroll">
+      <table {...props} className={cn('kuskus-markdown-table', className)}>
+        {children}
+      </table>
+    </div>
+  )
+}
+
 function MarkdownImage({
   src,
   alt,
@@ -368,13 +406,10 @@ export const MarkdownPreview = memo(function MarkdownPreview({
         </span>
       )
     },
-    table: ({ children, className, ...props }) => (
-      <div className="typeset-scroll kuskus-markdown-table-scroll">
-        <table {...props} className={cn('kuskus-markdown-table', className)}>
-          {children}
-        </table>
-      </div>
-    )
+    table: ({ node, ...props }) => {
+      void node
+      return <MarkdownReadTable {...props} />
+    }
   }
 
   return (

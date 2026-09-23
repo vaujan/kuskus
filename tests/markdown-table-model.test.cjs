@@ -30,6 +30,7 @@ const {
   deleteTableRow,
   deleteTableRows,
   moveTableRow,
+  moveTableVisualRow,
   duplicateTableRow,
   moveTableColumn,
   duplicateTableColumn,
@@ -147,6 +148,40 @@ test('insert/delete row and move row operate on copies', () => {
 
   const deleted = deleteTableRow(moved, 1)
   assert.equal(deleted.rows.length, 2)
+})
+
+test('visual row moves can promote a body row to header or demote the header', () => {
+  const model = {
+    header: ['Name', 'Count'],
+    rows: [
+      ['Alpha', '1'],
+      ['Beta', '2']
+    ],
+    aligns: ['left', 'right']
+  }
+  assert.deepEqual(moveTableVisualRow(model, 0, 2), {
+    header: ['Alpha', '1'],
+    rows: [
+      ['Beta', '2'],
+      ['Name', 'Count']
+    ],
+    aligns: ['left', 'right']
+  })
+  assert.deepEqual(moveTableVisualRow(model, 2, 0), {
+    header: ['Beta', '2'],
+    rows: [
+      ['Name', 'Count'],
+      ['Alpha', '1']
+    ],
+    aligns: ['left', 'right']
+  })
+  assert.deepEqual(moveTableVisualRow(model, 1, 2).rows, [
+    ['Beta', '2'],
+    ['Alpha', '1']
+  ])
+  assert.equal(moveTableVisualRow(model, -1, 1), model)
+  assert.deepEqual(model.header, ['Name', 'Count'])
+  assert.deepEqual(model.rows[0], ['Alpha', '1'])
 })
 
 test('setTableAlign updates a single column', () => {

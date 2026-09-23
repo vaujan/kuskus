@@ -369,9 +369,8 @@
       margin-block-end: 0;
     }
 
-    /* Horizontal scroll for any wide block. Wrap it and the wrapper owns the
-       flow margin. Tables shrink to fit, so widen the table to make it scroll
-       instead of compress. */
+    /* Horizontal scroll remains available when the columns' minimum widths
+       exceed the reading column, after cell text has wrapped. */
     &:where(.typeset-scroll) {
       overflow-x: auto;
       margin-block-start: var(--typeset-flow);
@@ -380,13 +379,12 @@
       margin-block-start: 0;
     }
     &:where(.typeset-scroll table) {
-      width: max-content;
-      max-width: none;
+      width: 100%;
+      min-width: 100%;
     }
     &:where(thead th) {
       font-weight: 500;
       text-align: start;
-      white-space: nowrap;
       padding: var(--typeset-table-cell-padding);
       border-block-end: 1px solid var(--typeset-table-cell-border);
     }

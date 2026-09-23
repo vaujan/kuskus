@@ -346,14 +346,8 @@
  * via `contenteditable`, with Tab / Shift-Tab moving focus between
  * cells and Tab past the last cell appending a new row.
  *
- * Horizontal scroll on the wrapper so wide tables (common in
- * RSS-ingested content) don't squish their cells to unreadable
- * widths on narrow viewports. The inner `<table>` uses
- * `width: max-content` + `min-width: 100%` so it fills the reading
- * column when narrow and grows past it (triggering the scrollbar)
- * when content needs more room. `overscroll-behavior-x: contain`
- * keeps a horizontal flick from bubbling up and scrolling the
- * whole editor sideways. */
+ * Horizontal scroll remains on the wrapper when the columns' minimum
+ * widths cannot fit after the cell content has wrapped. */
 /* Table wrapper — horizontal scroll contained here so wide
  * tables don't push the editor's content box wider than the
  * viewport. Paired with `.cm-content { min-width: 0 }` in the
@@ -393,38 +387,12 @@
   overflow-wrap: anywhere;
 }
 
-/* Each selected cell paints its outer edges above the table grid, so the
- * range outline stays continuous while the table scrolls. */
+/* Selection and drop-target cells paint only their outer edges above the
+ * table grid, keeping each rounded outline continuous while scrolling. */
 .cm-atomic-table {
   position: relative;
   outline: none;
-}
-
-.cm-atomic-table[data-overflow-left] {
-  -webkit-mask-image: linear-gradient(to right, transparent, black 1rem, black);
-  mask-image: linear-gradient(to right, transparent, black 1rem, black);
-}
-
-.cm-atomic-table[data-overflow-right] {
-  -webkit-mask-image: linear-gradient(to right, black, black calc(100% - 1rem), transparent);
-  mask-image: linear-gradient(to right, black, black calc(100% - 1rem), transparent);
-}
-
-.cm-atomic-table[data-overflow-left][data-overflow-right] {
-  -webkit-mask-image: linear-gradient(
-    to right,
-    transparent,
-    black 1rem,
-    black calc(100% - 1rem),
-    transparent
-  );
-  mask-image: linear-gradient(
-    to right,
-    transparent,
-    black 1rem,
-    black calc(100% - 1rem),
-    transparent
-  );
+  --cm-table-highlight-radius: 0.375rem;
 }
 
 .cm-atomic-table[data-has-selection] .cm-atomic-table-cell-source {
@@ -440,7 +408,7 @@
   background: color-mix(in oklch, var(--primary) 18%, transparent);
 }
 
-.cm-atomic-table :is(th, td)[data-selected]::before {
+.cm-atomic-table :is(th, td):is([data-selected], [data-drag-target])::before {
   position: absolute;
   z-index: 2;
   inset: -1px;
@@ -449,36 +417,84 @@
   pointer-events: none;
 }
 
-.cm-atomic-table :is(th, td)[data-selection-top]::before {
+.cm-atomic-table :is(th, td):is([data-selection-top], [data-drag-top])::before {
   border-block-start-color: var(--primary);
 }
 
-.cm-atomic-table :is(th, td)[data-selection-bottom]::before {
+.cm-atomic-table :is(th, td):is([data-selection-bottom], [data-drag-bottom])::before {
   border-block-end-color: var(--primary);
 }
 
-.cm-atomic-table :is(th, td)[data-selection-left]::before {
+.cm-atomic-table :is(th, td):is([data-selection-left], [data-drag-left])::before {
   border-inline-start-color: var(--primary);
 }
 
-.cm-atomic-table :is(th, td)[data-selection-right]::before {
+.cm-atomic-table :is(th, td):is([data-selection-right], [data-drag-right])::before {
   border-inline-end-color: var(--primary);
 }
 
-.cm-atomic-table :is(th, td)[data-selection-top][data-selection-left]::before {
-  border-start-start-radius: 0.375rem;
+.cm-atomic-table
+  :is(th, td):is([data-selection-top], [data-drag-top]):is(
+    [data-selection-left],
+    [data-drag-left]
+  ) {
+  border-start-start-radius: calc(var(--cm-table-highlight-radius) - 1px);
 }
 
-.cm-atomic-table :is(th, td)[data-selection-top][data-selection-right]::before {
-  border-start-end-radius: 0.375rem;
+.cm-atomic-table
+  :is(th, td):is([data-selection-top], [data-drag-top]):is(
+    [data-selection-right],
+    [data-drag-right]
+  ) {
+  border-start-end-radius: calc(var(--cm-table-highlight-radius) - 1px);
 }
 
-.cm-atomic-table :is(th, td)[data-selection-bottom][data-selection-left]::before {
-  border-end-start-radius: 0.375rem;
+.cm-atomic-table
+  :is(th, td):is([data-selection-bottom], [data-drag-bottom]):is(
+    [data-selection-left],
+    [data-drag-left]
+  ) {
+  border-end-start-radius: calc(var(--cm-table-highlight-radius) - 1px);
 }
 
-.cm-atomic-table :is(th, td)[data-selection-bottom][data-selection-right]::before {
-  border-end-end-radius: 0.375rem;
+.cm-atomic-table
+  :is(th, td):is([data-selection-bottom], [data-drag-bottom]):is(
+    [data-selection-right],
+    [data-drag-right]
+  ) {
+  border-end-end-radius: calc(var(--cm-table-highlight-radius) - 1px);
+}
+
+.cm-atomic-table
+  :is(th, td):is([data-selection-top], [data-drag-top]):is(
+    [data-selection-left],
+    [data-drag-left]
+  )::before {
+  border-start-start-radius: var(--cm-table-highlight-radius);
+}
+
+.cm-atomic-table
+  :is(th, td):is([data-selection-top], [data-drag-top]):is(
+    [data-selection-right],
+    [data-drag-right]
+  )::before {
+  border-start-end-radius: var(--cm-table-highlight-radius);
+}
+
+.cm-atomic-table
+  :is(th, td):is([data-selection-bottom], [data-drag-bottom]):is(
+    [data-selection-left],
+    [data-drag-left]
+  )::before {
+  border-end-start-radius: var(--cm-table-highlight-radius);
+}
+
+.cm-atomic-table
+  :is(th, td):is([data-selection-bottom], [data-drag-bottom]):is(
+    [data-selection-right],
+    [data-drag-right]
+  )::before {
+  border-end-end-radius: var(--cm-table-highlight-radius);
 }
 
 .cm-atomic-table :is(th, td) {
@@ -509,11 +525,18 @@
   font-size: 0.75rem;
   line-height: 1;
   cursor: grab;
-  opacity: 1;
+  opacity: 0;
   transition:
+    opacity 100ms ease,
     color 100ms ease,
     background-color 100ms ease,
     border-color 100ms ease;
+}
+
+.cm-atomic-table-handle:hover,
+.cm-atomic-table-handle:focus-visible,
+.cm-atomic-table-handle[data-dragging] {
+  opacity: 1;
 }
 
 .cm-atomic-table-handle[data-dragging] {
@@ -546,14 +569,9 @@
   user-select: none;
 }
 
-.cm-atomic-table :is(th, td)[data-drag-target='column'] {
+.cm-atomic-table :is(th, td)[data-drag-target] {
+  z-index: 1;
   background: color-mix(in oklch, var(--primary) 14%, transparent);
-  box-shadow: inset 2px 0 var(--primary);
-}
-
-.cm-atomic-table :is(th, td)[data-drag-target='row'] {
-  background: color-mix(in oklch, var(--primary) 14%, transparent);
-  box-shadow: inset 0 2px var(--primary);
 }
 
 .cm-atomic-table-layout {
@@ -632,6 +650,10 @@
 }
 
 @media (pointer: coarse) {
+  .cm-atomic-table-handle {
+    opacity: 1;
+  }
+
   .cm-atomic-table-add {
     opacity: 0.7;
   }

@@ -232,6 +232,18 @@ export function moveTableRow(model: TableModel, from: number, to: number): Table
   return next
 }
 
+/** Move a visual row, including the header at index 0. */
+export function moveTableVisualRow(model: TableModel, from: number, to: number): TableModel {
+  const rows = [model.header, ...model.rows]
+  if (from < 0 || from >= rows.length || to < 0 || to >= rows.length || from === to) {
+    return model
+  }
+  const next = rows.map((row) => [...row])
+  const [moved] = next.splice(from, 1)
+  next.splice(to, 0, moved)
+  return { header: next[0], rows: next.slice(1), aligns: [...model.aligns] }
+}
+
 export function duplicateTableRow(model: TableModel, index: number): TableModel {
   if (index < 0 || index >= model.rows.length) return model
   const next = copyTable(model)

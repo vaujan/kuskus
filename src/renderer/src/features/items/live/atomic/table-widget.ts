@@ -11,6 +11,7 @@ import {
 } from '@codemirror/state'
 import { Decoration, EditorView, WidgetType, keymap, type DecorationSet } from '@codemirror/view'
 import type { SyntaxNode } from '@lezer/common'
+import { getCM, Vim } from '@replit/codemirror-vim'
 import katex from 'katex'
 import { matchHighlight } from './highlight'
 import { treeGrowthEffect, treeProgressPlugin } from './tree-progress'
@@ -26,7 +27,7 @@ import {
   insertTableColumn,
   insertTableRow,
   moveTableColumn,
-  moveTableRow,
+  moveTableVisualRow,
   normalizeTableSelection,
   parseMarkdownTable,
   parseTableClipboard,
@@ -593,6 +594,35 @@ function placeCaretAtEnd(el: HTMLElement): void {
   sel.addRange(range)
 }
 
+function placeCaretAtStart(el: HTMLElement): void {
+  const range = document.createRange()
+  range.selectNodeContents(el)
+  range.collapse(true)
+  const sel = window.getSelection()
+  if (!sel) return
+  sel.removeAllRanges()
+  sel.addRange(range)
+}
+
+function focusCellCaret(cell: HTMLElement, atEnd: boolean, x?: number): void {
+  const source = getCellSource(cell)
+  if (!source) return
+  source.focus({ preventScroll: true })
+  if (atEnd) placeCaretAtEnd(source)
+  else placeCaretAtStart(source)
+  if (x !== undefined) {
+    const rect = source.getBoundingClientRect()
+    const y = Math.min(rect.bottom - 1, Math.max(rect.top + 1, rect.top + rect.height / 2))
+    const hit = document.caretRangeFromPoint(x, y)
+    if (hit && source.contains(hit.startContainer)) {
+      const selection = window.getSelection()
+      selection?.removeAllRanges()
+      selection?.addRange(hit)
+    }
+  }
+  cell.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+}
+
 function getAllCells(wrap: HTMLElement): HTMLElement[] {
   return Array.from(wrap.querySelectorAll<HTMLElement>('th, td'))
 }
@@ -648,7 +678,7 @@ function tableDragTarget(wrap: HTMLElement, axis: TableDragAxis, clientX: number
   const candidates =
     axis === 'column'
       ? Array.from(wrap.querySelectorAll<HTMLElement>('thead th'))
-      : Array.from(wrap.querySelectorAll<HTMLElement>('tbody tr'))
+      : Array.from(wrap.querySelectorAll<HTMLElement>('thead tr, tbody tr'))
   let nearest = -1
   let nearestDistance = Number.POSITIVE_INFINITY
   for (const [index, candidate] of candidates.entries()) {
@@ -665,11 +695,25 @@ function tableDragTarget(wrap: HTMLElement, axis: TableDragAxis, clientX: number
 }
 
 function paintTableDragTarget(wrap: HTMLElement, axis?: TableDragAxis, index?: number): void {
-  for (const cell of getAllCells(wrap)) delete cell.dataset.dragTarget
+  for (const cell of getAllCells(wrap)) {
+    delete cell.dataset.dragTarget
+    delete cell.dataset.dragTop
+    delete cell.dataset.dragBottom
+    delete cell.dataset.dragLeft
+    delete cell.dataset.dragRight
+  }
   if (axis === undefined || index === undefined || index < 0) return
-  const selector = axis === 'column' ? `[data-column="${index}"]` : `[data-row="${index + 1}"]`
+  const selector = axis === 'column' ? `[data-column="${index}"]` : `[data-row="${index}"]`
+  const model = readModelFromDom(wrap)
+  const lastRow = model.rows.length
+  const lastColumn = model.header.length - 1
   for (const cell of wrap.querySelectorAll<HTMLElement>(selector)) {
     cell.dataset.dragTarget = axis
+    const point = pointForCell(cell)
+    if (axis === 'row' || point.row === 0) cell.dataset.dragTop = 'true'
+    if (axis === 'row' || point.row === lastRow) cell.dataset.dragBottom = 'true'
+    if (axis === 'column' || point.column === 0) cell.dataset.dragLeft = 'true'
+    if (axis === 'column' || point.column === lastColumn) cell.dataset.dragRight = 'true'
   }
 }
 
@@ -689,7 +733,7 @@ function attachTableDragHandle(
     if (!wrap) return
     event.preventDefault()
     event.stopPropagation()
-    const currentOrigin = axis === 'column' ? pointForCell(cell).column : pointForCell(cell).row - 1
+    const currentOrigin = axis === 'column' ? pointForCell(cell).column : pointForCell(cell).row
     const startX = event.clientX
     const startY = event.clientY
     let dragging = false
@@ -721,10 +765,10 @@ function attachTableDragHandle(
           dispatchModel(
             view,
             wrap,
-            moveTableRow(model, currentOrigin, target),
+            moveTableVisualRow(model, currentOrigin, target),
             {
-              anchor: { row: target + 1, column: 0 },
-              head: { row: target + 1, column: model.header.length - 1 }
+              anchor: { row: target, column: 0 },
+              head: { row: target, column: model.header.length - 1 }
             },
             { axis, from: currentOrigin, to: target }
           )
@@ -734,16 +778,20 @@ function attachTableDragHandle(
 
       if (!dragging) {
         if (axis === 'column') selectWholeColumn(wrap, currentOrigin, false)
-        else selectWholeRow(wrap, currentOrigin + 1, false)
+        else selectWholeRow(wrap, currentOrigin, false)
       }
     }
     const move = (moveEvent: PointerEvent) => {
       if (!dragging && Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) < 4) {
         return
       }
-      dragging = true
-      handle.dataset.dragging = 'true'
-      wrap.dataset.dragging = axis
+      if (!dragging) {
+        dragging = true
+        handle.dataset.dragging = 'true'
+        wrap.dataset.dragging = axis
+        if (axis === 'column') selectWholeColumn(wrap, currentOrigin, false)
+        else selectWholeRow(wrap, currentOrigin, false)
+      }
       target = tableDragTarget(wrap, axis, moveEvent.clientX, moveEvent.clientY)
       paintTableDragTarget(wrap, axis, target)
     }
@@ -1023,15 +1071,19 @@ function makeCell(
   cell.appendChild(source)
   renderCellSourceDecorated(source)
 
-  if (!readOnly && (tag === 'th' || column === 0)) {
+  const addDragHandle = (axis: TableDragAxis) => {
     const handle = document.createElement('button')
     handle.type = 'button'
-    handle.className = `cm-atomic-table-handle cm-atomic-table-${tag === 'th' ? 'column' : 'row'}-handle`
-    handle.textContent = tag === 'th' ? '⋮' : '⋯'
-    handle.title = tag === 'th' ? 'Select or drag column' : 'Select or drag row'
+    handle.className = `cm-atomic-table-handle cm-atomic-table-${axis}-handle`
+    handle.textContent = axis === 'column' ? '⋮' : '⋯'
+    handle.title = axis === 'column' ? 'Select or drag column' : 'Select or drag row'
     handle.setAttribute('aria-label', handle.title)
-    attachTableDragHandle(view, cell, handle, tag === 'th' ? 'column' : 'row')
+    attachTableDragHandle(view, cell, handle, axis)
     cell.appendChild(handle)
+  }
+  if (!readOnly) {
+    if (tag === 'th') addDragHandle('column')
+    if (column === 0) addDragHandle('row')
   }
 
   // All write paths (typing, paste, IME, Tab/Enter navigation, the
@@ -1332,6 +1384,10 @@ function attachCellEditing(view: EditorView, cell: HTMLElement, source: HTMLElem
     commit()
   })
 
+  source.addEventListener('beforeinput', (event) => {
+    if (vimIsNormal(view)) event.preventDefault()
+  })
+
   // Paste: drop clipboard content in as a single line of plain text.
   // Without this, pasted rich HTML, newlines, or pipes land in the cell
   // verbatim; newlines and `|` corrupt the row. We flatten whitespace
@@ -1339,6 +1395,7 @@ function attachCellEditing(view: EditorView, cell: HTMLElement, source: HTMLElem
   // on serialize.
   source.addEventListener('paste', (event) => {
     event.preventDefault()
+    if (vimIsNormal(view)) return
     const clipboardText = event.clipboardData?.getData('text/plain') ?? ''
     if (clipboardText.includes('\t') || /\r?\n/.test(clipboardText.trim())) {
       const wrap = cell.closest<HTMLElement>('.cm-atomic-table')
@@ -1384,12 +1441,42 @@ function attachCellEditing(view: EditorView, cell: HTMLElement, source: HTMLElem
   source.addEventListener('blur', () => clearActiveMarksInSource(source))
 
   source.addEventListener('keydown', (event) => {
+    if (event.isComposing) return
+    const direction: CaretDirection | null =
+      event.key === 'ArrowLeft' || (vimIsNormal(view) && event.key === 'h')
+        ? 'left'
+        : event.key === 'ArrowRight' || (vimIsNormal(view) && event.key === 'l')
+          ? 'right'
+          : event.key === 'ArrowUp' || (vimIsNormal(view) && event.key === 'k')
+            ? 'up'
+            : event.key === 'ArrowDown' || (vimIsNormal(view) && event.key === 'j')
+              ? 'down'
+              : null
+    if (direction && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+      event.preventDefault()
+      event.stopPropagation()
+      moveTableCaret(view, cell, direction)
+      return
+    }
     if (event.key === 'Escape') {
       const wrap = cell.closest<HTMLElement>('.cm-atomic-table')
       if (!wrap) return
       event.preventDefault()
       event.stopPropagation()
-      selectTableCells(wrap, { anchor: pointForCell(cell), head: pointForCell(cell) })
+      if (getCM(view)?.state.vim?.insertMode) sendVimCellKey(view, source, '<Esc>')
+      else leaveTableCaret(view, wrap, 'right')
+      return
+    }
+    if (
+      vimIsNormal(view) &&
+      !event.altKey &&
+      !event.ctrlKey &&
+      !event.metaKey &&
+      (event.key.length === 1 || event.key === 'Backspace' || event.key === 'Delete')
+    ) {
+      event.preventDefault()
+      event.stopPropagation()
+      if (event.key === 'i') sendVimCellKey(view, source, 'i')
       return
     }
     if (event.code === 'Space' && (event.ctrlKey || event.shiftKey)) {
@@ -1472,7 +1559,7 @@ type TableMove = { axis: TableDragAxis; from: number; to: number }
 
 function moveElements(wrap: HTMLElement, axis: TableDragAxis): HTMLElement[] {
   return Array.from(
-    wrap.querySelectorAll<HTMLElement>(axis === 'row' ? 'tbody tr' : 'thead th, tbody td')
+    wrap.querySelectorAll<HTMLElement>(axis === 'row' ? 'thead tr, tbody tr' : 'thead th, tbody td')
   )
 }
 
@@ -1620,14 +1707,15 @@ function openCellMenu(view: EditorView, cell: HTMLElement, x: number, y: number)
     {
       label: 'Move row up',
       icon: 'move-up',
-      disabled: row <= 0,
-      action: () => dispatchModel(view, wrap, moveTableRow(readModelFromDom(wrap), row, row - 1))
+      action: () =>
+        dispatchModel(view, wrap, moveTableVisualRow(readModelFromDom(wrap), row + 1, row))
     },
     {
       label: 'Move row down',
       icon: 'move-down',
       disabled: row >= currentModel.rows.length - 1,
-      action: () => dispatchModel(view, wrap, moveTableRow(readModelFromDom(wrap), row, row + 1))
+      action: () =>
+        dispatchModel(view, wrap, moveTableVisualRow(readModelFromDom(wrap), row + 1, row + 2))
     },
     {
       label: 'Duplicate row',
@@ -1701,9 +1789,23 @@ function openCellMenu(view: EditorView, cell: HTMLElement, x: number, y: number)
       action: () => dispatchModel(view, wrap, setTableAlign(readModelFromDom(wrap), col, align))
     })
   )
-  const rowMenuItems: TableContextMenuEntry[] = isHeader
-    ? []
-    : [{ label: 'Row', icon: 'row', children: rowItems }]
+  const rowMenuItems: TableContextMenuEntry[] = [
+    {
+      label: 'Row',
+      icon: 'row',
+      children: isHeader
+        ? [
+            {
+              label: 'Move row down',
+              icon: 'move-down',
+              disabled: currentModel.rows.length === 0,
+              action: () =>
+                dispatchModel(view, wrap, moveTableVisualRow(readModelFromDom(wrap), 0, 1))
+            }
+          ]
+        : rowItems
+    }
+  ]
 
   const items: TableContextMenuEntry[] = [
     {
@@ -1828,6 +1930,113 @@ function moveCellFocus(view: EditorView, cell: HTMLElement, dir: 1 | -1): void {
   if (!source) return
   source.focus()
   placeCaretAtEnd(source)
+}
+
+type CaretDirection = 'left' | 'right' | 'up' | 'down'
+
+function vimIsNormal(view: EditorView): boolean {
+  const vim = getCM(view)?.state.vim
+  return Boolean(vim && !vim.insertMode)
+}
+
+function sendVimCellKey(view: EditorView, source: HTMLElement, key: string): void {
+  const cm = getCM(view)
+  if (!cm) return
+  const selection = window.getSelection()
+  const range =
+    selection?.rangeCount && source.contains(selection.anchorNode)
+      ? selection.getRangeAt(0).cloneRange()
+      : null
+  Vim.handleKey(cm, key, 'user')
+  source.focus({ preventScroll: true })
+  if (range) {
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+  }
+}
+
+function leaveTableCaret(view: EditorView, wrap: HTMLElement, direction: CaretDirection): void {
+  const range = findCurrentTableRange(view, wrap)
+  if (!range) return
+  const before = direction === 'left' || direction === 'up'
+  const pos = before ? Math.max(0, range.from - 1) : Math.min(view.state.doc.length, range.to + 1)
+  view.dispatch({ selection: EditorSelection.cursor(pos), scrollIntoView: true })
+  view.focus()
+}
+
+function moveTableCaret(view: EditorView, cell: HTMLElement, direction: CaretDirection): void {
+  const wrap = cell.closest<HTMLElement>('.cm-atomic-table')
+  const source = getCellSource(cell)
+  const selection = window.getSelection()
+  if (!wrap || !source || !selection || !selection.isCollapsed || !selection.rangeCount) return
+
+  const original = selection.getRangeAt(0).cloneRange()
+  const rect = original.getBoundingClientRect()
+  const x = rect.left
+  const forward = direction === 'right' || direction === 'down'
+  selection.modify(
+    'move',
+    forward ? 'forward' : 'backward',
+    direction === 'left' || direction === 'right' ? 'character' : 'line'
+  )
+  const moved =
+    selection.rangeCount &&
+    (selection.anchorNode !== original.startContainer ||
+      selection.anchorOffset !== original.startOffset)
+  if (moved && selection.anchorNode && source.contains(selection.anchorNode)) return
+
+  selection.removeAllRanges()
+  selection.addRange(original)
+  const cells = getAllCells(wrap)
+  const index = cells.indexOf(cell)
+  const columns = wrap.querySelectorAll('thead th').length
+  const next =
+    index +
+    (direction === 'left'
+      ? -1
+      : direction === 'right'
+        ? 1
+        : direction === 'up'
+          ? -columns
+          : columns)
+  if (next < 0 || next >= cells.length) {
+    leaveTableCaret(view, wrap, direction)
+    return
+  }
+  focusCellCaret(
+    cells[next],
+    direction === 'left',
+    direction === 'up' || direction === 'down' ? x : undefined
+  )
+}
+
+function enterTableCaret(view: EditorView, direction: CaretDirection): boolean {
+  if (view.state.facet(readOnlyFacet) || !view.state.selection.main.empty) return false
+  const pos = view.state.selection.main.head
+  const line = view.state.doc.lineAt(pos)
+  let target: HTMLElement | null = null
+  for (const wrap of view.dom.querySelectorAll<HTMLElement>('.cm-atomic-table')) {
+    const range = findCurrentTableRange(view, wrap)
+    if (!range) continue
+    const tableStartLine = view.state.doc.lineAt(range.from).number
+    const tableEndLine = view.state.doc.lineAt(range.to).number
+    const fromBefore =
+      direction === 'down'
+        ? line.number === tableStartLine - 1
+        : direction === 'right' && pos === range.from - 1
+    const fromAfter =
+      direction === 'up'
+        ? line.number === tableEndLine + 1
+        : direction === 'left' && pos === range.to + 1
+    if (fromBefore || fromAfter) {
+      const cells = getAllCells(wrap)
+      target = fromBefore ? cells[0] : cells[cells.length - 1]
+      break
+    }
+  }
+  if (!target) return false
+  focusCellCaret(target, direction === 'up' || direction === 'left')
+  return true
 }
 
 function appendRow(view: EditorView, wrap: HTMLElement): void {
@@ -2060,6 +2269,27 @@ export function tables(config: TablesConfig = {}): Extension {
     tableField,
     treeProgressPlugin,
     ...(config.onLinkClick ? [tableLinkClickFacet.of(config.onLinkClick)] : []),
+    // Vim's view-plugin keydown handler runs before CodeMirror's keymap.
+    // A high-precedence DOM handler is needed to enter the widget before
+    // Vim jumps over the replaced Markdown range.
+    Prec.highest(
+      EditorView.domEventHandlers({
+        keydown(event, view) {
+          if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return false
+          const direction: CaretDirection | null =
+            event.key === 'ArrowLeft' || (vimIsNormal(view) && event.key === 'h')
+              ? 'left'
+              : event.key === 'ArrowRight' || (vimIsNormal(view) && event.key === 'l')
+                ? 'right'
+                : event.key === 'ArrowUp' || (vimIsNormal(view) && event.key === 'k')
+                  ? 'up'
+                  : event.key === 'ArrowDown' || (vimIsNormal(view) && event.key === 'j')
+                    ? 'down'
+                    : null
+          return direction ? enterTableCaret(view, direction) : false
+        }
+      })
+    ),
     // Prec.high so we run before the default Backspace binding.
     Prec.high(keymap.of([{ key: 'Backspace', run: backspaceAtTableBoundary }]))
   ]
