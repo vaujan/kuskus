@@ -11,9 +11,35 @@ import {
 } from '@codemirror/state'
 import { Decoration, EditorView, WidgetType, keymap, type DecorationSet } from '@codemirror/view'
 import type { SyntaxNode } from '@lezer/common'
+import katex from 'katex'
 import { matchHighlight } from './highlight'
 import { treeGrowthEffect, treeProgressPlugin } from './tree-progress'
 import { readOnlyFacet } from './read-only'
+import { openTableContextMenu, type TableContextMenuEntry } from './table-context-menu'
+import {
+  clearTableSelection,
+  deleteTableColumns,
+  deleteTableRows,
+  duplicateTableColumn,
+  duplicateTableRow,
+  formatTableSelection,
+  insertTableColumn,
+  insertTableRow,
+  moveTableColumn,
+  moveTableRow,
+  normalizeTableSelection,
+  parseMarkdownTable,
+  parseTableClipboard,
+  pasteTableSelection,
+  serializeTable,
+  setTableAlign,
+  sortTableRows,
+  tableSelectionToTsv,
+  type TableAlign,
+  type TableCellPoint,
+  type TableModel,
+  type TableSelection
+} from '../../markdown-table-model'
 
 // GFM tables as a WYSIWYG block widget.
 //
@@ -35,109 +61,23 @@ import { readOnlyFacet } from './read-only'
 // deletes the whole table as one unit — matching Obsidian's "table
 // is a unit" feel.
 //
-// Scope cuts deliberately left out of v1:
-//   - Column alignment (`:---`, `---:`, `:---:`) — parsed but dropped;
-//     all cells render left-aligned.
-//   - Rich content inside cells (markdown marks, links, etc.).
-//   - Context-menu operations (add/remove row/column, sort).
-//   - Multi-line cell content.
-// These are incremental, non-architectural adds; they can land later
-// without changing the widget's core shape.
-
 // ---- model / parse / serialize --------------------------------------
 
-interface TableModel {
-  header: string[]
-  rows: string[][]
-}
-
-function collectCells(state: EditorState, rowNode: SyntaxNode): string[] {
-  // Split the row's raw line on unescaped `|` rather than collecting
-  // lezer `TableCell` nodes. lezer emits NO `TableCell` for an empty
-  // cell, so a node-based count silently drops blank columns — which
-  // is exactly what "Insert column left/right" creates. Counting cells
-  // from the pipe-delimited text keeps blank columns (and their
-  // positions) intact through the parse → serialize round-trip.
-  return splitRowCells(state.doc.lineAt(rowNode.from).text)
-}
-
-export function splitRowCells(line: string): string[] {
-  let s = line.trim()
-  // Strip the optional outer pipes so they don't yield phantom empty
-  // leading/trailing cells.
-  if (s.startsWith('|')) s = s.slice(1)
-  if (s.endsWith('|')) s = s.slice(0, -1)
-
-  const cells: string[] = []
-  let buf = ''
-  for (let i = 0; i < s.length; i++) {
-    const ch = s[i]
-    // A backslash escapes the next char (e.g. `\|` is a literal pipe in
-    // a GFM cell) — keep both and don't treat the pipe as a separator.
-    if (ch === '\\' && i + 1 < s.length) {
-      buf += ch + s[i + 1]
-      i++
-      continue
-    }
-    if (ch === '|') {
-      cells.push(buf.trim())
-      buf = ''
-      continue
-    }
-    buf += ch
-  }
-  cells.push(buf.trim())
-  return cells
-}
-
 function parseTable(state: EditorState, tableNode: SyntaxNode): TableModel | null {
-  const header: string[] = []
-  const rows: string[][] = []
-
-  const cursor = tableNode.cursor()
-  if (!cursor.firstChild()) return null
-
-  do {
-    if (cursor.name === 'TableHeader') {
-      header.push(...collectCells(state, cursor.node))
-    } else if (cursor.name === 'TableRow') {
-      rows.push(collectCells(state, cursor.node))
-    }
-    // TableDelimiter (per-row `|` and whole-line `|---|---|`) is ignored.
-  } while (cursor.nextSibling())
-
-  if (header.length === 0) return null
-  return { header, rows }
-}
-
-// Escape cell content so it can't break the row's GFM structure: an
-// unescaped `|` would split the cell into two columns, and a stray
-// newline would terminate the table. A pipe that's already escaped
-// (`\|` — e.g. round-tripping content the parser handed us) is left
-// alone so serialize is idempotent.
-function escapeCell(text: string): string {
-  return text.replace(/\r?\n/g, ' ').replace(/(?<!\\)\|/g, '\\|')
-}
-
-export function serializeTable(model: TableModel): string {
-  const columnCount = model.header.length
-  const lines: string[] = []
-  lines.push('| ' + model.header.map(escapeCell).join(' | ') + ' |')
-  lines.push('| ' + model.header.map(() => '---').join(' | ') + ' |')
-  for (const row of model.rows) {
-    const padded: string[] = []
-    for (let c = 0; c < columnCount; c++) padded.push(escapeCell(row[c] ?? ''))
-    lines.push('| ' + padded.join(' | ') + ' |')
-  }
-  return lines.join('\n')
+  return parseMarkdownTable(state.sliceDoc(tableNode.from, tableNode.to))
 }
 
 function readModelFromDom(wrap: HTMLElement): TableModel {
-  const header = Array.from(wrap.querySelectorAll<HTMLElement>('thead th')).map(readCellSource)
+  const headerCells = Array.from(wrap.querySelectorAll<HTMLElement>('thead th'))
+  const header = headerCells.map(readCellSource)
   const rows = Array.from(wrap.querySelectorAll<HTMLElement>('tbody tr')).map((tr) =>
     Array.from(tr.querySelectorAll<HTMLElement>('td')).map(readCellSource)
   )
-  return { header, rows }
+  const aligns = headerCells.map((cell): TableAlign | null => {
+    const align = cell.dataset.align
+    return align === 'left' || align === 'center' || align === 'right' ? align : null
+  })
+  return { header, rows, aligns }
 }
 
 // A cell's raw markdown lives in `dataset.raw` — the source of truth
@@ -539,22 +479,22 @@ function extractCellImages(text: string): CellImage[] {
   return imgs
 }
 
-// Refresh (or remove) the image-preview strip that sits below the
-// source line. Mirrors how images render outside tables: the
-// `![alt](url)` markdown is the source of truth, but on an inactive
-// cell (no focus inside) the raw source hides and only the rendered
-// image remains visible. `data-has-image` flips on for that CSS hook.
+// Refresh (or remove) the rendered-content strip that sits below the
+// source line. Images and whole-cell inline math use the Markdown as
+// their source of truth, render while resting, and reveal the source
+// when the cell receives focus.
 function refreshCellPreview(cell: HTMLElement): void {
   const existing = cell.querySelector<HTMLElement>('.cm-atomic-table-cell-preview')
   if (existing) existing.remove()
 
   const text = cell.dataset.raw ?? ''
   const imgs = extractCellImages(text)
-  if (imgs.length === 0) {
+  const math = /^\$([^$\n]+)\$$/.exec(text)?.[1] ?? null
+  if (imgs.length === 0 && math === null) {
     delete cell.dataset.hasImage
+    delete cell.dataset.hasMath
     return
   }
-  cell.dataset.hasImage = 'true'
 
   const preview = document.createElement('div')
   preview.className = 'cm-atomic-table-cell-preview'
@@ -563,24 +503,44 @@ function refreshCellPreview(cell: HTMLElement): void {
   // won't create a phantom caret position at the preview boundary.
   preview.contentEditable = 'false'
 
-  for (const { src, alt } of imgs) {
-    const img = document.createElement('img')
-    img.src = src
-    img.alt = alt
-    img.loading = 'lazy'
-    img.className = 'cm-atomic-table-cell-image'
-    // Clicking the image puts the caret in the source text so the
-    // user can edit the underlying markdown — same affordance as
-    // clicking a block-level image outside a table.
-    img.addEventListener('pointerdown', (event) => {
-      event.preventDefault()
-      event.stopPropagation()
-      const source = getCellSource(cell)
-      if (!source) return
-      source.focus()
-      placeCaretAtEnd(source)
-    })
-    preview.appendChild(img)
+  if (math !== null) {
+    delete cell.dataset.hasImage
+    cell.dataset.hasMath = 'true'
+    preview.dataset.kind = 'math'
+    const renderedMath = document.createElement('span')
+    renderedMath.className = 'kuskus-math cm-atomic-table-cell-math'
+    try {
+      renderedMath.innerHTML = katex.renderToString(math, {
+        displayMode: false,
+        throwOnError: false
+      })
+    } catch {
+      renderedMath.textContent = math
+    }
+    preview.appendChild(renderedMath)
+  } else {
+    delete cell.dataset.hasMath
+    cell.dataset.hasImage = 'true'
+    preview.dataset.kind = 'images'
+    for (const { src, alt } of imgs) {
+      const img = document.createElement('img')
+      img.src = src
+      img.alt = alt
+      img.loading = 'lazy'
+      img.className = 'cm-atomic-table-cell-image'
+      // Clicking the image puts the caret in the source text so the
+      // user can edit the underlying markdown — same affordance as
+      // clicking a block-level image outside a table.
+      img.addEventListener('pointerdown', (event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        const source = getCellSource(cell)
+        if (!source) return
+        source.focus()
+        placeCaretAtEnd(source)
+      })
+      preview.appendChild(img)
+    }
   }
 
   cell.appendChild(preview)
@@ -637,58 +597,377 @@ function getAllCells(wrap: HTMLElement): HTMLElement[] {
   return Array.from(wrap.querySelectorAll<HTMLElement>('th, td'))
 }
 
+const tableSelections = new WeakMap<HTMLElement, TableSelection>()
+const tableCleanups = new WeakMap<HTMLElement, () => void>()
+
+function pointForCell(cell: HTMLElement): TableCellPoint {
+  return {
+    row: Number(cell.dataset.row ?? 0),
+    column: Number(cell.dataset.column ?? 0)
+  }
+}
+
+function cellAtPoint(wrap: HTMLElement, point: TableCellPoint): HTMLElement | null {
+  return wrap.querySelector<HTMLElement>(`[data-row="${point.row}"][data-column="${point.column}"]`)
+}
+
+function selectionContains(
+  model: TableModel,
+  selection: TableSelection,
+  point: TableCellPoint
+): boolean {
+  const bounds = normalizeTableSelection(model, selection)
+  return (
+    point.row >= bounds.top &&
+    point.row <= bounds.bottom &&
+    point.column >= bounds.left &&
+    point.column <= bounds.right
+  )
+}
+
+function handleCellContextPointerDown(event: PointerEvent, cell: HTMLElement): boolean {
+  if (event.button !== 2) return false
+  const wrap = cell.closest<HTMLElement>('.cm-atomic-table')
+  const selection = wrap ? tableSelections.get(wrap) : undefined
+  if (
+    wrap &&
+    selection &&
+    selectionContains(readModelFromDom(wrap), selection, pointForCell(cell))
+  ) {
+    // Keep the wrapper focused when opening a menu from inside an existing
+    // range. Otherwise the browser focuses the contenteditable first and its
+    // focus handler clears the range before `contextmenu` is dispatched.
+    event.preventDefault()
+  }
+  return true
+}
+
+type TableDragAxis = 'column' | 'row'
+
+function tableDragTarget(wrap: HTMLElement, axis: TableDragAxis, clientX: number, clientY: number) {
+  const candidates =
+    axis === 'column'
+      ? Array.from(wrap.querySelectorAll<HTMLElement>('thead th'))
+      : Array.from(wrap.querySelectorAll<HTMLElement>('tbody tr'))
+  let nearest = -1
+  let nearestDistance = Number.POSITIVE_INFINITY
+  for (const [index, candidate] of candidates.entries()) {
+    const rect = candidate.getBoundingClientRect()
+    const center = axis === 'column' ? rect.left + rect.width / 2 : rect.top + rect.height / 2
+    const pointer = axis === 'column' ? clientX : clientY
+    const distance = Math.abs(pointer - center)
+    if (distance < nearestDistance) {
+      nearest = index
+      nearestDistance = distance
+    }
+  }
+  return nearest
+}
+
+function paintTableDragTarget(wrap: HTMLElement, axis?: TableDragAxis, index?: number): void {
+  for (const cell of getAllCells(wrap)) delete cell.dataset.dragTarget
+  if (axis === undefined || index === undefined || index < 0) return
+  const selector = axis === 'column' ? `[data-column="${index}"]` : `[data-row="${index + 1}"]`
+  for (const cell of wrap.querySelectorAll<HTMLElement>(selector)) {
+    cell.dataset.dragTarget = axis
+  }
+}
+
+function attachTableDragHandle(
+  view: EditorView,
+  cell: HTMLElement,
+  handle: HTMLButtonElement,
+  axis: TableDragAxis
+): void {
+  handle.addEventListener('click', (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+  })
+  handle.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0) return
+    const wrap = cell.closest<HTMLElement>('.cm-atomic-table')
+    if (!wrap) return
+    event.preventDefault()
+    event.stopPropagation()
+    const currentOrigin = axis === 'column' ? pointForCell(cell).column : pointForCell(cell).row - 1
+    const startX = event.clientX
+    const startY = event.clientY
+    let dragging = false
+    let target = currentOrigin
+
+    const finish = (commit: boolean) => {
+      window.removeEventListener('pointermove', move, true)
+      window.removeEventListener('pointerup', up, true)
+      window.removeEventListener('pointercancel', cancel, true)
+      window.removeEventListener('blur', cancel)
+      delete handle.dataset.dragging
+      delete wrap.dataset.dragging
+      paintTableDragTarget(wrap)
+
+      if (commit && dragging && target !== currentOrigin) {
+        const model = readModelFromDom(wrap)
+        if (axis === 'column') {
+          dispatchModel(
+            view,
+            wrap,
+            moveTableColumn(model, currentOrigin, target),
+            {
+              anchor: { row: 0, column: target },
+              head: { row: model.rows.length, column: target }
+            },
+            { axis, from: currentOrigin, to: target }
+          )
+        } else {
+          dispatchModel(
+            view,
+            wrap,
+            moveTableRow(model, currentOrigin, target),
+            {
+              anchor: { row: target + 1, column: 0 },
+              head: { row: target + 1, column: model.header.length - 1 }
+            },
+            { axis, from: currentOrigin, to: target }
+          )
+        }
+        return
+      }
+
+      if (!dragging) {
+        if (axis === 'column') selectWholeColumn(wrap, currentOrigin, false)
+        else selectWholeRow(wrap, currentOrigin + 1, false)
+      }
+    }
+    const move = (moveEvent: PointerEvent) => {
+      if (!dragging && Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) < 4) {
+        return
+      }
+      dragging = true
+      handle.dataset.dragging = 'true'
+      wrap.dataset.dragging = axis
+      target = tableDragTarget(wrap, axis, moveEvent.clientX, moveEvent.clientY)
+      paintTableDragTarget(wrap, axis, target)
+    }
+    const up = () => finish(true)
+    const cancel = () => finish(false)
+    window.addEventListener('pointermove', move, true)
+    window.addEventListener('pointerup', up, true)
+    window.addEventListener('pointercancel', cancel, true)
+    window.addEventListener('blur', cancel)
+  })
+}
+
+function paintTableSelection(wrap: HTMLElement): void {
+  const selection = tableSelections.get(wrap)
+  const cells = getAllCells(wrap)
+  for (const cell of cells) {
+    delete cell.dataset.selected
+    delete cell.dataset.selectionTop
+    delete cell.dataset.selectionBottom
+    delete cell.dataset.selectionLeft
+    delete cell.dataset.selectionRight
+    delete cell.dataset.active
+    cell.removeAttribute('aria-selected')
+  }
+  if (!selection) {
+    delete wrap.dataset.hasSelection
+    return
+  }
+
+  const model = readModelFromDom(wrap)
+  const bounds = normalizeTableSelection(model, selection)
+  wrap.dataset.hasSelection = 'true'
+  for (let row = bounds.top; row <= bounds.bottom; row++) {
+    for (let column = bounds.left; column <= bounds.right; column++) {
+      const cell = cellAtPoint(wrap, { row, column })
+      if (!cell) continue
+      cell.dataset.selected = 'true'
+      cell.setAttribute('aria-selected', 'true')
+      if (row === bounds.top) cell.dataset.selectionTop = 'true'
+      if (row === bounds.bottom) cell.dataset.selectionBottom = 'true'
+      if (column === bounds.left) cell.dataset.selectionLeft = 'true'
+      if (column === bounds.right) cell.dataset.selectionRight = 'true'
+    }
+  }
+  const active = cellAtPoint(wrap, selection.head)
+  if (active) active.dataset.active = 'true'
+}
+
+function selectTableCells(
+  wrap: HTMLElement,
+  selection: TableSelection,
+  focus = true,
+  scroll = true
+): void {
+  const model = readModelFromDom(wrap)
+  const bounds = normalizeTableSelection(model, selection)
+  const clamped: TableSelection = {
+    anchor: {
+      row: Math.min(bounds.bottom, Math.max(bounds.top, selection.anchor.row)),
+      column: Math.min(bounds.right, Math.max(bounds.left, selection.anchor.column))
+    },
+    head: {
+      row: Math.min(bounds.bottom, Math.max(bounds.top, selection.head.row)),
+      column: Math.min(bounds.right, Math.max(bounds.left, selection.head.column))
+    }
+  }
+  tableSelections.set(wrap, clamped)
+  paintTableSelection(wrap)
+  if (focus) wrap.focus({ preventScroll: true })
+  if (scroll)
+    cellAtPoint(wrap, clamped.head)?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+}
+
+function clearTableCellSelection(wrap: HTMLElement): void {
+  tableSelections.delete(wrap)
+  paintTableSelection(wrap)
+}
+
+function selectWholeRow(wrap: HTMLElement, row: number, scroll = true): void {
+  const lastColumn = Math.max(0, readModelFromDom(wrap).header.length - 1)
+  selectTableCells(
+    wrap,
+    {
+      anchor: { row, column: 0 },
+      head: { row, column: lastColumn }
+    },
+    true,
+    scroll
+  )
+}
+
+function selectWholeColumn(wrap: HTMLElement, column: number, scroll = true): void {
+  const lastRow = readModelFromDom(wrap).rows.length
+  selectTableCells(
+    wrap,
+    {
+      anchor: { row: 0, column },
+      head: { row: lastRow, column }
+    },
+    true,
+    scroll
+  )
+}
+
+function selectionForPastedMatrix(
+  model: TableModel,
+  selection: TableSelection,
+  matrix: string[][]
+): TableSelection {
+  const bounds = normalizeTableSelection(model, selection)
+  const anchor = { row: bounds.top, column: bounds.left }
+  if (matrix.length === 1 && matrix[0].length === 1) return selection
+  return {
+    anchor,
+    head: {
+      row: bounds.top + matrix.length - 1,
+      column: bounds.left + Math.max(...matrix.map((row) => row.length)) - 1
+    }
+  }
+}
+
 // ---- widget ---------------------------------------------------------
 
 class TableWidget extends WidgetType {
   constructor(
     readonly model: TableModel,
-    readonly readOnly: boolean
+    readonly readOnly: boolean,
+    readonly revision: number
   ) {
     super()
   }
 
-  // Structure-only equality. Typing in a cell produces a new
-  // TableWidget with the same dimensions but different cell contents.
-  // Returning true here means CM6 keeps the existing DOM instead of
-  // calling `toDOM` again — which is what lets the caret survive
-  // across the per-keystroke dispatch cycle.
+  // Cell typing keeps the current revision and DOM so the caret survives.
+  // Structural edits and undo advance the revision to render fresh content,
+  // even when the table dimensions and alignment have not changed.
   //
   // `readOnly` is part of the identity: cells are built editable or
   // inert at `toDOM` time, so a reading-mode toggle must force a fresh
   // DOM rather than reusing the stale (editable) one.
   eq(other: TableWidget): boolean {
+    if (other.revision !== this.revision) return false
     if (other.readOnly !== this.readOnly) return false
     if (other.model.header.length !== this.model.header.length) return false
     if (other.model.rows.length !== this.model.rows.length) return false
+    if (other.model.aligns.some((align, column) => align !== this.model.aligns[column]))
+      return false
     return true
   }
 
   toDOM(view: EditorView): HTMLElement {
     const wrap = document.createElement('div')
     wrap.className = 'kuskus-markdown-table-scroll cm-atomic-table'
+    wrap.tabIndex = -1
 
     const table = document.createElement('table')
     table.className = 'kuskus-markdown-table'
-    wrap.appendChild(table)
+    table.setAttribute('role', 'grid')
+    table.setAttribute('aria-label', 'Markdown table')
+    table.setAttribute('aria-multiselectable', 'true')
+    table.setAttribute('aria-readonly', String(this.readOnly))
+    const layout = document.createElement('div')
+    layout.className = 'cm-atomic-table-layout'
+    layout.style.setProperty('--cm-table-column-count', String(this.model.header.length))
+    if (!this.readOnly) layout.dataset.editable = 'true'
+    layout.appendChild(table)
+    wrap.appendChild(layout)
 
     const thead = document.createElement('thead')
     const headerRow = document.createElement('tr')
-    for (const text of this.model.header) {
-      headerRow.appendChild(makeCell('th', text, view))
+    for (const [column, text] of this.model.header.entries()) {
+      headerRow.appendChild(
+        makeCell('th', text, view, this.model.aligns[column] ?? null, 0, column)
+      )
     }
     thead.appendChild(headerRow)
     table.appendChild(thead)
 
     const tbody = document.createElement('tbody')
     const colCount = this.model.header.length
-    for (const row of this.model.rows) {
+    for (const [rowIndex, row] of this.model.rows.entries()) {
       const tr = document.createElement('tr')
       for (let c = 0; c < colCount; c++) {
-        tr.appendChild(makeCell('td', row[c] ?? '', view))
+        tr.appendChild(
+          makeCell('td', row[c] ?? '', view, this.model.aligns[c] ?? null, rowIndex + 1, c)
+        )
       }
       tbody.appendChild(tr)
     }
     table.appendChild(tbody)
+
+    if (!this.readOnly) {
+      const addRow = document.createElement('button')
+      addRow.type = 'button'
+      addRow.className = 'cm-atomic-table-add cm-atomic-table-add-row'
+      addRow.textContent = '+'
+      addRow.title = 'Add row below'
+      addRow.setAttribute('aria-label', 'Add row below')
+      addRow.addEventListener('click', () => {
+        const model = readModelFromDom(wrap)
+        const row = model.rows.length + 1
+        dispatchModel(view, wrap, insertTableRow(model, model.rows.length), {
+          anchor: { row, column: 0 },
+          head: { row, column: 0 }
+        })
+      })
+      layout.appendChild(addRow)
+
+      const addColumn = document.createElement('button')
+      addColumn.type = 'button'
+      addColumn.className = 'cm-atomic-table-add cm-atomic-table-add-column'
+      addColumn.textContent = '+'
+      addColumn.title = 'Add column to the right'
+      addColumn.setAttribute('aria-label', 'Add column to the right')
+      addColumn.addEventListener('click', () => {
+        const model = readModelFromDom(wrap)
+        const column = model.header.length
+        dispatchModel(view, wrap, insertTableColumn(model, column), {
+          anchor: { row: 0, column },
+          head: { row: 0, column }
+        })
+      })
+      layout.appendChild(addColumn)
+      attachTableInteractions(view, wrap)
+    }
 
     return wrap
   }
@@ -699,11 +978,30 @@ class TableWidget extends WidgetType {
   ignoreEvent(): boolean {
     return true
   }
+
+  destroy(dom: HTMLElement): void {
+    tableCleanups.get(dom)?.()
+    tableCleanups.delete(dom)
+  }
 }
 
-function makeCell(tag: 'th' | 'td', text: string, view: EditorView): HTMLElement {
+function makeCell(
+  tag: 'th' | 'td',
+  text: string,
+  view: EditorView,
+  align: TableAlign | null,
+  row: number,
+  column: number
+): HTMLElement {
   const cell = document.createElement(tag)
   cell.dataset.raw = text
+  cell.dataset.align = align ?? ''
+  cell.dataset.row = String(row)
+  cell.dataset.column = String(column)
+  cell.setAttribute('role', tag === 'th' ? 'columnheader' : 'gridcell')
+  cell.setAttribute('aria-rowindex', String(row + 1))
+  cell.setAttribute('aria-colindex', String(column + 1))
+  if (align) cell.setAttribute('align', align)
 
   // The cell itself is not contenteditable — only the inner source
   // element is. This keeps the image preview strictly visual (no
@@ -724,6 +1022,17 @@ function makeCell(tag: 'th' | 'td', text: string, view: EditorView): HTMLElement
   // uniformly to every inline mark inside cells.
   cell.appendChild(source)
   renderCellSourceDecorated(source)
+
+  if (!readOnly && (tag === 'th' || column === 0)) {
+    const handle = document.createElement('button')
+    handle.type = 'button'
+    handle.className = `cm-atomic-table-handle cm-atomic-table-${tag === 'th' ? 'column' : 'row'}-handle`
+    handle.textContent = tag === 'th' ? '⋮' : '⋯'
+    handle.title = tag === 'th' ? 'Select or drag column' : 'Select or drag row'
+    handle.setAttribute('aria-label', handle.title)
+    attachTableDragHandle(view, cell, handle, tag === 'th' ? 'column' : 'row')
+    cell.appendChild(handle)
+  }
 
   // All write paths (typing, paste, IME, Tab/Enter navigation, the
   // context menu, focus-routing) live in `attachCellEditing` and are
@@ -750,6 +1059,7 @@ function makeCell(tag: 'th' | 'td', text: string, view: EditorView): HTMLElement
   }
 
   source.addEventListener('pointerdown', (event) => {
+    if (handleCellContextPointerDown(event, cell)) return
     if (event.button !== 0) return
     // Block focus / caret placement when pressing the open target; the
     // open happens on the following `click`.
@@ -770,6 +1080,214 @@ function makeCell(tag: 'th' | 'td', text: string, view: EditorView): HTMLElement
   refreshCellPreview(cell)
 
   return cell
+}
+
+function attachTableInteractions(view: EditorView, wrap: HTMLElement): void {
+  const table = wrap.querySelector<HTMLElement>('table')
+  if (!table) return
+
+  const updateOverflowState = () => {
+    const max = Math.max(0, wrap.scrollWidth - wrap.clientWidth)
+    wrap.toggleAttribute('data-overflow-left', wrap.scrollLeft > 1)
+    wrap.toggleAttribute('data-overflow-right', wrap.scrollLeft < max - 1)
+  }
+  const resizeObserver = new ResizeObserver(updateOverflowState)
+  resizeObserver.observe(wrap)
+  resizeObserver.observe(table)
+  wrap.addEventListener('scroll', updateOverflowState, { passive: true })
+  requestAnimationFrame(updateOverflowState)
+
+  const moveSelection = (rowDelta: number, columnDelta: number, extend: boolean): void => {
+    const current = tableSelections.get(wrap)
+    if (!current) return
+    const model = readModelFromDom(wrap)
+    const nextHead = {
+      row: Math.min(model.rows.length, Math.max(0, current.head.row + rowDelta)),
+      column: Math.min(model.header.length - 1, Math.max(0, current.head.column + columnDelta))
+    }
+    selectTableCells(wrap, {
+      anchor: extend ? current.anchor : nextHead,
+      head: nextHead
+    })
+  }
+
+  const onKeyDown = (event: KeyboardEvent) => {
+    const selection = tableSelections.get(wrap)
+    if (!selection || event.target !== wrap) return
+    const model = readModelFromDom(wrap)
+    const mod = event.metaKey || event.ctrlKey
+    let handled = true
+
+    if (event.key === 'ArrowUp') {
+      moveSelection(mod ? -selection.head.row : -1, 0, event.shiftKey)
+    } else if (event.key === 'ArrowDown') {
+      moveSelection(mod ? model.rows.length - selection.head.row : 1, 0, event.shiftKey)
+    } else if (event.key === 'ArrowLeft') {
+      moveSelection(0, mod ? -selection.head.column : -1, event.shiftKey)
+    } else if (event.key === 'ArrowRight') {
+      moveSelection(0, mod ? model.header.length - 1 - selection.head.column : 1, event.shiftKey)
+    } else if (event.key === 'Home') {
+      moveSelection(0, -selection.head.column, event.shiftKey)
+    } else if (event.key === 'End') {
+      moveSelection(0, model.header.length - 1 - selection.head.column, event.shiftKey)
+    } else if (event.key === 'Tab') {
+      const columns = model.header.length
+      const flat = selection.head.row * columns + selection.head.column + (event.shiftKey ? -1 : 1)
+      const clamped = Math.min((model.rows.length + 1) * columns - 1, Math.max(0, flat))
+      const point = { row: Math.floor(clamped / columns), column: clamped % columns }
+      selectTableCells(wrap, { anchor: point, head: point })
+    } else if (event.key === 'Enter' || event.key === 'F2') {
+      const source = getCellSource(cellAtPoint(wrap, selection.head) ?? wrap)
+      if (source) {
+        source.focus()
+        placeCaretAtEnd(source)
+      }
+    } else if (event.key === 'Escape') {
+      clearTableCellSelection(wrap)
+      view.focus()
+    } else if (event.key === 'Backspace' || event.key === 'Delete') {
+      dispatchModel(view, wrap, clearTableSelection(model, selection), selection)
+    } else if (mod && event.key.toLowerCase() === 'b') {
+      dispatchModel(view, wrap, formatTableSelection(model, selection, 'bold'), selection)
+    } else if (mod && event.key.toLowerCase() === 'i') {
+      dispatchModel(view, wrap, formatTableSelection(model, selection, 'italic'), selection)
+    } else if (mod && event.key.toLowerCase() === 'a') {
+      selectTableCells(wrap, {
+        anchor: { row: 0, column: 0 },
+        head: { row: model.rows.length, column: model.header.length - 1 }
+      })
+    } else if (event.code === 'Space' && event.ctrlKey) {
+      selectWholeColumn(wrap, selection.head.column)
+    } else if (event.code === 'Space' && event.shiftKey) {
+      selectWholeRow(wrap, selection.head.row)
+    } else {
+      handled = false
+    }
+
+    if (handled) {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+  }
+
+  const onCopy = (event: ClipboardEvent) => {
+    const selection = tableSelections.get(wrap)
+    if (!selection || event.target !== wrap) return
+    event.preventDefault()
+    event.clipboardData?.setData(
+      'text/plain',
+      tableSelectionToTsv(readModelFromDom(wrap), selection)
+    )
+  }
+
+  const onCut = (event: ClipboardEvent) => {
+    const selection = tableSelections.get(wrap)
+    if (!selection || event.target !== wrap) return
+    onCopy(event)
+    dispatchModel(view, wrap, clearTableSelection(readModelFromDom(wrap), selection), selection)
+  }
+
+  const onPaste = (event: ClipboardEvent) => {
+    const selection = tableSelections.get(wrap)
+    if (!selection || event.target !== wrap) return
+    event.preventDefault()
+    const matrix = parseTableClipboard(event.clipboardData?.getData('text/plain') ?? '')
+    const sourceModel = readModelFromDom(wrap)
+    const model = pasteTableSelection(sourceModel, selection, matrix)
+    dispatchModel(view, wrap, model, selectionForPastedMatrix(sourceModel, selection, matrix))
+  }
+
+  let dragAnchor: TableCellPoint | null = null
+  let pendingSourceDrag = false
+  const onPointerMove = (event: PointerEvent) => {
+    if (!dragAnchor) return
+    const hit = document
+      .elementFromPoint(event.clientX, event.clientY)
+      ?.closest<HTMLElement>('th, td')
+    if (!hit || hit.closest('.cm-atomic-table') !== wrap) return
+    const head = pointForCell(hit)
+    if (pendingSourceDrag) {
+      if (head.row === dragAnchor.row && head.column === dragAnchor.column) return
+      pendingSourceDrag = false
+      window.getSelection()?.removeAllRanges()
+    }
+    event.preventDefault()
+    selectTableCells(wrap, { anchor: dragAnchor, head }, true, false)
+  }
+  const endPointerSelection = () => {
+    dragAnchor = null
+    pendingSourceDrag = false
+    window.removeEventListener('pointermove', onPointerMove, true)
+    window.removeEventListener('pointerup', endPointerSelection, true)
+    window.removeEventListener('pointercancel', endPointerSelection, true)
+  }
+
+  const onPointerDown = (event: PointerEvent) => {
+    if (event.button !== 0) return
+    const target = event.target
+    if (!(target instanceof Element)) return
+    const cell = target.closest<HTMLElement>('th, td')
+    if (!cell || cell.closest('.cm-atomic-table') !== wrap) return
+    if (target.closest('.cm-atomic-table-handle')) return
+    const source = getCellSource(cell)
+
+    // Dragging the last few pixels of a header border resizes that
+    // column. Width is deliberately view-local: Markdown has no
+    // portable column-width syntax.
+    if (cell.tagName === 'TH' && cell.getBoundingClientRect().right - event.clientX <= 7) {
+      event.preventDefault()
+      event.stopPropagation()
+      const column = pointForCell(cell).column
+      const startX = event.clientX
+      const startWidth = cell.getBoundingClientRect().width
+      const onResize = (moveEvent: PointerEvent) => {
+        const width = Math.max(72, startWidth + moveEvent.clientX - startX)
+        for (const candidate of getAllCells(wrap)) {
+          if (pointForCell(candidate).column === column) candidate.style.width = `${width}px`
+        }
+      }
+      const stopResize = () => {
+        window.removeEventListener('pointermove', onResize, true)
+        window.removeEventListener('pointerup', stopResize, true)
+      }
+      window.addEventListener('pointermove', onResize, true)
+      window.addEventListener('pointerup', stopResize, true)
+      return
+    }
+
+    const point = pointForCell(cell)
+    const existing = tableSelections.get(wrap)
+    dragAnchor = event.shiftKey && existing ? existing.anchor : point
+    pendingSourceDrag = Boolean(source && source.contains(target) && !event.shiftKey)
+    if (pendingSourceDrag) {
+      clearTableCellSelection(wrap)
+    } else {
+      event.preventDefault()
+      event.stopPropagation()
+      selectTableCells(wrap, { anchor: dragAnchor, head: point }, true, false)
+    }
+    window.addEventListener('pointermove', onPointerMove, true)
+    window.addEventListener('pointerup', endPointerSelection, true)
+    window.addEventListener('pointercancel', endPointerSelection, true)
+  }
+
+  const onDocumentPointerDown = (event: PointerEvent) => {
+    if (event.target instanceof Node && wrap.contains(event.target)) return
+    clearTableCellSelection(wrap)
+  }
+
+  wrap.addEventListener('keydown', onKeyDown)
+  wrap.addEventListener('copy', onCopy)
+  wrap.addEventListener('cut', onCut)
+  wrap.addEventListener('paste', onPaste)
+  wrap.addEventListener('pointerdown', onPointerDown, true)
+  document.addEventListener('pointerdown', onDocumentPointerDown, true)
+  tableCleanups.set(wrap, () => {
+    endPointerSelection()
+    resizeObserver.disconnect()
+    wrap.removeEventListener('scroll', updateOverflowState)
+    document.removeEventListener('pointerdown', onDocumentPointerDown, true)
+  })
 }
 
 // Wire every write path for an editable cell: typing / paste / IME
@@ -821,7 +1339,23 @@ function attachCellEditing(view: EditorView, cell: HTMLElement, source: HTMLElem
   // on serialize.
   source.addEventListener('paste', (event) => {
     event.preventDefault()
-    const text = (event.clipboardData?.getData('text/plain') ?? '').replace(/\s+/g, ' ').trim()
+    const clipboardText = event.clipboardData?.getData('text/plain') ?? ''
+    if (clipboardText.includes('\t') || /\r?\n/.test(clipboardText.trim())) {
+      const wrap = cell.closest<HTMLElement>('.cm-atomic-table')
+      if (!wrap) return
+      const point = pointForCell(cell)
+      const selection = { anchor: point, head: point }
+      const matrix = parseTableClipboard(clipboardText)
+      const model = readModelFromDom(wrap)
+      dispatchModel(
+        view,
+        wrap,
+        pasteTableSelection(model, selection, matrix),
+        selectionForPastedMatrix(model, selection, matrix)
+      )
+      return
+    }
+    const text = clipboardText.replace(/\s+/g, ' ').trim()
     const sel = source.ownerDocument.defaultView?.getSelection()
     if (!sel || sel.rangeCount === 0) return
     const range = sel.getRangeAt(0)
@@ -837,7 +1371,11 @@ function attachCellEditing(view: EditorView, cell: HTMLElement, source: HTMLElem
   // three ways the caret can land in a new mark without firing an
   // input event (click-to-place, arrow-key nav, tab-into-cell). The
   // update is idempotent — redundant calls cost nothing.
-  source.addEventListener('focus', () => updateActiveMarkForSource(source))
+  source.addEventListener('focus', () => {
+    const wrap = cell.closest<HTMLElement>('.cm-atomic-table')
+    if (wrap) clearTableCellSelection(wrap)
+    updateActiveMarkForSource(source)
+  })
   source.addEventListener('mouseup', () => updateActiveMarkForSource(source))
   source.addEventListener('keyup', () => updateActiveMarkForSource(source))
 
@@ -846,6 +1384,23 @@ function attachCellEditing(view: EditorView, cell: HTMLElement, source: HTMLElem
   source.addEventListener('blur', () => clearActiveMarksInSource(source))
 
   source.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      const wrap = cell.closest<HTMLElement>('.cm-atomic-table')
+      if (!wrap) return
+      event.preventDefault()
+      event.stopPropagation()
+      selectTableCells(wrap, { anchor: pointForCell(cell), head: pointForCell(cell) })
+      return
+    }
+    if (event.code === 'Space' && (event.ctrlKey || event.shiftKey)) {
+      const wrap = cell.closest<HTMLElement>('.cm-atomic-table')
+      if (!wrap) return
+      event.preventDefault()
+      event.stopPropagation()
+      if (event.ctrlKey) selectWholeColumn(wrap, pointForCell(cell).column)
+      else selectWholeRow(wrap, pointForCell(cell).row)
+      return
+    }
     // Enter mirrors Tab — advance to the next cell (appending a row past
     // the last one) instead of inserting a line break a single-line cell
     // can't represent. Shift reverses direction for both.
@@ -870,6 +1425,7 @@ function attachCellEditing(view: EditorView, cell: HTMLElement, source: HTMLElem
   // covers only image hits — this covers empty padding and the
   // space between/around images.
   cell.addEventListener('pointerdown', (event) => {
+    if (handleCellContextPointerDown(event, cell)) return
     // A click on the editable source — including its inner mark spans
     // and text — must keep the browser's native caret placement. Forcing
     // focus-at-end here would yank the caret to the end of the cell
@@ -901,7 +1457,78 @@ function cellColIndex(cell: HTMLElement): number {
   return Array.from(tr.querySelectorAll<HTMLElement>('th, td')).indexOf(cell)
 }
 
-function dispatchModel(view: EditorView, wrap: HTMLElement, nextModel: TableModel): void {
+function findTableWrapAt(view: EditorView, from: number): HTMLElement | null {
+  for (const element of view.dom.querySelectorAll<HTMLElement>('.cm-atomic-table')) {
+    try {
+      if (view.posAtDOM(element) === from) return element
+    } catch {
+      // Ignore a detached widget while CodeMirror reconciles the view.
+    }
+  }
+  return null
+}
+
+type TableMove = { axis: TableDragAxis; from: number; to: number }
+
+function moveElements(wrap: HTMLElement, axis: TableDragAxis): HTMLElement[] {
+  return Array.from(
+    wrap.querySelectorAll<HTMLElement>(axis === 'row' ? 'tbody tr' : 'thead th, tbody td')
+  )
+}
+
+function originalIndexAt(newIndex: number, from: number, to: number): number {
+  if (newIndex === to) return from
+  if (from < to && newIndex >= from && newIndex < to) return newIndex + 1
+  if (from > to && newIndex > to && newIndex <= from) return newIndex - 1
+  return newIndex
+}
+
+function animateTableMove(wrap: HTMLElement, move: TableMove, previous: DOMRect[]): void {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  const elements = moveElements(wrap, move.axis)
+  const columnCount = wrap.querySelectorAll('thead th').length
+  for (const [index, element] of elements.entries()) {
+    const row = move.axis === 'row' ? 0 : Math.floor(index / columnCount)
+    const position = move.axis === 'row' ? index : index % columnCount
+    const oldIndex = originalIndexAt(position, move.from, move.to)
+    const oldRect = previous[move.axis === 'row' ? oldIndex : row * columnCount + oldIndex]
+    if (!oldRect) continue
+    const newRect = element.getBoundingClientRect()
+    const dx = oldRect.left - newRect.left
+    const dy = oldRect.top - newRect.top
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue
+    element.animate(
+      [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'translate(0, 0)' }],
+      { duration: 220, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' }
+    )
+  }
+}
+
+function restoreTableViewAfterDispatch(
+  view: EditorView,
+  from: number,
+  scrollLeft: number,
+  selection?: TableSelection,
+  move?: TableMove,
+  previous?: DOMRect[]
+): void {
+  requestAnimationFrame(() => {
+    if (view.state.facet(readOnlyFacet)) return
+    const nextWrap = findTableWrapAt(view, from)
+    if (!nextWrap) return
+    nextWrap.scrollLeft = scrollLeft
+    if (selection) selectTableCells(nextWrap, selection, true, false)
+    if (move && previous) animateTableMove(nextWrap, move, previous)
+  })
+}
+
+function dispatchModel(
+  view: EditorView,
+  wrap: HTMLElement,
+  nextModel: TableModel,
+  selection?: TableSelection,
+  move?: TableMove
+): void {
   // A menu can outlive the editable widget that created it when the
   // host toggles reading mode. Guard before touching its now-detached
   // DOM so a stale menu action cannot mutate a read-only document (or
@@ -909,10 +1536,15 @@ function dispatchModel(view: EditorView, wrap: HTMLElement, nextModel: TableMode
   if (view.state.facet(readOnlyFacet)) return
   const range = findCurrentTableRange(view, wrap)
   if (!range) return
+  const scrollLeft = wrap.scrollLeft
+  const previous = move
+    ? moveElements(wrap, move.axis).map((element) => element.getBoundingClientRect())
+    : undefined
   const next = serializeTable(nextModel)
   view.dispatch({
     changes: { from: range.from, to: range.to, insert: next }
   })
+  restoreTableViewAfterDispatch(view, range.from, scrollLeft, selection, move, previous)
 }
 
 function openCellMenu(view: EditorView, cell: HTMLElement, x: number, y: number): void {
@@ -921,135 +1553,231 @@ function openCellMenu(view: EditorView, cell: HTMLElement, x: number, y: number)
   const isHeader = cell.tagName === 'TH'
   const row = cellRowIndex(cell)
   const col = cellColIndex(cell)
+  const point = pointForCell(cell)
+  const currentModel = readModelFromDom(wrap)
+  let selection = tableSelections.get(wrap)
+  if (!selection || !selectionContains(currentModel, selection, point)) {
+    selection = { anchor: point, head: point }
+    selectTableCells(wrap, selection, false, false)
+  }
+  const bounds = normalizeTableSelection(currentModel, selection)
+  const selectedColumnCount = bounds.right - bounds.left + 1
+  const firstSelectedBodyRow = Math.max(0, bounds.top - 1)
+  const lastSelectedBodyRow = Math.min(currentModel.rows.length - 1, bounds.bottom - 1)
+  const selectedBodyRowCount = Math.max(0, lastSelectedBodyRow - firstSelectedBodyRow + 1)
 
-  const menu = document.createElement('div')
-  menu.className = 'cm-atomic-table-menu'
-  menu.style.left = `${x}px`
-  menu.style.top = `${y}px`
-
-  type MenuItem = { label: string; action: () => void } | 'separator'
-  const items: MenuItem[] = []
-
-  if (!isHeader) {
-    items.push({
-      label: 'Insert row above',
-      action: () => {
-        const m = readModelFromDom(wrap)
-        m.rows.splice(
-          row,
-          0,
-          m.header.map(() => '')
+  const modifier = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+'
+  const formatItems: TableContextMenuEntry[] = [
+    {
+      label: 'Bold',
+      icon: 'bold',
+      shortcut: `${modifier}B`,
+      action: () =>
+        dispatchModel(
+          view,
+          wrap,
+          formatTableSelection(readModelFromDom(wrap), selection, 'bold'),
+          selection
         )
-        dispatchModel(view, wrap, m)
-      }
-    })
-    items.push({
-      label: 'Insert row below',
-      action: () => {
-        const m = readModelFromDom(wrap)
-        m.rows.splice(
-          row + 1,
-          0,
-          m.header.map(() => '')
+    },
+    {
+      label: 'Italic',
+      icon: 'italic',
+      shortcut: `${modifier}I`,
+      action: () =>
+        dispatchModel(
+          view,
+          wrap,
+          formatTableSelection(readModelFromDom(wrap), selection, 'italic'),
+          selection
         )
-        dispatchModel(view, wrap, m)
+    },
+    {
+      label: 'Strikethrough',
+      icon: 'strike',
+      action: () =>
+        dispatchModel(
+          view,
+          wrap,
+          formatTableSelection(readModelFromDom(wrap), selection, 'strikethrough'),
+          selection
+        )
+    }
+  ]
+
+  const rowItems: TableContextMenuEntry[] = [
+    {
+      label: 'Add row above',
+      icon: 'add',
+      action: () => dispatchModel(view, wrap, insertTableRow(readModelFromDom(wrap), row))
+    },
+    {
+      label: 'Add row below',
+      icon: 'add',
+      action: () => dispatchModel(view, wrap, insertTableRow(readModelFromDom(wrap), row + 1))
+    },
+    'separator',
+    {
+      label: 'Move row up',
+      icon: 'move-up',
+      disabled: row <= 0,
+      action: () => dispatchModel(view, wrap, moveTableRow(readModelFromDom(wrap), row, row - 1))
+    },
+    {
+      label: 'Move row down',
+      icon: 'move-down',
+      disabled: row >= currentModel.rows.length - 1,
+      action: () => dispatchModel(view, wrap, moveTableRow(readModelFromDom(wrap), row, row + 1))
+    },
+    {
+      label: 'Duplicate row',
+      icon: 'duplicate',
+      action: () => dispatchModel(view, wrap, duplicateTableRow(readModelFromDom(wrap), row))
+    },
+    'separator',
+    {
+      label: selectedBodyRowCount > 1 ? 'Delete rows' : 'Delete row',
+      icon: 'delete',
+      destructive: true,
+      action: () =>
+        dispatchModel(
+          view,
+          wrap,
+          deleteTableRows(readModelFromDom(wrap), firstSelectedBodyRow, selectedBodyRowCount)
+        )
+    }
+  ]
+
+  const columnItems: TableContextMenuEntry[] = [
+    {
+      label: 'Add column left',
+      icon: 'add',
+      action: () => dispatchModel(view, wrap, insertTableColumn(readModelFromDom(wrap), col))
+    },
+    {
+      label: 'Add column right',
+      icon: 'add',
+      action: () => dispatchModel(view, wrap, insertTableColumn(readModelFromDom(wrap), col + 1))
+    },
+    'separator',
+    {
+      label: 'Move column left',
+      icon: 'move-left',
+      disabled: col <= 0,
+      action: () => dispatchModel(view, wrap, moveTableColumn(readModelFromDom(wrap), col, col - 1))
+    },
+    {
+      label: 'Move column right',
+      icon: 'move-right',
+      disabled: col >= currentModel.header.length - 1,
+      action: () => dispatchModel(view, wrap, moveTableColumn(readModelFromDom(wrap), col, col + 1))
+    },
+    {
+      label: 'Duplicate column',
+      icon: 'duplicate',
+      action: () => dispatchModel(view, wrap, duplicateTableColumn(readModelFromDom(wrap), col))
+    },
+    'separator',
+    {
+      label: selectedColumnCount > 1 ? 'Delete columns' : 'Delete column',
+      icon: 'delete',
+      destructive: true,
+      disabled: selectedColumnCount >= currentModel.header.length,
+      action: () =>
+        dispatchModel(
+          view,
+          wrap,
+          deleteTableColumns(readModelFromDom(wrap), bounds.left, selectedColumnCount)
+        )
+    }
+  ]
+
+  const currentAlign = currentModel.aligns[col] ?? 'left'
+  const alignItems: TableContextMenuEntry[] = (['left', 'center', 'right'] as const).map(
+    (align) => ({
+      label: `Align ${align}`,
+      icon: align,
+      checked: currentAlign === align,
+      action: () => dispatchModel(view, wrap, setTableAlign(readModelFromDom(wrap), col, align))
+    })
+  )
+  const rowMenuItems: TableContextMenuEntry[] = isHeader
+    ? []
+    : [{ label: 'Row', icon: 'row', children: rowItems }]
+
+  const items: TableContextMenuEntry[] = [
+    {
+      label: 'Copy',
+      icon: 'copy',
+      shortcut: `${modifier}C`,
+      action: () =>
+        navigator.clipboard.writeText(tableSelectionToTsv(readModelFromDom(wrap), selection))
+    },
+    {
+      label: 'Cut',
+      icon: 'cut',
+      shortcut: `${modifier}X`,
+      action: async () => {
+        const model = readModelFromDom(wrap)
+        await navigator.clipboard.writeText(tableSelectionToTsv(model, selection))
+        dispatchModel(view, wrap, clearTableSelection(model, selection), selection)
       }
-    })
-    items.push({
-      label: 'Delete row',
-      action: () => {
-        const m = readModelFromDom(wrap)
-        if (row >= 0 && row < m.rows.length) m.rows.splice(row, 1)
-        dispatchModel(view, wrap, m)
+    },
+    {
+      label: 'Paste',
+      icon: 'paste',
+      shortcut: `${modifier}V`,
+      action: async () => {
+        const text = await navigator.clipboard.readText()
+        const model = readModelFromDom(wrap)
+        const matrix = parseTableClipboard(text)
+        dispatchModel(
+          view,
+          wrap,
+          pasteTableSelection(model, selection, matrix),
+          selectionForPastedMatrix(model, selection, matrix)
+        )
       }
-    })
-    items.push('separator')
-  }
-
-  items.push({
-    label: 'Insert column left',
-    action: () => {
-      const m = readModelFromDom(wrap)
-      m.header.splice(col, 0, '')
-      for (const r of m.rows) r.splice(col, 0, '')
-      dispatchModel(view, wrap, m)
+    },
+    {
+      label: 'Clear cells',
+      icon: 'clear',
+      shortcut: 'Backspace',
+      action: () =>
+        dispatchModel(view, wrap, clearTableSelection(readModelFromDom(wrap), selection), selection)
+    },
+    'separator',
+    { label: 'Format', icon: 'format', children: formatItems },
+    ...rowMenuItems,
+    { label: 'Column', icon: 'column', children: columnItems },
+    { label: 'Alignment', icon: 'align', children: alignItems },
+    {
+      label: 'Sort',
+      icon: 'sort',
+      children: [
+        {
+          label: 'Ascending',
+          icon: 'ascending',
+          action: () => dispatchModel(view, wrap, sortTableRows(readModelFromDom(wrap), col, 'asc'))
+        },
+        {
+          label: 'Descending',
+          icon: 'descending',
+          action: () =>
+            dispatchModel(view, wrap, sortTableRows(readModelFromDom(wrap), col, 'desc'))
+        }
+      ]
     }
-  })
-  items.push({
-    label: 'Insert column right',
-    action: () => {
-      const m = readModelFromDom(wrap)
-      m.header.splice(col + 1, 0, '')
-      for (const r of m.rows) r.splice(col + 1, 0, '')
-      dispatchModel(view, wrap, m)
-    }
-  })
-  items.push({
-    label: 'Delete column',
-    action: () => {
-      const m = readModelFromDom(wrap)
-      // Guard: don't leave the table with zero columns — lezer
-      // wouldn't re-parse that as a Table and the widget would
-      // vanish mid-edit. Keeping the last column as the floor.
-      if (m.header.length <= 1 || col < 0) return
-      m.header.splice(col, 1)
-      for (const r of m.rows) r.splice(col, 1)
-      dispatchModel(view, wrap, m)
-    }
-  })
+  ]
 
-  let dismissed = false
-  const dismiss = () => {
-    if (dismissed) return
-    dismissed = true
-    menu.remove()
-    document.removeEventListener('mousedown', onDocDown, true)
-    document.removeEventListener('keydown', onDocKey, true)
-  }
-  const onDocDown = (event: MouseEvent) => {
-    if (event.target instanceof Node && menu.contains(event.target)) return
-    dismiss()
-  }
-  const onDocKey = (event: KeyboardEvent) => {
-    if (event.key === 'Escape') dismiss()
-  }
+  const selectedRows = bounds.bottom - bounds.top + 1
+  const selectedColumns = bounds.right - bounds.left + 1
+  const selectionLabel =
+    selectedRows === 1 && selectedColumns === 1
+      ? `Row ${bounds.top + 1}, column ${bounds.left + 1}`
+      : `${selectedRows} × ${selectedColumns} cells`
 
-  for (const item of items) {
-    if (item === 'separator') {
-      const sep = document.createElement('div')
-      sep.className = 'cm-atomic-table-menu-sep'
-      menu.appendChild(sep)
-      continue
-    }
-    const btn = document.createElement('button')
-    btn.type = 'button'
-    btn.className = 'cm-atomic-table-menu-item'
-    btn.textContent = item.label
-    btn.addEventListener('click', () => {
-      item.action()
-      dismiss()
-    })
-    menu.appendChild(btn)
-  }
-
-  document.body.appendChild(menu)
-
-  // Clip the menu inside the viewport if it overflows.
-  const rect = menu.getBoundingClientRect()
-  if (rect.right > window.innerWidth) {
-    menu.style.left = `${Math.max(4, window.innerWidth - rect.width - 4)}px`
-  }
-  if (rect.bottom > window.innerHeight) {
-    menu.style.top = `${Math.max(4, window.innerHeight - rect.height - 4)}px`
-  }
-
-  // Deferred listener attach so the current contextmenu→document
-  // mousedown cycle doesn't immediately dismiss us.
-  setTimeout(() => {
-    if (dismissed) return
-    document.addEventListener('mousedown', onDocDown, true)
-    document.addEventListener('keydown', onDocKey, true)
-  }, 0)
+  openTableContextMenu({ x, y, label: selectionLabel, entries: items })
 }
 
 function dispatchModelFromDom(view: EditorView, cell: HTMLElement): void {
@@ -1198,7 +1926,7 @@ function backspaceAtTableBoundary(view: EditorView): boolean {
 
 // ---- state field ----------------------------------------------------
 
-function buildTableWidgets(state: EditorState): DecorationSet {
+function buildTableWidgets(state: EditorState, revision: number): DecorationSet {
   const ranges: Range<Decoration>[] = []
   const readOnly = state.facet(readOnlyFacet)
   // Force full-doc parse so tables past the initial parsed region
@@ -1221,7 +1949,7 @@ function buildTableWidgets(state: EditorState): DecorationSet {
       const endLine = doc.lineAt(node.to)
       ranges.push(
         Decoration.replace({
-          widget: new TableWidget(model, readOnly),
+          widget: new TableWidget(model, readOnly, revision),
           block: true
         }).range(startLine.from, endLine.to)
       )
@@ -1272,25 +2000,35 @@ function changeAffectsTables(tr: Transaction, existing: DecorationSet): boolean 
   return affected
 }
 
-const tableField = StateField.define<DecorationSet>({
-  create: (state) => buildTableWidgets(state),
-  update(deco, tr) {
+type TableFieldValue = { decorations: DecorationSet; revision: number }
+
+const tableField = StateField.define<TableFieldValue>({
+  create: (state) => ({ decorations: buildTableWidgets(state, 0), revision: 0 }),
+  update(value, tr) {
     // Tree-growth effect: lezer's background parser caught up to a
     // region that wasn't parsed when we last built. Rebuild so any
     // newly-visible Table nodes get their widget.
     for (const effect of tr.effects) {
-      if (effect.is(treeGrowthEffect)) return buildTableWidgets(tr.state)
+      if (effect.is(treeGrowthEffect)) {
+        return { ...value, decorations: buildTableWidgets(tr.state, value.revision) }
+      }
     }
     // Reading-mode toggle: rebuild so cells re-render editable / inert.
     if (tr.startState.facet(readOnlyFacet) !== tr.state.facet(readOnlyFacet)) {
-      return buildTableWidgets(tr.state)
+      return { ...value, decorations: buildTableWidgets(tr.state, value.revision) }
     }
-    if (!tr.docChanged) return deco
-    const mapped = deco.map(tr.changes)
-    if (!changeAffectsTables(tr, deco)) return mapped
-    return buildTableWidgets(tr.state)
+    if (!tr.docChanged) return value
+    const mapped = value.decorations.map(tr.changes)
+    if (!changeAffectsTables(tr, value.decorations)) {
+      return { ...value, decorations: mapped }
+    }
+    // Cell typing already updated its live DOM. Other table edits (including
+    // reorders and undo) must replace same-size widgets with fresh content.
+    const revision =
+      tr.annotation(Transaction.userEvent) === 'input.type' ? value.revision : value.revision + 1
+    return { decorations: buildTableWidgets(tr.state, revision), revision }
   },
-  provide: (f) => EditorView.decorations.from(f)
+  provide: (f) => EditorView.decorations.from(f, (value) => value.decorations)
 })
 
 export interface TablesConfig {

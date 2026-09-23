@@ -1,5 +1,7 @@
 import { EditorSelection, EditorState, type Extension } from '@codemirror/state'
+import { syntaxTree } from '@codemirror/language'
 import { EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view'
+import type { SyntaxNode } from '@lezer/common'
 import { getCM, Vim } from '@replit/codemirror-vim'
 
 export const slashCommands = [
@@ -28,32 +30,39 @@ interface SlashQuery {
 }
 
 export function findSlashQuery(textBeforeCursor: string): string | null {
-  return textBeforeCursor.match(/(?:^|\s)\/([^\s/]*)$/)?.[1] ?? null
+  return textBeforeCursor.match(/^\s*\/([^\s/]*)$/)?.[1] ?? null
 }
 
 export function canStartSlashQuery(textBeforeCursor: string): boolean {
-  return /(?:^|\s)$/.test(textBeforeCursor)
+  return /^\s*$/.test(textBeforeCursor)
 }
 
 export function fitSlashMenuPosition(
   anchor: { left: number; bottom: number },
-  editor: { left: number; top: number; width: number; height: number },
+  viewport: { width: number; height: number },
   menu: { width: number; height: number }
 ): { left: number; top: number } {
   return {
-    left: Math.max(8, Math.min(anchor.left - editor.left, editor.width - menu.width - 8)),
-    top: Math.max(8, Math.min(anchor.bottom - editor.top + 6, editor.height - menu.height - 8))
+    left: Math.max(8, Math.min(anchor.left, viewport.width - menu.width - 8)),
+    top: Math.max(8, Math.min(anchor.bottom + 6, viewport.height - menu.height - 8))
   }
 }
 
-function currentSlashQuery(state: EditorState): SlashQuery | null {
+export function currentSlashQuery(state: EditorState): SlashQuery | null {
   const selection = state.selection.main
   if (!selection.empty) return null
   const line = state.doc.lineAt(selection.head)
   const query = findSlashQuery(state.sliceDoc(line.from, selection.head))
-  return query === null
-    ? null
-    : { query, from: selection.head - query.length - 1, to: selection.head }
+  if (query === null || state.sliceDoc(selection.head, line.to).trim()) return null
+  const from = selection.head - query.length - 1
+  let node: SyntaxNode | null = syntaxTree(state).resolveInner(from, 1)
+  while (node) {
+    if (node.name === 'FencedCode' || node.name === 'CodeBlock' || node.name === 'Frontmatter') {
+      return null
+    }
+    node = node.parent
+  }
+  return { query, from, to: selection.head }
 }
 
 function filteredCommands(query: string): (typeof slashCommands)[number][] {
@@ -74,8 +83,9 @@ class SlashMenu {
     this.menu.className = 'cm-kuskus-slash-menu'
     this.menu.setAttribute('role', 'listbox')
     this.menu.setAttribute('aria-label', 'Formatting commands')
+    this.menu.hidden = true
     this.view.dom.addEventListener('keydown', this.onKeyDown, true)
-    this.view.dom.appendChild(this.menu)
+    this.view.dom.ownerDocument.body.appendChild(this.menu)
     this.updateMenu()
   }
 
@@ -95,14 +105,12 @@ class SlashMenu {
   }
 
   private updateMenu(): void {
-    const activeElement = this.view.dom.ownerDocument.activeElement
     const state =
-      activeElement instanceof Element &&
-      this.view.dom.contains(activeElement) &&
-      !this.view.state.facet(EditorState.readOnly)
+      this.view.hasFocus && !this.view.state.facet(EditorState.readOnly)
         ? currentSlashQuery(this.view.state)
         : null
     if (!state || this.signature(state) === this.dismissed) {
+      if (!state) this.dismissed = ''
       this.state = null
       this.menu.hidden = true
       return
@@ -139,13 +147,26 @@ class SlashMenu {
     }
 
     this.menu.hidden = false
-    const rect = this.view.coordsAtPos(state.from) ?? this.view.dom.getBoundingClientRect()
-    const position = fitSlashMenuPosition(rect, this.view.dom.getBoundingClientRect(), {
-      width: this.menu.offsetWidth,
-      height: this.menu.offsetHeight
+    this.view.requestMeasure({
+      read: (view) => {
+        const window = view.dom.ownerDocument.defaultView
+        if (!window) return null
+        const rect = view.coordsAtPos(state.from) ?? view.dom.getBoundingClientRect()
+        return fitSlashMenuPosition(
+          rect,
+          { width: window.innerWidth, height: window.innerHeight },
+          {
+            width: this.menu.offsetWidth,
+            height: this.menu.offsetHeight
+          }
+        )
+      },
+      write: (position) => {
+        if (!position || this.state !== state) return
+        this.menu.style.left = `${position.left}px`
+        this.menu.style.top = `${position.top}px`
+      }
     })
-    this.menu.style.left = `${position.left}px`
-    this.menu.style.top = `${position.top}px`
   }
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {

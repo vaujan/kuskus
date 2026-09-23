@@ -319,7 +319,7 @@
 }
 
 .cm-kuskus-slash-menu {
-  position: absolute;
+  position: fixed;
   z-index: 80;
   width: 18rem;
   max-height: 20rem;

@@ -64,6 +64,7 @@ import { cn } from '@/lib/utils'
 import { markdownCodeLanguage } from '@/features/items/markdown-code'
 import type { NoteFindTargetRef } from '@/features/items/note-editor'
 import { liveFindExtensions, unwireLiveFind, wireLiveFind } from '@/features/items/live/live-find'
+import { slashMenu } from '@/features/items/live/slash-menu'
 import {
   markdownVim,
   registerMarkdownVimActions,
@@ -521,6 +522,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         editorTheme,
         vimModeTheme,
         liveFindExtensions(),
+        slashMenu(),
         // Token classes for fenced code (tok-keyword, tok-string, …) shared with
         // the live editor and preview; the app's markdownHighlightStyle still
         // wins for Markdown markup itself.

@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict')
 const { readFileSync } = require('node:fs')
+const Module = require('node:module')
 const test = require('node:test')
 const ts = require('typescript')
 
@@ -19,10 +20,22 @@ require.extensions['.ts'] = (module, filename) => {
 const { markdown } = require('@codemirror/lang-markdown')
 const { EditorState } = require('@codemirror/state')
 const { GFM } = require('@lezer/markdown')
-const {
-  buildKuskusLiveDecorations,
-  buildKuskusImageBlocks
-} = require('../src/renderer/src/features/items/live/live-preview.ts')
+// Live-decoration tests never open the table context menu. Keep its TSX/UI
+// dependency out of this Node-only rendering test.
+const loadModule = Module._load
+Module._load = function (request, parent, isMain) {
+  if (request === './table-context-menu' && parent?.filename.endsWith('/table-widget.ts')) {
+    return { openTableContextMenu: () => undefined }
+  }
+  return loadModule.call(this, request, parent, isMain)
+}
+let livePreview
+try {
+  livePreview = require('../src/renderer/src/features/items/live/live-preview.ts')
+} finally {
+  Module._load = loadModule
+}
+const { buildKuskusLiveDecorations, buildKuskusImageBlocks } = livePreview
 const {
   markdownFrontmatter
 } = require('../src/renderer/src/features/items/markdown-frontmatter.ts')
