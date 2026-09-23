@@ -72,9 +72,10 @@ export interface NoteDetailMenuOptions {
   readableLineLength: boolean
   onInlineTitleChange: (checked: boolean) => void
   onReadableLineLengthChange: (checked: boolean) => void
-  onManageAttachments: () => void
   onShowDetails: () => void
   onCopyAsMarkdown: () => void
+  attachmentsCount: number
+  onManageAttachments: () => void
   onUseFirstLineAsTitle?: () => void
   zen?: boolean
   onZenChange?: (checked: boolean) => void
@@ -280,9 +281,15 @@ function ItemActions({
               <IconCopy aria-hidden="true" />
               Copy as Markdown
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={props.detailOptions.onManageAttachments}>
+            <DropdownMenuItem
+              disabled={props.detailOptions.attachmentsCount === 0}
+              onClick={props.detailOptions.onManageAttachments}
+            >
               <IconPaperclip aria-hidden="true" />
               Manage attachments
+              <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                {props.detailOptions.attachmentsCount}
+              </span>
             </DropdownMenuItem>
             <DropdownMenuItem onClick={props.detailOptions.onShowDetails}>
               <IconInfoCircle aria-hidden="true" />

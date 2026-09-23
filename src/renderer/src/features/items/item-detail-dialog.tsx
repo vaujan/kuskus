@@ -5,6 +5,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useId,
   useImperativeHandle,
   useLayoutEffect,
   useMemo,
@@ -22,6 +23,7 @@ import {
   IconColumns2 as Columns2,
   IconCopy as Copy,
   IconDimensions as Dimensions,
+  IconDots as MoreActions,
   IconEye as Eye,
   IconEyeEdit as EyeEdit,
   IconExternalLink as ExternalLink,
@@ -34,6 +36,7 @@ import {
   IconPhotoOff as ImageOff,
   IconPhoto as Image,
   IconPencil as Pencil,
+  IconTextCaption as TextCaption,
   IconPlayerPlayFilled as Play,
   IconTrash as Trash,
   IconWorld as Globe2,
@@ -56,9 +59,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
@@ -143,7 +148,9 @@ import type {
 } from '../../../../shared/library-contract'
 import {
   encodeMarkdownImageTarget,
-  markdownImageTargetKey
+  findMarkdownImageAltText,
+  markdownImageTargetKey,
+  rewriteMarkdownImageAltText
 } from '../../../../shared/markdown-image-references'
 
 const NoteSourceEditor = lazy(() =>
@@ -458,7 +465,9 @@ function DetailToolbar({
   showClose?: boolean
 }): React.JSX.Element {
   if (presentation === 'focus') {
-    const isMac = window.electron.window.platform === 'darwin'
+    const platform = window.electron.window.platform
+    const captionControlsPadding =
+      platform === 'win32' ? 'pr-[8.625rem]' : platform === 'darwin' ? undefined : 'pr-[7.5rem]'
 
     return (
       <header
@@ -501,7 +510,7 @@ function DetailToolbar({
           data-detail-focus-actions
           className={cn(
             'pointer-events-auto ml-auto flex min-w-0 items-center gap-1 justify-end [&_button]:[-webkit-app-region:no-drag]',
-            !isMac && 'pr-[8.625rem]'
+            captionControlsPadding
           )}
         >
           {modeControls}
@@ -1674,149 +1683,290 @@ function NoteAttachmentRow({
   attachment,
   item,
   referenceCount,
+  editingAltText,
+  altTextDraft,
   onRename,
+  onEditAltText,
+  onAltTextDraftChange,
+  onSaveAltText,
+  onCancelAltText,
+  onOpenInApp,
   onError
 }: {
   attachment: Extract<LibraryItemDto, { type: 'note' }>['attachments'][number]
   item: Extract<LibraryItemDto, { type: 'image' }> | null
   referenceCount: number
-  onRename: () => void
+  editingAltText: boolean
+  altTextDraft: string
+  onRename?: () => void
+  onEditAltText: () => void
+  onAltTextDraftChange: (value: string) => void
+  onSaveAltText: () => void
+  onCancelAltText: () => void
+  onOpenInApp: () => void
   onError: (message: string) => void
 }): React.JSX.Element {
+  const altTextInputId = useId()
+  const altTextInputRef = useRef<HTMLInputElement>(null)
   const preview = useImagePreview(item?.id ?? attachment.id, !item || attachment.missingContent)
+  const status = attachment.missingContent
+    ? 'Missing from the vault'
+    : referenceCount > 1
+      ? `Used by ${referenceCount} notes`
+      : attachment.relativePath
   return (
-    <li className="flex min-w-0 gap-3 rounded-xl bg-muted/45 p-2 shadow-[inset_0_0_0_1px_color-mix(in_oklab,currentColor_6%,transparent)]">
-      {preview.preview ? (
-        <img
-          className="size-14 shrink-0 rounded object-cover outline -outline-offset-1 outline-black/10 dark:outline-white/10"
-          src={preview.preview}
-          alt=""
-        />
-      ) : (
-        <span className="flex size-14 shrink-0 items-center justify-center rounded bg-background/70 text-muted-foreground shadow-sm">
-          {attachment.missingContent ? (
-            <ImageOff className="size-5" aria-hidden="true" />
-          ) : (
-            <Image className="size-5" aria-hidden="true" />
-          )}
+    <li className="rounded-2xl bg-muted/45 p-2">
+      <div className="flex min-h-14 items-center gap-3 p-1">
+        {preview.preview ? (
+          <img
+            className="size-12 shrink-0 rounded-lg object-cover outline -outline-offset-1 outline-black/10 dark:outline-white/10"
+            src={preview.preview}
+            alt=""
+            width={48}
+            height={48}
+          />
+        ) : (
+          <span
+            className={cn(
+              'flex size-12 shrink-0 items-center justify-center rounded-lg bg-background text-muted-foreground',
+              attachment.missingContent && 'text-destructive'
+            )}
+          >
+            {attachment.missingContent ? (
+              <ImageOff aria-hidden="true" />
+            ) : (
+              <Image aria-hidden="true" />
+            )}
+          </span>
+        )}
+        <span className="flex min-w-0 flex-1 flex-col items-start">
+          <span className="w-full truncate font-medium" title={attachment.filename}>
+            {attachment.filename}
+          </span>
+          <span
+            className={cn(
+              'w-full truncate text-xs font-normal text-muted-foreground tabular-nums',
+              attachment.missingContent && 'font-medium text-destructive'
+            )}
+            title={status}
+          >
+            {status}
+          </span>
         </span>
-      )}
-      <div className="min-w-0 flex-1 py-0.5">
-        <p className="truncate text-sm font-medium" title={attachment.filename}>
-          {attachment.filename}
-        </p>
-        <p className="truncate text-xs text-muted-foreground" title={attachment.relativePath}>
-          {attachment.relativePath}
-        </p>
-        <p className="mt-1 text-[0.6875rem] text-muted-foreground tabular-nums">
-          {attachment.missingContent
-            ? 'Missing image'
-            : referenceCount > 1
-              ? `Shared by ${referenceCount} notes`
-              : item
-                ? 'Used by this note'
-                : 'Untracked vault image'}
-        </p>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-10 shrink-0"
+                aria-label={`More actions for ${attachment.filename}`}
+              />
+            }
+          >
+            <MoreActions aria-hidden="true" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            className="w-56"
+            finalFocus={editingAltText ? altTextInputRef : true}
+          >
+            <DropdownMenuGroup>
+              <DropdownMenuItem disabled={!item || attachment.missingContent} onClick={onOpenInApp}>
+                <Eye aria-hidden="true" />
+                Open in Kuskus
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!item || attachment.missingContent}
+                onClick={() => {
+                  if (!item) return
+                  void window.kuskus.openItemInDefaultApp(item.id).then((result) => {
+                    if (!result.ok) onError(result.error)
+                  })
+                }}
+              >
+                <ExternalLink aria-hidden="true" />
+                Open in default app
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem disabled={editingAltText} onClick={onEditAltText}>
+                <TextCaption aria-hidden="true" />
+                Edit alt text
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!item || attachment.missingContent || !onRename}
+                onClick={onRename}
+              >
+                <Pencil aria-hidden="true" />
+                Rename file
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!item || attachment.missingContent}
+                onClick={() => {
+                  if (!item) return
+                  void window.kuskus.copyItemPath(item.id).then((result) => {
+                    if (!result.ok) onError(result.error)
+                  })
+                }}
+              >
+                <Copy aria-hidden="true" />
+                Copy file path
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!item || attachment.missingContent}
+                onClick={() => {
+                  if (!item) return
+                  void window.kuskus.showItemInExplorer(item.id).then((result) => {
+                    if (!result.ok) onError(result.error)
+                  })
+                }}
+              >
+                <FolderOpen aria-hidden="true" />
+                Show in Explorer
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
-      <div className="flex shrink-0 items-start">
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          className="size-10"
-          aria-label={`Rename ${attachment.filename}`}
-          disabled={!item || attachment.missingContent}
-          onClick={onRename}
-        >
-          <Pencil aria-hidden="true" />
-        </Button>
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          className="size-10"
-          aria-label={`Show ${attachment.filename} in Explorer`}
-          disabled={!item || attachment.missingContent}
-          onClick={() => {
-            if (!item) return
-            void window.kuskus.showItemInExplorer(item.id).then((result) => {
-              if (!result.ok) onError(result.error)
-            })
+      {editingAltText ? (
+        <form
+          className="flex flex-col gap-3 p-2"
+          onSubmit={(event) => {
+            event.preventDefault()
+            onSaveAltText()
           }}
         >
-          <FolderOpen aria-hidden="true" />
-        </Button>
-      </div>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor={altTextInputId}>Alt text</FieldLabel>
+              <Input
+                id={altTextInputId}
+                ref={altTextInputRef}
+                value={altTextDraft}
+                maxLength={500}
+                autoFocus
+                onChange={(event) => onAltTextDraftChange(event.currentTarget.value)}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Escape') return
+                  event.preventDefault()
+                  event.stopPropagation()
+                  onCancelAltText()
+                }}
+              />
+            </Field>
+          </FieldGroup>
+          <p className="text-xs text-muted-foreground">
+            Updates every reference in this note. Leave empty for a decorative image.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button type="button" size="sm" variant="ghost" onClick={onCancelAltText}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm">
+              Save alt text
+            </Button>
+          </div>
+        </form>
+      ) : null}
     </li>
   )
 }
 
-function NoteAttachmentsPanel({
+function NoteAttachmentsDialog({
   note,
   libraryItems,
-  onClose,
+  markdownBody,
+  onOpenChange,
   onRename,
+  onSaveAltText,
+  onOpenInApp,
   onError
 }: {
   note: Extract<LibraryItemDto, { type: 'note' }>
   libraryItems: readonly LibraryItemDto[]
-  onClose: () => void
-  onRename: (itemId: string) => void
+  markdownBody: string
+  onOpenChange: (open: boolean) => void
+  onRename?: (itemId: string) => void
+  onSaveAltText: (attachmentId: string, value: string) => boolean
+  onOpenInApp: (itemId: string) => void
   onError: (message: string) => void
 }): React.JSX.Element {
-  const imageItems = new Map(
-    libraryItems
-      .filter((item): item is Extract<LibraryItemDto, { type: 'image' }> => item.type === 'image')
-      .map((item) => [item.id, item])
-  )
-  const referenceCounts = new Map<string, number>()
-  for (const item of libraryItems) {
-    if (item.type !== 'note') continue
-    for (const attachment of item.attachments) {
-      referenceCounts.set(attachment.id, (referenceCounts.get(attachment.id) ?? 0) + 1)
+  const [editingAltTextId, setEditingAltTextId] = useState<string | null>(null)
+  const [altTextDraft, setAltTextDraft] = useState('')
+  const { imageItems, referenceCounts } = useMemo(() => {
+    const imageItems = new Map<string, Extract<LibraryItemDto, { type: 'image' }>>()
+    const referenceCounts = new Map<string, number>()
+    for (const item of libraryItems) {
+      if (item.type === 'image') imageItems.set(item.id, item)
+      if (item.type !== 'note') continue
+      for (const attachment of item.attachments) {
+        referenceCounts.set(attachment.id, (referenceCounts.get(attachment.id) ?? 0) + 1)
+      }
     }
-  }
+    return { imageItems, referenceCounts }
+  }, [libraryItems])
+  const missingCount = note.attachments.filter((attachment) => attachment.missingContent).length
   return (
-    <aside
-      data-detail-structural-surface
-      className="absolute inset-y-0 right-0 z-10 flex w-80 shrink-0 flex-col border-l bg-popover shadow-xl @min-[860px]/detail:static @min-[860px]/detail:shadow-none"
-    >
-      <header className="flex min-h-16 items-center gap-3 px-4">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-medium">Attachments</h2>
-          <p className="text-xs text-muted-foreground tabular-nums">
-            {note.attachments.length} {note.attachments.length === 1 ? 'image' : 'images'}
-          </p>
-        </div>
-        <Button
-          type="button"
-          size="icon"
-          variant="ghost"
-          className="size-10"
-          aria-label="Close attachments"
-          onClick={onClose}
-        >
-          <X aria-hidden="true" />
-        </Button>
-      </header>
-      <ScrollArea className="min-h-0 flex-1">
-        <ul className="space-y-2 p-3 pt-1">
-          {note.attachments.map((attachment) => {
-            const image = imageItems.get(attachment.id) ?? null
-            return (
-              <NoteAttachmentRow
-                key={`${attachment.id}-${attachment.relativePath}`}
-                attachment={attachment}
-                item={image}
-                referenceCount={referenceCounts.get(attachment.id) ?? 1}
-                onRename={() => image && onRename(image.id)}
-                onError={onError}
-              />
-            )
-          })}
-        </ul>
-      </ScrollArea>
-    </aside>
+    <ConflictDialog open onOpenChange={onOpenChange}>
+      <ConflictDialogContent className="sm:max-w-xl">
+        <ConflictDialogHeader>
+          <ConflictDialogTitle>Manage attachments</ConflictDialogTitle>
+          <ConflictDialogDescription>
+            {note.attachments.length} {note.attachments.length === 1 ? 'image' : 'images'} in this
+            note{missingCount > 0 ? ` · ${missingCount} missing` : ''}
+          </ConflictDialogDescription>
+        </ConflictDialogHeader>
+        <ScrollArea className="max-h-[min(60vh,32rem)]">
+          <ul className="flex flex-col gap-2 pr-3">
+            {note.attachments.map((attachment) => {
+              const image = imageItems.get(attachment.id) ?? null
+              return (
+                <NoteAttachmentRow
+                  key={`${attachment.id}-${attachment.relativePath}`}
+                  attachment={attachment}
+                  item={image}
+                  referenceCount={referenceCounts.get(attachment.id) ?? 1}
+                  editingAltText={editingAltTextId === attachment.id}
+                  altTextDraft={altTextDraft}
+                  onRename={
+                    onRename
+                      ? () => {
+                          if (!image) return
+                          onOpenChange(false)
+                          onRename(image.id)
+                        }
+                      : undefined
+                  }
+                  onEditAltText={() => {
+                    setAltTextDraft(
+                      findMarkdownImageAltText(markdownBody, [
+                        attachment.relativePath,
+                        attachment.filename
+                      ]) ?? ''
+                    )
+                    setEditingAltTextId(attachment.id)
+                  }}
+                  onAltTextDraftChange={setAltTextDraft}
+                  onSaveAltText={() => {
+                    if (onSaveAltText(attachment.id, altTextDraft)) setEditingAltTextId(null)
+                  }}
+                  onCancelAltText={() => setEditingAltTextId(null)}
+                  onOpenInApp={() => {
+                    if (!image) return
+                    onOpenChange(false)
+                    onOpenInApp(image.id)
+                  }}
+                  onError={onError}
+                />
+              )
+            })}
+          </ul>
+        </ScrollArea>
+      </ConflictDialogContent>
+    </ConflictDialog>
   )
 }
 
@@ -1999,7 +2149,8 @@ export interface ItemDetailProps {
   onRenameItem: (item: LibraryItemDto, title: string) => Promise<DetailTitleRenameResult>
   onUseFirstLineAsTitle: (item: Extract<LibraryItemDto, { type: 'note' }>) => Promise<void>
   libraryItems: readonly LibraryItemDto[]
-  onRenameAttachment: (itemId: string) => void
+  onRenameAttachment?: (itemId: string) => void
+  onOpenItemInApp: (itemId: string) => void
   renderActions?: (
     guard: (action: () => void) => void,
     detailOptions?: NoteDetailMenuOptions
@@ -2037,6 +2188,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       onUseFirstLineAsTitle,
       libraryItems,
       onRenameAttachment,
+      onOpenItemInApp,
       renderActions,
       onOpenVaultLink,
       onMoveToTrash,
@@ -2121,7 +2273,6 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
     const [renameDraft, setRenameDraft] = useState('')
     const changeExpanded = useCallback(
       (nextExpanded: boolean): void => {
-        if (nextExpanded) setAttachmentsOpen(false)
         onExpandedChange?.(nextExpanded)
       },
       [onExpandedChange]
@@ -2347,6 +2498,27 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       await openExternalUrlWithFeedback(item.sourceUrl)
     }
 
+    const saveAttachmentAltText = (attachmentId: string, altText: string): boolean => {
+      if (item?.type !== 'note' || !coordinator) return false
+      const attachment = item.attachments.find((candidate) => candidate.id === attachmentId)
+      if (!attachment) return false
+      const current = coordinator.getSnapshot().draft
+      const updated = rewriteMarkdownImageAltText(
+        current,
+        [attachment.relativePath, attachment.filename],
+        altText
+      )
+      if (
+        updated === current &&
+        findMarkdownImageAltText(current, [attachment.relativePath, attachment.filename]) === null
+      ) {
+        onError('This image is no longer referenced by the note.')
+        return false
+      }
+      if (updated !== current) coordinator.updateDraft(updated)
+      return true
+    }
+
     const handleKeyDown = (event: React.KeyboardEvent): void => {
       if (event.defaultPrevented) return
       const target = event.target as HTMLElement | null
@@ -2437,6 +2609,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
                       else notifyActionError('The note could not be copied to the clipboard.')
                     })
                   },
+                  attachmentsCount: item.attachments.length,
                   onManageAttachments: () => setAttachmentsOpen(true),
                   onShowDetails: () => setNoteDetailsOpen(true),
                   onUseFirstLineAsTitle:
@@ -2520,15 +2693,6 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
                   item={item}
                   open={noteDetailsOpen}
                   onOpenChange={setNoteDetailsOpen}
-                />
-              ) : null}
-              {attachmentsOpen ? (
-                <NoteAttachmentsPanel
-                  note={item}
-                  libraryItems={libraryItems}
-                  onClose={() => setAttachmentsOpen(false)}
-                  onRename={(itemId) => requestGuardedAction(() => onRenameAttachment(itemId))}
-                  onError={onError}
                 />
               ) : null}
             </div>
@@ -2631,6 +2795,22 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
             {detailContent}
           </section>
         )}
+        {item?.type === 'note' && attachmentsOpen ? (
+          <NoteAttachmentsDialog
+            note={item}
+            libraryItems={libraryItems}
+            markdownBody={coordinator?.getSnapshot().draft ?? snapshot.draft}
+            onOpenChange={setAttachmentsOpen}
+            onRename={
+              onRenameAttachment
+                ? (itemId) => requestGuardedAction(() => onRenameAttachment(itemId))
+                : undefined
+            }
+            onSaveAltText={saveAttachmentAltText}
+            onOpenInApp={(itemId) => requestGuardedAction(() => onOpenItemInApp(itemId))}
+            onError={onError}
+          />
+        ) : null}
         <RenameDialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
           <RenameDialogContent data-detail-rename-dialog showCloseButton>
             <form

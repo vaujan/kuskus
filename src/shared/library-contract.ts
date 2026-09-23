@@ -46,6 +46,7 @@ export const KUSKUS_CHANNELS = {
   importFile: 'library:import-file',
   copyLibraryPath: 'library:copy-library-path',
   copyItemPath: 'library:copy-item-path',
+  openItemInDefaultApp: 'library:open-item-in-default-app',
   showItemInExplorer: 'library:show-item-in-explorer',
   openExternalUrl: 'library:open-external-url',
   initializeVault: 'library:initialize-vault',
@@ -461,6 +462,7 @@ export interface KuskusLibraryApi {
   importFile: (input: FileImportInput) => Promise<ApiResult<FileItemDto>>
   copyLibraryPath: () => Promise<ApiResult<null>>
   copyItemPath: (itemId: string) => Promise<ApiResult<null>>
+  openItemInDefaultApp: (itemId: string) => Promise<ApiResult<null>>
   showItemInExplorer: (itemId: string) => Promise<ApiResult<null>>
   openExternalUrl: (url: string) => Promise<ApiResult<null>>
   onVaultChanged: (callback: () => void) => () => void

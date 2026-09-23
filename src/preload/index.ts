@@ -167,6 +167,8 @@ const libraryApi: KuskusLibraryApi = {
   importFile: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.importFile, input),
   copyLibraryPath: () => ipcRenderer.invoke(KUSKUS_CHANNELS.copyLibraryPath),
   copyItemPath: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.copyItemPath, itemId),
+  openItemInDefaultApp: (itemId) =>
+    ipcRenderer.invoke(KUSKUS_CHANNELS.openItemInDefaultApp, itemId),
   showItemInExplorer: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.showItemInExplorer, itemId),
   openExternalUrl: (url) => ipcRenderer.invoke(KUSKUS_CHANNELS.openExternalUrl, url),
   onVaultChanged: (callback) => {

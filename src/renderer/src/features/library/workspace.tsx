@@ -1874,6 +1874,7 @@ export function Workspace({
               setRenameTarget(image)
               setRenameTitle(image.title)
             }}
+            onOpenItemInApp={(itemId) => openDetail(itemId)}
             onMoveItem={(nextDestination) =>
               itemActions(state.item, [state.item.id]).onMove(nextDestination)
             }
@@ -1969,6 +1970,7 @@ export function Workspace({
           setRenameTarget(image)
           setRenameTitle(image.title)
         }}
+        onOpenItemInApp={(itemId) => openDetail(itemId)}
         onMoveItem={(destination) => itemActions(focusItem, [focusItem.id]).onMove(destination)}
         onOpenVaultLink={openVaultLink}
         onMoveToTrash={(itemId) => {

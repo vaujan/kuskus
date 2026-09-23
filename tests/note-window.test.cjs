@@ -21,10 +21,17 @@ const windowControlsSource = readFileSync(
   'utf8'
 )
 
-test('uses native window-manager controls on Linux', () => {
-  assert.match(mainWindowSource, /frame: !isWindows/)
-  assert.match(controllerSource, /frame: !isWindows/)
-  assert.match(windowControlsSource, /if \(!isWindows\) return null/)
+test('uses renderer window controls on Linux and Windows', () => {
+  assert.match(mainWindowSource, /frame: isMac/)
+  assert.match(controllerSource, /frame: isMac/)
+  assert.match(windowControlsSource, /const hasCustomControls = platform !== 'darwin'/)
+  assert.match(windowControlsSource, /if \(!hasCustomControls\) return null/)
+  assert.match(windowControlsSource, /function LinuxCaptionIcon/)
+  assert.match(windowControlsSource, /strokeWidth="1\.25"/)
+  assert.match(windowControlsSource, /strokeLinecap="square"/)
+  assert.match(windowControlsSource, /appearance === 'linux'/)
+  assert.match(windowControlsSource, /h-10 w-10 text-foreground/)
+  assert.doesNotMatch(windowControlsSource, /size-6 rounded-full bg-foreground/)
 })
 
 test('deduplicates note windows and rejects non-note items', () => {
@@ -75,6 +82,11 @@ test('copies the current note draft as Markdown from note action menus', () => {
   )
   assert.match(detailSource, /copyTextToClipboard\(snapshot\.draft\)/)
   assert.match(detailSource, /if \(copied\) notifyCopiedAsMarkdown\(\)/)
+})
+
+test('opens attachment management as a dialog from the detached note menu', () => {
+  assert.match(rendererSource, /onClick=\{options\.onManageAttachments\}/)
+  assert.doesNotMatch(rendererSource, /options\.attachmentsMenu|DropdownMenuSubTrigger/)
 })
 
 test('exposes native file and image copying from detail context menus', () => {

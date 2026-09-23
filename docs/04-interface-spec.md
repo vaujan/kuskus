@@ -349,7 +349,7 @@ of the active view.
 - A pasted clipboard image immediately focuses a selected timestamp filename stem while showing its
   fixed detected extension. Typing replaces the default; Enter or blur accepts the value, Escape
   keeps the default, and focus returns to the preserved note position. Generated Markdown uses an
-  empty alt (`![](…)`); later renames remain available from the note's Attachments panel.
+  empty alt (`![](…)`); later renames and alt text edits remain available from Manage attachments.
 - A URL added after Markdown has begun remains part of the note.
 - Multiple files show the detected count and per-import or aggregate progress.
 - Text remains editable as Markdown.
@@ -597,13 +597,27 @@ The detail dialog exposes:
   leaving Focus, or crossing below the split breakpoint. The rail retains its width, scroll, and
   selection while hidden, and the expansion preference is not persisted across app restarts.
 - A quiet item identity immediately above the note content, with the editable title stacked above
-  interactive metadata: active Inbox or folder context opens the existing move destination menu;
-  Updated opens a Created and Updated timestamp popover; and the attachment count opens a bounded
-  list with Rename, Show in Explorer, and Manage attachments actions. Metadata triggers and their
-  dropdowns size to their content within bounded maximum widths. Archive and Trash context remains
+  interactive metadata. Active Inbox or folder context opens the existing move destination menu,
+  and Updated opens a Created and Updated timestamp popover. Metadata triggers and their dropdowns
+  size to their content within bounded maximum widths. Archive and Trash context remains
   informational so moving cannot bypass restore semantics. The identity and its subtle bottom
   divider use the same comfortable or wide document frame as the note body. Read, Live, Markdown,
   and each Split pane share that responsive frame.
+- The detail More menu includes **Manage attachments** with the referenced-image count. Clicking it
+  closes the menu and opens a centered, scrollable dialog without resizing or dividing the note
+  pane. The option is disabled when the note has no attachments.
+- The dialog lists a compact preview, filename, and either the relative path or an exceptional
+  plain-language state for each image. Shared and missing images show their relevant state. Each
+  image row has a More button that opens a dropdown with Open in Kuskus, Open in default app, Edit
+  alt text, Rename file, Copy file path, and Show in Explorer. Actions that need a missing file are
+  disabled.
+- Edit alt text reveals an inline field in the selected image row, updates every Markdown reference
+  to that image in the current note draft, and uses the existing autosave flow. An empty value marks
+  a decorative image. The dialog has no file picker or add action; images enter notes through paste,
+  drop, or capture and editor workflows.
+- The dialog does not offer a second source of truth for removal. Removing an embed remains a normal
+  Markdown edit; deleting or moving the resulting independent image continues through the library's
+  guarded lifecycle actions.
 - Larger preview when supported.
 - A directly editable visible title for every active item type. Clicking the title edits the same
   typography in place without field borders, backgrounds, controls, or other editing indicators.
@@ -733,8 +747,9 @@ Required states include:
   warning within permanent-delete confirmation. The warning names affected notes and explains that
   Trash restore will no longer be available. Eligible note deletion also offers an unchecked
   **Also move unused images to Trash** option.
-- Note detail exposes an attachment-count control and side panel with thumbnail, filename, relative
-  path, shared count, Rename, and Show in Explorer. Invalid or conflicted note drafts guard rename.
+- Note detail exposes Manage attachments in the More menu with thumbnail, filename, relative path,
+  shared count, image opening, alt text editing, file path copying, Rename, and Show in Explorer.
+  Invalid or conflicted note drafts guard rename and navigation.
 
 ## Accessibility and keyboard behavior
 

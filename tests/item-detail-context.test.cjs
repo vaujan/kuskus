@@ -136,7 +136,7 @@ test('detail modes share the compact toolbar and inline document flow', () => {
 
   assert.match(detailSource, /data-detail-utility-bar/)
   assert.match(focusToolbarSource, /data-detail-focus-header/)
-  assert.match(focusToolbarSource, /relative z-40 flex h-10 shrink-0 items-center justify-between/)
+  assert.match(focusToolbarSource, /relative z-40 flex p-2 shrink-0 items-center justify-between/)
   assert.match(focusToolbarSource, /data-detail-focus-title/)
   assert.match(
     focusToolbarSource,
@@ -170,7 +170,7 @@ test('detail modes share the compact toolbar and inline document flow', () => {
     detailSource,
     /aria-label="Close item"[\s\S]*group-data-\[focus-single-pane=true\]\/focus-detail:hidden|group-data-\[focus-single-pane=true\]\/focus-detail:hidden[\s\S]*aria-label="Close item"/
   )
-  assert.match(focusToolbarSource, /!isMac && 'pr-\[8\.625rem\]'/)
+  assert.match(focusToolbarSource, /platform === 'win32' \? 'pr-\[8\.625rem\]'/)
   assert.doesNotMatch(focusToolbarSource, /Previous item|Next item/)
   assert.doesNotMatch(focusToolbarSource, /\[-webkit-app-region:drag\]/)
   assert.doesNotMatch(detailSource, /stroke=\{1\.5\}/)
@@ -236,7 +236,15 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.match(detailSource, /data-detail-content-stack/)
   assert.match(detailSource, /flex-1 flex-col/)
   assert.match(detailSource, /relative flex min-h-0 min-w-0 flex-1/)
-  assert.match(detailSource, /if \(nextExpanded\) setAttachmentsOpen\(false\)/)
+  assert.doesNotMatch(detailSource, /data-note-attachments-panel|NoteAttachmentAltTextDialog/)
+  assert.match(detailSource, /function NoteAttachmentsDialog/)
+  assert.match(detailSource, /aria-label=\{`More actions for \$\{attachment\.filename\}`\}/)
+  assert.match(detailSource, /finalFocus=\{editingAltText \? altTextInputRef : true\}/)
+  assert.match(detailSource, /<ConflictDialogTitle>Manage attachments<\/ConflictDialogTitle>/)
+  assert.match(
+    actionMenuSource,
+    /<DropdownMenuItem\s+disabled=\{props\.detailOptions\.attachmentsCount === 0\}\s+onClick=\{props\.detailOptions\.onManageAttachments\}/
+  )
   assert.match(
     detailSource,
     /event\.key === 'Escape' && expanded && !isEditingTarget[\s\S]*changeExpanded\(false\)/

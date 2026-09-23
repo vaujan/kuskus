@@ -1,4 +1,5 @@
 import { BrowserWindow, clipboard, dialog, ipcMain, nativeImage, shell } from 'electron'
+import { stat } from 'node:fs/promises'
 
 import {
   KUSKUS_CHANNELS,
@@ -587,6 +588,25 @@ export function registerLibraryIpc(
     }
     try {
       clipboard.writeText(await libraryService.getItemRevealPath(itemId))
+      return { ok: true, data: null }
+    } catch (error) {
+      return errorResult(error, 'not-found')
+    }
+  })
+
+  ipcMain.handle(KUSKUS_CHANNELS.openItemInDefaultApp, async (_event, itemId: unknown) => {
+    if (typeof itemId !== 'string') {
+      return errorResult(new Error('The item identifier is invalid.'), 'invalid-input')
+    }
+    try {
+      const item = await libraryService.getItemDetail(itemId)
+      if (item.type !== 'image' || item.missingContent) {
+        throw new Error('The image is unavailable.')
+      }
+      const path = await libraryService.getItemContentPath(itemId)
+      if (!(await stat(path)).isFile()) throw new Error('The image is unavailable.')
+      const error = await shell.openPath(path)
+      if (error) throw new Error(error)
       return { ok: true, data: null }
     } catch (error) {
       return errorResult(error, 'not-found')

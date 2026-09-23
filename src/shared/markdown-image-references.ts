@@ -1,6 +1,9 @@
 export interface MarkdownImageReference {
   start: number
   end: number
+  altStart: number
+  altEnd: number
+  altText: string
   destinationStart: number
   destinationEnd: number
   destination: string
@@ -25,6 +28,14 @@ function closingSquareBracket(source: string, start: number): number {
   return -1
 }
 
+function decodeMarkdownImageAltText(value: string): string {
+  return value.replace(/\\([\\\]])/g, '$1')
+}
+
+function encodeMarkdownImageAltText(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/\]/g, '\\]')
+}
+
 function trimDestinationEnd(source: string, start: number, end: number): number {
   let trimmed = end
   while (trimmed > start && /\s/.test(source[trimmed - 1])) trimmed -= 1
@@ -38,6 +49,9 @@ export function parseMarkdownImageReferences(source: string): MarkdownImageRefer
     if (source[start] !== '!' || source[start + 1] !== '[' || isEscaped(source, start)) continue
     const labelEnd = closingSquareBracket(source, start + 2)
     if (labelEnd < 0 || source[labelEnd + 1] !== '(') continue
+    const altStart = start + 2
+    const altEnd = labelEnd
+    const altText = decodeMarkdownImageAltText(source.slice(altStart, altEnd))
 
     let cursor = labelEnd + 2
     while (cursor < source.length && /[\t ]/.test(source[cursor])) cursor += 1
@@ -56,6 +70,9 @@ export function parseMarkdownImageReferences(source: string): MarkdownImageRefer
       references.push({
         start,
         end: cursor + 1,
+        altStart,
+        altEnd,
+        altText,
         destinationStart: angleStart,
         destinationEnd: destinationEnd + 1,
         destination: source.slice(destinationStart, destinationEnd),
@@ -87,6 +104,9 @@ export function parseMarkdownImageReferences(source: string): MarkdownImageRefer
     references.push({
       start,
       end: cursor + 1,
+      altStart,
+      altEnd,
+      altText,
       destinationStart: trimmedStart,
       destinationEnd,
       destination: source.slice(trimmedStart, destinationEnd),
@@ -95,6 +115,32 @@ export function parseMarkdownImageReferences(source: string): MarkdownImageRefer
     start = cursor
   }
   return references
+}
+
+export function findMarkdownImageAltText(
+  source: string,
+  targets: readonly string[]
+): string | null {
+  const targetKeys = new Set(targets.map(markdownImageTargetKey))
+  const reference = parseMarkdownImageReferences(source).find((candidate) =>
+    targetKeys.has(markdownImageTargetKey(candidate.destination))
+  )
+  return reference?.altText ?? null
+}
+
+export function rewriteMarkdownImageAltText(
+  source: string,
+  targets: readonly string[],
+  altText: string
+): string {
+  const targetKeys = new Set(targets.map(markdownImageTargetKey))
+  const replacement = encodeMarkdownImageAltText(altText)
+  let next = source
+  for (const reference of parseMarkdownImageReferences(source).reverse()) {
+    if (!targetKeys.has(markdownImageTargetKey(reference.destination))) continue
+    next = `${next.slice(0, reference.altStart)}${replacement}${next.slice(reference.altEnd)}`
+  }
+  return next
 }
 
 export function safeDecodeMarkdownTarget(value: string): string {

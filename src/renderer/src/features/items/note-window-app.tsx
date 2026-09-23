@@ -5,6 +5,7 @@ import {
   IconDots,
   IconFolderOpen,
   IconInfoCircle,
+  IconPaperclip,
   IconRulerMeasure,
   IconTextCaption
 } from '@tabler/icons-react'
@@ -80,26 +81,38 @@ function NoteWindowActions({
           </DropdownMenuCheckboxItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={options.onCopyAsMarkdown}>
-          <IconCopy aria-hidden="true" />
-          Copy as Markdown
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={onDuplicate}>
-          <IconCopyPlus aria-hidden="true" />
-          Duplicate note
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={onCopyPath}>
-          <IconCopy aria-hidden="true" />
-          Copy file path
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={options.onShowDetails}>
-          <IconInfoCircle aria-hidden="true" />
-          Note details
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={onShowInExplorer}>
-          <IconFolderOpen aria-hidden="true" />
-          Show in Explorer
-        </DropdownMenuItem>
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={options.onCopyAsMarkdown}>
+            <IconCopy aria-hidden="true" />
+            Copy as Markdown
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={options.attachmentsCount === 0}
+            onClick={options.onManageAttachments}
+          >
+            <IconPaperclip aria-hidden="true" />
+            Manage attachments
+            <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+              {options.attachmentsCount}
+            </span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onDuplicate}>
+            <IconCopyPlus aria-hidden="true" />
+            Duplicate note
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onCopyPath}>
+            <IconCopy aria-hidden="true" />
+            Copy file path
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={options.onShowDetails}>
+            <IconInfoCircle aria-hidden="true" />
+            Note details
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onShowInExplorer}>
+            <IconFolderOpen aria-hidden="true" />
+            Show in Explorer
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -282,7 +295,7 @@ export function NoteWindowApp({ itemId }: { itemId: string }): React.JSX.Element
             onItemUpdated={updateItem}
             onRenameItem={renameItem}
             onUseFirstLineAsTitle={useFirstLineAsTitle}
-            onRenameAttachment={() => undefined}
+            onOpenItemInApp={(imageId) => window.capture.openMainItem(imageId)}
             onMoveItem={() => undefined}
             onOpenVaultLink={openVaultLink}
             onMoveToTrash={(noteId) => {

@@ -10,9 +10,11 @@ const {
   isSingleWebUrl
 } = require('../src/renderer/src/features/capture/capture-detection.ts')
 const {
+  findMarkdownImageAltText,
   normalizeStagedAttachmentMarkdown,
   parseMarkdownImageReferences,
-  removeStagedAttachmentMarkdown
+  removeStagedAttachmentMarkdown,
+  rewriteMarkdownImageAltText
 } = require('../src/shared/markdown-image-references.ts')
 const {
   markdownPathForAttachment,
@@ -86,6 +88,32 @@ test('parses and repairs balanced Markdown image destinations without losing dra
     'Before\n\n![image](./image%20%282%29.png)\n\nAfter'
   )
   assert.equal(removeStagedAttachmentMarkdown(stale, attachment), 'Before\n\nAfter')
+})
+
+test('reads and rewrites image alt text for every matching attachment reference', () => {
+  const source = ['![First](./image.png)', '![Second](image.png)', '![Keep](./other.png)'].join(
+    '\n'
+  )
+
+  assert.equal(findMarkdownImageAltText(source, ['./image.png', 'image.png']), 'First')
+  const altText = 'Diagram ] detail'
+  const rewritten = rewriteMarkdownImageAltText(source, ['./image.png', 'image.png'], altText)
+  assert.equal(
+    rewritten,
+    [
+      '![Diagram \\] detail](./image.png)',
+      '![Diagram \\] detail](image.png)',
+      '![Keep](./other.png)'
+    ].join('\n')
+  )
+  assert.equal(findMarkdownImageAltText(rewritten, ['image.png']), altText)
+  const literalSlash = 'Diagram \\] detail'
+  assert.equal(
+    findMarkdownImageAltText(rewriteMarkdownImageAltText(source, ['image.png'], literalSlash), [
+      'image.png'
+    ]),
+    literalSlash
+  )
 })
 
 test('resolves same-folder attachment placement without coupling callers to its layout', () => {
