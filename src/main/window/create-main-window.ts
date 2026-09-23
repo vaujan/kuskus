@@ -6,12 +6,12 @@ import icon from '../../../resources/icon.png?asset'
 import devIcon from '../../../resources/icon-dev.png?asset'
 import { WINDOW_CHANNELS, type AppZoomShortcut } from '../../shared/window-contract'
 import { OPAQUE_WINDOW_BACKGROUND } from './window-material'
+import { installMaximizedStateUpdates } from './maximized-state'
 import { installDevToolsShortcut } from './devtools-shortcut'
 import { installTextContextMenu } from './text-context-menu'
 
 export function createMainWindow(): BrowserWindow {
   const isMac = process.platform === 'darwin'
-  const isWindows = process.platform === 'win32'
   const mainWindow = new BrowserWindow({
     width: 1120,
     height: 720,
@@ -20,7 +20,7 @@ export function createMainWindow(): BrowserWindow {
     show: false,
     backgroundColor: OPAQUE_WINDOW_BACKGROUND,
     autoHideMenuBar: true,
-    frame: !isWindows,
+    frame: isMac,
     ...(isMac ? { titleBarStyle: 'hiddenInset' as const } : {}),
     ...(isMac ? {} : { icon: is.dev ? devIcon : icon }),
     webPreferences: {
@@ -31,17 +31,9 @@ export function createMainWindow(): BrowserWindow {
     }
   })
 
-  const sendMaximizedState = (): void => {
-    if (!mainWindow.isDestroyed()) {
-      mainWindow.webContents.send(WINDOW_CHANNELS.maximizedChanged, mainWindow.isMaximized())
-    }
-  }
-
-  mainWindow.on('maximize', sendMaximizedState)
-  mainWindow.on('unmaximize', sendMaximizedState)
+  installMaximizedStateUpdates(mainWindow)
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
-    sendMaximizedState()
   })
 
   installTextContextMenu(mainWindow)

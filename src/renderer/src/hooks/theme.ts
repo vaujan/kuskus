@@ -4,6 +4,7 @@ export type ColorTheme =
   | 'kuskus'
   | 'graphite'
   | 'github'
+  | 'vscode'
   | 'ayu'
   | 'material'
   | 'moss'
@@ -53,6 +54,7 @@ export function resolveColorMode(value: string | null): ColorMode {
 export function resolveColorTheme(value: string | null): ColorTheme {
   return value === 'graphite' ||
     value === 'github' ||
+    value === 'vscode' ||
     value === 'ayu' ||
     value === 'material' ||
     value === 'moss' ||

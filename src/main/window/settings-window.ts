@@ -5,6 +5,7 @@ import { is } from '@electron-toolkit/utils'
 import icon from '../../../resources/icon.png?asset'
 import devIcon from '../../../resources/icon-dev.png?asset'
 import { OPAQUE_WINDOW_BACKGROUND } from './window-material'
+import { installMaximizedStateUpdates } from './maximized-state'
 import { installDevToolsShortcut } from './devtools-shortcut'
 import { installTextContextMenu } from './text-context-menu'
 
@@ -29,7 +30,6 @@ export class SettingsWindowController {
 
   private createWindow(): BrowserWindow {
     const isMac = process.platform === 'darwin'
-    const isWindows = process.platform === 'win32'
     const window = new BrowserWindow({
       title: 'Settings — Kuskus',
       width: 840,
@@ -39,7 +39,7 @@ export class SettingsWindowController {
       show: false,
       backgroundColor: OPAQUE_WINDOW_BACKGROUND,
       autoHideMenuBar: true,
-      frame: !isWindows,
+      frame: isMac,
       ...(isMac ? { titleBarStyle: 'hiddenInset' as const } : {}),
       ...(isMac ? {} : { icon: is.dev ? devIcon : icon }),
       webPreferences: {
@@ -52,6 +52,7 @@ export class SettingsWindowController {
 
     installTextContextMenu(window)
     installDevToolsShortcut(window)
+    installMaximizedStateUpdates(window)
     window.on('ready-to-show', () => window.show())
     window.on('closed', () => {
       if (this.window === window) this.window = null

@@ -16,12 +16,10 @@ const badgeVariants = cva(
         outline: 'border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground',
         ghost: 'hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50',
         link: 'text-primary underline-offset-4 hover:underline',
-        note: 'bg-item-note/12 text-item-note shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--item-note)_18%,transparent)]',
-        linkType:
-          'bg-item-link/12 text-item-link shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--item-link)_18%,transparent)]',
-        image:
-          'bg-item-image/12 text-item-image shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--item-image)_18%,transparent)]',
-        file: 'bg-item-file/12 text-item-file shadow-[inset_0_0_0_1px_color-mix(in_oklch,var(--item-file)_18%,transparent)]'
+        note: 'border-0 bg-item-note/12 text-item-note',
+        linkType: 'border-0 bg-item-link/12 text-item-link',
+        image: 'border-0 bg-item-image/12 text-item-image',
+        file: 'border-0 bg-item-file/12 text-item-file'
       },
       size: {
         default:

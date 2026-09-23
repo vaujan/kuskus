@@ -55,6 +55,7 @@ const COLOR_THEMES: ReadonlyArray<{ value: ColorTheme; label: string }> = [
   { value: 'kuskus', label: 'Kuskus' },
   { value: 'graphite', label: 'Graphite' },
   { value: 'github', label: 'GitHub' },
+  { value: 'vscode', label: 'VS Code' },
   { value: 'ayu', label: 'Ayu' },
   { value: 'material', label: 'Material' },
   { value: 'moss', label: 'Moss' },
@@ -124,7 +125,6 @@ export function SettingsWindowApp(): React.JSX.Element {
   const translucencyDisabled =
     translucentBackground.supported !== true || translucentBackground.reducedTransparency
   const isMac = window.electron.window.platform === 'darwin'
-  const showCustomTitleBar = window.electron.window.platform === 'win32' || isMac
   const commandKey = isMac ? 'Cmd' : 'Ctrl'
 
   useEffect(() => {
@@ -181,12 +181,10 @@ export function SettingsWindowApp(): React.JSX.Element {
 
   return (
     <main className="settings-window window-root window-canvas relative flex h-screen min-h-0 overflow-hidden text-foreground">
-      {showCustomTitleBar ? (
-        <div
-          className="pointer-events-none absolute top-0 right-0 left-10 z-30 h-10 [-webkit-app-region:drag] md:left-[208px]"
-          aria-hidden="true"
-        />
-      ) : null}
+      <div
+        className="pointer-events-none absolute top-0 right-0 left-10 z-30 h-10 [-webkit-app-region:drag] md:left-[208px]"
+        aria-hidden="true"
+      />
       <div className="absolute top-0 right-0 z-50 h-10">
         <WindowControls />
       </div>
@@ -243,12 +241,7 @@ export function SettingsWindowApp(): React.JSX.Element {
           <SidebarTrigger className="absolute top-1 left-1 z-40 md:hidden" />
           <ScrollArea className="scroll-fade-y size-full [&_[data-slot=scroll-area-viewport]]:focus-visible:ring-0 [&_[data-slot=scroll-area-viewport]]:focus-visible:outline-none">
             {section === 'appearance' ? (
-              <div
-                className={cn(
-                  'mx-auto flex w-full max-w-3xl flex-col gap-7 px-8 pb-8',
-                  showCustomTitleBar ? 'pt-12' : 'pt-8'
-                )}
-              >
+              <div className="mx-auto flex w-full max-w-3xl flex-col gap-7 px-8 pt-12 pb-8">
                 <div className="flex flex-col gap-1">
                   <h1 className="text-balance text-xl font-semibold">Appearance</h1>
                   <p className="text-pretty text-sm text-muted-foreground">
@@ -488,12 +481,7 @@ export function SettingsWindowApp(): React.JSX.Element {
                 </FieldGroup>
               </div>
             ) : section === 'editing' ? (
-              <div
-                className={cn(
-                  'mx-auto flex w-full max-w-3xl flex-col gap-7 px-8 pb-8',
-                  showCustomTitleBar ? 'pt-12' : 'pt-8'
-                )}
-              >
+              <div className="mx-auto flex w-full max-w-3xl flex-col gap-7 px-8 pt-12 pb-8">
                 <div className="flex flex-col gap-1">
                   <h1 className="text-balance text-xl font-semibold">Editing</h1>
                   <p className="text-pretty text-sm text-muted-foreground">
@@ -534,12 +522,7 @@ export function SettingsWindowApp(): React.JSX.Element {
                 </FieldSet>
               </div>
             ) : (
-              <div
-                className={cn(
-                  'mx-auto flex w-full max-w-3xl flex-col gap-7 px-8 pb-8',
-                  showCustomTitleBar ? 'pt-12' : 'pt-8'
-                )}
-              >
+              <div className="mx-auto flex w-full max-w-3xl flex-col gap-7 px-8 pt-12 pb-8">
                 <div className="flex flex-col gap-1">
                   <h1 className="text-balance text-xl font-semibold">Keyboard shortcuts</h1>
                   <p className="text-pretty text-sm text-muted-foreground">

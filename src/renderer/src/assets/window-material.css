@@ -15,7 +15,12 @@
   --window-sidebar: var(--sidebar);
 }
 
-:root:is([data-color-theme='github'], [data-color-theme='ayu'], [data-color-theme='material']) {
+:root:is(
+  [data-color-theme='github'],
+  [data-color-theme='vscode'],
+  [data-color-theme='ayu'],
+  [data-color-theme='material']
+) {
   --window-rail: color-mix(in srgb, var(--window-sidebar) 72%, var(--window-canvas));
 }
 

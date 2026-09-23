@@ -323,6 +323,84 @@
   --sidebar-ring: var(--ring);
 }
 
+:root[data-color-theme='vscode'] {
+  --background: #ffffff;
+  --foreground: #333333;
+  --card: #f3f3f3;
+  --card-foreground: var(--foreground);
+  --popover: #ffffff;
+  --popover-foreground: var(--foreground);
+  --primary: #006ab1;
+  --primary-foreground: #ffffff;
+  --secondary: #e8e8e8;
+  --secondary-foreground: var(--foreground);
+  --muted: #f3f3f3;
+  --muted-foreground: #616161;
+  --accent: var(--primary);
+  --accent-foreground: var(--primary-foreground);
+  --destructive: #c72e0f;
+  --border: #d4d4d4;
+  --input: #c8c8c8;
+  --ring: #007acc;
+  --code-background: #f3f3f3;
+  --chart-1: #795e26;
+  --chart-2: #a31515;
+  --chart-3: #af00db;
+  --chart-4: #0070c1;
+  --chart-5: #267f99;
+  --item-note: #af00db;
+  --item-link: #006ab1;
+  --item-image: #16825d;
+  --item-file: #a15c00;
+  --sidebar: #f3f3f3;
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: #e8e8e8;
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+}
+
+:root.dark[data-color-theme='vscode'] {
+  --background: #1e1e1e;
+  --foreground: #d4d4d4;
+  --card: #2d2d30;
+  --card-foreground: var(--foreground);
+  --popover: #252526;
+  --popover-foreground: #cccccc;
+  --primary: #007acc;
+  --primary-foreground: #ffffff;
+  --secondary: #37373d;
+  --secondary-foreground: #cccccc;
+  --muted: #2d2d30;
+  --muted-foreground: #a6a6a6;
+  --accent: var(--primary);
+  --accent-foreground: var(--primary-foreground);
+  --destructive: #f44747;
+  --border: #454545;
+  --input: #5a5a5a;
+  --ring: #007acc;
+  --code-background: #252526;
+  --chart-1: #dcdcaa;
+  --chart-2: #ce9178;
+  --chart-3: #c586c0;
+  --chart-4: #569cd6;
+  --chart-5: #4ec9b0;
+  --item-note: #c586c0;
+  --item-link: #569cd6;
+  --item-image: #4ec9b0;
+  --item-file: #d7ba7d;
+  --sidebar: #252526;
+  --sidebar-foreground: #cccccc;
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: #37373d;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #454545;
+  --sidebar-ring: var(--ring);
+}
+
 :root[data-color-theme='ayu'] {
   --background: #fcfcfc;
   --foreground: #5c6166;
@@ -1226,6 +1304,12 @@
   --theme-preview-accent: #4493f8;
 }
 
+[data-theme-choice='vscode'] {
+  --theme-preview-canvas: #1e1e1e;
+  --theme-preview-sidebar: #252526;
+  --theme-preview-accent: #007acc;
+}
+
 [data-theme-choice='ayu'] {
   --theme-preview-canvas: #0b0e14;
   --theme-preview-sidebar: #1c242e;
@@ -1398,7 +1482,7 @@
   :is(
     .kuskus-code-block pre,
     .kuskus-rich-document pre,
-    .kuskus-typeset .typeset-scroll,
+    .kuskus-typeset .typeset-scroll:not(.kuskus-markdown-table-scroll),
     [data-slot='dropdown-menu-content'],
     [data-slot='context-menu-content']
   ) {
@@ -1409,7 +1493,7 @@
   :is(
     .kuskus-code-block pre,
     .kuskus-rich-document pre,
-    .kuskus-typeset .typeset-scroll,
+    .kuskus-typeset .typeset-scroll:not(.kuskus-markdown-table-scroll),
     [data-slot='dropdown-menu-content'],
     [data-slot='context-menu-content']
   )::-webkit-scrollbar {
@@ -1420,7 +1504,7 @@
   :is(
     .kuskus-code-block pre,
     .kuskus-rich-document pre,
-    .kuskus-typeset .typeset-scroll,
+    .kuskus-typeset .typeset-scroll:not(.kuskus-markdown-table-scroll),
     [data-slot='dropdown-menu-content'],
     [data-slot='context-menu-content']
   )::-webkit-scrollbar-track {
@@ -1430,7 +1514,7 @@
   :is(
     .kuskus-code-block pre,
     .kuskus-rich-document pre,
-    .kuskus-typeset .typeset-scroll,
+    .kuskus-typeset .typeset-scroll:not(.kuskus-markdown-table-scroll),
     [data-slot='dropdown-menu-content'],
     [data-slot='context-menu-content']
   )::-webkit-scrollbar-thumb {
@@ -1442,7 +1526,7 @@
   :is(
     .kuskus-code-block pre,
     .kuskus-rich-document pre,
-    .kuskus-typeset .typeset-scroll,
+    .kuskus-typeset .typeset-scroll:not(.kuskus-markdown-table-scroll),
     [data-slot='dropdown-menu-content'],
     [data-slot='context-menu-content']
   )::-webkit-scrollbar-button {

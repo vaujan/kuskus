@@ -7,6 +7,7 @@ import devIcon from '../../../resources/icon-dev.png?asset'
 import { WINDOW_CHANNELS } from '../../shared/window-contract'
 import type { LibraryService } from '../library/library-service'
 import { OPAQUE_WINDOW_BACKGROUND } from './window-material'
+import { installMaximizedStateUpdates } from './maximized-state'
 import { installDevToolsShortcut } from './devtools-shortcut'
 import { installTextContextMenu } from './text-context-menu'
 
@@ -84,7 +85,6 @@ export class NoteWindowController {
 
   private createWindow(itemId: string, title: string): BrowserWindow {
     const isMac = process.platform === 'darwin'
-    const isWindows = process.platform === 'win32'
     const window = new BrowserWindow({
       title,
       width: 960,
@@ -94,7 +94,7 @@ export class NoteWindowController {
       show: false,
       backgroundColor: OPAQUE_WINDOW_BACKGROUND,
       autoHideMenuBar: true,
-      frame: !isWindows,
+      frame: isMac,
       ...(isMac ? { titleBarStyle: 'hiddenInset' as const } : {}),
       ...(isMac ? {} : { icon: is.dev ? devIcon : icon }),
       webPreferences: {
@@ -107,6 +107,7 @@ export class NoteWindowController {
 
     installTextContextMenu(window)
     installDevToolsShortcut(window)
+    installMaximizedStateUpdates(window)
     window.on('ready-to-show', () => window.show())
     window.on('close', (event) => {
       if (this.approvedCloses.delete(window)) return

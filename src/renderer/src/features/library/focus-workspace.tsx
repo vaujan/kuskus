@@ -38,8 +38,13 @@ export function FocusWorkspace({
   const dragStartRef = useRef<{ pointerX: number; width: number } | null>(null)
   const [availableWidth, setAvailableWidth] = useState(0)
   const split = availableWidth >= FOCUS_SPLIT_BREAKPOINT
-  const isMac = window.electron.window.platform === 'darwin'
+  const platform = window.electron.window.platform
+  const isMac = platform === 'darwin'
   const hasRendererCaptionControls = !isMac
+  const singlePaneCaptionPadding =
+    platform === 'win32'
+      ? '[&_[data-focus-list-header]]:pr-[8.875rem]'
+      : '[&_[data-focus-list-header]]:pr-[7.75rem]'
   const boundedWidth =
     availableWidth > 0 ? clampFocusListWidth(listWidth, availableWidth) : listWidth
 
@@ -90,10 +95,7 @@ export function FocusWorkspace({
           data-zen-hidden={expanded}
           className={cn(
             'focus-rail-surface focus-zen-rail relative flex min-h-0 min-w-0 shrink-0 flex-col overflow-hidden',
-            hasRendererCaptionControls &&
-              !split &&
-              !detailOpen &&
-              '[&_[data-focus-list-header]]:pr-[8.875rem]'
+            hasRendererCaptionControls && !split && !detailOpen && singlePaneCaptionPadding
           )}
           style={{ width: split ? (expanded ? 0 : boundedWidth) : '100%' }}
           aria-label="Item list"

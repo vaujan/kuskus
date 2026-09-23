@@ -26,6 +26,7 @@ test('resolves curated color themes and rejects stale values', () => {
   assert.equal(resolveColorTheme('kuskus'), 'kuskus')
   assert.equal(resolveColorTheme('graphite'), 'graphite')
   assert.equal(resolveColorTheme('github'), 'github')
+  assert.equal(resolveColorTheme('vscode'), 'vscode')
   assert.equal(resolveColorTheme('ayu'), 'ayu')
   assert.equal(resolveColorTheme('material'), 'material')
   assert.equal(resolveColorTheme('moss'), 'moss')
@@ -151,6 +152,7 @@ test('defines light and dark palettes for every iconic theme', () => {
 
   for (const theme of [
     'github',
+    'vscode',
     'ayu',
     'material',
     'solarized',
@@ -211,6 +213,7 @@ test('settings keeps contextual view controls on the surfaces they affect', () =
   assert.match(panel, /Kuskus/)
   assert.match(panel, /Graphite/)
   assert.match(panel, /GitHub/)
+  assert.match(panel, /VS Code/)
   assert.match(panel, /Ayu/)
   assert.match(panel, /Material/)
   assert.match(panel, /Moss/)
