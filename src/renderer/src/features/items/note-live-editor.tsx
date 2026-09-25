@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils'
 
 interface NoteLiveEditorProps extends NoteEditorProps {
   editable: boolean
+  contentFoldingEnabled: boolean
   liveOptions: LiveEditorOptions
   topContent?: React.ReactNode
   preserveScrollTopRef?: React.RefObject<number | null> | null
@@ -32,6 +33,7 @@ export const NoteLiveEditor = forwardRef<SourceNoteHandle, NoteLiveEditorProps>(
       value,
       active,
       editable,
+      contentFoldingEnabled,
       vimEnabled,
       vim,
       onChange,
@@ -66,6 +68,7 @@ export const NoteLiveEditor = forwardRef<SourceNoteHandle, NoteLiveEditorProps>(
         value={value}
         active={active}
         editable={editable}
+        contentFoldingEnabled={contentFoldingEnabled}
         liveOptions={liveOptions}
         topContent={topContent}
         preserveScrollTopRef={preserveScrollTopRef}

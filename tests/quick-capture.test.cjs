@@ -49,33 +49,23 @@ test('anchors quick capture inside the active display work area and clamps its h
   })
 })
 
-test('resolves quick-capture material and corner ownership by platform capability', () => {
-  assert.deepEqual(resolveQuickCapturePresentation('win32', '10.0.22621', false), {
+test('resolves quick-capture material and corners for Windows builds', () => {
+  assert.deepEqual(resolveQuickCapturePresentation('10.0.22621', false), {
     material: 'acrylic',
     corners: 'native',
     acrylicCapable: true
   })
-  assert.deepEqual(resolveQuickCapturePresentation('win32', '10.0.26100', true), {
+  assert.deepEqual(resolveQuickCapturePresentation('10.0.26100', true), {
     material: 'opaque',
     corners: 'native',
     acrylicCapable: true
   })
-  assert.deepEqual(resolveQuickCapturePresentation('win32', '10.0.22000', false), {
+  assert.deepEqual(resolveQuickCapturePresentation('10.0.22000', false), {
     material: 'opaque',
     corners: 'native',
     acrylicCapable: false
   })
-  assert.deepEqual(resolveQuickCapturePresentation('win32', 'unknown', false), {
-    material: 'opaque',
-    corners: 'css',
-    acrylicCapable: false
-  })
-  assert.deepEqual(resolveQuickCapturePresentation('darwin', '24.0.0', false), {
-    material: 'opaque',
-    corners: 'css',
-    acrylicCapable: false
-  })
-  assert.deepEqual(resolveQuickCapturePresentation('linux', '6.8.0', false), {
+  assert.deepEqual(resolveQuickCapturePresentation('unknown', false), {
     material: 'opaque',
     corners: 'css',
     acrylicCapable: false

@@ -10,13 +10,12 @@ export interface QuickCapturePresentation {
 }
 
 export function resolveQuickCapturePresentation(
-  platform: NodeJS.Platform,
   systemVersion: string,
   reducedTransparency: boolean
 ): QuickCapturePresentation {
   const build = parseWindowsBuild(systemVersion)
-  const nativeCorners = platform === 'win32' && build !== null && build >= 22000
-  const acrylicCapable = isTranslucentBackgroundSupported(platform, systemVersion)
+  const nativeCorners = build !== null && build >= 22000
+  const acrylicCapable = isTranslucentBackgroundSupported('win32', systemVersion)
 
   return {
     material: acrylicCapable && !reducedTransparency ? 'acrylic' : 'opaque',

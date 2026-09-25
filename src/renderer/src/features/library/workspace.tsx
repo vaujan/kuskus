@@ -41,7 +41,7 @@ import {
   EmptyHeader,
   EmptyTitle
 } from '@/components/ui/empty'
-import { Kbd } from '@/components/ui/kbd'
+import { ShortcutKbd } from '@/components/ui/kbd'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Switch } from '@/components/ui/switch'
 import { SidebarInset, SidebarProvider } from '@/features/shell/app-sidebar'
@@ -105,7 +105,6 @@ import {
   notifyArchived,
   notifyEmptyNoteTrashed,
   notifyGlobalCapturePrepared,
-  notifyGlobalCaptureUnavailable,
   notifyPermanentlyDeleted,
   notifyReferenceAwareMove,
   notifyRenamed,
@@ -273,7 +272,6 @@ export function Workspace({
   const pendingRevealItemId = useRef<string | null>(null)
   const loadMoreItemsRef = useRef<HTMLDivElement>(null)
   const firstCardPaintMeasured = useRef(false)
-  const shortcutFailureNotified = useRef(false)
   const captureOwner = useRef<CaptureSurface | null>(null)
   const mainComposerOwnershipRequested = useRef(false)
   const focusDetailRef = useRef<ItemDetailHandle>(null)
@@ -1330,17 +1328,8 @@ export function Workspace({
   }, [announceStatus, clearSelectionSilently])
 
   useEffect(() => {
-    let active = true
-    void window.electron.window.getGlobalCaptureShortcutStatus().then((status) => {
-      if (!active) return
-      if (!status.registered && !shortcutFailureNotified.current) {
-        shortcutFailureNotified.current = true
-        notifyGlobalCaptureUnavailable(status.accelerator)
-      }
-    })
     const unsubscribe = window.electron.window.onGlobalCaptureRequested(prepareGlobalCapture)
     return () => {
-      active = false
       unsubscribe()
     }
   }, [prepareGlobalCapture])
@@ -1749,14 +1738,14 @@ export function Workspace({
             !showExternalDropShadow ? (
             <>
               <Button aria-keyshortcuts="Control+N" onClick={() => openNewNote()}>
-                Create new note <Kbd>Ctrl+N</Kbd>
+                Create new note <ShortcutKbd shortcut="Ctrl+N" />
               </Button>
               <Button
                 variant="tonal"
                 aria-keyshortcuts="Control+Shift+N"
                 onClick={() => openComposer()}
               >
-                Add item <Kbd>Ctrl+Shift+N</Kbd>
+                Add item <ShortcutKbd shortcut="Ctrl+Shift+N" />
               </Button>
             </>
           ) : null
@@ -2021,19 +2010,19 @@ export function Workspace({
         {destination.type !== 'archive' && destination.type !== 'trash' ? (
           <>
             <Button aria-keyshortcuts="Control+N" onClick={() => openNewNote()}>
-              Create new note <Kbd>Ctrl+N</Kbd>
+              Create new note <ShortcutKbd shortcut="Ctrl+N" />
             </Button>
             <Button
               variant="tonal"
               aria-keyshortcuts="Control+Shift+N"
               onClick={() => openComposer()}
             >
-              Add item <Kbd>Ctrl+Shift+N</Kbd>
+              Add item <ShortcutKbd shortcut="Ctrl+Shift+N" />
             </Button>
           </>
         ) : null}
         <Button variant="ghost" aria-keyshortcuts="Escape" onClick={returnToMasonry}>
-          Return to overview <Kbd>Esc</Kbd>
+          Return to overview <ShortcutKbd shortcut="Esc" />
         </Button>
       </EmptyContent>
     </Empty>
@@ -2253,14 +2242,14 @@ export function Workspace({
                       <EmptyContent className="gap-2">
                         <div className="flex flex-wrap justify-center gap-2">
                           <Button aria-keyshortcuts="Control+N" onClick={() => openNewNote()}>
-                            Create new note <Kbd>Ctrl+N</Kbd>
+                            Create new note <ShortcutKbd shortcut="Ctrl+N" />
                           </Button>
                           <Button
                             variant="tonal"
                             aria-keyshortcuts="Control+Shift+N"
                             onClick={() => openComposer()}
                           >
-                            Add item <Kbd>Ctrl+Shift+N</Kbd>
+                            Add item <ShortcutKbd shortcut="Ctrl+Shift+N" />
                           </Button>
                         </div>
                       </EmptyContent>

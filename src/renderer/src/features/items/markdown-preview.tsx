@@ -1,8 +1,10 @@
+/* eslint-disable react/prop-types -- ReactMarkdown's Components type supplies these props. */
 import {
   Children,
   cloneElement,
   isValidElement,
   memo,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -14,6 +16,8 @@ import rehypeKatex from 'rehype-katex'
 import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
+import { IconChevronRight } from '@tabler/icons-react'
+import { GFM, parser } from '@lezer/markdown'
 
 import { cn } from '@/lib/utils'
 import { useNoteAttachmentPreviews } from '@/features/items/use-note-attachment-previews'
@@ -21,6 +25,7 @@ import type { NoteAttachmentDto } from '../../../../shared/library-contract'
 import { markdownImageTargetKey } from '../../../../shared/markdown-image-references'
 import { prepareObsidianMarkdown } from '@/features/items/obsidian-markdown'
 import { MarkdownCodeBlock, MarkdownCodeCardHeader } from '@/features/items/markdown-code-block'
+import { headingFoldTargets } from '@/features/items/heading-folding'
 import {
   decodeMarkdownLinkTarget,
   setMarkdownTaskChecked
@@ -28,6 +33,8 @@ import {
 
 const REMARK_PLUGINS = [remarkGfm, remarkBreaks, remarkMath]
 const REHYPE_PLUGINS = [rehypeKatex]
+const EMPTY_ATTACHMENTS: NoteAttachmentDto[] = []
+const HEADING_PARSER = parser.configure([GFM])
 
 function katexSource(node: React.ReactNode): string | null {
   if (!isValidElement<{ children?: React.ReactNode; encoding?: string }>(node)) return null
@@ -178,12 +185,13 @@ function EmbeddedImageState({ children }: { children: React.ReactNode }): React.
 export const MarkdownPreview = memo(function MarkdownPreview({
   value,
   itemId,
-  attachments = [],
+  attachments = EMPTY_ATTACHMENTS,
   attachmentPreviews,
   onOpenLink,
   onOpenVaultLink,
   onChange,
-  presentation = 'card'
+  presentation = 'card',
+  contentFoldingEnabled = true
 }: {
   value: string
   itemId?: string
@@ -193,9 +201,62 @@ export const MarkdownPreview = memo(function MarkdownPreview({
   onOpenVaultLink?: (target: string) => void
   onChange?: (value: string) => void
   presentation?: 'card' | 'compact' | 'detail'
+  contentFoldingEnabled?: boolean
 }): React.JSX.Element {
   const previewRef = useRef<HTMLDivElement>(null)
   const [isClipped, setIsClipped] = useState(false)
+  const [foldedListLines, setFoldedListLines] = useState<Set<number>>(() => new Set())
+  const [foldedHeadingLines, setFoldedHeadingLines] = useState<Set<number>>(() => new Set())
+  const pendingFoldScrollRef = useRef<{
+    viewport: HTMLElement
+    button: string
+    top: number
+  } | null>(null)
+  const rememberFoldPosition = useCallback(
+    (button: HTMLButtonElement, kind: 'heading' | 'list', line: number): void => {
+      const viewport = button.closest<HTMLElement>('[data-slot="scroll-area-viewport"]')
+      if (!viewport) return
+      pendingFoldScrollRef.current = {
+        viewport,
+        button: `[data-fold-kind="${kind}"][data-fold-line="${line}"]`,
+        top: button.getBoundingClientRect().top
+      }
+    },
+    []
+  )
+  const preparedMarkdown = useMemo(
+    () => prepareObsidianMarkdown(value, attachments),
+    [value, attachments]
+  )
+  const foldableHeadingLines = useMemo(() => {
+    if (presentation !== 'detail' || !contentFoldingEnabled) return new Set<number>()
+    const starts = [0]
+    for (let index = 0; index < preparedMarkdown.length; index += 1) {
+      if (preparedMarkdown[index] === '\n') starts.push(index + 1)
+    }
+    const lineAt = (position: number): { number: number; from: number; to: number } => {
+      let low = 0
+      let high = starts.length
+      while (low + 1 < high) {
+        const middle = Math.floor((low + high) / 2)
+        if (starts[middle] <= position) low = middle
+        else high = middle
+      }
+      return {
+        number: low + 1,
+        from: starts[low],
+        to: (starts[low + 1] ?? preparedMarkdown.length + 1) - 1
+      }
+    }
+    return new Set(
+      headingFoldTargets(
+        HEADING_PARSER.parse(preparedMarkdown),
+        lineAt,
+        preparedMarkdown.length
+      ).map((target) => target.line)
+    )
+  }, [preparedMarkdown, presentation, contentFoldingEnabled])
+
   const loadedPreviews = useNoteAttachmentPreviews(
     itemId ?? '',
     itemId ? attachments : [],
@@ -211,6 +272,37 @@ export const MarkdownPreview = memo(function MarkdownPreview({
     }
     return images
   }, [attachments, previews])
+
+  useLayoutEffect(() => {
+    if (presentation !== 'detail') return
+    const root = previewRef.current?.querySelector<HTMLElement>('.kuskus-typeset')
+    if (!root) return
+    const sections: { level: number; folded: boolean }[] = []
+    for (const element of Array.from(root.children) as HTMLElement[]) {
+      const level = Number(element.dataset.headingLevel)
+      if (level > 0) {
+        while (sections.length && sections[sections.length - 1].level >= level) sections.pop()
+        element.hidden = sections.some((section) => section.folded)
+        sections.push({
+          level,
+          folded:
+            contentFoldingEnabled && foldedHeadingLines.has(Number(element.dataset.headingLine))
+        })
+      } else {
+        element.hidden = sections.some((section) => section.folded)
+      }
+    }
+  }, [contentFoldingEnabled, foldedHeadingLines, preparedMarkdown, presentation])
+
+  useLayoutEffect(() => {
+    const pending = pendingFoldScrollRef.current
+    if (!pending) return
+    pendingFoldScrollRef.current = null
+    const button = previewRef.current?.querySelector<HTMLElement>(pending.button)
+    if (button) {
+      pending.viewport.scrollTop += button.getBoundingClientRect().top - pending.top
+    }
+  }, [foldedHeadingLines, foldedListLines])
 
   useLayoutEffect(() => {
     if (presentation === 'detail') return
@@ -231,7 +323,63 @@ export const MarkdownPreview = memo(function MarkdownPreview({
     }
   }, [presentation, value])
 
+  const renderHeading = (Tag: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'): Components['h1'] => {
+    function HeadingRenderer({
+      node,
+      children,
+      ...props
+    }: React.ComponentProps<'h1'> & {
+      node?: { position?: { start: { line?: number } } }
+    }): React.JSX.Element {
+      const line = node?.position?.start.line
+      const foldable = line !== undefined && foldableHeadingLines.has(line)
+      const folded = foldable && foldedHeadingLines.has(line)
+      return (
+        <Tag
+          {...props}
+          className={cn(props.className, foldable && 'kuskus-foldable-heading')}
+          data-heading-level={Number(Tag[1])}
+          data-heading-line={line}
+        >
+          {foldable ? (
+            <button
+              type="button"
+              className="kuskus-list-fold-button kuskus-heading-fold-button not-typeset"
+              data-not-typeset
+              data-fold-kind="heading"
+              data-fold-line={line}
+              aria-label={`${folded ? 'Expand' : 'Collapse'} heading section`}
+              aria-expanded={!folded}
+              title={`${folded ? 'Expand' : 'Collapse'} heading section`}
+              onClick={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                rememberFoldPosition(event.currentTarget, 'heading', line)
+                setFoldedHeadingLines((current) => {
+                  const next = new Set(current)
+                  if (next.has(line)) next.delete(line)
+                  else next.add(line)
+                  return next
+                })
+              }}
+            >
+              <IconChevronRight aria-hidden="true" />
+            </button>
+          ) : null}
+          {children}
+        </Tag>
+      )
+    }
+    return HeadingRenderer
+  }
+
   const components: Components = {
+    h1: renderHeading('h1'),
+    h2: renderHeading('h2'),
+    h3: renderHeading('h3'),
+    h4: renderHeading('h4'),
+    h5: renderHeading('h5'),
+    h6: renderHeading('h6'),
     ol: ({ className, start = 1, style, ...props }) => (
       <ol
         {...props}
@@ -268,14 +416,49 @@ export const MarkdownPreview = memo(function MarkdownPreview({
         }}
       />
     ),
-    li: ({ className, children, ...props }) => {
+    li: ({ node, className, children, ...props }) => {
+      const line = node?.position?.start.line
+      const hasChildren =
+        presentation === 'detail' &&
+        contentFoldingEnabled &&
+        node?.children.some(
+          (child) => child.type === 'element' && (child.tagName === 'ul' || child.tagName === 'ol')
+        ) === true &&
+        line !== undefined
+      const folded = hasChildren && foldedListLines.has(line)
+      const foldButton = hasChildren ? (
+        <button
+          type="button"
+          className="kuskus-list-fold-button not-typeset"
+          data-not-typeset
+          data-fold-kind="list"
+          data-fold-line={line}
+          aria-label={`${folded ? 'Expand' : 'Collapse'} nested list`}
+          aria-expanded={!folded}
+          title={`${folded ? 'Expand' : 'Collapse'} nested list`}
+          onClick={(event) => {
+            event.preventDefault()
+            event.stopPropagation()
+            rememberFoldPosition(event.currentTarget, 'list', line)
+            setFoldedListLines((current) => {
+              const next = new Set(current)
+              if (next.has(line)) next.delete(line)
+              else next.add(line)
+              return next
+            })
+          }}
+        >
+          <IconChevronRight aria-hidden="true" />
+        </button>
+      ) : null
       if (
         !String(className ?? '')
           .split(/\s+/)
           .includes('task-list-item')
       ) {
         return (
-          <li className={className} {...props}>
+          <li className={className} data-list-folded={folded || undefined} {...props}>
+            {foldButton}
             <div className="kuskus-list-content">{children}</div>
           </li>
         )
@@ -283,7 +466,8 @@ export const MarkdownPreview = memo(function MarkdownPreview({
       const { checkbox, rest } = extractTaskCheckbox(children)
       if (checkbox === null) {
         return (
-          <li className={className} {...props}>
+          <li className={className} data-list-folded={folded || undefined} {...props}>
+            {foldButton}
             {children}
           </li>
         )
@@ -291,7 +475,8 @@ export const MarkdownPreview = memo(function MarkdownPreview({
       const checked =
         isValidElement<{ checked?: boolean }>(checkbox) && checkbox.props.checked === true
       return (
-        <li className={className} {...props}>
+        <li className={className} data-list-folded={folded || undefined} {...props}>
+          {foldButton}
           <span className="kuskus-task-marker">{checkbox}</span>
           <div
             className={cn(
@@ -429,7 +614,7 @@ export const MarkdownPreview = memo(function MarkdownPreview({
           components={components}
           urlTransform={(url) => (url.startsWith('kuskus-note:') ? url : defaultUrlTransform(url))}
         >
-          {prepareObsidianMarkdown(value, attachments)}
+          {preparedMarkdown}
         </ReactMarkdown>
       </div>
     </div>

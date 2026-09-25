@@ -135,15 +135,10 @@ export class QuickCaptureWindowController {
   }
 
   private resolvePresentation(): QuickCapturePresentation {
-    return resolveQuickCapturePresentation(
-      process.platform,
-      process.getSystemVersion(),
-      this.reducedTransparency
-    )
+    return resolveQuickCapturePresentation(process.getSystemVersion(), this.reducedTransparency)
   }
 
   private applyMaterial(window: BrowserWindow, material: QuickCaptureMaterial): void {
-    if (process.platform !== 'win32') return
     if (material === 'acrylic') {
       window.setBackgroundColor('#00000000')
       window.setBackgroundMaterial('acrylic')
@@ -176,7 +171,7 @@ export class QuickCaptureWindowController {
       skipTaskbar: true,
       alwaysOnTop: true,
       hasShadow: false,
-      ...(process.platform === 'win32' ? { thickFrame: usesNativeCorners } : {}),
+      thickFrame: usesNativeCorners,
       roundedCorners: true,
       autoHideMenuBar: true,
       webPreferences: {

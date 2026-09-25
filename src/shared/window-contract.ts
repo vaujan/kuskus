@@ -10,6 +10,11 @@ export const WINDOW_CHANNELS = {
   reducedTransparencyChanged: 'window:reduced-transparency-changed',
   zoomShortcut: 'window:zoom-shortcut',
   edit: 'window:edit',
+  getSpellingLanguages: 'window:get-spelling-languages',
+  setSpellingLanguages: 'window:set-spelling-languages',
+  spellingLanguagesChanged: 'window:spelling-languages-changed',
+  textContextMenu: 'window:text-context-menu',
+  textContextMenuAction: 'window:text-context-menu-action',
   getGlobalCaptureShortcutStatus: 'window:get-global-capture-shortcut-status',
   setGlobalCaptureShortcut: 'window:set-global-capture-shortcut',
   globalCaptureRequested: 'window:global-capture-requested',
@@ -46,6 +51,32 @@ export interface TranslucentBackgroundStatus {
   reducedTransparency: boolean
 }
 
+export interface SpellingLanguagesStatus {
+  available: string[]
+  selected: string[]
+  managedBySystem: boolean
+}
+
+export interface TextContextMenuDetails {
+  x: number
+  y: number
+  misspelledWord: string
+  suggestions: string[]
+  editFlags: {
+    canUndo: boolean
+    canRedo: boolean
+    canCut: boolean
+    canCopy: boolean
+    canPaste: boolean
+    canSelectAll: boolean
+  }
+}
+
+export type TextContextMenuAction =
+  | { kind: 'replace'; text: string }
+  | { kind: 'addToDictionary'; text: string }
+  | { kind: 'edit'; command: EditCommand }
+
 export type DesktopPlatform =
   | 'aix'
   | 'android'
@@ -72,6 +103,11 @@ export interface ElectronWindowApi {
   onReducedTransparencyChange: (callback: (reduced: boolean) => void) => () => void
   onZoomShortcut: (callback: (shortcut: AppZoomShortcut) => void) => () => void
   edit: (command: EditCommand) => void
+  getSpellingLanguages: () => Promise<SpellingLanguagesStatus>
+  setSpellingLanguages: (languages: string[]) => Promise<SpellingLanguagesStatus>
+  onSpellingLanguagesChanged: (callback: (status: SpellingLanguagesStatus) => void) => () => void
+  onTextContextMenu: (callback: (details: TextContextMenuDetails) => void) => () => void
+  textContextMenuAction: (action: TextContextMenuAction) => void
   getGlobalCaptureShortcutStatus: () => Promise<GlobalCaptureShortcutStatus>
   setGlobalCaptureShortcut: (accelerator: string) => Promise<GlobalCaptureShortcutStatus>
   onGlobalCaptureRequested: (callback: () => void) => () => void

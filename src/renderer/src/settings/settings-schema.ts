@@ -10,18 +10,21 @@ import {
   resolveBaseFontSize,
   resolveColorMode,
   resolveColorTheme,
+  resolveControlStyle,
   resolveFontPreference
 } from '@/hooks/theme'
 
 export type SettingKey =
   | 'colorMode'
   | 'colorTheme'
+  | 'controlStyle'
   | 'uiFont'
   | 'contentFont'
   | 'codeFont'
   | 'sourceFontSize'
   | 'contentFontSize'
   | 'sourceLineNumbers'
+  | 'contentFolding'
   | 'libraryView'
   | 'itemSort'
   | 'vimEnabled'
@@ -48,6 +51,12 @@ export const SETTINGS_SCHEMA: readonly SettingDefinition[] = [
     storageKey: 'kuskus-color-theme',
     default: 'kuskus',
     parse: resolveColorTheme
+  },
+  {
+    key: 'controlStyle',
+    storageKey: 'kuskus-control-style',
+    default: 'skeuomorphic',
+    parse: resolveControlStyle
   },
   {
     key: 'uiFont',
@@ -82,6 +91,12 @@ export const SETTINGS_SCHEMA: readonly SettingDefinition[] = [
   {
     key: 'sourceLineNumbers',
     storageKey: 'kuskus-source-line-numbers',
+    default: true,
+    parse: (value) => value !== 'false'
+  },
+  {
+    key: 'contentFolding',
+    storageKey: 'kuskus-content-folding',
     default: true,
     parse: (value) => value !== 'false'
   },

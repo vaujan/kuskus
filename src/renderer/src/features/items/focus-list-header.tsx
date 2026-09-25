@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { Kbd } from '@/components/ui/kbd'
+import { ShortcutKbd } from '@/components/ui/kbd'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { FocusRailDensity } from '@/features/items/focus-view-state'
 import { ItemFilterMenuGroups, ItemSortMenuGroup } from '@/features/items/item-retrieval-menu'
@@ -212,7 +212,8 @@ export function FocusListHeader({
               <IconPlus data-icon="inline-start" aria-hidden="true" />
             </TooltipTrigger>
             <TooltipContent>
-              {hasDraft && !composerOpen ? 'Continue draft' : 'Add item'} <Kbd>Ctrl+Shift+N</Kbd>
+              {hasDraft && !composerOpen ? 'Continue draft' : 'Add item'}{' '}
+              <ShortcutKbd shortcut="Ctrl+Shift+N" />
             </TooltipContent>
           </Tooltip>
         </div>

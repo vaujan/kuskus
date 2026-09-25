@@ -4,11 +4,13 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
   applyTheme,
+  applyControlStyle,
   DEFAULT_TYPOGRAPHY,
   resolveBaseFontSize,
   resolveAppliedTheme,
   resolveColorMode,
   resolveColorTheme,
+  resolveControlStyle,
   resolveFontPreference
 } from './hooks/theme'
 import { initializeTranslucentBackground } from './hooks/use-translucent-background'
@@ -19,8 +21,14 @@ import {
 } from '../../shared/window-contract'
 
 performance.mark('kuskus:renderer-entry')
+window.electron.window.onTextContextMenu((details) => {
+  void import('./features/shell/text-context-menu').then(({ openTextContextMenu }) => {
+    openTextContextMenu(details)
+  })
+})
 
 const initialColorMode = resolveColorMode(localStorage.getItem('kuskus-color-mode'))
+applyControlStyle(resolveControlStyle(localStorage.getItem('kuskus-control-style')))
 window.electron.window.setNativeThemeSource(initialColorMode)
 applyTheme(
   resolveAppliedTheme(initialColorMode),

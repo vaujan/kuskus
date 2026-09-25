@@ -18,7 +18,7 @@ Deliverables:
 - Reopen the last valid library on launch.
 - Display Inbox with a toolbar-summoned inline New Item card.
 - Open or refocus that card with in-app `Ctrl+N` while workspace shortcuts are active.
-- Register fixed `Ctrl+Shift+Space` while the single Kuskus process is running and route it to a
+- On Windows, register fixed `Ctrl+Shift+Space` while the single Kuskus process is running and route it to a
   singleton bottom-right Inbox composer sharing its recoverable session with the inline surface.
 - Accept Markdown without a permanent capture tile or modal.
 - Commit with Save or `Ctrl+Enter`.

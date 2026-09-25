@@ -604,7 +604,7 @@ function placeCaretAtStart(el: HTMLElement): void {
   sel.addRange(range)
 }
 
-function focusCellCaret(cell: HTMLElement, atEnd: boolean, x?: number): void {
+function focusCellCaret(view: EditorView, cell: HTMLElement, atEnd: boolean, x?: number): void {
   const source = getCellSource(cell)
   if (!source) return
   source.focus({ preventScroll: true })
@@ -621,6 +621,7 @@ function focusCellCaret(cell: HTMLElement, atEnd: boolean, x?: number): void {
     }
   }
   cell.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  updateTableVimCursor(view, source)
 }
 
 function getAllCells(wrap: HTMLElement): HTMLElement[] {
@@ -919,7 +920,8 @@ class TableWidget extends WidgetType {
   constructor(
     readonly model: TableModel,
     readonly readOnly: boolean,
-    readonly revision: number
+    readonly revision: number,
+    readonly presentation: TablePresentation
   ) {
     super()
   }
@@ -934,6 +936,7 @@ class TableWidget extends WidgetType {
   eq(other: TableWidget): boolean {
     if (other.revision !== this.revision) return false
     if (other.readOnly !== this.readOnly) return false
+    if (other.presentation !== this.presentation) return false
     if (other.model.header.length !== this.model.header.length) return false
     if (other.model.rows.length !== this.model.rows.length) return false
     if (other.model.aligns.some((align, column) => align !== this.model.aligns[column]))
@@ -943,7 +946,7 @@ class TableWidget extends WidgetType {
 
   toDOM(view: EditorView): HTMLElement {
     const wrap = document.createElement('div')
-    wrap.className = 'kuskus-markdown-table-scroll cm-atomic-table'
+    wrap.className = `kuskus-markdown-table-scroll cm-atomic-table${this.presentation === 'source' ? ' cm-atomic-table-source' : ''}`
     wrap.tabIndex = -1
 
     const table = document.createElement('table')
@@ -963,7 +966,7 @@ class TableWidget extends WidgetType {
     const headerRow = document.createElement('tr')
     for (const [column, text] of this.model.header.entries()) {
       headerRow.appendChild(
-        makeCell('th', text, view, this.model.aligns[column] ?? null, 0, column)
+        makeCell('th', text, view, this.model.aligns[column] ?? null, 0, column, this.presentation)
       )
     }
     thead.appendChild(headerRow)
@@ -975,7 +978,15 @@ class TableWidget extends WidgetType {
       const tr = document.createElement('tr')
       for (let c = 0; c < colCount; c++) {
         tr.appendChild(
-          makeCell('td', row[c] ?? '', view, this.model.aligns[c] ?? null, rowIndex + 1, c)
+          makeCell(
+            'td',
+            row[c] ?? '',
+            view,
+            this.model.aligns[c] ?? null,
+            rowIndex + 1,
+            c,
+            this.presentation
+          )
         )
       }
       tbody.appendChild(tr)
@@ -1039,7 +1050,8 @@ function makeCell(
   view: EditorView,
   align: TableAlign | null,
   row: number,
-  column: number
+  column: number,
+  presentation: TablePresentation
 ): HTMLElement {
   const cell = document.createElement(tag)
   cell.dataset.raw = text
@@ -1069,7 +1081,8 @@ function makeCell(
   // matching the outer-editor cursor-inside-link unfold, applied
   // uniformly to every inline mark inside cells.
   cell.appendChild(source)
-  renderCellSourceDecorated(source)
+  if (presentation === 'source') source.textContent = text
+  else renderCellSourceDecorated(source)
 
   const addDragHandle = (axis: TableDragAxis) => {
     const handle = document.createElement('button')
@@ -1090,7 +1103,7 @@ function makeCell(
   // context menu, focus-routing) live in `attachCellEditing` and are
   // wired only when the cell is editable. Read-only cells keep just the
   // link-open handlers below.
-  if (!readOnly) attachCellEditing(view, cell, source)
+  if (!readOnly) attachCellEditing(view, cell, source, presentation)
 
   // Link open. The external-link icon is rendered as a real
   // `.cm-atomic-link-icon` element (see `renderCellToken`), not a CSS
@@ -1129,7 +1142,7 @@ function makeCell(
     view.state.facet(tableLinkClickFacet)(url)
   })
 
-  refreshCellPreview(cell)
+  if (presentation === 'live') refreshCellPreview(cell)
 
   return cell
 }
@@ -1328,17 +1341,30 @@ function attachTableInteractions(view: EditorView, wrap: HTMLElement): void {
     clearTableCellSelection(wrap)
   }
 
+  const onSelectionChange = () => {
+    const active = document.activeElement
+    if (
+      active instanceof HTMLElement &&
+      wrap.contains(active) &&
+      active.classList.contains('cm-atomic-table-cell-source')
+    ) {
+      updateTableVimCursor(view, active)
+    }
+  }
+
   wrap.addEventListener('keydown', onKeyDown)
   wrap.addEventListener('copy', onCopy)
   wrap.addEventListener('cut', onCut)
   wrap.addEventListener('paste', onPaste)
   wrap.addEventListener('pointerdown', onPointerDown, true)
   document.addEventListener('pointerdown', onDocumentPointerDown, true)
+  document.addEventListener('selectionchange', onSelectionChange)
   tableCleanups.set(wrap, () => {
     endPointerSelection()
     resizeObserver.disconnect()
     wrap.removeEventListener('scroll', updateOverflowState)
     document.removeEventListener('pointerdown', onDocumentPointerDown, true)
+    document.removeEventListener('selectionchange', onSelectionChange)
   })
 }
 
@@ -1347,7 +1373,18 @@ function attachTableInteractions(view: EditorView, wrap: HTMLElement): void {
 // right-click context menu, and focus-routing for clicks that land
 // outside the inner source element. Skipped wholesale for read-only
 // cells, which keep only the link-open handlers in `makeCell`.
-function attachCellEditing(view: EditorView, cell: HTMLElement, source: HTMLElement): void {
+function attachCellEditing(
+  view: EditorView,
+  cell: HTMLElement,
+  source: HTMLElement,
+  presentation: TablePresentation
+): void {
+  const vimCursor = document.createElement('span')
+  vimCursor.className = 'cm-atomic-table-vim-cursor'
+  vimCursor.setAttribute('aria-hidden', 'true')
+  vimCursor.hidden = true
+  cell.appendChild(vimCursor)
+
   // Commit the cell's current DOM text to `dataset.raw`, re-render its
   // decorated form (so marks the user just typed — e.g. a new `**` pair
   // — decorate immediately), restore the caret across that rebuild, and
@@ -1359,10 +1396,10 @@ function attachCellEditing(view: EditorView, cell: HTMLElement, source: HTMLElem
     const raw = (source.textContent ?? '').replace(/\s+/g, ' ').trim()
     cell.dataset.raw = raw
     const offset = getCaretCharOffset(source)
-    renderCellSourceDecorated(source)
+    if (presentation === 'live') renderCellSourceDecorated(source)
     if (offset != null) setCaretCharOffset(source, offset)
     updateActiveMarkForSource(source)
-    refreshCellPreview(cell)
+    if (presentation === 'live') refreshCellPreview(cell)
     dispatchModelFromDom(view, cell)
   }
 
@@ -1382,6 +1419,7 @@ function attachCellEditing(view: EditorView, cell: HTMLElement, source: HTMLElem
   source.addEventListener('input', (event) => {
     if (composing || (event as InputEvent).isComposing) return
     commit()
+    updateTableVimCursor(view, source)
   })
 
   source.addEventListener('beforeinput', (event) => {
@@ -1432,13 +1470,24 @@ function attachCellEditing(view: EditorView, cell: HTMLElement, source: HTMLElem
     const wrap = cell.closest<HTMLElement>('.cm-atomic-table')
     if (wrap) clearTableCellSelection(wrap)
     updateActiveMarkForSource(source)
+    updateTableVimCursor(view, source)
   })
-  source.addEventListener('mouseup', () => updateActiveMarkForSource(source))
-  source.addEventListener('keyup', () => updateActiveMarkForSource(source))
+  source.addEventListener('mouseup', () => {
+    updateActiveMarkForSource(source)
+    updateTableVimCursor(view, source)
+  })
+  source.addEventListener('keyup', () => {
+    updateActiveMarkForSource(source)
+    updateTableVimCursor(view, source)
+  })
 
   // Blur: collapse every active wrap so the reader-resting state
   // hides all delimiters.
-  source.addEventListener('blur', () => clearActiveMarksInSource(source))
+  source.addEventListener('blur', () => {
+    clearActiveMarksInSource(source)
+    source.removeAttribute('data-vim-normal')
+    vimCursor.hidden = true
+  })
 
   source.addEventListener('keydown', (event) => {
     if (event.isComposing) return
@@ -1939,6 +1988,60 @@ function vimIsNormal(view: EditorView): boolean {
   return Boolean(vim && !vim.insertMode)
 }
 
+function updateTableVimCursor(view: EditorView, source: HTMLElement): void {
+  const cell = source.closest<HTMLElement>('th, td')
+  const cursor = cell?.querySelector<HTMLElement>('.cm-atomic-table-vim-cursor')
+  if (!cell || !cursor) return
+  const selection = window.getSelection()
+  const visible =
+    document.activeElement === source &&
+    vimIsNormal(view) &&
+    selection?.isCollapsed &&
+    selection.rangeCount > 0 &&
+    selection.anchorNode &&
+    source.contains(selection.anchorNode)
+  source.toggleAttribute('data-vim-normal', Boolean(visible))
+  cursor.hidden = !visible
+  if (!visible || !selection) return
+
+  const caret = selection.getRangeAt(0)
+  let rect = caret.getBoundingClientRect()
+  let letter = '\u00a0'
+  let letterNode: Node = source
+  const walker = document.createTreeWalker(source, NodeFilter.SHOW_TEXT)
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const textNode = node as Text
+    if (!textNode.length || !textNode.parentElement?.getClientRects().length) continue
+    if (node !== caret.startContainer && caret.comparePoint(node, 0) < 0) continue
+    const offset = node === caret.startContainer ? caret.startOffset : 0
+    if (offset >= textNode.length) continue
+    const codePoint = textNode.data.codePointAt(offset)
+    if (codePoint === undefined) continue
+    letter = String.fromCodePoint(codePoint)
+    letterNode = node
+    const character = document.createRange()
+    character.setStart(node, offset)
+    character.setEnd(node, offset + letter.length)
+    rect = character.getBoundingClientRect()
+    break
+  }
+
+  const style = getComputedStyle(letterNode.parentElement ?? source)
+  const cellRect = cell.getBoundingClientRect()
+  if (!rect.height) rect = source.getBoundingClientRect()
+  cursor.textContent = letter
+  cursor.style.left = `${rect.left - cellRect.left}px`
+  cursor.style.top = `${rect.top - cellRect.top}px`
+  cursor.style.width = rect.width > 0 ? `${rect.width}px` : '0.65em'
+  cursor.style.height = rect.height > 0 ? `${rect.height}px` : style.lineHeight
+  cursor.style.lineHeight = cursor.style.height
+  cursor.style.fontFamily = style.fontFamily
+  cursor.style.fontSize = style.fontSize
+  cursor.style.fontWeight = style.fontWeight
+  cursor.style.fontStyle = style.fontStyle
+  cursor.style.letterSpacing = style.letterSpacing
+}
+
 function sendVimCellKey(view: EditorView, source: HTMLElement, key: string): void {
   const cm = getCM(view)
   if (!cm) return
@@ -1953,6 +2056,7 @@ function sendVimCellKey(view: EditorView, source: HTMLElement, key: string): voi
     selection?.removeAllRanges()
     selection?.addRange(range)
   }
+  updateTableVimCursor(view, source)
 }
 
 function leaveTableCaret(view: EditorView, wrap: HTMLElement, direction: CaretDirection): void {
@@ -2004,6 +2108,7 @@ function moveTableCaret(view: EditorView, cell: HTMLElement, direction: CaretDir
     return
   }
   focusCellCaret(
+    view,
     cells[next],
     direction === 'left',
     direction === 'up' || direction === 'down' ? x : undefined
@@ -2035,7 +2140,7 @@ function enterTableCaret(view: EditorView, direction: CaretDirection): boolean {
     }
   }
   if (!target) return false
-  focusCellCaret(target, direction === 'up' || direction === 'left')
+  focusCellCaret(view, target, direction === 'up' || direction === 'left')
   return true
 }
 
@@ -2138,6 +2243,7 @@ function backspaceAtTableBoundary(view: EditorView): boolean {
 function buildTableWidgets(state: EditorState, revision: number): DecorationSet {
   const ranges: Range<Decoration>[] = []
   const readOnly = state.facet(readOnlyFacet)
+  const presentation = state.facet(tablePresentationFacet)
   // Force full-doc parse so tables past the initial parsed region
   // also get the widget treatment. This StateField only rebuilds on
   // doc change; CM6's background parser advancing the tree later
@@ -2158,7 +2264,7 @@ function buildTableWidgets(state: EditorState, revision: number): DecorationSet 
       const endLine = doc.lineAt(node.to)
       ranges.push(
         Decoration.replace({
-          widget: new TableWidget(model, readOnly, revision),
+          widget: new TableWidget(model, readOnly, revision, presentation),
           block: true
         }).range(startLine.from, endLine.to)
       )
@@ -2247,7 +2353,14 @@ export interface TablesConfig {
    * '_blank', 'noopener,noreferrer')`.
    */
   onLinkClick?: (url: string) => void
+  presentation?: TablePresentation
 }
+
+type TablePresentation = 'live' | 'source'
+
+const tablePresentationFacet = Facet.define<TablePresentation, TablePresentation>({
+  combine: (values) => values[0] ?? 'live'
+})
 
 const defaultLinkOpener = (url: string): void => {
   try {
@@ -2266,6 +2379,7 @@ export const tableLinkClickFacet = Facet.define<(url: string) => void, (url: str
 
 export function tables(config: TablesConfig = {}): Extension {
   return [
+    tablePresentationFacet.of(config.presentation ?? 'live'),
     tableField,
     treeProgressPlugin,
     ...(config.onLinkClick ? [tableLinkClickFacet.of(config.onLinkClick)] : []),

@@ -3,7 +3,7 @@ import { IconCheck, IconChevronDown, IconDeviceDesktop, IconSearch } from '@tabl
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@/components/ui/popover'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Spinner } from '@/components/ui/spinner'
 import {
@@ -126,12 +126,14 @@ export function FontPicker({
         <IconChevronDown data-icon="inline-end" aria-hidden="true" />
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72 gap-2 p-2">
+        <PopoverTitle className="sr-only">{ariaLabel}</PopoverTitle>
         <div className="relative">
           <IconSearch
             className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
             aria-hidden="true"
           />
           <Input
+            data-control="font-picker-search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search fonts…"

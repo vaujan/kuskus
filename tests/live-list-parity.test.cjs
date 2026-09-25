@@ -22,6 +22,10 @@ const liveEditorSource = readFileSync(
   require.resolve('../src/renderer/src/features/items/live/live-markdown-editor.tsx'),
   'utf8'
 )
+const listFoldingSource = readFileSync(
+  require.resolve('../src/renderer/src/features/items/live/content-folding.ts'),
+  'utf8'
+)
 
 test('live list markers use read-mode geometry and rendered ordered numerals', () => {
   assert.match(previewSource, /var\(--typeset-list-leading\)/)
@@ -43,7 +47,7 @@ test('live list markers use read-mode geometry and rendered ordered numerals', (
   assert.match(presentationStyles, /\.kuskus-task-marker \{[\s\S]*?height: 1lh;/)
   assert.match(presentationStyles, /\.kuskus-task-marker \{[\s\S]*?align-items: center;/)
   assert.match(presentationStyles, /\.kuskus-task-checkbox \{[\s\S]*?margin: 0;/)
-  assert.doesNotMatch(presentationStyles, /task-optical-offset|translateY/)
+  assert.doesNotMatch(presentationStyles, /task-optical-offset/)
   assert.match(
     liveStyles,
     /\.cm-kuskus-live \.cm-atomic-task-checkbox \{\s*transform: translateY\(0\.\d+em\);\s*\}/
@@ -72,9 +76,22 @@ test('read detail renders structural guides for nested lists only', () => {
   )
 })
 
-test('read and live detail modes leave folding disabled', () => {
-  assert.doesNotMatch(liveEditorSource, /foldGutter|foldKeymap|foldState/)
-  assert.doesNotMatch(readPreviewSource, /ReadFold|data-kuskus-fold|foldStateRef/)
+test('read and live detail modes fold nested lists without changing the text rail', () => {
+  assert.match(readPreviewSource, /node\?\.children\.some/)
+  assert.match(readPreviewSource, /data-list-folded=\{folded \|\| undefined\}/)
+  assert.match(
+    liveEditorSource,
+    /foldingCompartmentRef\.current\.of\(foldingEnabledRef\.current \? contentFolding\(\) : \[\]\)/
+  )
+  assert.match(
+    presentationStyles,
+    /li\[data-list-folded\] > \.kuskus-list-content > \.kuskus-rendered-list/
+  )
+  assert.match(presentationStyles, /\.kuskus-list-fold-button \{[\s\S]*?position: absolute;/)
+  assert.match(liveStyles, /\.cm-kuskus-list-fold-placeholder \{\s*display: none;/)
+  assert.match(listFoldingSource, /if \(child\.name === 'Task'\) task = true/)
+  assert.match(presentationStyles, /li\.task-list-item > \.kuskus-list-fold-button/)
+  assert.match(liveStyles, /\.cm-kuskus-list-fold-button--task/)
 })
 
 test('live list guides use parsed list depth without changing editor indentation', () => {

@@ -10,12 +10,13 @@ import { CaptureSessionService } from './capture/capture-session-service'
 import { LibraryService } from './library/library-service'
 import { createMainWindow } from './window/create-main-window'
 import {
+  GLOBAL_CAPTURE_SHORTCUT_LABEL,
   GlobalCaptureShortcutController,
   revealWindow,
   type GlobalCaptureWindowTarget
 } from './window/global-capture-shortcut'
 import { installApplicationMenu } from './window/app-menu'
-import { WINDOW_CHANNELS, type GlobalCaptureShortcutStatus } from '../shared/window-contract'
+import { WINDOW_CHANNELS } from '../shared/window-contract'
 import { CAPTURE_CHANNELS } from '../shared/capture-contract'
 import { QuickCaptureWindowController } from './window/quick-capture-window'
 import { CaptureShortcutStore } from './window/capture-shortcut-store'
@@ -23,34 +24,21 @@ import { NoteWindowController } from './window/note-window'
 import { SettingsWindowController } from './window/settings-window'
 import { startPerformanceReporter } from './performance-reporter'
 import { trackPerformanceIpcTimings } from './performance-log'
-import { HyprlandGlobalCaptureController } from './hyprland/hyprland-global-capture'
-
-type CaptureShortcutBackend = {
-  start: (
-    accelerator?: string
-  ) => GlobalCaptureShortcutStatus | Promise<GlobalCaptureShortcutStatus>
-  getStatus: () => GlobalCaptureShortcutStatus
-  setAccelerator: (
-    accelerator: string
-  ) => GlobalCaptureShortcutStatus | Promise<GlobalCaptureShortcutStatus>
-  stop: () => void | Promise<void>
-}
-
-function isHyprlandSession(): boolean {
-  return process.env.XDG_CURRENT_DESKTOP?.toLowerCase().includes('hyprland') ?? false
-}
 
 const demoUserDataPath = process.env.KUSKUS_DEMO_USER_DATA
+const onboardingUserDataPath = process.env.KUSKUS_ONBOARDING_USER_DATA
 const performanceUserDataPath = process.env.KUSKUS_PERFORMANCE_USER_DATA
 performance.mark('kuskus:main-entry')
 if (performanceUserDataPath && process.env.KUSKUS_PERFORMANCE_OUTPUT) {
   app.setPath('userData', resolve(performanceUserDataPath))
+} else if (onboardingUserDataPath && !app.isPackaged) {
+  app.setPath('userData', resolve(onboardingUserDataPath))
 } else if (demoUserDataPath && !app.isPackaged) {
   app.setPath('userData', resolve(demoUserDataPath))
 }
 
 let mainWindow: BrowserWindow | null = null
-let captureShortcutBackend: CaptureShortcutBackend | null = null
+let captureShortcutBackend: GlobalCaptureShortcutController | null = null
 let quickCaptureWindow: QuickCaptureWindowController | null = null
 let libraryService: LibraryService | null = null
 const settingsWindow = new SettingsWindowController()
@@ -156,7 +144,9 @@ if (!hasSingleInstanceLock) {
       join(app.getPath('userData'), 'kuskus-capture-sessions.json')
     )
     await captureSessions.initialize()
-    quickCaptureWindow = new QuickCaptureWindowController()
+    if (process.platform === 'win32') {
+      quickCaptureWindow = new QuickCaptureWindowController()
+    }
     let reducedTransparency = nativeTheme.prefersReducedTransparency
     nativeTheme.on('updated', () => {
       const nextReducedTransparency = nativeTheme.prefersReducedTransparency
@@ -172,32 +162,25 @@ if (!hasSingleInstanceLock) {
         }
       }
     })
-    const persistedAccelerator = await new CaptureShortcutStore(
-      join(app.getPath('userData'), 'capture-shortcut.json')
-    ).load()
-    const persistAccelerator = (accelerator: string): void => {
-      const store = new CaptureShortcutStore(join(app.getPath('userData'), 'capture-shortcut.json'))
-      void store.save(accelerator)
-    }
-    if (isHyprlandSession()) {
-      captureShortcutBackend = new HyprlandGlobalCaptureController(globalCaptureWindowTarget, {
-        socketDirectory: app.getPath('userData'),
-        accelerator: persistedAccelerator ?? undefined,
-        persistAccelerator
-      })
-    } else {
+    let persistedAccelerator: string | null = null
+    if (process.platform === 'win32') {
+      const shortcutStore = new CaptureShortcutStore(
+        join(app.getPath('userData'), 'capture-shortcut.json')
+      )
+      persistedAccelerator = await shortcutStore.load()
       captureShortcutBackend = new GlobalCaptureShortcutController(
         globalShortcut,
         globalCaptureWindowTarget,
-        persistAccelerator
+        (accelerator) => void shortcutStore.save(accelerator)
       )
     }
 
     const noteWindows = new NoteWindowController(libraryService)
     const backend = captureShortcutBackend
+    const unavailableShortcut = { accelerator: GLOBAL_CAPTURE_SHORTCUT_LABEL, registered: false }
     registerWindowIpc(
-      () => backend.getStatus(),
-      (accelerator) => backend.setAccelerator(accelerator),
+      () => backend?.getStatus() ?? unavailableShortcut,
+      (accelerator) => backend?.setAccelerator(accelerator) ?? unavailableShortcut,
       () => settingsWindow.open(),
       (itemId) => noteWindows.open(itemId),
       (sender, approved) => noteWindows.resolveClose(sender, approved)
@@ -225,7 +208,7 @@ if (!hasSingleInstanceLock) {
 
     const window = ensureMainWindow()
     startPerformanceReporter(window, libraryService)
-    await captureShortcutBackend.start()
+    captureShortcutBackend?.start(persistedAccelerator ?? undefined)
 
     app.on('activate', () => {
       revealWindow(ensureMainWindow())
@@ -234,7 +217,7 @@ if (!hasSingleInstanceLock) {
 }
 
 app.on('will-quit', () => {
-  void captureShortcutBackend?.stop()
+  captureShortcutBackend?.stop()
 })
 
 app.on('window-all-closed', () => {

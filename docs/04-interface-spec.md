@@ -320,8 +320,8 @@ of the active view.
 - The action uses a plus icon and visible label at ordinary widths, collapsing to an accessible icon at narrow widths.
 - When a hidden draft exists, the action reads **Continue draft**, shows a quiet indicator, and exposes explicit discard.
 - Repeated activation scrolls to and focuses the existing card rather than creating another draft.
-- Add item remains available independently of `Ctrl+N`; the global capture shortcut remains
-  `Ctrl+Shift+Space`.
+- Add item remains available independently of `Ctrl+N`; on Windows, the global capture shortcut
+  remains `Ctrl+Shift+Space`.
 
 ### Draft card
 
@@ -379,7 +379,7 @@ of the active view.
 ### Direct capture
 
 - Pasting while the content canvas has focus invokes the same detection and saving pipeline without requiring a preliminary click.
-- Pressing `Ctrl+Shift+Space` while Kuskus is running opens or focuses the shared composer in a
+- On Windows, pressing `Ctrl+Shift+Space` while Kuskus is running opens or focuses the shared composer in a
   singleton bottom-right Inbox popup without reading the clipboard. The main window retains its
   visibility, destination, retrieval, selection, detail, and dialog state unless the user explicitly
   chooses **Continue in editor**.
@@ -636,6 +636,15 @@ The detail dialog exposes:
   decorations derive from the same 16-pixel typesetting preset as Read, so revealing markers does not
   resize the surrounding content. Read and Live also share responsive document gutters and list
   indentation, marker columns, foreground hierarchy, and vertical rhythm.
+- Nested list parents show the same disclosure control in Read and Live detail views. Folding hides
+  the child list and its following content within that parent without changing the parent's text
+  position, marker column, or the spacing to the next sibling. Fold state is temporary view state;
+  document Markdown is never changed by folding.
+- Headings with content show a disclosure control in Read and Live detail views. Folding hides the
+  heading's content and lower-level subsections through the next heading of the same or higher
+  level. The heading text stays in place, and folding does not change the Markdown.
+- Editing settings include a Content folding switch, enabled by default. Turning it off removes
+  heading and nested-list disclosure controls and expands folded content in both Read and Live views.
 - Task widgets toggle `[ ]` and `[x]` through normal undoable editor transactions. Ctrl-click follows
   supported HTTP links and vault links without taking ordinary click-to-edit behavior away.
 - Markdown exposes the authoritative source in a borderless, GFM-aware CodeMirror editor and

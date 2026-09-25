@@ -2,7 +2,7 @@ import { toast } from 'sonner'
 import type { CSSProperties, ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
-import { Kbd } from '@/components/ui/kbd'
+import { ShortcutKbd } from '@/components/ui/kbd'
 
 const UNDO_TOAST_DURATION = 6000
 const EXTERNAL_LINK_TOAST_ID = 'external-link-feedback'
@@ -80,9 +80,7 @@ function showUndoableToast({ title, onUndo, description }: UndoableToastOptions)
         onClick={() => runUndo(entry)}
       >
         Undo
-        <Kbd className="ml-0.5 h-[18px] min-w-[18px] rounded-md bg-foreground/10 px-1 text-[10px]">
-          Ctrl+Z
-        </Kbd>
+        <ShortcutKbd className="ml-0.5" shortcut="Ctrl+Z" />
       </Button>
     ),
     onDismiss: () => settleUndo(entry),
@@ -256,19 +254,6 @@ export function notifyGlobalCapturePrepared(): void {
     description: 'Finish the current dialog to continue capturing.',
     duration: 4000,
     id: 'global-capture-prepared'
-  })
-}
-
-export function notifyGlobalCaptureUnavailable(accelerator: string): void {
-  showVerbToast({
-    title: 'Global capture shortcut unavailable',
-    description:
-      window.electron.window.platform === 'linux' && window.navigator.userAgent.includes('Wayland')
-        ? `Kuskus could not register ${accelerator} with your Wayland compositor.`
-        : `Another application may already use ${accelerator}.`,
-    destructive: true,
-    duration: 6000,
-    id: 'global-capture-unavailable'
   })
 }
 

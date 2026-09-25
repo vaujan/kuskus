@@ -86,8 +86,8 @@ The user wants one obvious place to add any supported kind of content without ch
 
 ### Flow
 
-1. The user clicks **Add item**. From another application, the user may press
-   `Ctrl+Shift+Space` while Kuskus is running.
+1. The user clicks **Add item**. On Windows, the user may press `Ctrl+Shift+Space`
+   from another application while Kuskus is running.
 2. In-app capture appears as a normal-width draft card at the beginning of the active content view.
    Global capture appears as the same composer in a focused bottom-right Inbox popup without
    restoring or changing the main window.

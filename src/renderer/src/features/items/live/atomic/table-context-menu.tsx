@@ -262,6 +262,10 @@ function TableContextMenu({
 
 let activeMenuDispose: (() => void) | null = null
 
+export function closeTableContextMenu(): void {
+  activeMenuDispose?.()
+}
+
 export function openTableContextMenu({
   x,
   y,

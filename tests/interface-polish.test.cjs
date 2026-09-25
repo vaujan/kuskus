@@ -43,15 +43,18 @@ test('main workspace uses borderless navigation and illustrated empty states', (
   assert.match(loading, /src=\{bubuntuLine\}[\s\S]{0,100}draggable=\{false\}/)
   assert.match(loading, /role="progressbar"/)
   assert.doesNotMatch(loading, /<Spinner|Opening Kuskus…/)
-  assert.match(workspace, /Create new note <Kbd>Ctrl\+N<\/Kbd>/)
+  assert.match(workspace, /Create new note <ShortcutKbd shortcut="Ctrl\+N" \/>/)
   assert.match(workspace, /Return to overview/)
-  assert.match(workspace, /Return to overview <Kbd>Esc<\/Kbd>/)
-  assert.match(workspace, /Add item <Kbd>Ctrl\+Shift\+N<\/Kbd>/)
+  assert.match(workspace, /Return to overview <ShortcutKbd shortcut="Esc" \/>/)
+  assert.match(workspace, /Add item <ShortcutKbd shortcut="Ctrl\+Shift\+N" \/>/)
   assert.match(
     workspace,
-    /<Button aria-keyshortcuts="Control\+N"[\s\S]{0,160}Create new note <Kbd>Ctrl\+N<\/Kbd>/
+    /<Button aria-keyshortcuts="Control\+N"[\s\S]{0,160}Create new note <ShortcutKbd shortcut="Ctrl\+N" \/>/
   )
-  assert.match(workspace, /variant="tonal"[\s\S]{0,180}Add item <Kbd>Ctrl\+Shift\+N<\/Kbd>/)
+  assert.match(
+    workspace,
+    /variant="tonal"[\s\S]{0,180}Add item <ShortcutKbd shortcut="Ctrl\+Shift\+N" \/>/
+  )
   assert.match(workspace, /max-w-none flex-row flex-wrap justify-center gap-2/)
   assert.match(workspace, /variant="tonal"/)
   assert.match(workspace, /variant="ghost"/)
@@ -87,13 +90,9 @@ test('overview toolbar separates retrieval from primary and tonal creation', () 
   )
 
   assert.match(toolbar, /className="h-8 flex-1 rounded-4xl"/)
-  assert.match(toolbar, /grid-cols-\[auto_minmax\(10rem,1fr\)_auto\]/)
-  assert.match(
-    toolbar,
-    /@min-\[48rem\]\/toolbar:grid-cols-\[minmax\(0,1fr\)_minmax\(10rem,28rem\)_minmax\(0,1fr\)\]/
-  )
+  assert.match(toolbar, /grid-cols-\[auto_minmax\(0,1fr\)_auto\]/)
+  assert.match(toolbar, /max-w-\[28rem\]/)
   assert.equal((toolbar.match(/@min-\[48rem\]\/toolbar:inline/g) ?? []).length, 2)
-  assert.doesNotMatch(toolbar, /@min-\[76rem\]\/toolbar:inline/)
   assert.match(toolbar, /size=\{filterCount > 0 \? 'sm' : 'icon-sm'\}[\s\S]{0,220}Sort and filter/)
   assert.match(toolbar, /size="sm"[\s\S]{0,160}Create new note/)
   assert.match(button, /tonal: 'bg-primary\/15 text-primary hover:bg-primary\/20/)
@@ -202,14 +201,24 @@ test('shared controls transition only the properties they change', () => {
   for (const control of controls) assert.doesNotMatch(control, /transition-all/)
 })
 
-test('editable note scrollers never expose app-level horizontal overflow', () => {
-  const editors = ['markdown-editor.tsx', 'live/live-markdown-editor.tsx'].map((file) =>
-    readFileSync(require.resolve(`../src/renderer/src/features/items/${file}`), 'utf8')
+test('editors clip horizontal overflow while table widgets scroll independently', () => {
+  const source = readFileSync(
+    require.resolve('../src/renderer/src/features/items/markdown-editor.tsx'),
+    'utf8'
+  )
+  const live = readFileSync(
+    require.resolve('../src/renderer/src/features/items/live/live-markdown-editor.tsx'),
+    'utf8'
+  )
+  const styles = readFileSync(
+    require.resolve('../src/renderer/src/assets/markdown-presentation.css'),
+    'utf8'
   )
 
-  for (const editor of editors) {
-    assert.match(editor, /'\.cm-scroller': \{[\s\S]{0,120}overflowX: 'hidden'/)
-  }
+  assert.match(source, /'\.cm-scroller': \{[\s\S]{0,120}overflowX: 'hidden'/)
+  assert.match(source, /tables\(\{ presentation: 'source' \}\)/)
+  assert.match(styles, /\.kuskus-markdown-table-scroll \{[\s\S]*?overflow-x: auto;/)
+  assert.match(live, /'\.cm-scroller': \{[\s\S]{0,120}overflowX: 'hidden'/)
 })
 
 test('rail and masonry note previews clip wide code without a horizontal scrollbar', () => {

@@ -13,6 +13,9 @@ import {
   type ElectronWindowApi,
   type GlobalCaptureShortcutStatus,
   type NativeThemeSource,
+  type SpellingLanguagesStatus,
+  type TextContextMenuAction,
+  type TextContextMenuDetails,
   type TranslucentBackgroundStatus
 } from '../shared/window-contract'
 
@@ -84,6 +87,26 @@ const windowApi: ElectronWindowApi = {
     return () => ipcRenderer.removeListener(WINDOW_CHANNELS.zoomShortcut, listener)
   },
   edit: (command: EditCommand): void => ipcRenderer.send(WINDOW_CHANNELS.edit, command),
+  getSpellingLanguages: (): Promise<SpellingLanguagesStatus> =>
+    ipcRenderer.invoke(WINDOW_CHANNELS.getSpellingLanguages),
+  setSpellingLanguages: (languages): Promise<SpellingLanguagesStatus> =>
+    ipcRenderer.invoke(WINDOW_CHANNELS.setSpellingLanguages, languages),
+  onSpellingLanguagesChanged: (callback): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, status: SpellingLanguagesStatus): void => {
+      callback(status)
+    }
+    ipcRenderer.on(WINDOW_CHANNELS.spellingLanguagesChanged, listener)
+    return () => ipcRenderer.removeListener(WINDOW_CHANNELS.spellingLanguagesChanged, listener)
+  },
+  onTextContextMenu: (callback): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, details: TextContextMenuDetails): void => {
+      callback(details)
+    }
+    ipcRenderer.on(WINDOW_CHANNELS.textContextMenu, listener)
+    return () => ipcRenderer.removeListener(WINDOW_CHANNELS.textContextMenu, listener)
+  },
+  textContextMenuAction: (action: TextContextMenuAction): void =>
+    ipcRenderer.send(WINDOW_CHANNELS.textContextMenuAction, action),
   getGlobalCaptureShortcutStatus: (): Promise<GlobalCaptureShortcutStatus> =>
     ipcRenderer.invoke(WINDOW_CHANNELS.getGlobalCaptureShortcutStatus),
   setGlobalCaptureShortcut: (accelerator): Promise<GlobalCaptureShortcutStatus> =>

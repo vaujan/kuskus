@@ -49,6 +49,7 @@ test('accepts only supported zoom factors when settings synchronize across windo
 test('shows the current keyboard shortcuts in settings without exposing unfinished editing', () => {
   assert.match(settingsAppSource, /<span>Keyboard shortcuts<\/span>/)
   assert.match(settingsAppSource, /getGlobalCaptureShortcutStatus\(\)/)
+  assert.match(settingsAppSource, /isWindows \? \[\{ label: 'Quick capture'/)
   assert.match(settingsAppSource, /Custom shortcuts are coming later\./)
   assert.match(settingsAppSource, /\{ label: 'New note', keys: 'Ctrl\+N' \}/)
   assert.doesNotMatch(settingsAppSource, /window\.electron\.window\.setGlobalCaptureShortcut\(/)

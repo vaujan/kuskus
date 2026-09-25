@@ -55,8 +55,8 @@ Kuskus is successful when it can replace the creator's scattered reference workf
 During that period, the user must be able to:
 
 - Capture real links, images, notes, PDFs, and files.
-- Summon Inbox capture from another application with a system-wide keyboard shortcut while Kuskus
-  is running.
+- On Windows, summon Inbox capture from another application with a system-wide keyboard shortcut
+  while Kuskus is running.
 - Organize them into collections or leave them in Inbox.
 - Browse different formats together.
 - Search for and reopen previously saved items.

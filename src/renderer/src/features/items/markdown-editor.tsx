@@ -50,21 +50,13 @@ import { toggleMarkdownMarker } from '@/features/items/markdown-formatting'
 import { markdownCodeSpellcheck } from '@/features/items/markdown-code-spellcheck'
 import { markdownFrontmatter } from '@/features/items/markdown-frontmatter'
 import { markdownHighlightStyle } from '@/features/items/markdown-highlight-style'
-import {
-  continueTable,
-  convertTablePaste,
-  formatMarkdownTable,
-  insertMarkdownTable,
-  insertTableRowBelow,
-  moveTableCursor,
-  moveTableRow
-} from '@/features/items/markdown-table'
-import { markdownTableGuides } from '@/features/items/markdown-table-guides'
+import { convertTablePaste, insertMarkdownTable } from '@/features/items/markdown-table'
+import { tables } from '@/features/items/live/atomic/table-widget'
 import { cn } from '@/lib/utils'
 import { markdownCodeLanguage } from '@/features/items/markdown-code'
 import type { NoteFindTargetRef } from '@/features/items/note-editor'
 import { liveFindExtensions, unwireLiveFind, wireLiveFind } from '@/features/items/live/live-find'
-import { slashMenu } from '@/features/items/live/slash-menu'
+import { slashMenu } from '@/features/items/live/slash-menu-plugin'
 import {
   markdownVim,
   registerMarkdownVimActions,
@@ -135,14 +127,21 @@ const editorTheme = EditorView.theme({
   '.cm-scroller::-webkit-scrollbar-corner': { backgroundColor: 'transparent' },
   '.cm-content': {
     minHeight: '100%',
-    // Keep every note mode on the same centered document frame while the
-    // full-width scroller leaves its scrollbar at the pane edge.
-    maxWidth: 'var(--detail-document-max-width)',
-    margin: '0 auto',
-    padding: 'var(--typeset-detail-padding-block) var(--typeset-detail-gutter)',
+    // The source surface spans the pane so tables can use its full width.
+    // Ordinary lines keep the readable measure below.
+    flexBasis: '0',
+    flexGrow: '1',
+    flexShrink: '1',
+    minWidth: '0',
+    padding: 'var(--typeset-detail-padding-block) 0',
     caretColor: 'currentColor'
   },
-  '.cm-line': { padding: '0' },
+  '.cm-line': {
+    boxSizing: 'border-box',
+    maxWidth: 'var(--detail-document-max-width)',
+    marginInline: 'auto',
+    paddingInline: 'var(--typeset-detail-gutter)'
+  },
   // Line-number gutter follows the document surface: no panel background or
   // border, just quiet numbers that step aside for the active line.
   '.cm-gutters': {
@@ -158,6 +157,10 @@ const editorTheme = EditorView.theme({
   },
   '.cm-markdown-header': {
     width: '100%',
+    maxWidth: 'var(--detail-document-max-width)',
+    boxSizing: 'border-box',
+    marginInline: 'auto',
+    paddingInline: 'var(--typeset-detail-gutter)',
     whiteSpace: 'normal',
     fontFamily: 'var(--font-sans)'
   },
@@ -340,7 +343,7 @@ function taskMarkerDecorations(view: EditorView): DecorationSet {
       decoration: Decoration.line({
         attributes: {
           class: 'cm-kuskus-list-line',
-          style: 'padding-inline-start: ' + width + 'ch; text-indent: -' + width + 'ch'
+          style: `padding-inline-start: calc(var(--typeset-detail-gutter) + ${width}ch); text-indent: -${width}ch`
         }
       })
     })
@@ -518,7 +521,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         markdownHeader,
         taskMarkerPlugin,
         markdownCodeSpellcheck,
-        markdownTableGuides,
+        tables({ presentation: 'source' }),
         editorTheme,
         vimModeTheme,
         liveFindExtensions(),
@@ -532,13 +535,6 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
           { key: 'Mod-b', preventDefault: true, run: markerCommand('**') },
           { key: 'Mod-i', preventDefault: true, run: markerCommand('*') },
           { key: 'Mod-Shift-T', preventDefault: true, run: insertMarkdownTable },
-          { key: 'Mod-Alt-T', preventDefault: true, run: formatMarkdownTable },
-          { key: 'Tab', run: (view) => moveTableCursor(view, 1) },
-          { key: 'Shift-Tab', run: (view) => moveTableCursor(view, -1) },
-          { key: 'Enter', run: continueTable },
-          { key: 'Ctrl-Enter', run: insertTableRowBelow },
-          { key: 'Alt-ArrowUp', run: (view) => moveTableRow(view, -1) },
-          { key: 'Alt-ArrowDown', run: (view) => moveTableRow(view, 1) },
           indentWithTab,
           ...defaultKeymap,
           ...historyKeymap

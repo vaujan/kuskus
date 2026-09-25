@@ -32,7 +32,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { Kbd } from '@/components/ui/kbd'
+import { ShortcutKbd } from '@/components/ui/kbd'
 import { Spinner } from '@/components/ui/spinner'
 import { ItemCard, ItemCardCaption, ItemCardSurface } from '@/features/items/item-card'
 import { SavedItemCard } from '@/features/items/saved-item-card'
@@ -1056,9 +1056,11 @@ export function AddItemComposer({
                   >
                     <IconPencil aria-hidden="true" />
                     Continue in editor
-                    <Kbd className="ml-auto" aria-hidden="true">
-                      Ctrl+Shift+Enter
-                    </Kbd>
+                    <ShortcutKbd
+                      className="ml-auto"
+                      shortcut="Ctrl+Shift+Enter"
+                      aria-hidden="true"
+                    />
                   </DropdownMenuItem>
                 ) : null}
                 <DropdownMenuItem onClick={openFileDialog}>
@@ -1110,16 +1112,11 @@ export function AddItemComposer({
                     ? 'Save link'
                     : 'Save note'}
             {!savingFeedback ? (
-              <Kbd
-                className={
-                  surface === 'quick'
-                    ? 'ml-1 bg-primary-foreground/15 text-primary-foreground'
-                    : 'ml-1 hidden bg-primary-foreground/15 text-primary-foreground sm:inline-flex'
-                }
+              <ShortcutKbd
+                className={surface === 'quick' ? 'ml-1' : 'ml-1 hidden sm:inline-flex'}
+                shortcut="Ctrl+Enter"
                 aria-hidden="true"
-              >
-                Ctrl+Enter
-              </Kbd>
+              />
             ) : null}
           </Button>
         </div>

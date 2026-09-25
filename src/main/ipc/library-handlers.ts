@@ -1,4 +1,4 @@
-import { BrowserWindow, clipboard, dialog, ipcMain, nativeImage, shell } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeImage, shell } from 'electron'
 import { stat } from 'node:fs/promises'
 
 import {
@@ -89,6 +89,9 @@ export function registerLibraryIpc(
     const options: Electron.OpenDialogOptions = {
       title: 'Choose where to create your Kuskus library',
       buttonLabel: 'Choose folder',
+      ...(process.env.KUSKUS_ONBOARDING_LIBRARIES_PATH && !app.isPackaged
+        ? { defaultPath: process.env.KUSKUS_ONBOARDING_LIBRARIES_PATH }
+        : {}),
       properties: ['openDirectory', 'createDirectory']
     }
     const selection = owner

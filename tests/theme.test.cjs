@@ -4,6 +4,7 @@ const test = require('node:test')
 require('./helpers/install-ts-require.cjs')()
 
 const {
+  applyControlStyle,
   applyTheme,
   createFontStack,
   createLocalFontPreference,
@@ -12,8 +13,21 @@ const {
   resolveAppliedTheme,
   resolveColorMode,
   resolveColorTheme,
+  resolveControlStyle,
   resolveFontPreference
 } = require('../src/renderer/src/hooks/theme.ts')
+
+test('resolves and applies the saved control style', () => {
+  assert.equal(resolveControlStyle('flat'), 'flat')
+  assert.equal(resolveControlStyle('skeuomorphic'), 'skeuomorphic')
+  assert.equal(resolveControlStyle(null), 'skeuomorphic')
+  assert.equal(resolveControlStyle('unknown'), 'skeuomorphic')
+
+  const root = { dataset: {} }
+  applyControlStyle('flat', root)
+  assert.equal(root.dataset.controlStyle, 'flat')
+})
+
 test('resolves color modes and rejects stale values', () => {
   assert.equal(resolveColorMode('light'), 'light')
   assert.equal(resolveColorMode('dark'), 'dark')
@@ -25,6 +39,7 @@ test('resolves color modes and rejects stale values', () => {
 test('resolves curated color themes and rejects stale values', () => {
   assert.equal(resolveColorTheme('kuskus'), 'kuskus')
   assert.equal(resolveColorTheme('graphite'), 'graphite')
+  assert.equal(resolveColorTheme('obsidian'), 'obsidian')
   assert.equal(resolveColorTheme('github'), 'github')
   assert.equal(resolveColorTheme('vscode'), 'vscode')
   assert.equal(resolveColorTheme('ayu'), 'ayu')
@@ -151,6 +166,7 @@ test('defines light and dark palettes for every iconic theme', () => {
   const css = readFileSync(require.resolve('../src/renderer/src/assets/main.css'), 'utf8')
 
   for (const theme of [
+    'obsidian',
     'github',
     'vscode',
     'ayu',
@@ -212,6 +228,7 @@ test('settings keeps contextual view controls on the surfaces they affect', () =
   assert.match(panel, /<ScrollArea/)
   assert.match(panel, /Kuskus/)
   assert.match(panel, /Graphite/)
+  assert.match(panel, /label: 'Obsidian'/)
   assert.match(panel, /GitHub/)
   assert.match(panel, /VS Code/)
   assert.match(panel, /Ayu/)

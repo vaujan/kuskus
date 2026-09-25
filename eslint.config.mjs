@@ -6,7 +6,17 @@ import eslintPluginReactHooks from 'eslint-plugin-react-hooks'
 import eslintPluginReactRefresh from 'eslint-plugin-react-refresh'
 
 export default defineConfig(
-  { ignores: ['**/node_modules', '**/dist', '**/out', '**/build', 'storybook-static/**', '.agents/**', 'tmp/**'] },
+  {
+    ignores: [
+      '**/node_modules',
+      '**/dist',
+      '**/out',
+      '**/build',
+      'storybook-static/**',
+      '.agents/**',
+      'tmp/**'
+    ]
+  },
   { ignores: ['src/renderer/src/features/items/live/atomic/**'] },
   tseslint.configs.recommended,
   eslintPluginReact.configs.flat.recommended,

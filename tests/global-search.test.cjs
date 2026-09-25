@@ -145,11 +145,9 @@ test('quick open creates notes while full-text search remains separate', () => {
     'utf8'
   )
 
-  assert.match(
-    searchInput,
-    /aria-label=\{scopeLabel \? `Search \$\{scopeLabel\}` : 'Search library'\}/
-  )
+  assert.match(searchInput, /aria-label="Search"/)
   assert.match(toolbar, /scopeLabel=\{destinationLabel\}/)
+  assert.match(searchInput, /title=\{scopeLabel\}/)
   assert.match(searchInput, /aria-keyshortcuts="Control\+Shift\+F Meta\+Shift\+F"/)
   assert.doesNotMatch(searchInput, /onCreateNote|Create note/)
   assert.match(quickOpen, /title="Quick Open"/)

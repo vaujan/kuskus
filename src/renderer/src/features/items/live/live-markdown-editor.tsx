@@ -48,7 +48,8 @@ import {
 import { markdownCodeLanguage } from '@/features/items/markdown-code'
 import { markdownCodeSpellcheck } from '@/features/items/markdown-code-spellcheck'
 import { liveFindExtensions, wireLiveFind, unwireLiveFind } from '@/features/items/live/live-find'
-import { slashMenu } from '@/features/items/live/slash-menu'
+import { contentFolding } from '@/features/items/live/content-folding'
+import { slashMenu } from '@/features/items/live/slash-menu-plugin'
 import {
   kuskusLiveExtensions,
   readOnlyFacet,
@@ -75,6 +76,7 @@ export interface LiveMarkdownEditorProps {
   value: string
   active: boolean
   editable: boolean
+  contentFoldingEnabled?: boolean
   className?: string
   presentation?: 'card' | 'detail'
   topContent?: React.ReactNode
@@ -218,6 +220,7 @@ export const LiveMarkdownEditor = forwardRef<SourceNoteHandle, LiveMarkdownEdito
       value,
       active,
       editable,
+      contentFoldingEnabled = true,
       className,
       presentation = 'detail',
       topContent,
@@ -242,6 +245,8 @@ export const LiveMarkdownEditor = forwardRef<SourceNoteHandle, LiveMarkdownEdito
     const onScrollRef = useRef(onScroll)
     const liveOptionsRef = useRef<LiveEditorOptions>(liveOptions ?? {})
     const liveCompartmentRef = useRef(new Compartment())
+    const foldingCompartmentRef = useRef(new Compartment())
+    const foldingEnabledRef = useRef(contentFoldingEnabled)
     const blocksCompartmentRef = useRef(new Compartment())
     const blocksOptionsRef = useRef<{ content: React.ReactNode }>({ content: topContent })
     const vimActiveRef = useRef(false)
@@ -337,6 +342,9 @@ export const LiveMarkdownEditor = forwardRef<SourceNoteHandle, LiveMarkdownEdito
         syntaxHighlighting(classHighlighter),
         syntaxHighlighting(markdownHighlightStyle),
         liveFindExtensions(),
+        ...(presentation === 'detail'
+          ? [foldingCompartmentRef.current.of(foldingEnabledRef.current ? contentFolding() : [])]
+          : []),
         slashMenu(),
         keymap.of([
           { key: 'Mod-b', preventDefault: true, run: markerCommand('**') },
@@ -440,6 +448,18 @@ export const LiveMarkdownEditor = forwardRef<SourceNoteHandle, LiveMarkdownEdito
         vimActiveRef.current = false
       }
     }, [activateMarkdownVim, preserveScrollTopRef, presentation])
+
+    useEffect(() => {
+      if (foldingEnabledRef.current === contentFoldingEnabled) return
+      foldingEnabledRef.current = contentFoldingEnabled
+      const view = viewRef.current
+      if (!view || presentation !== 'detail') return
+      view.dispatch({
+        effects: foldingCompartmentRef.current.reconfigure(
+          contentFoldingEnabled ? contentFolding() : []
+        )
+      })
+    }, [contentFoldingEnabled, presentation])
 
     useEffect(() => {
       const view = viewRef.current

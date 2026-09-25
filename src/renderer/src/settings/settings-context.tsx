@@ -2,11 +2,13 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 
 import {
   applyTheme,
+  applyControlStyle,
   DEFAULT_TYPOGRAPHY,
   resolveAppliedTheme,
   type BaseFontSize,
   type ColorMode,
   type ColorTheme,
+  type ControlStyle,
   type FontPreference
 } from '@/hooks/theme'
 import { SETTINGS_SCHEMA, findSetting, type SettingKey, type SettingValue } from './settings-schema'
@@ -70,6 +72,7 @@ export function SettingsProvider({ children }: { children: ReactNode }): React.J
   // avoid a flash before this provider mounts.
   const colorMode = values.colorMode as ColorMode
   const colorTheme = values.colorTheme as ColorTheme
+  const controlStyle = values.controlStyle as ControlStyle
   const uiFont = values.uiFont as FontPreference
   const contentFont = values.contentFont as FontPreference
   const codeFont = values.codeFont as FontPreference
@@ -95,6 +98,10 @@ export function SettingsProvider({ children }: { children: ReactNode }): React.J
     query.addEventListener('change', onChange)
     return () => query.removeEventListener('change', onChange)
   }, [colorMode, colorTheme, uiFont, contentFont, codeFont, sourceFontSize, contentFontSize])
+
+  useEffect(() => {
+    applyControlStyle(controlStyle)
+  }, [controlStyle])
 
   const setSetting = useCallback(<T extends SettingValue>(key: SettingKey, value: T): void => {
     // Reject unknown keys instead of silently storing values no consumer reads.

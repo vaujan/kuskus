@@ -5,7 +5,7 @@ function Kbd({ className, ...props }: React.ComponentProps<'kbd'>) {
     <kbd
       data-slot="kbd"
       className={cn(
-        "pointer-events-none inline-flex h-5.5 w-fit min-w-5.5 items-center justify-center gap-1 rounded-lg bg-muted px-1.5 font-sans text-xs font-medium text-muted-foreground select-none in-data-[slot=input-group]:bg-input in-data-[slot=tooltip-content]:bg-background/20 in-data-[slot=tooltip-content]:text-background dark:in-data-[slot=tooltip-content]:bg-background/10 [&_svg:not([class*='size-'])]:size-3",
+        "pointer-events-none inline-flex min-h-5 min-w-5 items-center justify-center rounded-md border px-1.5 py-0.5 font-sans text-xs leading-none font-medium tracking-wide whitespace-nowrap select-none [&_svg:not([class*='size-'])]:size-3",
         className
       )}
       {...props}
@@ -13,14 +13,29 @@ function Kbd({ className, ...props }: React.ComponentProps<'kbd'>) {
   )
 }
 
-function KbdGroup({ className, ...props }: React.ComponentProps<'div'>) {
+function KbdGroup({ className, ...props }: React.ComponentProps<'span'>) {
   return (
-    <kbd
+    <span
       data-slot="kbd-group"
-      className={cn('inline-flex items-center gap-1', className)}
+      className={cn('inline-flex items-center gap-0.5 whitespace-nowrap', className)}
       {...props}
     />
   )
 }
 
-export { Kbd, KbdGroup }
+function ShortcutKbd({
+  shortcut,
+  ...props
+}: Omit<React.ComponentProps<typeof KbdGroup>, 'children'> & { shortcut: string }) {
+  return (
+    <KbdGroup role="group" aria-label={shortcut} {...props}>
+      {shortcut.split('+').map((key, index) => (
+        <Kbd aria-hidden="true" key={`${key}-${index}`}>
+          {key.trim()}
+        </Kbd>
+      ))}
+    </KbdGroup>
+  )
+}
+
+export { Kbd, KbdGroup, ShortcutKbd }

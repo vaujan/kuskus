@@ -268,6 +268,39 @@
 .cm-kuskus-live .cm-line:has(.cm-atomic-task-checkbox) {
   padding-top: var(--typeset-list-item-gap);
 }
+.cm-kuskus-live .cm-line {
+  position: relative;
+}
+.cm-kuskus-live .cm-kuskus-list-fold-button {
+  inset-block-start: 0.6875em;
+  font: inherit;
+}
+.cm-kuskus-live .cm-kuskus-list-fold-button--task {
+  inset-block-start: 0.9em;
+}
+.cm-kuskus-live .cm-line:hover .cm-kuskus-list-fold-button,
+.cm-kuskus-live .cm-kuskus-list-fold-button:focus-visible {
+  opacity: 1;
+}
+.cm-kuskus-live .cm-kuskus-heading-fold-button {
+  inset-block-start: 50%;
+  inset-inline-start: -1.6rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  font-size: 1rem;
+  transform: translateY(-50%);
+}
+.cm-kuskus-live .cm-kuskus-heading-fold-button svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+.cm-kuskus-live .cm-line:hover .cm-kuskus-heading-fold-button,
+.cm-kuskus-live .cm-kuskus-heading-fold-button:focus-visible {
+  opacity: 1;
+}
+.cm-kuskus-list-fold-placeholder {
+  display: none;
+}
 .cm-kuskus-live .cm-atomic-task-checkbox {
   transform: translateY(0.175em);
 }
@@ -322,8 +355,6 @@
   position: fixed;
   z-index: 80;
   width: 18rem;
-  max-height: 20rem;
-  overflow-y: auto;
   border-radius: var(--radius-3xl);
   background: color-mix(in oklch, var(--popover) 70%, transparent);
   padding: 0.375rem;
@@ -332,6 +363,10 @@
     0 0 0 1px color-mix(in oklch, var(--foreground) 6%, transparent),
     0 12px 32px -16px rgb(0 0 0 / 50%);
   backdrop-filter: blur(24px) saturate(150%);
+}
+
+.cm-kuskus-slash-scroll [data-slot='scroll-area-viewport'] {
+  max-height: 20rem;
 }
 
 .cm-kuskus-slash-item {
@@ -343,6 +378,18 @@
   border-radius: calc(var(--radius-3xl) - 6px);
   padding: 0.5rem 0.75rem;
   text-align: left;
+}
+
+.cm-kuskus-slash-item-label {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.cm-kuskus-slash-item-label svg {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex: none;
 }
 
 .cm-kuskus-slash-item[aria-selected='true'],
@@ -366,4 +413,37 @@
   color: var(--muted-foreground);
   font-size: 0.875rem;
   text-align: center;
+}
+/* Source mode keeps literal Markdown inside editable table cells while sharing
+ * Live mode's bounded columns, cell wrapping, and table-only scrolling. */
+.cm-kuskus-detail-editor .cm-atomic-table-source {
+  --atomic-editor-fg: var(--foreground);
+  --atomic-editor-fg-muted: var(--muted-foreground);
+  --atomic-editor-bg-surface: var(--background);
+  --atomic-editor-border: var(--border);
+  --atomic-editor-accent: var(--primary);
+  --typeset-table-border: var(--border);
+  --typeset-table-cell-border: var(--border);
+  --typeset-table-scroll-thumb: var(--border);
+  --typeset-table-cell-padding: 0.5em 0.625em;
+  --typeset-table-radius: 0.25rem;
+  --typeset-table-leading: 1.5;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--detail-document-max-width);
+  margin-inline: auto;
+  padding-inline: var(--typeset-detail-gutter);
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  font-size: var(--markdown-source-font-size, 14px);
+  line-height: 1.7;
+}
+
+.cm-kuskus-detail-editor .cm-atomic-table-source .kuskus-markdown-table {
+  font: inherit;
+}
+
+.cm-kuskus-detail-editor .cm-atomic-table-source .cm-atomic-table-cell-source {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }

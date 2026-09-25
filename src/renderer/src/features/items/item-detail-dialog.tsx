@@ -84,7 +84,7 @@ import {
 } from '@/components/ui/dialog'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { Kbd } from '@/components/ui/kbd'
+import { ShortcutKbd } from '@/components/ui/kbd'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -139,6 +139,7 @@ import { useNoteAttachmentPreviews } from '@/features/items/use-note-attachment-
 import { useUrlPreview } from '@/features/items/use-url-preview'
 import { WindowControls } from '@/features/shell/window-controls'
 import { cn } from '@/lib/utils'
+import { useSetting } from '@/settings/settings-context'
 import type {
   ActiveItemLocation,
   CollectionDto,
@@ -702,10 +703,7 @@ function NoteModeControls({
   }
 
   return (
-    <ButtonGroup
-      aria-label="Note mode"
-      className="rounded-xl bg-muted/40 p-1 shadow-sm ring-1 ring-foreground/8"
-    >
+    <ButtonGroup aria-label="Note mode">
       {options.map(({ value, label, icon: Icon, shortcut }) => (
         <Tooltip key={value}>
           <TooltipTrigger
@@ -1127,6 +1125,7 @@ function NoteCanvas({
   editorRef: React.RefObject<SourceNoteHandle | null>
   findRef: React.RefObject<NoteFindHandle | null>
 }): React.JSX.Element {
+  const [contentFoldingEnabled] = useSetting<boolean>('contentFolding')
   const noteMetrics = useMemo(() => getNoteTextMetrics(snapshot.draft), [snapshot.draft])
   const noteEditorRef = editorRef
   const liveFindTargetRef = useRef<NoteFindTarget | null>(null)
@@ -1419,11 +1418,13 @@ function NoteCanvas({
       {mode === 'read' ? (
         <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
           <MarkdownPreview
+            key={String(contentFoldingEnabled)}
             value={snapshot.draft}
             itemId={item.id}
             attachments={item.attachments}
             attachmentPreviews={attachmentPreviews}
             presentation="detail"
+            contentFoldingEnabled={contentFoldingEnabled}
             onOpenLink={handlePreviewOpenLink}
             onOpenVaultLink={handlePreviewOpenVaultLink}
             onChange={handlePreviewChange}
@@ -1457,6 +1458,7 @@ function NoteCanvas({
         preserveScrollTopRef={noteScrollTopRef}
         findTarget={liveFindTargetRef}
         vimEnabled={vimEnabled}
+        contentFoldingEnabled={contentFoldingEnabled}
         vim={noteVimContract}
         onChange={onDraftChange}
       />
@@ -1622,11 +1624,13 @@ function NoteCanvas({
                 {mode === 'split' ? (
                   <Suspense fallback={<div className="min-h-48 animate-pulse bg-muted/20" />}>
                     <MarkdownPreview
+                      key={String(contentFoldingEnabled)}
                       value={snapshot.draft}
                       itemId={item.id}
                       attachments={item.attachments}
                       attachmentPreviews={attachmentPreviews}
                       presentation="detail"
+                      contentFoldingEnabled={contentFoldingEnabled}
                       onOpenLink={handlePreviewOpenLink}
                       onOpenVaultLink={handlePreviewOpenVaultLink}
                       onChange={handlePreviewChange}
@@ -2115,12 +2119,11 @@ function UrlInspector({
       <Button size="lg" className="w-full" aria-keyshortcuts="Control+Enter" onClick={onOpenLink}>
         <ExternalLink data-icon="inline-start" aria-hidden="true" />
         Open link
-        <Kbd
-          className="ml-1 hidden bg-primary-foreground/15 text-primary-foreground sm:inline-flex"
+        <ShortcutKbd
+          className="ml-1 hidden sm:inline-flex"
+          shortcut="Ctrl+Enter"
           aria-hidden="true"
-        >
-          Ctrl+Enter
-        </Kbd>
+        />
       </Button>
     </DetailInspector>
   )

@@ -11,7 +11,7 @@ import {
   FieldLegend,
   FieldSet
 } from '@/components/ui/field'
-import { Kbd } from '@/components/ui/kbd'
+import { ShortcutKbd } from '@/components/ui/kbd'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
@@ -24,6 +24,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { FontPicker } from '@/features/settings/font-picker'
+import { SpellingLanguages } from '@/features/settings/spelling-languages'
 import {
   Sidebar,
   SidebarContent,
@@ -43,6 +44,7 @@ import {
   type BaseFontSize,
   type ColorMode,
   type ColorTheme,
+  type ControlStyle,
   type FontPreference
 } from '@/hooks/theme'
 import { useLocalFonts } from '@/hooks/use-local-fonts'
@@ -54,6 +56,7 @@ import { APP_ZOOM_FACTORS } from '../../../../shared/window-contract'
 const COLOR_THEMES: ReadonlyArray<{ value: ColorTheme; label: string }> = [
   { value: 'kuskus', label: 'Kuskus' },
   { value: 'graphite', label: 'Graphite' },
+  { value: 'obsidian', label: 'Obsidian' },
   { value: 'github', label: 'GitHub' },
   { value: 'vscode', label: 'VS Code' },
   { value: 'ayu', label: 'Ayu' },
@@ -112,6 +115,7 @@ export function SettingsWindowApp(): React.JSX.Element {
   const [globalCaptureShortcut, setGlobalCaptureShortcut] = useState('Ctrl+Shift+Space')
   const [colorMode, setColorMode] = useSetting<ColorMode>('colorMode')
   const [colorTheme, setColorTheme] = useSetting<ColorTheme>('colorTheme')
+  const [controlStyle, setControlStyle] = useSetting<ControlStyle>('controlStyle')
   const [uiFont, setUiFont] = useSetting<FontPreference>('uiFont')
   const [contentFont, setContentFont] = useSetting<FontPreference>('contentFont')
   const [codeFont, setCodeFont] = useSetting<FontPreference>('codeFont')
@@ -119,25 +123,28 @@ export function SettingsWindowApp(): React.JSX.Element {
   const [contentFontSize, setContentFontSize] = useSetting<BaseFontSize>('contentFontSize')
   const [vimEnabled, setVimEnabled] = useSetting<boolean>('vimEnabled')
   const [sourceLineNumbers, setSourceLineNumbers] = useSetting<boolean>('sourceLineNumbers')
+  const [contentFoldingEnabled, setContentFoldingEnabled] = useSetting<boolean>('contentFolding')
   const localFonts = useLocalFonts()
   const zoom = useAppZoom()
   const translucentBackground = useTranslucentBackground()
   const translucencyDisabled =
     translucentBackground.supported !== true || translucentBackground.reducedTransparency
   const isMac = window.electron.window.platform === 'darwin'
+  const isWindows = window.electron.window.platform === 'win32'
   const commandKey = isMac ? 'Cmd' : 'Ctrl'
 
   useEffect(() => {
+    if (!isWindows) return
     void window.electron.window
       .getGlobalCaptureShortcutStatus()
       .then((status) => setGlobalCaptureShortcut(status.accelerator))
-  }, [])
+  }, [isWindows])
 
   const shortcutGroups = [
     {
       label: 'General',
       shortcuts: [
-        { label: 'Quick capture', keys: globalCaptureShortcut },
+        ...(isWindows ? [{ label: 'Quick capture', keys: globalCaptureShortcut }] : []),
         { label: 'Open settings', keys: `${commandKey}+,` },
         { label: 'Quick open', keys: `${commandKey}+O` },
         { label: 'Search library', keys: `${commandKey}+Shift+F` },
@@ -170,6 +177,7 @@ export function SettingsWindowApp(): React.JSX.Element {
   const resetAppearance = (): void => {
     setColorTheme('kuskus')
     setColorMode('dark')
+    setControlStyle('skeuomorphic')
     setUiFont(DEFAULT_TYPOGRAPHY.uiFont)
     setContentFont(DEFAULT_TYPOGRAPHY.contentFont)
     setCodeFont(DEFAULT_TYPOGRAPHY.codeFont)
@@ -311,6 +319,32 @@ export function SettingsWindowApp(): React.JSX.Element {
                               {option.label}
                             </ToggleGroupItem>
                           ))}
+                        </ToggleGroup>
+                      </Field>
+
+                      <Field
+                        orientation="horizontal"
+                        className="min-h-16 border-t border-foreground/8 px-4 py-3"
+                      >
+                        <FieldContent>
+                          <FieldLabel>Control style</FieldLabel>
+                          <FieldDescription>
+                            Choose flat or raised controls and shortcut keys.
+                          </FieldDescription>
+                        </FieldContent>
+                        <ToggleGroup
+                          value={[controlStyle]}
+                          onValueChange={(values) => {
+                            const nextStyle = values[0]
+                            if (nextStyle) setControlStyle(nextStyle as ControlStyle)
+                          }}
+                          spacing={0}
+                          variant="outline"
+                          size="sm"
+                          aria-label="Control style"
+                        >
+                          <ToggleGroupItem value="flat">Flat</ToggleGroupItem>
+                          <ToggleGroupItem value="skeuomorphic">Skeuomorphic</ToggleGroupItem>
                         </ToggleGroup>
                       </Field>
                     </div>
@@ -518,8 +552,26 @@ export function SettingsWindowApp(): React.JSX.Element {
                         onCheckedChange={setSourceLineNumbers}
                       />
                     </Field>
+                    <Field
+                      orientation="horizontal"
+                      className="min-h-16 border-t border-foreground/8 px-4 py-3"
+                    >
+                      <FieldContent>
+                        <FieldLabel htmlFor="settings-content-folding">Content folding</FieldLabel>
+                        <FieldDescription>
+                          Show controls to collapse headings and nested lists in Read and Live
+                          modes.
+                        </FieldDescription>
+                      </FieldContent>
+                      <Switch
+                        id="settings-content-folding"
+                        checked={contentFoldingEnabled}
+                        onCheckedChange={setContentFoldingEnabled}
+                      />
+                    </Field>
                   </div>
                 </FieldSet>
+                <SpellingLanguages />
               </div>
             ) : (
               <div className="mx-auto flex w-full max-w-3xl flex-col gap-7 px-8 pt-12 pb-8">
@@ -544,7 +596,7 @@ export function SettingsWindowApp(): React.JSX.Element {
                             )}
                           >
                             <FieldLabel>{shortcut.label}</FieldLabel>
-                            <Kbd>{shortcut.keys}</Kbd>
+                            <ShortcutKbd shortcut={shortcut.keys} />
                           </Field>
                         ))}
                       </div>

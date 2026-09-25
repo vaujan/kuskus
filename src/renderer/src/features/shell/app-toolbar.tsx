@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { Kbd } from '@/components/ui/kbd'
+import { ShortcutKbd } from '@/components/ui/kbd'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ItemFilterMenuGroups, ItemSortMenuGroup } from '@/features/items/item-retrieval-menu'
 import { DEFAULT_ITEM_SORT, type ItemSort } from '@/features/items/item-sort'
@@ -77,13 +77,13 @@ export function AppToolbar({
   return (
     <header className="window-toolbar flex h-12 shrink-0 select-none items-center [-webkit-app-region:drag]">
       <div className="@container/toolbar min-w-0 flex-1">
-        <div className="grid min-w-0 grid-cols-[auto_minmax(10rem,1fr)_auto] items-center gap-3 px-2 @min-[44rem]/toolbar:px-5 @min-[48rem]/toolbar:grid-cols-[minmax(0,1fr)_minmax(10rem,28rem)_minmax(0,1fr)] @min-[64rem]/toolbar:px-7">
+        <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-2 @min-[44rem]/toolbar:gap-3 @min-[44rem]/toolbar:px-5 @min-[64rem]/toolbar:px-7">
           <div className="flex min-w-0 items-center justify-start gap-1">
             <ShellSidebarTrigger />
             {menu}
           </div>
 
-          <div className="flex min-w-0 items-center gap-1 [-webkit-app-region:no-drag]">
+          <div className="flex min-w-0 w-full max-w-[28rem] items-center justify-self-center gap-1 [-webkit-app-region:no-drag]">
             <LibrarySearchInput
               inputRef={searchInputRef}
               value={searchQuery}
@@ -153,7 +153,7 @@ export function AppToolbar({
                 <span className="hidden @min-[48rem]/toolbar:inline">New note</span>
               </TooltipTrigger>
               <TooltipContent>
-                New note <Kbd>Ctrl+N</Kbd>
+                New note <ShortcutKbd shortcut="Ctrl+N" />
               </TooltipContent>
             </Tooltip>
             <Tooltip>
@@ -176,7 +176,8 @@ export function AppToolbar({
                 <span className="hidden @min-[48rem]/toolbar:inline">Add item</span>
               </TooltipTrigger>
               <TooltipContent>
-                {hasDraft && !newItemOpen ? 'Continue draft' : 'Add item'} <Kbd>Ctrl+Shift+N</Kbd>
+                {hasDraft && !newItemOpen ? 'Continue draft' : 'Add item'}{' '}
+                <ShortcutKbd shortcut="Ctrl+Shift+N" />
               </TooltipContent>
             </Tooltip>
             {hasDraft ? (

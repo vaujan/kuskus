@@ -320,12 +320,13 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.match(markdownStyles, /translate: calc\(var\(--detail-editor-scrollbar-size\) \/ 2\) 0/)
   assert.match(markdownStyles, /\[data-reading-width='wide'\] \.kuskus-detail-document-frame/)
   assert.match(markdownStyles, /--detail-document-max-width: none/)
-  assert.match(editorSource, /maxWidth: 'var\(--detail-document-max-width\)'/)
-  assert.match(editorSource, /width: 'var\(--detail-editor-scrollbar-size, 0\.625rem\)'/)
   assert.match(
     editorSource,
-    /padding: 'var\(--typeset-detail-padding-block\) var\(--typeset-detail-gutter\)'/
+    /'\.cm-line': \{[\s\S]*?maxWidth: 'var\(--detail-document-max-width\)'/
   )
+  assert.match(editorSource, /tables\(\{ presentation: 'source' \}\)/)
+  assert.match(editorSource, /width: 'var\(--detail-editor-scrollbar-size, 0\.625rem\)'/)
+  assert.match(editorSource, /padding: 'var\(--typeset-detail-padding-block\) 0'/)
   assert.match(
     liveEditorSource,
     /padding: 'var\(--typeset-detail-padding-block\) var\(--typeset-detail-gutter\)'/

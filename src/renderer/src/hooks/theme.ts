@@ -1,8 +1,10 @@
 export type ColorMode = 'dark' | 'light' | 'system'
+export type ControlStyle = 'flat' | 'skeuomorphic'
 
 export type ColorTheme =
   | 'kuskus'
   | 'graphite'
+  | 'obsidian'
   | 'github'
   | 'vscode'
   | 'ayu'
@@ -51,8 +53,20 @@ export function resolveColorMode(value: string | null): ColorMode {
   return value === 'light' || value === 'system' ? value : 'dark'
 }
 
+export function resolveControlStyle(value: string | null): ControlStyle {
+  return value === 'flat' ? 'flat' : 'skeuomorphic'
+}
+
+export function applyControlStyle(
+  style: ControlStyle,
+  root: Pick<HTMLElement, 'dataset'> = document.documentElement
+): void {
+  root.dataset.controlStyle = style
+}
+
 export function resolveColorTheme(value: string | null): ColorTheme {
   return value === 'graphite' ||
+    value === 'obsidian' ||
     value === 'github' ||
     value === 'vscode' ||
     value === 'ayu' ||

@@ -1,22 +1,24 @@
-import { Menu, type BrowserWindow } from 'electron'
-
-import { createTextContextMenuItems } from './text-context-menu-items'
+import type { BrowserWindow } from 'electron'
+import { WINDOW_CHANNELS, type TextContextMenuDetails } from '../../shared/window-contract'
 
 export function installTextContextMenu(window: BrowserWindow): void {
   window.webContents.on('context-menu', (_event, params) => {
     if (!params.isEditable) return
 
-    Menu.buildFromTemplate(
-      createTextContextMenuItems(params, {
-        replace: (suggestion) => window.webContents.replaceMisspelling(suggestion),
-        addToDictionary: (word) => window.webContents.session.addWordToSpellCheckerDictionary(word),
-        undo: () => window.webContents.undo(),
-        redo: () => window.webContents.redo(),
-        cut: () => window.webContents.cut(),
-        copy: () => window.webContents.copy(),
-        paste: () => window.webContents.paste(),
-        selectAll: () => window.webContents.selectAll()
-      })
-    ).popup({ window })
+    const details: TextContextMenuDetails = {
+      x: params.x,
+      y: params.y,
+      misspelledWord: params.misspelledWord,
+      suggestions: params.dictionarySuggestions,
+      editFlags: {
+        canUndo: params.editFlags.canUndo,
+        canRedo: params.editFlags.canRedo,
+        canCut: params.editFlags.canCut,
+        canCopy: params.editFlags.canCopy,
+        canPaste: params.editFlags.canPaste,
+        canSelectAll: params.editFlags.canSelectAll
+      }
+    }
+    window.webContents.send(WINDOW_CHANNELS.textContextMenu, details)
   })
 }

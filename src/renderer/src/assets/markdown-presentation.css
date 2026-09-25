@@ -114,10 +114,114 @@
 }
 
 .kuskus-rendered-list > li {
+  position: relative;
   display: grid;
   grid-template-columns: var(--typeset-list-marker-column) minmax(0, 1fr);
   margin-block-start: var(--typeset-list-item-gap);
   padding: 0;
+}
+
+.kuskus-list-fold-button {
+  position: absolute;
+  inset-block-start: 0.1875em;
+  inset-inline-start: -0.9em;
+  z-index: 1;
+  display: grid;
+  width: 1.25em;
+  height: 1.25em;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--typeset-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 120ms ease,
+    color 120ms ease,
+    scale 120ms ease;
+}
+
+.kuskus-list-fold-button svg {
+  width: 0.875em;
+  height: 0.875em;
+  transform: rotate(90deg);
+  transition: transform 180ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.kuskus-list-fold-button[aria-expanded='false'] svg {
+  transform: none;
+}
+
+.kuskus-list-fold-button[aria-expanded='false'] {
+  color: var(--primary);
+}
+
+.kuskus-list-fold-button:hover {
+  color: var(--foreground);
+}
+
+.kuskus-list-fold-button[aria-expanded='false']:hover {
+  color: var(--primary);
+}
+
+.kuskus-list-fold-button:active {
+  scale: 0.96;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kuskus-list-fold-button,
+  .kuskus-list-fold-button svg {
+    transition-duration: 0ms;
+  }
+}
+
+.kuskus-rendered-list > li:hover:not(:has(li:hover)) > .kuskus-list-fold-button,
+.kuskus-list-fold-button:focus-visible,
+.kuskus-list-fold-button[aria-expanded='false'] {
+  opacity: 1;
+}
+
+.kuskus-list-fold-button:focus-visible {
+  outline: none;
+  color: var(--primary);
+  scale: 1.12;
+}
+
+.kuskus-rendered-list > li.task-list-item > .kuskus-list-fold-button {
+  inset-block-start: 0.25em;
+  inset-inline-start: -1.4em;
+}
+
+.kuskus-rendered-list > li[data-list-folded] > .kuskus-list-content > .kuskus-rendered-list,
+.kuskus-rendered-list > li[data-list-folded] > .kuskus-list-content > .kuskus-rendered-list ~ * {
+  display: none;
+}
+
+.kuskus-typeset > [hidden] {
+  display: none !important;
+}
+
+.kuskus-foldable-heading {
+  position: relative;
+}
+
+.kuskus-heading-fold-button {
+  inset-block-start: 50%;
+  inset-inline-start: -1.6rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  font-size: 1rem;
+  transform: translateY(-50%);
+}
+
+.kuskus-heading-fold-button svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.kuskus-foldable-heading:hover > .kuskus-heading-fold-button {
+  opacity: 1;
 }
 
 .kuskus-list-content {

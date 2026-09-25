@@ -387,6 +387,28 @@
   overflow-wrap: anywhere;
 }
 
+.cm-atomic-table-cell-source[data-vim-normal] {
+  caret-color: transparent;
+}
+
+.cm-atomic-table-vim-cursor {
+  position: absolute;
+  z-index: 4;
+  overflow: hidden;
+  white-space: pre;
+  pointer-events: none;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.cm-atomic-table-vim-cursor[hidden] {
+  display: none;
+}
+
+.cm-editor:has(.cm-atomic-table-cell-source[data-vim-normal]:focus) .cm-vimCursorLayer {
+  visibility: hidden;
+}
+
 /* Selection and drop-target cells paint only their outer edges above the
  * table grid, keeping each rounded outline continuous while scrolling. */
 .cm-atomic-table {

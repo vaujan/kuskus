@@ -40,7 +40,7 @@ The MVP is complete when all golden workflows work against a real local library 
   one inline draft at the beginning of the active view.
 - A primary New Note action and in-app `Ctrl+N` shortcut that open an ephemeral full-detail note,
   create it on the first meaningful edit, and then use normal autosave.
-- A fixed `Ctrl+Shift+Space` system-wide shortcut that, while Kuskus is running, opens the same
+- On Windows, a fixed `Ctrl+Shift+Space` system-wide shortcut that, while Kuskus is running, opens the same
   recoverable Inbox composer in a singleton bottom-right quick-capture window without reading the
   clipboard or changing the main window.
 - No permanent capture tile or modal capture dialog; the non-modal quick-capture window is the

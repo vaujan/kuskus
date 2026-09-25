@@ -25,11 +25,6 @@ export function LibrarySearchInput({
     <InputGroup className={cn('h-8 rounded-lg bg-input/40', className)}>
       <InputGroupAddon>
         <IconSearch aria-hidden="true" />
-        {scopeLabel ? (
-          <span className="max-w-24 truncate text-xs" title={scopeLabel}>
-            {scopeLabel}
-          </span>
-        ) : null}
       </InputGroupAddon>
       <InputGroupInput
         ref={inputRef}
@@ -43,11 +38,24 @@ export function LibrarySearchInput({
           else if (onEscapeEmpty) onEscapeEmpty()
           else event.currentTarget.blur()
         }}
-        placeholder="Search items"
-        aria-label={scopeLabel ? `Search ${scopeLabel}` : 'Search library'}
+        placeholder="Search"
+        aria-label="Search"
         aria-keyshortcuts="Control+Shift+F Meta+Shift+F"
         aria-busy={pending}
       />
+      {scopeLabel ? (
+        <InputGroupAddon
+          align="inline-end"
+          className="min-w-0 py-0 pr-1.5 @max-[30rem]/toolbar:hidden"
+        >
+          <span
+            className="max-w-24 min-w-0 truncate rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-foreground/80"
+            title={scopeLabel}
+          >
+            {scopeLabel}
+          </span>
+        </InputGroupAddon>
+      ) : null}
     </InputGroup>
   )
 }

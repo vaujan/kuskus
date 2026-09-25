@@ -2,6 +2,7 @@ import {
   BrowserWindow,
   ipcMain,
   nativeTheme,
+  session,
   type WebContents,
   type IpcMainEvent,
   type IpcMainInvokeEvent
@@ -11,7 +12,9 @@ import {
   APP_ZOOM_FACTORS,
   WINDOW_CHANNELS,
   parseNativeThemeSource,
-  type GlobalCaptureShortcutStatus
+  type GlobalCaptureShortcutStatus,
+  type SpellingLanguagesStatus,
+  type TextContextMenuAction
 } from '../../shared/window-contract'
 import {
   applyTranslucentBackground,
@@ -20,6 +23,15 @@ import {
 
 function windowFromEvent(event: IpcMainEvent | IpcMainInvokeEvent): BrowserWindow | null {
   return BrowserWindow.fromWebContents(event.sender)
+}
+
+function spellingLanguagesStatus(): SpellingLanguagesStatus {
+  const spellcheck = session.defaultSession
+  return {
+    available: spellcheck.availableSpellCheckerLanguages,
+    selected: spellcheck.getSpellCheckerLanguages(),
+    managedBySystem: process.platform === 'darwin'
+  }
 }
 
 export function registerWindowIpc(
@@ -52,6 +64,47 @@ export function registerWindowIpc(
     else if (command === 'copy') contents.copy()
     else if (command === 'paste') contents.paste()
     else if (command === 'selectAll') contents.selectAll()
+  })
+  ipcMain.on(WINDOW_CHANNELS.textContextMenuAction, (event, action: TextContextMenuAction) => {
+    if (!action || typeof action !== 'object') return
+    const contents = event.sender
+    if (action.kind === 'replace' && typeof action.text === 'string' && action.text.length < 128) {
+      contents.replaceMisspelling(action.text)
+    } else if (
+      action.kind === 'addToDictionary' &&
+      typeof action.text === 'string' &&
+      action.text.length < 128
+    ) {
+      contents.session.addWordToSpellCheckerDictionary(action.text)
+    } else if (action.kind === 'edit') {
+      const command = action.command
+      if (command === 'undo') contents.undo()
+      else if (command === 'redo') contents.redo()
+      else if (command === 'cut') contents.cut()
+      else if (command === 'copy') contents.copy()
+      else if (command === 'paste') contents.paste()
+      else if (command === 'selectAll') contents.selectAll()
+    }
+  })
+  ipcMain.handle(WINDOW_CHANNELS.getSpellingLanguages, spellingLanguagesStatus)
+  ipcMain.handle(WINDOW_CHANNELS.setSpellingLanguages, (_event, value: unknown) => {
+    if (process.platform === 'darwin') return spellingLanguagesStatus()
+    const available = new Set(session.defaultSession.availableSpellCheckerLanguages)
+    if (
+      !Array.isArray(value) ||
+      value.length === 0 ||
+      value.some((language) => typeof language !== 'string' || !available.has(language))
+    ) {
+      throw new Error('Select at least one supported spelling language.')
+    }
+    session.defaultSession.setSpellCheckerLanguages([...new Set(value)])
+    const status = spellingLanguagesStatus()
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (!window.isDestroyed()) {
+        window.webContents.send(WINDOW_CHANNELS.spellingLanguagesChanged, status)
+      }
+    }
+    return status
   })
   ipcMain.handle(WINDOW_CHANNELS.setZoomFactor, (event, zoomFactor: unknown) => {
     if (

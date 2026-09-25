@@ -317,6 +317,7 @@ class TaskCheckboxWidget extends WidgetType {
     input.type = 'checkbox'
     input.checked = this.checked
     input.className = 'kuskus-task-checkbox cm-atomic-task-checkbox'
+    input.setAttribute('aria-label', this.checked ? 'Completed task' : 'Open task')
     input.setAttribute('contenteditable', 'false')
     input.addEventListener('mousedown', (e) => {
       e.preventDefault()

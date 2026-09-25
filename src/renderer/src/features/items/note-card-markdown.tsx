@@ -40,6 +40,14 @@ export const NoteCardMarkdown = memo(function NoteCardMarkdown({
       a: ({ children }) => (
         <span className="underline decoration-foreground/30 underline-offset-2">{children}</span>
       ),
+      input: ({ checked }) => (
+        <input
+          type="checkbox"
+          checked={Boolean(checked)}
+          disabled
+          aria-label={checked ? 'Completed task' : 'Open task'}
+        />
+      ),
       img: ({ alt }) =>
         alt ? (
           <span className="not-typeset my-2 block px-4 text-center text-xs text-muted-foreground italic">
