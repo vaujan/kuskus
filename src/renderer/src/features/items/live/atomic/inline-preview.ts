@@ -40,7 +40,8 @@ import { readOnlyFacet } from './read-only'
 
 export interface InlinePreviewConfig {
   /**
-   * Called when the user plain-clicks a rendered link. Defaults to
+   * Called when the user clicks a rendered link's open icon or
+   * Ctrl/Meta-clicks its text. Defaults to
    * `window.open(url, '_blank', 'noopener,noreferrer')`. Consumers in
    * platform-specific shells (Tauri, Electron, Capacitor) should pass
    * their own opener so links route through the host's external-URL
@@ -132,9 +133,15 @@ const freezeMousePlugin = ViewPlugin.fromClass(
       if (!(target instanceof Node) || !this.view.contentDOM.contains(target)) {
         return
       }
-      if (linkIconHitTarget(event, this.view.contentDOM)) {
+      if (
+        linkIconHitTarget(event, this.view.contentDOM) ||
+        ((event.ctrlKey || event.metaKey) &&
+          !event.shiftKey &&
+          !event.altKey &&
+          linkElementFromEvent(event, this.view.contentDOM))
+      ) {
         // Let the follow-up click open the link, but stop CM6 from
-        // interpreting the icon press as a text-editing click. Without
+        // interpreting the press as a text-editing click. Without
         // this, pointerdown moves the selection into the Link node and
         // reveals `[label](url)` before the click handler opens it.
         event.preventDefault()
@@ -1181,13 +1188,11 @@ function insertTightListItem(view: EditorView): boolean {
 function makeLinkClickHandler(onLinkClick: (url: string) => void): Extension {
   return EditorView.domEventHandlers({
     click: (event, view) => {
-      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return false
+      if (event.shiftKey || event.altKey) return false
       if (event.button !== 0) return false
-      // In read-only mode there's no editable link text to protect, so
-      // a click anywhere on the link opens it. In edit mode the open
-      // affordance stays scoped to the trailing icon hit-zone so the
-      // text itself remains clickable-to-edit.
-      const linkEl = view.state.facet(readOnlyFacet)
+      // The visible icon opens with a plain click. Ctrl/Meta-click also
+      // opens from the text, leaving ordinary clicks available to edit.
+      const linkEl = view.state.facet(readOnlyFacet) || event.metaKey || event.ctrlKey
         ? linkElementFromEvent(event, view.contentDOM)
         : linkIconHitTarget(event, view.contentDOM)
       if (!linkEl) return false

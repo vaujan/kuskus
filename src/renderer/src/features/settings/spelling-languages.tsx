@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
+import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Field,
@@ -75,6 +76,24 @@ export function SpellingLanguages(): React.JSX.Element {
         Check notes with all selected dictionaries. You can write in different languages without
         switching between notes. New dictionaries may need a one-time download.
       </FieldDescription>
+      {status ? (
+        <div className="flex flex-col gap-2" role="group" aria-label="Selected spelling languages">
+          <p className="text-xs font-medium text-muted-foreground">
+            Selected languages ({status.selected.length})
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {status.selected.length ? (
+              status.selected.map((code) => (
+                <Badge key={code} variant="secondary">
+                  {labelFor(code)} <span className="opacity-60">{code}</span>
+                </Badge>
+              ))
+            ) : (
+              <Badge variant="secondary">System default</Badge>
+            )}
+          </div>
+        </div>
+      ) : null}
       {status?.managedBySystem ? (
         <p className="text-sm text-muted-foreground">
           macOS manages spelling languages in System Settings.

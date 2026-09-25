@@ -4,6 +4,7 @@ import {
   Facet,
   Prec,
   StateField,
+  StateEffect,
   Transaction,
   type EditorState,
   type Extension,
@@ -921,7 +922,9 @@ class TableWidget extends WidgetType {
     readonly model: TableModel,
     readonly readOnly: boolean,
     readonly revision: number,
-    readonly presentation: TablePresentation
+    readonly presentation: TablePresentation,
+    readonly source: string,
+    readonly showSource: boolean
   ) {
     super()
   }
@@ -937,6 +940,8 @@ class TableWidget extends WidgetType {
     if (other.revision !== this.revision) return false
     if (other.readOnly !== this.readOnly) return false
     if (other.presentation !== this.presentation) return false
+    if (other.showSource !== this.showSource) return false
+    if (this.showSource) return other.source === this.source
     if (other.model.header.length !== this.model.header.length) return false
     if (other.model.rows.length !== this.model.rows.length) return false
     if (other.model.aligns.some((align, column) => align !== this.model.aligns[column]))
@@ -948,6 +953,29 @@ class TableWidget extends WidgetType {
     const wrap = document.createElement('div')
     wrap.className = `kuskus-markdown-table-scroll cm-atomic-table${this.presentation === 'source' ? ' cm-atomic-table-source' : ''}`
     wrap.tabIndex = -1
+
+    if (this.presentation === 'source') {
+      const toggle = document.createElement('button')
+      toggle.type = 'button'
+      toggle.className = 'cm-atomic-table-source-toggle'
+      toggle.textContent = this.showSource ? 'Show table' : 'View source'
+      toggle.setAttribute('aria-label', this.showSource ? 'Show table' : 'View table source')
+      toggle.setAttribute('aria-pressed', String(this.showSource))
+      toggle.addEventListener('click', () => {
+        const range = findCurrentTableRange(view, wrap)
+        if (range)
+          view.dispatch({ effects: toggleTableSource.of(view.state.doc.lineAt(range.from).from) })
+      })
+      wrap.appendChild(toggle)
+    }
+
+    if (this.showSource) {
+      const source = document.createElement('pre')
+      source.className = 'cm-atomic-table-raw-source'
+      source.textContent = this.source
+      wrap.appendChild(source)
+      return wrap
+    }
 
     const table = document.createElement('table')
     table.className = 'kuskus-markdown-table'
@@ -1112,14 +1140,14 @@ function makeCell(
   // opened. We open on `click` (a proper popup-activation gesture, so
   // `window.open` isn't blocked) and block the caret on `pointerdown`.
   //
-  // In read-only mode there's no editable link text to protect, so the
-  // whole link (`.cm-atomic-link-wrap`) is the open target — matching
-  // the outer editor. In edit mode the open stays scoped to the
-  // trailing icon so the text itself remains clickable-to-edit.
+  // In read-only mode and on Ctrl/Meta-click, the whole link opens.
+  // Plain clicks in edit mode stay scoped to the trailing icon so the
+  // text itself remains clickable-to-edit.
   const openTargetFromEvent = (event: Event): HTMLElement | null => {
     const target = event.target
     if (!(target instanceof Element)) return null
-    const selector = readOnly ? '.cm-atomic-link-wrap' : '.cm-atomic-link-icon'
+    const modifier = event instanceof MouseEvent && (event.metaKey || event.ctrlKey)
+    const selector = readOnly || modifier ? '.cm-atomic-link-wrap' : '.cm-atomic-link-icon'
     return target.closest<HTMLElement>(selector)
   }
 
@@ -1134,7 +1162,7 @@ function makeCell(
   source.addEventListener('click', (event) => {
     const hit = openTargetFromEvent(event)
     if (!hit) return
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    if (event.shiftKey || event.altKey) return
     const url = hit.closest<HTMLElement>('.cm-atomic-link-wrap')?.dataset.url
     if (!url) return
     event.preventDefault()
@@ -2240,7 +2268,11 @@ function backspaceAtTableBoundary(view: EditorView): boolean {
 
 // ---- state field ----------------------------------------------------
 
-function buildTableWidgets(state: EditorState, revision: number): DecorationSet {
+function buildTableWidgets(
+  state: EditorState,
+  revision: number,
+  sourcePositions: ReadonlySet<number>
+): DecorationSet {
   const ranges: Range<Decoration>[] = []
   const readOnly = state.facet(readOnlyFacet)
   const presentation = state.facet(tablePresentationFacet)
@@ -2264,7 +2296,14 @@ function buildTableWidgets(state: EditorState, revision: number): DecorationSet 
       const endLine = doc.lineAt(node.to)
       ranges.push(
         Decoration.replace({
-          widget: new TableWidget(model, readOnly, revision, presentation),
+          widget: new TableWidget(
+            model,
+            readOnly,
+            revision,
+            presentation,
+            state.sliceDoc(startLine.from, endLine.to),
+            presentation === 'source' && sourcePositions.has(startLine.from)
+          ),
           block: true
         }).range(startLine.from, endLine.to)
       )
@@ -2315,33 +2354,69 @@ function changeAffectsTables(tr: Transaction, existing: DecorationSet): boolean 
   return affected
 }
 
-type TableFieldValue = { decorations: DecorationSet; revision: number }
+const toggleTableSource = StateEffect.define<number>()
+
+type TableFieldValue = {
+  decorations: DecorationSet
+  revision: number
+  sourcePositions: ReadonlySet<number>
+}
 
 const tableField = StateField.define<TableFieldValue>({
-  create: (state) => ({ decorations: buildTableWidgets(state, 0), revision: 0 }),
+  create: (state) => ({
+    decorations: buildTableWidgets(state, 0, new Set()),
+    revision: 0,
+    sourcePositions: new Set()
+  }),
   update(value, tr) {
+    const sourcePositions = new Set<number>()
+    for (const position of value.sourcePositions) {
+      sourcePositions.add(tr.changes.mapPos(position, 1))
+    }
+    for (const effect of tr.effects) {
+      if (!effect.is(toggleTableSource)) continue
+      if (sourcePositions.has(effect.value)) sourcePositions.delete(effect.value)
+      else sourcePositions.add(effect.value)
+      return {
+        ...value,
+        sourcePositions,
+        decorations: buildTableWidgets(tr.state, value.revision, sourcePositions)
+      }
+    }
     // Tree-growth effect: lezer's background parser caught up to a
     // region that wasn't parsed when we last built. Rebuild so any
     // newly-visible Table nodes get their widget.
     for (const effect of tr.effects) {
       if (effect.is(treeGrowthEffect)) {
-        return { ...value, decorations: buildTableWidgets(tr.state, value.revision) }
+        return {
+          ...value,
+          sourcePositions,
+          decorations: buildTableWidgets(tr.state, value.revision, sourcePositions)
+        }
       }
     }
     // Reading-mode toggle: rebuild so cells re-render editable / inert.
     if (tr.startState.facet(readOnlyFacet) !== tr.state.facet(readOnlyFacet)) {
-      return { ...value, decorations: buildTableWidgets(tr.state, value.revision) }
+      return {
+        ...value,
+        sourcePositions,
+        decorations: buildTableWidgets(tr.state, value.revision, sourcePositions)
+      }
     }
     if (!tr.docChanged) return value
     const mapped = value.decorations.map(tr.changes)
     if (!changeAffectsTables(tr, value.decorations)) {
-      return { ...value, decorations: mapped }
+      return { ...value, sourcePositions, decorations: mapped }
     }
     // Cell typing already updated its live DOM. Other table edits (including
     // reorders and undo) must replace same-size widgets with fresh content.
     const revision =
       tr.annotation(Transaction.userEvent) === 'input.type' ? value.revision : value.revision + 1
-    return { decorations: buildTableWidgets(tr.state, revision), revision }
+    return {
+      decorations: buildTableWidgets(tr.state, revision, sourcePositions),
+      revision,
+      sourcePositions
+    }
   },
   provide: (f) => EditorView.decorations.from(f, (value) => value.decorations)
 })

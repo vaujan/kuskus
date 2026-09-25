@@ -1583,6 +1583,23 @@
       0 1px 2px var(--control-shadow);
   }
 
+  :root[data-control-style='skeuomorphic']
+    [data-slot='toggle-group'][data-spacing='0'][data-variant='outline'] {
+    box-shadow:
+      inset 0 1px 2px var(--control-press),
+      0 1px 0 var(--control-highlight);
+  }
+
+  :root[data-control-style='skeuomorphic']
+    [data-slot='toggle-group'][data-spacing='0'][data-variant='outline']
+    > [data-slot='toggle-group-item'][aria-pressed='true'] {
+    position: relative;
+    z-index: 1;
+    box-shadow:
+      inset 0 1px 0 var(--control-highlight),
+      0 1px 2px var(--control-shadow);
+  }
+
   [data-slot='kbd'] {
     border-color: color-mix(in srgb, currentColor 15%, transparent);
     background: color-mix(in srgb, currentColor 8%, transparent);

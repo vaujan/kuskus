@@ -6,10 +6,12 @@ import type { FontPreference } from '@/hooks/theme'
 import { Button } from './button'
 import { ButtonGroup } from './button-group'
 import { Kbd, ShortcutKbd } from './kbd'
+import { ToggleGroup, ToggleGroupItem } from './toggle-group'
 
 function ControlSurfaces(): React.JSX.Element {
   const [selected, setSelected] = useState('Read')
   const [font, setFont] = useState<FontPreference>('system-ui')
+  const [colorMode, setColorMode] = useState('Dark')
 
   return (
     <div className="flex w-80 flex-col gap-7">
@@ -28,6 +30,26 @@ function ControlSurfaces(): React.JSX.Element {
             </Button>
           ))}
         </ButtonGroup>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <span className="text-muted-foreground text-xs">Segmented toggle group</span>
+        <ToggleGroup
+          value={[colorMode]}
+          onValueChange={(values) => {
+            if (values[0]) setColorMode(values[0])
+          }}
+          spacing={0}
+          variant="outline"
+          size="sm"
+          aria-label="Example color mode"
+        >
+          {['Light', 'Dark', 'System'].map((mode) => (
+            <ToggleGroupItem key={mode} value={mode}>
+              {mode}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
       </div>
 
       <div className="flex flex-col gap-2">
