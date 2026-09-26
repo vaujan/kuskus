@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { IconKeyboard, IconPalette, IconPencil } from '@tabler/icons-react'
+import { IconFlask, IconKeyboard, IconPalette, IconPencil } from '@tabler/icons-react'
 
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Field,
@@ -527,8 +528,17 @@ export function SettingsWindowApp(): React.JSX.Element {
                   <div className="overflow-hidden rounded-xl bg-card/70 text-card-foreground shadow-[0_0_0_1px_rgb(0_0_0/0.06),0_1px_2px_rgb(0_0_0/0.04)] dark:shadow-[0_0_0_1px_rgb(255_255_255/0.08),0_1px_2px_rgb(0_0_0/0.18)]">
                     <Field orientation="horizontal" className="min-h-16 px-4 py-3">
                       <FieldContent>
-                        <FieldLabel htmlFor="settings-vim-mode">Vim keybindings</FieldLabel>
-                        <FieldDescription>Use Vim motions while editing notes.</FieldDescription>
+                        <FieldLabel htmlFor="settings-vim-mode">
+                          Vim keybindings
+                          <Badge variant="secondary" size="sm">
+                            <IconFlask data-icon="inline-start" aria-hidden="true" />
+                            Experimental
+                          </Badge>
+                        </FieldLabel>
+                        <FieldDescription>
+                          Use Vim motions while editing notes. Vim support is still being improved,
+                          and some commands may not work as expected.
+                        </FieldDescription>
                       </FieldContent>
                       <Switch
                         id="settings-vim-mode"

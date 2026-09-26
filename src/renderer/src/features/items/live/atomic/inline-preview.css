@@ -409,6 +409,10 @@
   visibility: hidden;
 }
 
+.cm-editor[data-vim-widget-match] .cm-vimCursorLayer {
+  visibility: hidden;
+}
+
 /* Selection and drop-target cells paint only their outer edges above the
  * table grid, keeping each rounded outline continuous while scrolling. */
 .cm-atomic-table {

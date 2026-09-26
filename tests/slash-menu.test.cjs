@@ -4,7 +4,6 @@ const { EditorSelection, EditorState } = require('@codemirror/state')
 const { markdown } = require('@codemirror/lang-markdown')
 
 const {
-  canStartSlashQuery,
   currentSlashQuery,
   fitSlashMenuPosition,
   findSlashQuery,
@@ -16,10 +15,6 @@ test('opens slash commands only at the start of a Markdown line', () => {
   assert.equal(findSlashQuery('  /tab'), 'tab')
   assert.equal(findSlashQuery('Start /tab'), null)
   assert.equal(findSlashQuery('https://example.com/'), null)
-  assert.equal(canStartSlashQuery(''), true)
-  assert.equal(canStartSlashQuery('  '), true)
-  assert.equal(canStartSlashQuery('Start '), false)
-  assert.equal(canStartSlashQuery('https://example.com'), false)
   assert.deepEqual(
     slashCommands.map(({ id }) => id),
     [

@@ -4,7 +4,11 @@ const test = require('node:test')
 require('./helpers/install-ts-require.cjs')()
 
 const { EditorState } = require('@codemirror/state')
-const { collectMatches } = require('../src/renderer/src/features/items/live/live-find.ts')
+const { getSearchQuery, SearchQuery, setSearchQuery } = require('@codemirror/search')
+const {
+  collectMatches,
+  liveFindExtensions
+} = require('../src/renderer/src/features/items/live/live-find.ts')
 
 test('note find terminates and returns every non-overlapping match', () => {
   const state = EditorState.create({ doc: 'alpha beta alpha alphabet alpha' })
@@ -28,6 +32,16 @@ test('note find treats an empty query as no matches', () => {
   const state = EditorState.create({ doc: 'anything' })
 
   assert.deepEqual(collectMatches(state, '', false), [])
+})
+
+test('Vim search queries remain available to rendered table highlighting', () => {
+  const query = new SearchQuery({ search: 'hello', regexp: true })
+  query.forVim = true
+  const state = EditorState.create({ doc: '| hello |', extensions: [liveFindExtensions()] })
+  const updated = state.update({ effects: setSearchQuery.of(query) }).state
+
+  assert.equal(getSearchQuery(updated), query)
+  assert.equal(getSearchQuery(updated).forVim, true)
 })
 
 test('all note editor modes use the shared find controller', () => {

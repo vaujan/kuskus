@@ -14,6 +14,8 @@ The first implemented vertical slice supports:
 
 Start with [the product brief](docs/00-product-brief.md) and [the active build plan](docs/07-build-plan.md). Repository conventions and required reading live in [AGENTS.md](AGENTS.md).
 
+The standalone marketing website lives in [landing-page](landing-page/README.md). Its hero mockup is captured from the **App / Library states / Hero app mockup** Storybook story.
+
 ## Prerequisites
 
 - Node.js 22 or later.

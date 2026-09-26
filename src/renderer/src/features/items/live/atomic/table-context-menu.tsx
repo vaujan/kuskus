@@ -29,6 +29,16 @@ import {
   type IconProps
 } from '@tabler/icons-react'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
+import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuGroup,
@@ -79,6 +89,65 @@ export interface TableContextMenuItem {
   disabled?: boolean
   destructive?: boolean
   checked?: boolean
+  confirmation?: {
+    title: string
+    description: string
+  }
+}
+
+function openTableConfirmation(
+  confirmation: NonNullable<TableContextMenuItem['confirmation']>,
+  action: () => void | Promise<void>
+): void {
+  const host = document.createElement('div')
+  document.body.appendChild(host)
+  const root = createRoot(host)
+  let disposed = false
+  const dispose = (): void => {
+    if (disposed) return
+    disposed = true
+    queueMicrotask(() => {
+      root.unmount()
+      host.remove()
+    })
+  }
+
+  function Confirmation(): React.JSX.Element {
+    const [open, setOpen] = useState(true)
+    const confirmed = useRef(false)
+    return (
+      <AlertDialog
+        open={open}
+        onOpenChange={setOpen}
+        onOpenChangeComplete={(nextOpen) => {
+          if (nextOpen) return
+          dispose()
+          if (confirmed.current) void Promise.resolve().then(action).catch(() => undefined)
+        }}
+      >
+        <AlertDialogContent size="sm" finalFocus={false}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{confirmation.title}</AlertDialogTitle>
+            <AlertDialogDescription>{confirmation.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                confirmed.current = true
+                setOpen(false)
+              }}
+            >
+              Delete table
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    )
+  }
+
+  root.render(<Confirmation />)
 }
 
 const ICONS: Record<TableContextMenuIcon, ComponentType<IconProps>> = {
@@ -164,6 +233,14 @@ function MenuEntries({
                   disabled={entry.disabled}
                   variant={entry.destructive ? 'destructive' : 'default'}
                   onClick={() => {
+                    const { confirmation, action } = entry
+                    if (confirmation && action) {
+                      close()
+                      window.setTimeout(() => {
+                        openTableConfirmation(confirmation, action)
+                      }, 0)
+                      return
+                    }
                     void Promise.resolve(entry.action?.())
                       .catch(() => undefined)
                       .finally(close)

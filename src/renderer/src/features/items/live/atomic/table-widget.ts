@@ -974,6 +974,18 @@ class TableWidget extends WidgetType {
       source.className = 'cm-atomic-table-raw-source'
       source.textContent = this.source
       wrap.appendChild(source)
+      const updateOverflowState = () => {
+        const maxScrollLeft = Math.max(0, source.scrollWidth - source.clientWidth)
+        source.toggleAttribute('data-overflow-left', source.scrollLeft > 1)
+        source.toggleAttribute('data-overflow-right', source.scrollLeft < maxScrollLeft - 1)
+      }
+      source.addEventListener('scroll', updateOverflowState, { passive: true })
+      const resizeObserver = new ResizeObserver(updateOverflowState)
+      resizeObserver.observe(source)
+      tableCleanups.set(wrap, () => {
+        source.removeEventListener('scroll', updateOverflowState)
+        resizeObserver.disconnect()
+      })
       return wrap
     }
 
@@ -1711,6 +1723,22 @@ function dispatchModel(
   restoreTableViewAfterDispatch(view, range.from, scrollLeft, selection, move, previous)
 }
 
+function deleteTable(view: EditorView, wrap: HTMLElement): void {
+  if (view.state.facet(readOnlyFacet) || !view.dom.contains(wrap)) return
+  const range = findCurrentTableRange(view, wrap)
+  if (!range) return
+  const start = view.state.doc.lineAt(range.from).from
+  const endLine = view.state.doc.lineAt(range.to)
+  const end = Math.min(view.state.doc.length, endLine.to + 1)
+  view.dispatch({
+    changes: { from: start, to: end },
+    selection: EditorSelection.cursor(start),
+    scrollIntoView: true,
+    annotations: Transaction.userEvent.of('delete')
+  })
+  view.focus()
+}
+
 function openCellMenu(view: EditorView, cell: HTMLElement, x: number, y: number): void {
   const wrap = cell.closest<HTMLElement>('.cm-atomic-table')
   if (!wrap) return
@@ -1946,6 +1974,17 @@ function openCellMenu(view: EditorView, cell: HTMLElement, x: number, y: number)
             dispatchModel(view, wrap, sortTableRows(readModelFromDom(wrap), col, 'desc'))
         }
       ]
+    },
+    'separator',
+    {
+      label: 'Delete table',
+      icon: 'delete',
+      destructive: true,
+      confirmation: {
+        title: 'Delete this table?',
+        description: 'All rows and columns will be removed from this note. You can undo this action.'
+      },
+      action: () => deleteTable(view, wrap)
     }
   ]
 

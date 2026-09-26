@@ -3,10 +3,9 @@ import { createRoot, type Root } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 import { EditorSelection, EditorState, type Extension } from '@codemirror/state'
 import { EditorView, ViewPlugin, type ViewUpdate } from '@codemirror/view'
-import { getCM, Vim } from '@replit/codemirror-vim'
+import { getCM } from '@replit/codemirror-vim'
 import { SlashMenuView } from './slash-menu-view'
 import {
-  canStartSlashQuery,
   currentSlashQuery,
   fitSlashMenuPosition,
   slashCommands,
@@ -56,8 +55,9 @@ class SlashMenu {
   }
 
   private updateMenu(): void {
+    const vim = getCM(this.view)?.state.vim
     const state =
-      this.view.hasFocus && !this.view.state.facet(EditorState.readOnly)
+      this.view.hasFocus && !this.view.state.facet(EditorState.readOnly) && (!vim || vim.insertMode)
         ? currentSlashQuery(this.view.state)
         : null
     if (!state || this.signature(state) === this.dismissed) {
@@ -118,22 +118,10 @@ class SlashMenu {
   }
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
-    if (
-      event.key === '/' &&
-      !event.altKey &&
-      !event.ctrlKey &&
-      !event.metaKey &&
-      !this.view.state.facet(EditorState.readOnly)
-    ) {
-      const selection = this.view.state.selection.main
-      const line = this.view.state.doc.lineAt(selection.head)
-      if (
-        selection.empty &&
-        canStartSlashQuery(this.view.state.sliceDoc(line.from, selection.head))
-      ) {
-        const cm = getCM(this.view)
-        if (cm?.state.vim && !cm.state.vim.insertMode) Vim.handleKey(cm, 'i', 'user')
-      }
+    const vim = getCM(this.view)?.state.vim
+    if (vim && !vim.insertMode) {
+      this.updateMenu()
+      return
     }
 
     const state = this.state

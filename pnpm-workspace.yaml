@@ -1,3 +1,6 @@
+packages:
+  - landing-page
+
 allowBuilds:
   electron: true
   electron-winstaller: true

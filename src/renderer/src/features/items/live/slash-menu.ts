@@ -31,10 +31,6 @@ export function findSlashQuery(textBeforeCursor: string): string | null {
   return textBeforeCursor.match(/^\s*\/([^\s/]*)$/)?.[1] ?? null
 }
 
-export function canStartSlashQuery(textBeforeCursor: string): boolean {
-  return /^\s*$/.test(textBeforeCursor)
-}
-
 export function fitSlashMenuPosition(
   anchor: { left: number; bottom: number },
   viewport: { width: number; height: number },

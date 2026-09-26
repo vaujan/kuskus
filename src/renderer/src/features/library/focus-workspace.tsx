@@ -6,7 +6,6 @@ import {
   MAX_FOCUS_LIST_WIDTH,
   MIN_FOCUS_LIST_WIDTH
 } from '@/features/items/focus-view-state'
-import { ShellSidebarTrigger } from '@/features/shell/shell-sidebar-trigger'
 import { WindowControls } from '@/features/shell/window-controls'
 import { cn } from '@/lib/utils'
 
@@ -153,11 +152,6 @@ export function FocusWorkspace({
           }}
         />
       ) : null}
-      {detailOpen && !split && !expanded ? (
-        <div className="absolute top-0 left-0 z-50 flex h-10 items-center">
-          <ShellSidebarTrigger />
-        </div>
-      ) : null}
       {split || detailOpen ? (
         <section
           ref={detailRef}
@@ -168,7 +162,7 @@ export function FocusWorkspace({
           tabIndex={-1}
         >
           <div
-            className="pointer-events-none absolute top-0 right-0 left-10 z-30 h-10 [-webkit-app-region:drag]"
+            className="pointer-events-none absolute inset-x-0 top-0 z-30 h-10 [-webkit-app-region:drag]"
             aria-hidden="true"
           />
           {hasRendererCaptionControls ? (

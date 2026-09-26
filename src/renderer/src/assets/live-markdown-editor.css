@@ -248,7 +248,9 @@
 .cm-kuskus-live .cm-atomic-link-icon {
   background-color: var(--primary);
   opacity: 0.7;
-  transition: opacity 150ms ease, background-color 150ms ease;
+  transition:
+    opacity 150ms ease,
+    background-color 150ms ease;
 }
 .cm-kuskus-live .cm-atomic-link:hover::after,
 .cm-kuskus-live .cm-atomic-link-icon:hover {
@@ -445,6 +447,14 @@
   line-height: 1.7;
 }
 
+/* The scroll wrapper reserves 0.5rem on the left for row handles. Extend it
+ * into Live mode's gutter so the table border aligns with prose and Read mode. */
+.cm-kuskus-live.cm-kuskus-detail-editor .cm-atomic-table {
+  margin-inline-start: -0.5rem;
+  width: calc(100% + 0.5rem);
+  max-width: calc(100% + 0.5rem);
+}
+
 .cm-kuskus-detail-editor .cm-atomic-table-source .kuskus-markdown-table {
   font: inherit;
 }
@@ -458,9 +468,8 @@
   display: block;
   margin: 0 0 0.375rem auto;
   padding: 0.125rem 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 0.25rem;
-  background: var(--background);
+  border: 0;
+  background: transparent;
   color: var(--muted-foreground);
   font: inherit;
   font-size: 0.75rem;
@@ -470,15 +479,33 @@
 .cm-atomic-table-source-toggle:hover,
 .cm-atomic-table-source-toggle:focus-visible {
   color: var(--foreground);
-  border-color: var(--foreground);
 }
 
 .cm-atomic-table-raw-source {
+  max-width: 100%;
   overflow-x: auto;
   margin: 0;
-  padding: 0.625rem;
-  border: 1px solid var(--border);
-  border-radius: 0.25rem;
+  padding: 0 0 0.25rem;
   white-space: pre;
   user-select: text;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.cm-atomic-table-raw-source[data-overflow-left] {
+  mask-image: linear-gradient(to right, transparent, black 1.5rem, black);
+}
+
+.cm-atomic-table-raw-source[data-overflow-right] {
+  mask-image: linear-gradient(to right, black, black calc(100% - 1.5rem), transparent);
+}
+
+.cm-atomic-table-raw-source[data-overflow-left][data-overflow-right] {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 1.5rem,
+    black calc(100% - 1.5rem),
+    transparent
+  );
 }

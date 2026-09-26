@@ -1,7 +1,7 @@
 export const DEFAULT_FOCUS_LIST_WIDTH = 420
 export const MIN_FOCUS_LIST_WIDTH = 320
 export const MAX_FOCUS_LIST_WIDTH = 720
-export const FOCUS_SPLIT_BREAKPOINT = 760
+export const FOCUS_SPLIT_BREAKPOINT = MIN_FOCUS_LIST_WIDTH * 2
 export const FOCUS_RAIL_DENSITY_STORAGE_KEY = 'kuskus-focus-rail-density:v1'
 
 export type FocusRailDensity = 'index' | 'visual'

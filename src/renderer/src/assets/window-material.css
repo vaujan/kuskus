@@ -24,6 +24,10 @@
   --window-rail: color-mix(in srgb, var(--window-sidebar) 72%, var(--window-canvas));
 }
 
+:root[data-color-theme='kuskus'] {
+  --window-rail: var(--window-canvas);
+}
+
 [data-slot='sidebar-inner'] {
   --sidebar-accent: color-mix(in oklch, var(--sidebar-foreground) 8%, transparent);
   --sidebar-accent-foreground: var(--sidebar-foreground);

@@ -5,6 +5,7 @@ require('./helpers/install-ts-require.cjs')()
 
 const {
   clampFocusListWidth,
+  FOCUS_SPLIT_BREAKPOINT,
   parseFocusRailDensity,
   parseFocusListWidth,
   resolveFocusAfterRemoval,
@@ -36,6 +37,12 @@ test('uses a bounded persisted Focus list width', () => {
   assert.equal(clampFocusListWidth(500), 500)
   assert.equal(clampFocusListWidth(900), 720)
   assert.equal(clampFocusListWidth(420, 800), 360)
+})
+
+test('keeps the item rail beside the detail as soon as both panes fit', () => {
+  assert.equal(FOCUS_SPLIT_BREAKPOINT, 640)
+  assert.equal(clampFocusListWidth(420, FOCUS_SPLIT_BREAKPOINT), 320)
+  assert.equal(FOCUS_SPLIT_BREAKPOINT - clampFocusListWidth(420, FOCUS_SPLIT_BREAKPOINT), 320)
 })
 
 test('defaults the combined item rail to Visual', () => {
@@ -77,12 +84,15 @@ test('medium windows use a narrow sidebar rail with a persistent detail trigger'
     require.resolve('../src/renderer/src/features/library/focus-workspace.tsx'),
     'utf8'
   )
+  const detailSource = readFileSync(
+    require.resolve('../src/renderer/src/features/items/item-detail-dialog.tsx'),
+    'utf8'
+  )
 
   assert.match(sidebarSource, /isNarrow \? 'narrow' : 'expanded'/)
-  assert.match(focusWorkspaceSource, /detailOpen && !split && !expanded/)
-  assert.match(focusWorkspaceSource, /<ShellSidebarTrigger \/>/)
-  // The detail drag strip must not cover the sidebar trigger.
-  assert.match(focusWorkspaceSource, /left-10 z-30 h-10 \[-webkit-app-region:drag\]/)
+  assert.match(detailSource, /data-detail-focus-leading-actions[\s\S]*?<ShellSidebarTrigger \/>/)
+  assert.match(detailSource, /group-data-\[focus-single-pane=true\]\/focus-detail:block/)
+  assert.doesNotMatch(focusWorkspaceSource, /<ShellSidebarTrigger \/>/)
 })
 
 test('visual notes use the same compact title caption as other item types', () => {

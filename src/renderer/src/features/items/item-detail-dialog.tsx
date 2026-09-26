@@ -47,6 +47,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
+import { ShellSidebarTrigger } from '@/features/shell/shell-sidebar-trigger'
 import { ContextMenu as ContextMenuPrimitive } from '@base-ui/react/context-menu'
 import {
   ContextMenu,
@@ -449,6 +450,7 @@ function DetailToolbar({
   onBack,
   onError,
   presentation,
+  expanded,
   showClose = true
 }: {
   itemId: string
@@ -463,6 +465,7 @@ function DetailToolbar({
   onBack?: () => void
   onError: (message: string) => void
   presentation: 'dialog' | 'focus'
+  expanded: boolean
   showClose?: boolean
 }): React.JSX.Element {
   if (presentation === 'focus') {
@@ -477,8 +480,13 @@ function DetailToolbar({
       >
         <div
           data-detail-focus-leading-actions
-          className="pointer-events-auto flex items-center group-data-[focus-single-pane=true]/focus-detail:pl-10 [&_button]:[-webkit-app-region:no-drag]"
+          className="pointer-events-auto flex items-center gap-1 [&_button]:[-webkit-app-region:no-drag]"
         >
+          {!expanded ? (
+            <div className="hidden group-data-[focus-single-pane=true]/focus-detail:block">
+              <ShellSidebarTrigger />
+            </div>
+          ) : null}
           {onBack ? (
             <Tooltip>
               <TooltipTrigger
@@ -2631,6 +2639,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
           onBack={onBackToList ? () => requestGuardedAction(onBackToList) : undefined}
           onError={onError}
           presentation={presentation}
+          expanded={expanded}
           showClose={presentation === 'dialog'}
         />
         <section
