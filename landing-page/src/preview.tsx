@@ -10,9 +10,9 @@ import {
 } from '../../src/renderer/src/hooks/theme'
 import { SettingsProvider } from '../../src/renderer/src/settings/settings-context'
 
-applyTheme('light', 'kuskus', DEFAULT_TYPOGRAPHY)
+applyTheme('dark', 'kuskus', DEFAULT_TYPOGRAPHY)
 applyControlStyle('skeuomorphic')
-localStorage.setItem('kuskus-color-mode', 'light')
+localStorage.setItem('kuskus-color-mode', 'dark')
 installHeroPreview()
 
 createRoot(document.getElementById('root')!).render(

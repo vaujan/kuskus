@@ -1,5 +1,13 @@
+@font-face {
+  font-family: 'Inter Variable';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('@fontsource-variable/inter/files/inter-latin-wght-normal.woff2') format('woff2');
+}
+
 :root {
-  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: 'Inter Variable', ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color: #211d24;
   background: #faf8f5;
   font-synthesis: none;
@@ -115,7 +123,7 @@ a { color: inherit; }
 }
 
 .app-preview {
-  width: min(100%, 1120px);
+  width: min(100%, 1360px);
   margin: 46px auto 0;
 }
 .app-preview__window {
@@ -123,7 +131,7 @@ a { color: inherit; }
   aspect-ratio: 16 / 9;
   overflow: hidden;
   border-radius: 13px;
-  background: #fdfbf9;
+  background: #191721;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2), 0 38px 95px rgba(0, 0, 0, 0.48);
 }
 .app-preview iframe {
