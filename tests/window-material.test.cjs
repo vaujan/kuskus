@@ -151,3 +151,23 @@ test('rejects invalid IPC preference values', () => {
   assert.throws(() => parseTranslucentBackgroundRequest('true'), /must be a boolean/)
   assert.throws(() => parseTranslucentBackgroundRequest(null), /must be a boolean/)
 })
+
+test('Linux uses an alpha background without Windows material APIs', () => {
+  const calls = []
+  const window = {
+    setBackgroundColor: (color) => calls.push(color),
+    setBackgroundMaterial: () => {
+      throw new Error('Windows-only API')
+    }
+  }
+  assert.deepEqual(applyTranslucentBackground(window, 'linux', '6.18', true, false), {
+    supported: true,
+    enabled: true,
+    reducedTransparency: false
+  })
+  assert.equal(calls.pop(), '#00000000')
+  assert.equal(applyTranslucentBackground(window, 'linux', '6.18', true, true).enabled, false)
+  assert.equal(calls.pop(), '#181c1d')
+  assert.equal(applyTranslucentBackground(window, 'linux', '6.18', false, false).enabled, false)
+  assert.equal(calls.pop(), '#181c1d')
+})

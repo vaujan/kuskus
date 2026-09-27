@@ -49,6 +49,7 @@ import {
   type FontPreference
 } from '@/hooks/theme'
 import { useLocalFonts } from '@/hooks/use-local-fonts'
+import { Slider } from '@/components/ui/slider'
 import { useTranslucentBackground } from '@/hooks/use-translucent-background'
 import { cn } from '@/lib/utils'
 import { useSetting } from '@/settings/settings-context'
@@ -127,6 +128,8 @@ export function SettingsWindowApp(): React.JSX.Element {
   const [contentFoldingEnabled, setContentFoldingEnabled] = useSetting<boolean>('contentFolding')
   const localFonts = useLocalFonts()
   const zoom = useAppZoom()
+  const [backgroundOpacity, setBackgroundOpacity] = useSetting<string>('backgroundOpacity')
+  const isLinux = window.electron.window.platform === 'linux'
   const translucentBackground = useTranslucentBackground()
   const translucencyDisabled =
     translucentBackground.supported !== true || translucentBackground.reducedTransparency
@@ -446,19 +449,25 @@ export function SettingsWindowApp(): React.JSX.Element {
                   <FieldSet className="gap-3">
                     <FieldLegend variant="label">Interface</FieldLegend>
                     <div className="overflow-hidden rounded-xl bg-card/70 text-card-foreground shadow-[0_0_0_1px_rgb(0_0_0/0.06),0_1px_2px_rgb(0_0_0/0.04)] dark:shadow-[0_0_0_1px_rgb(255_255_255/0.08),0_1px_2px_rgb(0_0_0/0.18)]">
-                      {window.electron.window.platform === 'win32' ? (
+                      {isWindows || isLinux ? (
                         <Field
                           orientation="horizontal"
                           className="min-h-16 px-4 py-3"
                           data-disabled={translucencyDisabled || undefined}
                         >
                           <FieldContent>
-                            <FieldLabel htmlFor="settings-translucent">Window material</FieldLabel>
+                            <FieldLabel htmlFor="settings-translucent">
+                              {isLinux ? 'Transparent background' : 'Window material'}
+                            </FieldLabel>
                             <FieldDescription>
                               {translucentBackground.supported === false
-                                ? 'Requires Windows 11 22H2 or newer.'
+                                ? isLinux
+                                  ? 'Transparency is unavailable.'
+                                  : 'Requires Windows 11 22H2 or newer.'
                                 : translucentBackground.reducedTransparency
-                                  ? 'Enable Windows Transparency effects to use this.'
+                                  ? isLinux
+                                    ? 'Disabled by your system transparency preference.'
+                                    : 'Enable Windows Transparency effects to use this.'
                                   : 'Let the desktop softly show through the app shell.'}
                             </FieldDescription>
                           </FieldContent>
@@ -468,6 +477,39 @@ export function SettingsWindowApp(): React.JSX.Element {
                             disabled={translucencyDisabled}
                             onCheckedChange={translucentBackground.setEnabled}
                           />
+                        </Field>
+                      ) : null}
+
+                      {isLinux ? (
+                        <Field
+                          className="border-t border-foreground/8 px-4 py-3"
+                          data-disabled={
+                            translucencyDisabled || !translucentBackground.enabled || undefined
+                          }
+                        >
+                          <div className="flex items-center justify-between">
+                            <FieldLabel htmlFor="settings-background-opacity">
+                              Background opacity
+                            </FieldLabel>
+                            <span className="text-sm tabular-nums text-muted-foreground">
+                              {backgroundOpacity}%
+                            </span>
+                          </div>
+                          <Slider
+                            id="settings-background-opacity"
+                            aria-label="Background opacity"
+                            min={30}
+                            max={100}
+                            step={1}
+                            value={[Number(backgroundOpacity)]}
+                            onValueChange={(value) =>
+                              setBackgroundOpacity(String(Array.isArray(value) ? value[0] : value))
+                            }
+                            disabled={translucencyDisabled || !translucentBackground.enabled}
+                          />
+                          <FieldDescription>
+                            Lower values let more of the desktop show through. Text stays solid.
+                          </FieldDescription>
                         </Field>
                       ) : null}
 

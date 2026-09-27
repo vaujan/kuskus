@@ -19,6 +19,7 @@ export function isTranslucentBackgroundSupported(
   platform: NodeJS.Platform,
   systemVersion: string
 ): boolean {
+  if (platform === 'linux') return true
   if (platform !== 'win32') return false
   const build = parseWindowsBuild(systemVersion)
   return build !== null && build >= WINDOWS_BACKGROUND_MATERIAL_MINIMUM_BUILD
@@ -56,6 +57,11 @@ export function applyTranslucentBackground(
     requested,
     reducedTransparency
   )
+
+  if (platform === 'linux') {
+    window.setBackgroundColor(status.enabled ? '#00000000' : OPAQUE_WINDOW_BACKGROUND)
+    return status
+  }
 
   if (status.enabled) {
     window.setBackgroundColor('#00000000')

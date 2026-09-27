@@ -73,7 +73,7 @@ export function createWindowMaterialController(
   environment: WindowMaterialEnvironment
 ): WindowMaterialController {
   const listeners = new Set<WindowMaterialListener>()
-  const isWindows = environment.platform === 'win32'
+  const supportsMaterial = environment.platform === 'win32' || environment.platform === 'linux'
   let operationId = 0
   let initializationRequest: Promise<TranslucentBackgroundStatus> | null = null
   let reducedTransparencyUnsubscribe: (() => void) | null = null
@@ -88,7 +88,7 @@ export function createWindowMaterialController(
   }
 
   const requestNativeState = (enabled: boolean): Promise<TranslucentBackgroundStatus> =>
-    isWindows ? environment.setNativeState(enabled) : Promise.resolve(UNSUPPORTED_STATUS)
+    supportsMaterial ? environment.setNativeState(enabled) : Promise.resolve(UNSUPPORTED_STATUS)
 
   const applyStatus = (status: TranslucentBackgroundStatus): void => {
     environment.applyDocumentState(status.enabled)
@@ -112,7 +112,7 @@ export function createWindowMaterialController(
     reducedTransparencyUnsubscribe ??= environment.onReducedTransparencyChange(refreshNativeState)
 
     const requestId = operationId
-    environment.applyDocumentState(isWindows && snapshot.preferenceEnabled)
+    environment.applyDocumentState(supportsMaterial && snapshot.preferenceEnabled)
     initializationRequest = requestNativeState(snapshot.preferenceEnabled)
       .then((status) => {
         if (requestId === operationId) applyStatus(status)
@@ -128,11 +128,11 @@ export function createWindowMaterialController(
   const setEnabled = (enabled: boolean): void => {
     const previousSnapshot = snapshot
     const previousDocumentState =
-      previousSnapshot.status?.enabled ?? (isWindows && previousSnapshot.preferenceEnabled)
+      previousSnapshot.status?.enabled ?? (supportsMaterial && previousSnapshot.preferenceEnabled)
     const requestId = ++operationId
 
     writeTranslucentBackgroundPreference(environment.storage, enabled)
-    environment.applyDocumentState(isWindows && enabled)
+    environment.applyDocumentState(supportsMaterial && enabled)
     publish({ ...snapshot, preferenceEnabled: enabled })
 
     void requestNativeState(enabled)
@@ -186,7 +186,11 @@ export function getWindowMaterialController(): WindowMaterialController {
       platform: window.electron.window.platform,
       storage: localStorage,
       applyDocumentState: (enabled) => {
-        document.documentElement.dataset.windowMaterial = enabled ? 'acrylic' : 'opaque'
+        document.documentElement.dataset.windowMaterial = enabled
+          ? window.electron.window.platform === 'linux'
+            ? 'transparent'
+            : 'acrylic'
+          : 'opaque'
       },
       setNativeState: (enabled) => window.electron.window.setTranslucentBackground(enabled),
       onReducedTransparencyChange: (callback) =>

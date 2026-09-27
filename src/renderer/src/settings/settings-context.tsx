@@ -70,6 +70,14 @@ export function SettingsProvider({ children }: { children: ReactNode }): React.J
   // sync with the stored value, including live OS changes when set to
   // 'system'. main.tsx still applies the stored appearance once at startup to
   // avoid a flash before this provider mounts.
+  const backgroundOpacity = values.backgroundOpacity as string
+  useEffect(() => {
+    document.documentElement.style.setProperty(
+      '--window-background-opacity',
+      `${backgroundOpacity}%`
+    )
+  }, [backgroundOpacity])
+
   const colorMode = values.colorMode as ColorMode
   const colorTheme = values.colorTheme as ColorTheme
   const controlStyle = values.controlStyle as ControlStyle

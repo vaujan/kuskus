@@ -20,6 +20,13 @@ import {
   TRANSLUCENT_BACKGROUND_STORAGE_KEY
 } from '../../shared/window-contract'
 
+import { resolveBackgroundOpacity } from './settings/settings-schema'
+
+document.documentElement.style.setProperty(
+  '--window-background-opacity',
+  `${resolveBackgroundOpacity(localStorage.getItem('kuskus-background-opacity'))}%`
+)
+
 performance.mark('kuskus:renderer-entry')
 window.electron.window.onTextContextMenu((details) => {
   void import('./features/shell/text-context-menu').then(({ openTextContextMenu }) => {

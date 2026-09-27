@@ -15,6 +15,7 @@ import {
 } from '@/hooks/theme'
 
 export type SettingKey =
+  | 'backgroundOpacity'
   | 'colorMode'
   | 'colorTheme'
   | 'controlStyle'
@@ -39,7 +40,18 @@ export interface SettingDefinition<T extends SettingValue = SettingValue> {
   parse: (stored: string | null) => T
 }
 
+export function resolveBackgroundOpacity(stored: string | null): string {
+  const value = stored === null || stored.trim() === '' ? 85 : Number(stored)
+  return String(Number.isFinite(value) ? Math.round(Math.min(100, Math.max(30, value))) : 85)
+}
+
 export const SETTINGS_SCHEMA: readonly SettingDefinition[] = [
+  {
+    key: 'backgroundOpacity',
+    storageKey: 'kuskus-background-opacity',
+    default: '85',
+    parse: resolveBackgroundOpacity
+  },
   {
     key: 'colorMode',
     storageKey: 'kuskus-color-mode',

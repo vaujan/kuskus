@@ -163,6 +163,46 @@ html[data-window-material='acrylic'] [data-slot='sidebar-inset'] {
   background-color: transparent;
 }
 
+/* Linux uses an alpha surface; foreground content retains full opacity. */
+:root[data-window-material='transparent'] {
+  --window-canvas: color-mix(
+    in oklch,
+    var(--background) var(--window-background-opacity, 85%),
+    transparent
+  );
+  --window-sidebar: color-mix(
+    in oklch,
+    var(--sidebar) var(--window-background-opacity, 85%),
+    transparent
+  );
+  --window-detail: var(--window-canvas);
+  --window-rail: var(--window-sidebar);
+}
+
+html[data-window-material='transparent'],
+html[data-window-material='transparent'] body,
+html[data-window-material='transparent'] #root,
+html[data-window-material='transparent'] .window-root,
+html[data-window-material='transparent'] [data-slot='sidebar-inset'] {
+  background-color: transparent;
+}
+
+html[data-window-material='transparent'] .window-root.window-canvas:not(.settings-window),
+html[data-window-material='transparent'] .settings-window [data-slot='sidebar-inset'] {
+  background-color: var(--window-canvas);
+}
+
+html[data-window-material='transparent'] [data-slot='sidebar-inner'] {
+  background-color: var(--window-sidebar);
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  :root[data-window-material='transparent'] {
+    --window-canvas: var(--background);
+    --window-sidebar: var(--sidebar);
+  }
+}
+
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
   [data-slot='sidebar'][data-variant='floating'] [data-slot='sidebar-inner'] {
     background-color: var(--sidebar);

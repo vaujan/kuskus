@@ -146,10 +146,10 @@ test('keeps the latest preference when native responses arrive out of order', as
   })
 })
 
-test('does not invoke native material APIs outside Windows', async () => {
+test('does not invoke native material APIs on macOS', async () => {
   let nativeRequestCount = 0
   const controller = createWindowMaterialController({
-    platform: 'linux',
+    platform: 'darwin',
     storage: createStorage(),
     applyDocumentState: () => undefined,
     setNativeState: async () => {
@@ -224,4 +224,20 @@ test('applies a preference changed by another window', async () => {
 
   assert.equal(controller.getSnapshot().preferenceEnabled, false)
   assert.deepEqual(nativeRequests, [true, false])
+})
+
+test('Linux initializes and toggles background transparency', async () => {
+  const documentStates = []
+  const controller = createWindowMaterialController({
+    platform: 'linux',
+    storage: createStorage(),
+    applyDocumentState: (enabled) => documentStates.push(enabled),
+    setNativeState: async (enabled) => ({ supported: true, enabled, reducedTransparency: false }),
+    onReducedTransparencyChange: () => () => undefined
+  })
+  assert.equal((await controller.initialize()).enabled, true)
+  controller.setEnabled(false)
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(controller.getSnapshot().status.enabled, false)
+  assert.equal(documentStates.at(-1), false)
 })
