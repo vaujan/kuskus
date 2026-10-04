@@ -162,6 +162,9 @@ function TextContextMenu({
                   {suggestion}
                 </ContextMenuItem>
               ))}
+            </ContextMenuGroup>
+            <ContextMenuSeparator />
+            <ContextMenuGroup>
               <ContextMenuItem
                 onClick={() =>
                   window.electron.window.textContextMenuAction({

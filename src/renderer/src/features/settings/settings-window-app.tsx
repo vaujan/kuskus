@@ -1,3 +1,7 @@
+import {
+  COMMAND_PALETTE_LABEL,
+  COMMAND_PALETTE_SHORTCUT
+} from '@/features/commands/command-catalog'
 import { useEffect, useState } from 'react'
 import { IconFlask, IconKeyboard, IconPalette, IconPencil } from '@tabler/icons-react'
 
@@ -41,6 +45,8 @@ import {
 import { WindowControls } from '@/features/shell/window-controls'
 import { useAppZoom } from '@/hooks/use-app-zoom'
 import {
+  COLOR_MODES,
+  COLOR_THEMES,
   DEFAULT_TYPOGRAPHY,
   type BaseFontSize,
   type ColorMode,
@@ -54,32 +60,6 @@ import { useTranslucentBackground } from '@/hooks/use-translucent-background'
 import { cn } from '@/lib/utils'
 import { useSetting } from '@/settings/settings-context'
 import { APP_ZOOM_FACTORS } from '../../../../shared/window-contract'
-
-const COLOR_THEMES: ReadonlyArray<{ value: ColorTheme; label: string }> = [
-  { value: 'kuskus', label: 'Kuskus' },
-  { value: 'graphite', label: 'Graphite' },
-  { value: 'obsidian', label: 'Obsidian' },
-  { value: 'github', label: 'GitHub' },
-  { value: 'vscode', label: 'VS Code' },
-  { value: 'ayu', label: 'Ayu' },
-  { value: 'material', label: 'Material' },
-  { value: 'moss', label: 'Moss' },
-  { value: 'clay', label: 'Clay' },
-  { value: 'solarized', label: 'Solarized' },
-  { value: 'catppuccin', label: 'Catppuccin' },
-  { value: 'tokyo-storm', label: 'Tokyo Storm' },
-  { value: 'monokai', label: 'Monokai' },
-  { value: 'one', label: 'One Dark' },
-  { value: 'dracula', label: 'Dracula' },
-  { value: 'gruvbox', label: 'Gruvbox' },
-  { value: 'nord', label: 'Nord' }
-]
-
-const COLOR_MODES: ReadonlyArray<{ value: ColorMode; label: string }> = [
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-  { value: 'system', label: 'System' }
-]
 
 const FONT_SIZES: readonly BaseFontSize[] = ['13', '14', '15', '16', '17', '18', '20']
 
@@ -150,6 +130,7 @@ export function SettingsWindowApp(): React.JSX.Element {
       shortcuts: [
         ...(isWindows ? [{ label: 'Quick capture', keys: globalCaptureShortcut }] : []),
         { label: 'Open settings', keys: `${commandKey}+,` },
+        { label: COMMAND_PALETTE_LABEL, keys: `${commandKey}+${COMMAND_PALETTE_SHORTCUT}` },
         { label: 'Quick open', keys: `${commandKey}+O` },
         { label: 'Search library', keys: `${commandKey}+Shift+F` },
         { label: 'New note', keys: 'Ctrl+N' },

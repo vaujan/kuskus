@@ -11,7 +11,7 @@ import {
   CommandList,
   CommandShortcut
 } from '@/components/ui/command'
-import { Kbd } from '@/components/ui/kbd'
+import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import {
   resolveQuickOpenItems,
   resolveRecentSearchItems
@@ -159,7 +159,11 @@ export function QuickOpenDialog({
         </CommandList>
         <footer className="flex h-10 shrink-0 items-center justify-end gap-3 border-t border-border/60 px-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
-            <Kbd>↑↓</Kbd> navigate
+            <KbdGroup role="group" aria-label="Up and down arrow keys">
+              <Kbd aria-hidden="true">↑</Kbd>
+              <Kbd aria-hidden="true">↓</Kbd>
+            </KbdGroup>{' '}
+            navigate
           </span>
           <span className="flex items-center gap-1">
             <Kbd>Enter</Kbd> open or create

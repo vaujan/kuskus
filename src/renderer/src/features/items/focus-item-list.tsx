@@ -29,6 +29,7 @@ export function FocusItemList({
   composer,
   pageKey,
   searchActive,
+  searchQuery,
   emptyMessage,
   emptyDescription,
   emptyAction,
@@ -46,6 +47,7 @@ export function FocusItemList({
   composer: React.ReactNode
   pageKey: string
   searchActive: boolean
+  searchQuery: string
   emptyMessage: string | null
   emptyDescription: string | null
   emptyAction: React.ReactNode
@@ -60,6 +62,7 @@ export function FocusItemList({
 }): React.JSX.Element {
   const itemIds = items.map((item) => item.id)
   const viewportRef = useRef<HTMLElement | null>(null)
+  const pendingFocusRef = useRef<string | null>(null)
   const returnScrollTopRef = useRef(0)
   const previousSearchActiveRef = useRef(searchActive)
   const sentinelRef = useRef<HTMLDivElement | null>(null)
@@ -68,6 +71,25 @@ export function FocusItemList({
   const activeItemIndex = activeItemId ? items.findIndex((item) => item.id === activeItemId) : -1
   const renderLimit = Math.max(pageLimit, activeItemIndex + 1)
   const mountedItems = items.slice(0, renderLimit)
+
+  const navigate = (itemId: string, key: 'ArrowUp' | 'ArrowDown' | 'Home' | 'End'): void => {
+    const nextId = resolveFocusNavigationItemId(itemIds, itemId, key)
+    pendingFocusRef.current = nextId
+    // Mount the destination before attempting to focus it, including End beyond page 1.
+    setPage({ key: pageKey, limit: Math.max(renderLimit, itemIds.indexOf(nextId) + 1) })
+    onActivate(nextId, PLAIN_ACTIVATION)
+  }
+
+  useLayoutEffect(() => {
+    const id = pendingFocusRef.current
+    if (!id) return
+    pendingFocusRef.current = null
+    const next = viewportRef.current?.querySelector<HTMLElement>(
+      `[data-item-id="${CSS.escape(id)}"] [data-slot="item-card-primary-action"]`
+    )
+    next?.focus({ preventScroll: true })
+    next?.scrollIntoView({ block: 'nearest' })
+  })
 
   useEffect(() => {
     if (renderLimit >= items.length) return
@@ -136,20 +158,14 @@ export function FocusItemList({
               <FocusIndexRow
                 key={item.id}
                 item={item}
+                searchQuery={searchQuery}
                 active={active}
                 selected={selected}
                 dragging={draggedIds.has(item.id)}
                 onActivate={(event) => onActivate(item.id, event)}
                 onDragStart={(event) => onDragStart(item.id, event)}
                 onDragEnd={onDragEnd}
-                onNavigate={(key) => {
-                  const nextId = resolveFocusNavigationItemId(itemIds, item.id, key)
-                  const next = document.querySelector<HTMLElement>(
-                    `[data-item-id="${CSS.escape(nextId)}"] [data-slot="item-card-primary-action"]`
-                  )
-                  next?.focus()
-                  onActivate(nextId, PLAIN_ACTIVATION)
-                }}
+                onNavigate={(key) => navigate(item.id, key)}
                 actions={renderActions(item)}
               />
             )
@@ -184,18 +200,15 @@ export function FocusItemList({
                   onDragStart={(event) => onDragStart(item.id, event)}
                   onDragEnd={onDragEnd}
                   onKeyDownCapture={(event) => {
+                    if (
+                      event.target instanceof Element &&
+                      !event.target.matches('[data-slot="item-card-primary-action"]')
+                    )
+                      return
+                    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
                     if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return
                     event.preventDefault()
-                    const nextId = resolveFocusNavigationItemId(
-                      itemIds,
-                      item.id,
-                      event.key as 'ArrowUp' | 'ArrowDown' | 'Home' | 'End'
-                    )
-                    const next = event.currentTarget.parentElement?.querySelector<HTMLElement>(
-                      `[data-item-id="${CSS.escape(nextId)}"] [data-slot="item-card-primary-action"]`
-                    )
-                    next?.focus()
-                    onActivate(nextId, PLAIN_ACTIVATION)
+                    navigate(item.id, event.key as 'ArrowUp' | 'ArrowDown' | 'Home' | 'End')
                   }}
                 >
                   <SavedItemCard

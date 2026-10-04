@@ -2141,6 +2141,7 @@ export interface ItemDetailHandle {
   requestTransition: (action: () => void) => void
   flush: () => Promise<boolean>
   focusEditor: () => void
+  changeMode: (mode: NoteMode) => void
   undo: () => void
   redo: () => void
   openFind: (replace?: boolean) => void
@@ -2477,6 +2478,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
       ref,
       () => ({
         requestTransition: requestGuardedAction,
+        changeMode,
         flush: flushPendingNote,
         focusEditor: () => {
           const editor = detailSurfaceRef.current?.querySelector<HTMLElement>('.cm-content')
@@ -2486,7 +2488,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
         redo: () => void noteEditorRef.current?.redo(),
         openFind: (replace = false) => noteFindRef.current?.open(replace)
       }),
-      [flushPendingNote, requestGuardedAction]
+      [changeMode, flushPendingNote, requestGuardedAction]
     )
 
     const renameCurrentItem = async (title: string): Promise<DetailTitleRenameResult> => {

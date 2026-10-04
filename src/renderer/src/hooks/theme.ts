@@ -20,6 +20,32 @@ export type ColorTheme =
   | 'gruvbox'
   | 'nord'
 
+export const COLOR_THEMES: ReadonlyArray<{ value: ColorTheme; label: string }> = [
+  { value: 'kuskus', label: 'Kuskus' },
+  { value: 'graphite', label: 'Graphite' },
+  { value: 'obsidian', label: 'Obsidian' },
+  { value: 'github', label: 'GitHub' },
+  { value: 'vscode', label: 'VS Code' },
+  { value: 'ayu', label: 'Ayu' },
+  { value: 'material', label: 'Material' },
+  { value: 'moss', label: 'Moss' },
+  { value: 'clay', label: 'Clay' },
+  { value: 'solarized', label: 'Solarized' },
+  { value: 'catppuccin', label: 'Catppuccin' },
+  { value: 'tokyo-storm', label: 'Tokyo Storm' },
+  { value: 'monokai', label: 'Monokai' },
+  { value: 'one', label: 'One Dark' },
+  { value: 'dracula', label: 'Dracula' },
+  { value: 'gruvbox', label: 'Gruvbox' },
+  { value: 'nord', label: 'Nord' }
+]
+
+export const COLOR_MODES: ReadonlyArray<{ value: ColorMode; label: string }> = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'system', label: 'System' }
+]
+
 export type FontPreference =
   'inter' | 'plex' | 'system-ui' | 'system-mono' | 'none' | `local:${string}`
 
@@ -167,15 +193,23 @@ export function resolveAppliedTheme(mode: ColorMode): ResolvedTheme {
       : 'dark'
 }
 
+export function applyAppearance(
+  mode: ResolvedTheme,
+  colorTheme: ColorTheme,
+  root: Pick<HTMLElement, 'classList' | 'dataset' | 'style'> = document.documentElement
+): void {
+  root.classList.toggle('dark', mode === 'dark')
+  root.dataset.colorTheme = colorTheme
+  root.style.colorScheme = mode
+}
+
 export function applyTheme(
   mode: ResolvedTheme,
   colorTheme: ColorTheme,
   typography: TypographyPreferences,
   root: Pick<HTMLElement, 'classList' | 'dataset' | 'style'> = document.documentElement
 ): void {
-  root.classList.toggle('dark', mode === 'dark')
-  root.dataset.colorTheme = colorTheme
-  root.style.colorScheme = mode
+  applyAppearance(mode, colorTheme, root)
   root.style.setProperty(
     '--font-ui',
     createFontStack(typography.uiFont, typography.uiFontFallback, 'sans-serif')

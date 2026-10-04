@@ -65,3 +65,33 @@ export const MissingFiles: Story = {
       )
   ]
 }
+
+export const KeyboardLibrary: Story = {
+  loaders: [
+    () =>
+      installPreview(
+        library(
+          'keyboard',
+          Array.from({ length: 120 }, (_, index) => ({
+            ...planningNote,
+            id: `keyboard-note-${index}`,
+            title: `Keyboard note ${String(index + 1).padStart(3, '0')}`,
+            relativePath: `Inbox/Keyboard note ${String(index + 1).padStart(3, '0')}.md`
+          })),
+          {
+            collections: [
+              {
+                schemaVersion: 2,
+                id: 'keyboard-folder',
+                name: 'Keyboard testing',
+                icon: 'folder',
+                parentId: null,
+                createdAt: planningNote.createdAt,
+                relativePath: 'Keyboard testing'
+              }
+            ]
+          }
+        )
+      )
+  ]
+}

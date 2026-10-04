@@ -14,7 +14,7 @@ import {
   IconSettings,
   IconTrash
 } from '@tabler/icons-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -520,7 +520,12 @@ function FolderTreeItem({
   )
 }
 
+export interface LibrarySidebarHandle {
+  createFolder: (parentId: string | null) => void
+}
+
 export function LibrarySidebar({
+  ref,
   library,
   destination,
   onDestinationChange,
@@ -531,6 +536,7 @@ export function LibrarySidebar({
   librarySwitchBlocked,
   onOpenSettings
 }: {
+  ref?: React.Ref<LibrarySidebarHandle>
   library: LibraryDto
   destination: LibraryDestination
   onDestinationChange: (destination: LibraryDestination) => void
@@ -545,6 +551,16 @@ export function LibrarySidebar({
   const sidebarVariant = isFloating ? 'floating' : 'sidebar'
   const [folderDialog, setFolderDialog] = useState<FolderDialogState>(null)
   const [folderName, setFolderName] = useState('')
+  useImperativeHandle(
+    ref,
+    () => ({
+      createFolder: (parentId) => {
+        setFolderName('')
+        setFolderDialog({ type: 'create', parentId })
+      }
+    }),
+    []
+  )
   const [folderOperationBusy, setFolderOperationBusy] = useState(false)
   const [creatingLibrary, setCreatingLibrary] = useState(false)
   const [newLibraryName, setNewLibraryName] = useState('')

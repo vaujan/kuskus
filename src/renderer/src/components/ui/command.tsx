@@ -31,24 +31,30 @@ function CommandDialog({
   children,
   className,
   showCloseButton = false,
+  finalFocus,
+  backdropClassName,
   ...props
 }: Omit<React.ComponentProps<typeof Dialog>, 'children'> & {
   title?: string
   description?: string
   className?: string
   showCloseButton?: boolean
+  finalFocus?: React.ComponentProps<typeof DialogContent>['finalFocus']
+  backdropClassName?: string
   children: React.ReactNode
 }) {
   return (
     <Dialog {...props}>
-      <DialogHeader className="sr-only">
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{description}</DialogDescription>
-      </DialogHeader>
       <DialogContent
         className={cn('top-1/3 translate-y-0 overflow-hidden rounded-4xl! p-0', className)}
         showCloseButton={showCloseButton}
+        finalFocus={finalFocus}
+        backdropClassName={backdropClassName}
       >
+        <DialogHeader className="sr-only">
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
         {children}
       </DialogContent>
     </Dialog>

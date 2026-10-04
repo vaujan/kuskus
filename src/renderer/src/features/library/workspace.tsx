@@ -81,12 +81,24 @@ import { type ItemTypeFilter, type LibraryView } from '@/features/items/item-vie
 import type { NoteMode } from '@/features/items/note-view-mode'
 import { AppToolbar } from '@/features/shell/app-toolbar'
 import { ApplicationMenu, type AppLayout } from '@/features/shell/application-menu'
-import { LibrarySidebar, type LibraryDestination } from '@/features/shell/library-sidebar'
+import {
+  LibrarySidebar,
+  type LibrarySidebarHandle,
+  type LibraryDestination
+} from '@/features/shell/library-sidebar'
 import bubuntuLine from '@/assets/bubuntu-line.svg'
 import { addRecentSearchItem } from '@/features/search/global-search-state'
+import { WorkspaceCommandPalette } from '@/features/commands/command-palette'
+import {
+  COMMAND_PALETTE_LABEL,
+  COMMAND_PALETTE_SHORTCUT,
+  isCommandPaletteShortcut,
+  resolveCommandTargets
+} from '@/features/commands/command-catalog'
 import { QuickOpenDialog } from '@/features/search/quick-open-dialog'
 import { useLibrarySearch } from '@/features/search/use-library-search'
 import { useSetting } from '@/settings/settings-context'
+import type { ColorMode, ColorTheme } from '@/hooks/theme'
 import { useNoteVim } from '@/hooks/use-note-vim'
 import type { AppZoom } from '@/hooks/use-app-zoom'
 import { cn } from '@/lib/utils'
@@ -199,6 +211,7 @@ export function Workspace({
   zoom: AppZoom
 }): React.JSX.Element {
   const [library, setLibrary] = useState(initialLibrary)
+  const librarySidebarRef = useRef<LibrarySidebarHandle>(null)
   const [initialSession] = useState(() => readAppSession(initialLibrary))
   const [sidebarHidden, setSidebarHidden] = useState(
     () => localStorage.getItem('kuskus-sidebar-hidden') === 'true'
@@ -226,6 +239,11 @@ export function Workspace({
   const [isDragging, setIsDragging] = useState(false)
   const [draggedItemIds, setDraggedItemIds] = useState<ReadonlySet<string>>(() => new Set())
   const [quickOpenOpen, setQuickOpenOpen] = useState(false)
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  const [commandContext, setCommandContext] = useState<{
+    itemIds: string[]
+    returnFocus: HTMLElement | null
+  }>({ itemIds: [], returnFocus: null })
   const [searchQuery, setSearchQuery] = useState('')
   const [focusSearchOpen, setFocusSearchOpen] = useState(false)
   const [searchFocusRequest, setSearchFocusRequest] = useState(0)
@@ -236,6 +254,8 @@ export function Workspace({
     () => initialSession?.typeFilters ?? []
   )
   const [sort, setSort] = useSetting<ItemSort>('itemSort')
+  const [colorMode, setColorMode] = useSetting<ColorMode>('colorMode')
+  const [colorTheme, setColorTheme] = useSetting<ColorTheme>('colorTheme')
   const [view, setView] = useSetting<LibraryView>('libraryView')
   const [focusListWidth, setFocusListWidth] = useState(() =>
     parseFocusListWidth(localStorage.getItem('kuskus-focus-list-width'))
@@ -693,7 +713,7 @@ export function Workspace({
     [focusItemId, library.items]
   )
   const focusNoteExpansionActive =
-    focusNoteExpanded && !composerOpen && focusItemSummary?.type === 'note'
+    focusNoteExpanded && !composerOpen && (newNoteOpen || focusItemSummary?.type === 'note')
 
   const focusItemDetail =
     focusItemSummary?.type === 'note' ? itemDetails.get(focusItemSummary.id) : undefined
@@ -1636,12 +1656,87 @@ export function Workspace({
     focusWorkspaceOpen &&
     focusDetailOpen &&
     (newNoteOpen || (focusItem?.type === 'note' && !focusItem.missingContent))
+  const openCommandPalette = useCallback((): void => {
+    const target = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setCommandContext({
+      returnFocus: target,
+      itemIds: resolveCommandTargets({
+        inDetail: Boolean(target?.closest('[data-detail-surface]')),
+        inSidebar: Boolean(target?.closest('[data-slot="sidebar"]')),
+        activeItemId: focusDetailOpen ? focusItemId : null,
+        focusedItemId: target?.closest<HTMLElement>('[data-item-id]')?.dataset.itemId ?? null,
+        selectedIds,
+        visibleIds: visibleItemIds
+      })
+    })
+    setCommandPaletteOpen(true)
+  }, [focusDetailOpen, focusItemId, selectedIds, visibleItemIds])
+
+  useEffect(() => {
+    const handleCommandShortcut = (event: KeyboardEvent): void => {
+      if (event.defaultPrevented || !isCommandPaletteShortcut(event)) return
+      if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return
+      event.preventDefault()
+      openCommandPalette()
+    }
+    window.addEventListener('keydown', handleCommandShortcut, true)
+    return () => window.removeEventListener('keydown', handleCommandShortcut, true)
+  }, [openCommandPalette])
+
+  const commandModifier = window.electron.window.platform === 'darwin' ? 'Cmd' : 'Ctrl'
+  const commandPalette = (
+    <WorkspaceCommandPalette
+      open={commandPaletteOpen}
+      onOpenChange={setCommandPaletteOpen}
+      returnFocus={commandContext.returnFocus}
+      library={library}
+      targetIds={commandContext.itemIds}
+      itemOperationBusy={itemOperationBusy}
+      commandModifier={commandModifier}
+      noteCommandsEnabled={noteCommandsEnabled}
+      colorMode={colorMode}
+      colorTheme={colorTheme}
+      actions={{
+        newNote: openNewNote,
+        newFolder: () =>
+          librarySidebarRef.current?.createFolder(
+            destination.type === 'collection' ? destination.collectionId : null
+          ),
+        noteMode: (mode) => focusDetailRef.current?.changeMode(mode),
+        addItem: openComposer,
+        addFile: openComposerFilePicker,
+        quickOpen: () => setQuickOpenOpen(true),
+        searchLibrary: () => {
+          if (focusWorkspaceOpen) openFocusSearch()
+          else setSearchFocusRequest((request) => request + 1)
+        },
+        navigate: changeDestination,
+        rename: (item) =>
+          guardFocusTargets([item.id], () => {
+            setRenameTarget(item)
+            setRenameTitle(item.title)
+          }),
+        move: (ids, next) => guardFocusTargets(ids, () => void moveItemIds(ids, next)),
+        pin: (ids, pinned) => guardFocusTargets(ids, () => void setItemsPinned(ids, pinned)),
+        trash: (ids) => guardFocusTargets(ids, () => void trashItemIds(ids)),
+        restore: (ids) => guardFocusTargets(ids, () => void restoreItemIds(ids)),
+        layout: changeAppLayout,
+        find: (replace) => focusDetailRef.current?.openFind(replace),
+        settings: () => void window.electron.window.openSettingsWindow(),
+        colorMode: setColorMode,
+        colorTheme: setColorTheme
+      }}
+    />
+  )
   const applicationMenu = (
     <ApplicationMenu
       layout={focusWorkspaceOpen ? 'focus' : view}
       noteCommandsEnabled={noteCommandsEnabled}
       librarySwitchBlocked={importRequest !== null || composerHasTransientWork}
       zoom={zoom}
+      onCommandPalette={openCommandPalette}
+      commandPaletteLabel={COMMAND_PALETTE_LABEL}
+      commandPaletteShortcut={`${commandModifier}+${COMMAND_PALETTE_SHORTCUT}`}
       onQuickOpen={() => setQuickOpenOpen(true)}
       onNewNote={openNewNote}
       onAddItem={openComposer}
@@ -1689,6 +1784,7 @@ export function Workspace({
         items={visibleItems}
         pageKey={retrievalPageKey}
         searchActive={searchActive}
+        searchQuery={searchQuery}
         emptyMessage={
           searchPending
             ? 'Searching…'
@@ -1874,11 +1970,11 @@ export function Workspace({
             }}
             onEmptyNote={trashEmptyNote}
             renderActions={(guard, detailOptions) => {
-              if (!state.persisted) return <span className="block size-10" aria-hidden="true" />
               const actions = itemActions(state.item, [state.item.id])
               return (
                 <ItemActionMenu
                   item={state.item}
+                  viewOnly={!state.persisted}
                   collections={library.collections}
                   targetCount={1}
                   targetLocations={[state.item.location]}
@@ -2039,6 +2135,7 @@ export function Workspace({
       className="window-root h-screen min-h-0 overflow-hidden text-foreground"
     >
       <LibrarySidebar
+        ref={librarySidebarRef}
         key={library.id}
         library={library}
         destination={destination}
@@ -2232,30 +2329,33 @@ export function Workspace({
                       </EmptyContent>
                     </Empty>
                   )}
-                {!isDragging && destinationItems.length === 0 && !hasActiveRetrieval && (
-                  <Empty className="min-h-72 py-10">
-                    <EmptyHeader>
-                      <EmptyTitle>{emptyDestination.title}</EmptyTitle>
-                      <EmptyDescription>{emptyDestination.description}</EmptyDescription>
-                    </EmptyHeader>
-                    {destination.type !== 'archive' && destination.type !== 'trash' ? (
-                      <EmptyContent className="gap-2">
-                        <div className="flex flex-wrap justify-center gap-2">
-                          <Button aria-keyshortcuts="Control+N" onClick={() => openNewNote()}>
-                            Create new note <ShortcutKbd shortcut="Ctrl+N" />
-                          </Button>
-                          <Button
-                            variant="tonal"
-                            aria-keyshortcuts="Control+Shift+N"
-                            onClick={() => openComposer()}
-                          >
-                            Add item <ShortcutKbd shortcut="Ctrl+Shift+N" />
-                          </Button>
-                        </div>
-                      </EmptyContent>
-                    ) : null}
-                  </Empty>
-                )}
+                {!isDragging &&
+                  !composerOpen &&
+                  destinationItems.length === 0 &&
+                  !hasActiveRetrieval && (
+                    <Empty className="min-h-72 py-10">
+                      <EmptyHeader>
+                        <EmptyTitle>{emptyDestination.title}</EmptyTitle>
+                        <EmptyDescription>{emptyDestination.description}</EmptyDescription>
+                      </EmptyHeader>
+                      {destination.type !== 'archive' && destination.type !== 'trash' ? (
+                        <EmptyContent className="gap-2">
+                          <div className="flex flex-wrap justify-center gap-2">
+                            <Button aria-keyshortcuts="Control+N" onClick={() => openNewNote()}>
+                              Create new note <ShortcutKbd shortcut="Ctrl+N" />
+                            </Button>
+                            <Button
+                              variant="tonal"
+                              aria-keyshortcuts="Control+Shift+N"
+                              onClick={() => openComposer()}
+                            >
+                              Add item <ShortcutKbd shortcut="Ctrl+Shift+N" />
+                            </Button>
+                          </div>
+                        </EmptyContent>
+                      ) : null}
+                    </Empty>
+                  )}
               </div>
             </main>
           </ScrollArea>
@@ -2286,6 +2386,7 @@ export function Workspace({
           }
           onClearSelection={clearSelection}
         />
+        {commandPalette}
         <QuickOpenDialog
           open={quickOpenOpen}
           onOpenChange={setQuickOpenOpen}

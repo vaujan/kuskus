@@ -156,7 +156,7 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   )
   assert.doesNotMatch(focusToolbarSource, /ArrowsDiagonal|aria-pressed=\{expanded\}/)
   assert.match(actionMenuSource, /Zen mode/)
-  assert.match(actionMenuSource, /onCheckedChange=\{props\.detailOptions\.onZenChange\}/)
+  assert.match(actionMenuSource, /onCheckedChange=\{options\.onZenChange\}/)
   assert.doesNotMatch(focusToolbarSource, /data-detail-focus-identity|identityControls/)
   assert.match(focusToolbarSource, /data-detail-focus-actions/)
   assert.match(focusToolbarSource, /pointer-events-auto ml-auto flex/)

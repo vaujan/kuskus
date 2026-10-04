@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/badge'
-import { focusIndexSupportingText } from '@/features/items/focus-index-row-text'
+import { focusIndexSupportingText, searchPreview } from '@/features/items/focus-index-row-text'
+import { SearchHighlight } from '@/features/items/search-highlight'
 import type { LibraryItemDto } from '../../../../shared/library-contract'
 
 const MINUTE = 60_000
@@ -55,6 +56,7 @@ export function FocusIndexRow({
   onDragEnd,
   onNavigate,
   actions,
+  searchQuery = '',
   ...rest
 }: {
   item: LibraryItemDto
@@ -66,11 +68,13 @@ export function FocusIndexRow({
   onDragEnd: () => void
   onNavigate: (key: 'ArrowUp' | 'ArrowDown' | 'Home' | 'End') => void
   actions: React.ReactNode
+  searchQuery?: string
 } & React.ComponentProps<'div'>): React.JSX.Element {
   const addedTime = relativeAddedTime(item.createdAt)
   const typeLabel = itemTypeLabel(item)
   const detail = itemDetail(item)
   const supportingText = focusIndexSupportingText(item)
+  const preview = searchQuery ? searchPreview(supportingText, searchQuery) : supportingText
 
   return (
     <div
@@ -101,7 +105,7 @@ export function FocusIndexRow({
 
       <div className="pointer-events-none flex min-w-0 flex-col py-2.5 pr-14 pl-4">
         <span className="line-clamp-2 text-sm leading-5 font-medium text-pretty text-foreground">
-          {item.title}
+          <SearchHighlight text={item.title} query={searchQuery} />
         </span>
         <span className="mt-1 flex min-w-0 items-center gap-2.5 text-[0.6875rem] leading-4 text-muted-foreground">
           <time className="shrink-0 tabular-nums" dateTime={item.createdAt}>
@@ -113,7 +117,7 @@ export function FocusIndexRow({
           {detail ? <span className="max-w-20 shrink-0 truncate">{detail}</span> : null}
         </span>
         <span className="mt-0.5 truncate text-[0.8125rem] leading-[1.125rem] text-foreground/65">
-          {supportingText || 'No preview available'}
+          <SearchHighlight text={preview || 'No preview available'} query={searchQuery} />
         </span>
       </div>
 

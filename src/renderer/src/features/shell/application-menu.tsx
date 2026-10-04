@@ -49,6 +49,9 @@ export function ApplicationMenu({
   noteCommandsEnabled,
   librarySwitchBlocked,
   zoom,
+  onCommandPalette,
+  commandPaletteLabel,
+  commandPaletteShortcut,
   onQuickOpen,
   onNewNote,
   onAddItem,
@@ -64,6 +67,9 @@ export function ApplicationMenu({
   noteCommandsEnabled: boolean
   librarySwitchBlocked: boolean
   zoom: AppZoom
+  onCommandPalette: () => void
+  commandPaletteLabel: string
+  commandPaletteShortcut: string
   onQuickOpen: () => void
   onNewNote: () => void
   onAddItem: () => void
@@ -133,8 +139,13 @@ export function ApplicationMenu({
         <Menubar id="application-menubar" className="h-8 border-0 bg-transparent p-0">
           <MenubarMenu>
             <MenubarTrigger className="mx-1 px-3">Kuskus</MenubarTrigger>
-            <MenubarContent align="start" className="w-56">
+            <MenubarContent align="start" className="w-max min-w-56 whitespace-nowrap">
               <MenubarGroup>
+                <MenubarItem onClick={() => run(() => onCommandPalette())}>
+                  <IconSearch aria-hidden="true" />
+                  {commandPaletteLabel}
+                  <MenubarShortcut>{commandPaletteShortcut}</MenubarShortcut>
+                </MenubarItem>
                 <MenubarItem onClick={() => run(() => onOpenSettings())}>
                   <IconSettings aria-hidden="true" />
                   Open Settings
@@ -183,7 +194,7 @@ export function ApplicationMenu({
 
           <MenubarMenu>
             <MenubarTrigger>Edit</MenubarTrigger>
-            <MenubarContent className="w-56">
+            <MenubarContent className="w-max min-w-56 whitespace-nowrap">
               <MenubarGroup>
                 <MenubarItem onClick={() => edit('undo')}>
                   <IconArrowBackUp aria-hidden="true" />
@@ -237,7 +248,7 @@ export function ApplicationMenu({
 
           <MenubarMenu>
             <MenubarTrigger>View</MenubarTrigger>
-            <MenubarContent className="w-56">
+            <MenubarContent className="w-max min-w-56 whitespace-nowrap">
               <MenubarGroup>
                 <MenubarCheckboxItem checked={sidebarOpen} onCheckedChange={toggleSidebar}>
                   <IconLayoutSidebarLeftExpand aria-hidden="true" />

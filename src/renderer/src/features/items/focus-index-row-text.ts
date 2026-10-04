@@ -32,3 +32,19 @@ export function focusIndexSupportingText(item: LibraryItemDto): string {
   if (item.type === 'image') return item.sourceFilename || item.contentFilename
   return item.sourceFilename || item.contentFilename
 }
+
+export function searchPreview(text: string, query: string, length = 110): string {
+  const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean)
+  if (!terms.length || text.length <= length) return text
+  const normalized = text.toLocaleLowerCase()
+  const first = Math.min(
+    ...terms.map((term) => {
+      const index = normalized.indexOf(term)
+      return index < 0 ? Infinity : index
+    })
+  )
+  if (!Number.isFinite(first)) return `${text.slice(0, length).trimEnd()}…`
+  const start = Math.max(0, first - 35)
+  const end = Math.min(text.length, start + length)
+  return `${start ? '…' : ''}${text.slice(start, end).trim()}${end < text.length ? '…' : ''}`
+}

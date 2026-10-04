@@ -32,6 +32,8 @@ test('opens slash commands only at the start of a Markdown line', () => {
   )
 })
 
+// JavaScript test helper; TypeScript return annotations are not supported here.
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function queryAt(doc, cursor = doc.length) {
   return currentSlashQuery(
     EditorState.create({

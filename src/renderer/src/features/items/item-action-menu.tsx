@@ -111,6 +111,7 @@ interface ItemActionMenuProps extends ItemActionHandlers {
   showQuickSourceAction?: boolean
   triggerSurface?: 'default' | 'caption'
   hideOpenAction?: boolean
+  viewOnly?: boolean
   detailOptions?: NoteDetailMenuOptions
 }
 
@@ -236,6 +237,35 @@ function MoveAction({
   )
 }
 
+function NoteViewOptions({ options }: { options: NoteDetailMenuOptions }): React.JSX.Element {
+  return (
+    <DropdownMenuGroup>
+      <DropdownMenuLabel>View</DropdownMenuLabel>
+      <DropdownMenuCheckboxItem
+        checked={options.readableLineLength}
+        onCheckedChange={options.onReadableLineLengthChange}
+      >
+        <IconRulerMeasure aria-hidden="true" />
+        Readable line length
+      </DropdownMenuCheckboxItem>
+      <DropdownMenuCheckboxItem
+        checked={options.inlineTitle}
+        onCheckedChange={options.onInlineTitleChange}
+      >
+        <IconTextCaption aria-hidden="true" />
+        Inline title
+      </DropdownMenuCheckboxItem>
+      {options.onZenChange ? (
+        <DropdownMenuCheckboxItem checked={options.zen} onCheckedChange={options.onZenChange}>
+          <IconArrowsDiagonal aria-hidden="true" />
+          Zen mode
+          <DropdownMenuShortcut>Ctrl+Shift+\</DropdownMenuShortcut>
+        </DropdownMenuCheckboxItem>
+      ) : null}
+    </DropdownMenuGroup>
+  )
+}
+
 function ItemActions({
   surface,
   ...props
@@ -244,37 +274,15 @@ function ItemActions({
   const bulk = hasBulkItemSelection(targetCount)
   const inTrash = item.location.type === 'trash'
 
+  if (props.viewOnly) {
+    return props.detailOptions ? <NoteViewOptions options={props.detailOptions} /> : <></>
+  }
+
   return (
     <>
       {surface === 'dropdown' && props.detailOptions ? (
         <>
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>View</DropdownMenuLabel>
-            <DropdownMenuCheckboxItem
-              checked={props.detailOptions.readableLineLength}
-              onCheckedChange={props.detailOptions.onReadableLineLengthChange}
-            >
-              <IconRulerMeasure aria-hidden="true" />
-              Readable line length
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem
-              checked={props.detailOptions.inlineTitle}
-              onCheckedChange={props.detailOptions.onInlineTitleChange}
-            >
-              <IconTextCaption aria-hidden="true" />
-              Inline title
-            </DropdownMenuCheckboxItem>
-            {props.detailOptions.onZenChange ? (
-              <DropdownMenuCheckboxItem
-                checked={props.detailOptions.zen}
-                onCheckedChange={props.detailOptions.onZenChange}
-              >
-                <IconArrowsDiagonal aria-hidden="true" />
-                Zen mode
-                <DropdownMenuShortcut>Ctrl+Shift+\</DropdownMenuShortcut>
-              </DropdownMenuCheckboxItem>
-            ) : null}
-          </DropdownMenuGroup>
+          <NoteViewOptions options={props.detailOptions} />
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
             <DropdownMenuItem onClick={props.detailOptions.onCopyAsMarkdown}>
@@ -482,7 +490,7 @@ export function ItemActionMenu(props: ItemActionMenuProps): React.JSX.Element {
         >
           <IconDots aria-hidden="true" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-60">
+        <DropdownMenuContent align="end" className="w-max min-w-60 whitespace-nowrap">
           <ItemActions surface="dropdown" {...props} />
         </DropdownMenuContent>
       </DropdownMenu>
