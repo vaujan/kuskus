@@ -5,94 +5,195 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Kuskus brings the links, images, notes, and files behind your projects into one visual library stored in a folder you choose."
+      content="Collect links, images, notes, and files in a private visual library stored on your computer. Kuskus is built independently in Indonesia."
     />
-    <meta name="theme-color" content="#191721" />
+    <meta name="theme-color" content="#f7f7f4" />
     <link rel="icon" type="image/webp" href="assets/kuskus-icon.webp" />
     <link rel="stylesheet" href="styles.css" />
-    <title>Kuskus — Keep your project references together</title>
+    <title>Kuskus — Your references, together. Your files, yours.</title>
   </head>
-  <body>
-    <div class="hero-shell" id="top">
-      <header class="site-header">
-        <a class="brand" href="#top" aria-label="Kuskus home">
-          <img src="assets/kuskus-icon.webp" width="34" height="34" alt="" />
-          <span>Kuskus</span>
-        </a>
-        <nav aria-label="Main navigation">
-          <a href="#how-it-works">How it works</a>
-          <a href="#your-files">Your files</a>
-        </nav>
-      </header>
+  <body id="top">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <nav aria-label="Main navigation">
+        <a href="#how-it-works">How it works</a>
+        <a href="#your-files">Privacy</a>
+      </nav>
+    </header>
 
-      <main>
+    <main id="main">
+      <div class="hero-shell">
         <section class="hero" aria-labelledby="hero-title">
           <div class="hero-copy">
-            <p class="eyebrow">A visual library for project references</p>
-            <h1 id="hero-title">The things behind your projects belong together.</h1>
-            <p class="hero-description">
-              Links in bookmarks. Screenshots in downloads. Notes somewhere else. Save them side by
-              side, find them by sight, and keep the library in a folder you choose.
-            </p>
-            <a class="primary-action" href="#project-preview">
-              Explore a project <span aria-hidden="true">↗</span>
-            </a>
-            <p class="hero-details">Windows desktop · No account · Files in your folder</p>
+            <h1 id="hero-title">Your references, together.<br />Your files, yours.</h1>
+            <div class="hero-aside">
+              <p class="hero-description">
+                Bring links, images, and files into one visual library. Write notes beside your
+                sources, with everything stored on your computer.
+              </p>
+              <a class="primary-action" href="#project-preview">
+                Explore the demo <span aria-hidden="true">↓</span>
+              </a>
+              <p class="hero-details">Windows desktop · In development<br />No account required</p>
+            </div>
           </div>
 
           <figure class="app-preview" id="project-preview">
             <div class="app-preview__window">
               <iframe
                 src="./preview.html"
-                title="Explore Kuskus with a studio website project containing notes, images, a link, and a PDF"
+                title="Interactive Kuskus demo: a studio website project with notes, images, a link, and a PDF"
               ></iframe>
             </div>
-            <figcaption>Explore the collection: open a reference, search, or switch views.</figcaption>
           </figure>
         </section>
-      </main>
-    </div>
-
-    <section class="how-section" id="how-it-works" aria-labelledby="how-title">
-      <div class="section-inner">
-        <p class="section-kicker">From finding to making</p>
-        <h2 id="how-title">Keep the context close.</h2>
-        <div class="benefits">
-          <article>
-            <span class="benefit-number">01</span>
-            <h3>Save it while it matters</h3>
-            <p>Capture a link, image, file, or thought without deciding where everything belongs first.</p>
-          </article>
-          <article>
-            <span class="benefit-number">02</span>
-            <h3>See the work together</h3>
-            <p>Browse different kinds of references side by side, in the project they help move forward.</p>
-          </article>
-          <article>
-            <span class="benefit-number">03</span>
-            <h3>Find your way back</h3>
-            <p>Search when you know the words. Scan the visual collection when you remember the image.</p>
-          </article>
-        </div>
       </div>
-    </section>
 
-    <section class="files-section" id="your-files" aria-labelledby="files-title">
-      <div class="section-inner files-layout">
-        <div>
-          <p class="section-kicker">Made to stay yours</p>
-          <h2 id="files-title">A library you can actually keep.</h2>
+      <section class="how-section" id="how-it-works" aria-labelledby="how-title">
+        <div class="section-inner">
+          <h2 id="how-title">Keep the context.<br />Get back to the work.</h2>
+          <p class="section-description">
+            Keep sources, screenshots, and your own thinking together as a project takes shape.
+          </p>
+          <div class="benefits">
+            <article>
+              <span class="benefit-number">01 / Capture</span>
+              <h3>Save it while it matters</h3>
+              <p>
+                Add a link, image, file, or quick note. Leave it in your Inbox and organize it when
+                you’re ready.
+              </p>
+            </article>
+            <article>
+              <span class="benefit-number">02 / Write</span>
+              <h3>Take notes as you research</h3>
+              <p>
+                Develop your thinking in Markdown notes, right beside the links, images, and files
+                that informed it.
+              </p>
+            </article>
+            <article>
+              <span class="benefit-number">03 / Return</span>
+              <h3>Find that thing again</h3>
+              <p>
+                Search when you remember the words. Browse visually when you remember what it looked
+                like.
+              </p>
+            </article>
+          </div>
         </div>
-        <p>
-          Kuskus stores your collection in an ordinary folder on your computer. Your notes, images,
-          and files remain available outside the app, too.
-        </p>
-      </div>
-    </section>
+      </section>
+
+      <section class="files-section" id="your-files" aria-labelledby="files-title">
+        <div class="section-inner">
+          <div class="files-layout">
+            <div>
+              <h2 id="files-title">On your computer.<br />Under your control.</h2>
+            </div>
+            <p>
+              Kuskus keeps your library in an ordinary folder you choose. You don’t need an account
+              or a hosted library to collect and organize your references.
+            </p>
+          </div>
+          <div class="ownership-points">
+            <article class="feature-card">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M7 3h7l4 4v13a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+                <path d="M14 3v5h5M8 13h8M8 17h4" />
+              </svg>
+              <h3>Notes for the whole process</h3>
+              <p>
+                Write in plain Markdown with highlighting and a reading view beside the editor. Your
+                notes save locally as you work.
+              </p>
+            </article>
+            <article class="feature-card">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path
+                  d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"
+                />
+              </svg>
+              <h3>Local by default</h3>
+              <p>
+                Your saved notes and files are available offline. Opening websites and fetching link
+                previews still use the internet.
+              </p>
+            </article>
+            <article class="feature-card">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M7 3h7l4 4v13a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+                <path d="M14 3v5h5M8 13h8M8 17h6" />
+              </svg>
+              <h3>Files you can keep</h3>
+              <p>
+                Open your notes, images, and documents outside Kuskus. Back up your library by
+                copying its folder.
+              </p>
+            </article>
+            <article class="feature-card">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="m9 8-4 4 4 4m6-8 4 4-4 4m-2-11-2 14" />
+              </svg>
+              <h3>An open-source foundation</h3>
+              <p>
+                We’ve chosen GPL-3.0 for Kuskus. The public source release is being prepared, so
+                you’ll be able to inspect, modify, and share the app.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+    </main>
 
     <footer class="site-footer">
-      <span>Kuskus</span>
-      <a href="#top">Back to top ↑</a>
+      <div class="footer-inner">
+        <div class="footer-main">
+          <div class="footer-copy">
+            <h2>Make yourself at home.</h2>
+            <p>Explore a sample project and see how your references could fit together.</p>
+            <a class="primary-action" href="#project-preview"
+              >Explore the demo <span aria-hidden="true">↑</span></a
+            >
+            <p class="release-note">The desktop app is in development. This is a browser demo.</p>
+          </div>
+          <img class="footer-illustration" src="assets/bubuntu-line.svg" alt="" loading="lazy" />
+        </div>
+        <div class="footer-bottom">
+          <span>Built independently in Indonesia</span>
+        </div>
+      </div>
     </footer>
   </body>
 </html>
