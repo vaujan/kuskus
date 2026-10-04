@@ -1,6 +1,8 @@
 packages:
   - landing-page
 
+shamefullyHoist: true
+
 allowBuilds:
   electron: true
   electron-winstaller: true

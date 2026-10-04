@@ -18,15 +18,19 @@ The standalone marketing website lives in [landing-page](landing-page/README.md)
 
 ## Prerequisites
 
-- Node.js 22 or later.
-- pnpm.
+- pnpm 11.26.0 (requires Node.js 22 or later to run).
+- Project scripts use Node.js 24.19.0, which pnpm downloads automatically during installation. The same version is pinned in `.mise.toml` for mise users.
 
 ## Development
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 pnpm dev
 ```
+
+To compile the desktop app, run `pnpm build`. The output is written to `out/`; run `pnpm start` to open it.
+
+If an earlier installation left Electron incomplete (`Electron failed to install correctly`), run `pnpm install --frozen-lockfile`, then `pnpm rebuild electron`. Verify the runtime with `pnpm exec electron --version` before starting the app.
 
 Development windows load [React Scan](https://github.com/aidenybai/react-scan) and [React Grab](https://github.com/aidenybai/react-grab) so you can see re-renders and copy a component's source for an agent. Neither package is included in packaged builds. React Scan's toolbar appears in the corner. Hold **Alt+C** to start React Grab, hover a control, then press **C** to copy its component stack.
 
@@ -84,3 +88,12 @@ pnpm build:win
 pnpm build:mac
 pnpm build:linux
 ```
+
+## License
+
+Kuskus is licensed under the [GNU General Public License, version 3 only](LICENSE)
+(`GPL-3.0-only`). You may use, modify, and redistribute it, including commercially,
+under the terms of that license. Distributed covered versions must include the
+corresponding source code or provide access to it as required by the license.
+
+Third-party code and dependencies retain their respective licenses and notices.

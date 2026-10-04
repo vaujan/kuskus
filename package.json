@@ -1,8 +1,17 @@
 {
   "name": "kuskus",
   "version": "0.0.3",
+  "license": "GPL-3.0-only",
   "description": "A private visual library for project references, stored on your computer",
   "main": "./out/main/index.js",
+  "packageManager": "pnpm@11.26.0",
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "24.19.0",
+      "onFail": "download"
+    }
+  },
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache --max-warnings=0 .",
@@ -23,12 +32,12 @@
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
     "dev:landing": "pnpm --dir landing-page dev",
-    "build": "pnpm typecheck && electron-vite build",
+    "build": "pnpm build:icons && pnpm typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "build:icons": "node scripts/generate-icons.cjs",
     "build:unpack": "pnpm build && electron-builder --dir",
     "build:win": "pnpm build && electron-builder --win",
-    "build:mac": "electron-vite build && electron-builder --mac",
+    "build:mac": "pnpm build && electron-builder --mac",
     "build:linux": "electron-vite build && electron-builder --linux",
     "release": "node scripts/release.cjs"
   },
