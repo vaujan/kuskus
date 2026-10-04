@@ -3,7 +3,6 @@ import { join } from 'node:path'
 import { is } from '@electron-toolkit/utils'
 
 import icon from '../../../resources/icon.png?asset'
-import devIcon from '../../../resources/icon-dev.png?asset'
 import { OPAQUE_WINDOW_BACKGROUND } from './window-material'
 import { installMaximizedStateUpdates } from './maximized-state'
 import { installDevToolsShortcut } from './devtools-shortcut'
@@ -42,7 +41,7 @@ export class SettingsWindowController {
       autoHideMenuBar: true,
       frame: isMac,
       ...(isMac ? { titleBarStyle: 'hiddenInset' as const } : {}),
-      ...(isMac ? {} : { icon: is.dev ? devIcon : icon }),
+      ...(isMac ? {} : { icon }),
       webPreferences: {
         preload: join(__dirname, '../preload/index.js'),
         contextIsolation: true,

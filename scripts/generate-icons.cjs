@@ -1,12 +1,14 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { copyFileSync, mkdirSync } = require('node:fs')
 const { writeFile } = require('node:fs/promises')
-const { dirname, resolve } = require('node:path')
+const { resolve } = require('node:path')
 
 const root = resolve(__dirname, '..')
 const source = resolve(root, 'resources/icon.png')
 const outDir = resolve(root, 'build')
 
+// Plain JavaScript build script; TypeScript return annotations are not supported here.
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 async function main() {
   mkdirSync(outDir, { recursive: true })
 
