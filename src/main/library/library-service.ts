@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { watch, type FSWatcher } from 'node:fs'
+import { realpathSync, watch, type FSWatcher } from 'node:fs'
 import { basename, dirname, extname, join } from 'node:path'
 
 import type {
@@ -1551,29 +1551,34 @@ export class LibraryService {
     this.vaultWatcher?.close()
     this.vaultWatcher = null
     try {
-      this.vaultWatcher = watch(libraryPath, { recursive: true }, (_event, filename) => {
-        const relativePath = typeof filename === 'string' ? filename.replace(/\\/g, '/') : ''
-        if (
-          !relativePath ||
-          relativePath.startsWith('.kuskus/') ||
-          relativePath.startsWith('.obsidian/')
-        ) {
-          return
+      // libuv can abort on Windows short paths; watch the canonical native path.
+      this.vaultWatcher = watch(
+        realpathSync.native(libraryPath),
+        { recursive: true },
+        (_event, filename) => {
+          const relativePath = typeof filename === 'string' ? filename.replace(/\\/g, '/') : ''
+          if (
+            !relativePath ||
+            relativePath.startsWith('.kuskus/') ||
+            relativePath.startsWith('.obsidian/')
+          ) {
+            return
+          }
+          if (this.ignoredAppMovePaths.has(relativePath.toLocaleLowerCase())) return
+          if (this.isAppOwnedWrite(relativePath)) return
+          this.vaultDirty = true
+          this.vaultChangedPaths.add(relativePath)
+          if (this.vaultChangeTimer) clearTimeout(this.vaultChangeTimer)
+          this.vaultChangeTimer = setTimeout(() => {
+            this.vaultChangeTimer = null
+            const changedPaths = [...this.vaultChangedPaths]
+            this.vaultChangedPaths.clear()
+            void this.reconcileCurrentLibrary(true, changedPaths).catch(() => {
+              // The renderer retains the last valid snapshot and focus reconciliation can retry.
+            })
+          }, 300)
         }
-        if (this.ignoredAppMovePaths.has(relativePath.toLocaleLowerCase())) return
-        if (this.isAppOwnedWrite(relativePath)) return
-        this.vaultDirty = true
-        this.vaultChangedPaths.add(relativePath)
-        if (this.vaultChangeTimer) clearTimeout(this.vaultChangeTimer)
-        this.vaultChangeTimer = setTimeout(() => {
-          this.vaultChangeTimer = null
-          const changedPaths = [...this.vaultChangedPaths]
-          this.vaultChangedPaths.clear()
-          void this.reconcileCurrentLibrary(true, changedPaths).catch(() => {
-            // The renderer retains the last valid snapshot and focus reconciliation can retry.
-          })
-        }, 300)
-      })
+      )
       this.vaultWatcher.unref()
     } catch {
       // Startup/focus rescans remain available when recursive watching is unsupported.

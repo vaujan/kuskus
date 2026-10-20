@@ -13,6 +13,11 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 - Keep note-save rollback files in the internal temporary directory so autosave does not trigger a full-vault rebuild.
 
+### Fixed
+
+- Watch canonical vault paths to prevent a native Windows crash when a folder uses a short path alias.
+- Measure typing against the current search controls and isolate body autosave from title-driven file renames.
+
 ### Changed
 
 - Removed obsolete library and draft migrations; vault opening no longer converts old Markdown metadata.
