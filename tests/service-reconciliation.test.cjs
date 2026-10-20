@@ -254,9 +254,9 @@ test('seeds and resets a cultivated isolated demo profile', async (context) => {
 
 test('note autosave does not expose its backup or trigger a full watched-vault rebuild', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-watched-autosave-'))
-  let unsubscribe = () => {}
+  let unsubscribe
   context.after(async () => {
-    unsubscribe()
+    unsubscribe?.()
     await rm(root, { recursive: true, force: true })
   })
   const service = new LibraryService(join(root, 'settings.json'))
