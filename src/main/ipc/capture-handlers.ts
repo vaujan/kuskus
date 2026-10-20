@@ -1,4 +1,5 @@
-import { BrowserWindow, ipcMain, type WebContents } from 'electron'
+import { trustedIpcMain as ipcMain } from '../security'
+import { BrowserWindow, type WebContents } from 'electron'
 
 import {
   CAPTURE_CHANNELS,

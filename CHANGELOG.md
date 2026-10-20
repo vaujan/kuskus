@@ -4,6 +4,27 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Security
+
+- Updated Electron, KaTeX, and Mermaid dependencies and patched transitive sanitizer/math dependencies.
+- Restricted external links to HTTP(S), blocked renderer navigation and webviews, and authenticated IPC requests from registered app main frames.
+
+### Performance
+
+- Keep note-save rollback files in the internal temporary directory so autosave does not trigger a full-vault rebuild.
+
+### Fixed
+
+- Watch canonical vault paths to prevent a native Windows crash when a folder uses a short path alias.
+- Measure typing against the current search controls and isolate body autosave from title-driven file renames.
+
+### Changed
+
+- Removed obsolete library and draft migrations; vault opening no longer converts old Markdown metadata.
+- Restricted packaged repository files, generated third-party notices, and added package inspection.
+- Added Windows/Linux CI checks and a Windows release command that validates and requires signing without changing versions or publishing.
+- Documented release scope, privacy, contributions, vulnerability reporting, and release verification.
+
 ### Added
 
 - Development-only React Scan and React Grab overlays for spotting wasted renders and copying component source.

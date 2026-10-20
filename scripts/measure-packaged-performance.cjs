@@ -36,10 +36,11 @@ async function createFixture(root, itemCount) {
     join(vault, '.kuskus', 'library.json'),
     `${JSON.stringify({ schemaVersion: 2, id: libraryId, name: 'Performance Vault', createdAt: new Date().toISOString() }, null, 2)}\n`
   )
-  const body = '# Performance reference\n\n' + 'Local-first searchable content. '.repeat(80)
+  const body = 'Local-first searchable content. '.repeat(80)
   const workers = Array.from({ length: 32 }, async (_, worker) => {
     for (let index = worker; index < itemCount; index += 32) {
-      await writeFile(join(vault, `Note ${String(index).padStart(5, '0')}.md`), body)
+      const name = `Note ${String(index).padStart(5, '0')}`
+      await writeFile(join(vault, `${name}.md`), `# ${name}\n\n${body}`)
     }
   })
   await Promise.all(workers)
@@ -156,12 +157,15 @@ async function main() {
       ])
       const ipcCalls = entries.filter((entry) => entry.event === 'ipc-call')
       const queryItems = ipcCalls
-        .filter((entry) => entry.data.channel === 'queryItems')
+        .filter((entry) => entry.data.channel === 'library:query-items')
         .map((entry) => entry.data.milliseconds)
       const updateNotes = ipcCalls
-        .filter((entry) => entry.data.channel === 'updateNote')
+        .filter((entry) => entry.data.channel === 'library:update-note')
         .map((entry) => entry.data.milliseconds)
       const vaultScans = Math.max(...typingEvents.map((entry) => entry.data.vaultScans))
+      const autosaveScans = Math.max(...typingEvents.map((entry) => entry.data.autosaveScans))
+      if (!Number.isFinite(autosaveScans))
+        throw new Error('Typing did not report autosave scan measurements.')
       summary.typing = {
         searchKeystrokeP95Ms: p95(searchKeyLatencies),
         noteKeystrokeP95Ms: p95(noteKeyLatencies),
@@ -172,7 +176,8 @@ async function main() {
         queryItemsCount: queryItems.length,
         queryItemsP95Ms: p95(queryItems),
         updateNoteP95Ms: p95(updateNotes),
-        vaultScans
+        vaultScans,
+        autosaveScans
       }
       const budgetMs = 100
       const below = (value, label) => {
@@ -186,8 +191,8 @@ async function main() {
       if (Math.max(0, ...longTasks) > budgetMs) {
         throw new Error(`Long task exceeded ${budgetMs} ms during typing.`)
       }
-      if (vaultScans !== 0) {
-        throw new Error(`Note autosave triggered ${vaultScans} full vault scans.`)
+      if (autosaveScans !== 0) {
+        throw new Error(`Note autosave triggered ${autosaveScans} full vault scans.`)
       }
     }
 

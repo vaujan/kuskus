@@ -1,4 +1,5 @@
-import { BrowserWindow, shell, type WebContents } from 'electron'
+import { secureWindow } from '../security'
+import { BrowserWindow, type WebContents } from 'electron'
 import { join } from 'node:path'
 import { is } from '@electron-toolkit/utils'
 
@@ -105,6 +106,7 @@ export class NoteWindowController {
       }
     })
 
+    secureWindow(window)
     installTextContextMenu(window)
     installDevToolsShortcut(window)
     installMaximizedStateUpdates(window)
@@ -125,10 +127,6 @@ export class NoteWindowController {
         this.approvedCloses.add(window)
         window.close()
       }
-    })
-    window.webContents.setWindowOpenHandler(({ url }) => {
-      void shell.openExternal(url)
-      return { action: 'deny' }
     })
 
     const rendererUrl = process.env['ELECTRON_RENDERER_URL']

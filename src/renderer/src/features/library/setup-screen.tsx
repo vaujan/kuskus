@@ -106,20 +106,14 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
   }
 
   const prepareSelectedVault = async (): Promise<void> => {
-    if (
-      busy ||
-      (initialState.status !== 'needs-initialization' && initialState.status !== 'needs-migration')
-    ) {
+    if (busy || initialState.status !== 'needs-initialization') {
       return
     }
     setBusy(true)
     setError('')
     try {
-      if (initialState.status === 'needs-initialization') notifyVaultIndexingStarted()
-      const result =
-        initialState.status === 'needs-initialization'
-          ? await window.kuskus.initializeVault()
-          : await window.kuskus.migrateLibrary()
+      notifyVaultIndexingStarted()
+      const result = await window.kuskus.initializeVault()
       if (!result.ok) {
         dismissVaultIndexing()
         setError(result.error)
@@ -130,13 +124,10 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
     }
   }
 
-  const needsPreparation =
-    initialState.status === 'needs-initialization' || initialState.status === 'needs-migration'
+  const needsPreparation = initialState.status === 'needs-initialization'
   const showWelcome = !needsPreparation && step === 'welcome'
   const title = needsPreparation
-    ? initialState.status === 'needs-initialization'
-      ? 'Make this folder a library'
-      : 'Upgrade your library'
+    ? 'Make this folder a library'
     : libraryCreated
       ? 'Your library is ready'
       : step === 'welcome'
@@ -246,11 +237,7 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
                 <CardHeader>
                   <CardTitle>Selected folder</CardTitle>
                   <CardDescription>
-                    {initialState.status === 'needs-initialization'
-                      ? initialState.name
-                      : initialState.status === 'needs-migration'
-                        ? initialState.name
-                        : ''}
+                    {initialState.status === 'needs-initialization' ? initialState.name : ''}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
@@ -266,11 +253,6 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
                           : ''}
                       </AlertDescription>
                     </Alert>
-                  ) : initialState.status === 'needs-migration' ? (
-                    <Alert>
-                      <AlertTitle>Backup will be kept</AlertTitle>
-                      <AlertDescription className="break-all">{initialState.path}</AlertDescription>
-                    </Alert>
                   ) : null}
                   {error && <LibraryAlert title="Unable to continue" description={error} />}
                 </CardContent>
@@ -282,11 +264,10 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
                     {busy && <Spinner data-icon="inline-start" />}
                     {busy
                       ? 'Working…'
-                      : initialState.status === 'needs-initialization'
-                        ? initialState.archiveFolderExists
-                          ? 'Adopt Archive and Initialize'
-                          : 'Initialize Library'
-                        : 'Migrate and Keep Backup'}
+                      : initialState.status === 'needs-initialization' &&
+                          initialState.archiveFolderExists
+                        ? 'Adopt Archive and Initialize'
+                        : 'Initialize Library'}
                   </Button>
                 </CardFooter>
               </Card>

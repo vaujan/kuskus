@@ -1,5 +1,4 @@
 const assert = require('node:assert/strict')
-const { existsSync } = require('node:fs')
 const { mkdir, mkdtemp, readFile, rename, rm, unlink, writeFile } = require('node:fs/promises')
 const { tmpdir } = require('node:os')
 const { join } = require('node:path')
@@ -7,9 +6,6 @@ const test = require('node:test')
 require('./helpers/install-ts-require.cjs')()
 
 const { LibraryService } = require('../src/main/library/library-service.ts')
-const { createNoteMetadata } = require('../src/main/library/items/note-item.ts')
-const { createUrlMetadata } = require('../src/main/library/items/url-item.ts')
-const { parseInternetShortcut } = require('../src/main/library/internet-shortcut.ts')
 const {
   prepareObsidianMarkdown
 } = require('../src/renderer/src/features/items/obsidian-markdown.ts')
@@ -179,46 +175,6 @@ test('indexes malformed user YAML as untouched Markdown instead of rewriting it'
   assert.equal(await readFile(join(vault, 'Malformed.md'), 'utf8'), source)
 })
 
-test('migrates a schema-v1 library into readable files and retains a sibling backup', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-v1-migration-test-'))
-  context.after(() => rm(root, { recursive: true, force: true }))
-  const vault = join(root, 'Legacy library')
-  const id = '00000000-0000-4000-8000-000000000001'
-  const linkId = '00000000-0000-4000-8000-000000000002'
-  const timestamp = '2026-07-15T00:00:00.000Z'
-  await mkdir(join(vault, 'inbox', id), { recursive: true })
-  await writeFile(
-    join(vault, 'library.json'),
-    `${JSON.stringify({ schemaVersion: 1, id, name: 'Legacy library', createdAt: timestamp })}\n`
-  )
-  const metadata = createNoteMetadata(id, '# Migrated note\n\nOriginal body', timestamp)
-  await writeFile(join(vault, 'inbox', id, 'item.json'), `${JSON.stringify(metadata)}\n`)
-  await writeFile(join(vault, 'inbox', id, 'note.md'), '# Migrated note\n\nOriginal body', 'utf8')
-  await mkdir(join(vault, 'inbox', linkId), { recursive: true })
-  await writeFile(
-    join(vault, 'inbox', linkId, 'item.json'),
-    `${JSON.stringify(createUrlMetadata(linkId, 'https://example.com/legacy', timestamp))}\n`
-  )
-
-  const service = new LibraryService(join(root, 'settings.json'))
-  let state = await service.openAt(vault)
-  assert.equal(state.status, 'needs-migration')
-  const migrated = await service.migratePendingLibrary()
-  state = migrated.state
-  assert.equal(state.status, 'ready')
-  assert.equal(state.library.items.length, 2)
-  assert.equal(state.library.items.find((item) => item.id === id).relativePath, 'Migrated note.md')
-  assert.equal(
-    state.library.items.find((item) => item.id === linkId).relativePath,
-    'example.com.url'
-  )
-  assert.equal(existsSync(join(vault, 'Migrated note.md')), true)
-  assert.equal(existsSync(join(vault, 'example.com.url')), true)
-  assert.equal(existsSync(join(vault, '.kuskus', 'records', `${id}.json`)), true)
-  assert.equal(existsSync(migrated.backupPath), true)
-  assert.equal(existsSync(join(migrated.backupPath, 'inbox', id, 'note.md')), true)
-})
-
 test('keeps note identity across an external filesystem rename without visible metadata', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-note-identity-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
@@ -261,69 +217,6 @@ test('does not guess identity when duplicate fingerprints make an external move 
     false
   )
   assert.equal(state.library.items.find((item) => item.id === note.id).missingContent, true)
-})
-
-test('automatically removes legacy Kuskus YAML with a retained recovery copy', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-metadata-cleanup-test-'))
-  context.after(() => rm(root, { recursive: true, force: true }))
-  const service = new LibraryService(join(root, 'settings.json'))
-  const created = await service.createIn(root, 'Cleanup vault')
-  const note = await service.createNote({ markdown: '# Clean me', attachmentIds: [] })
-  const notePath = join(created.library.path, 'Clean me.md')
-  const legacy = `---\n# keep this\ntags: [one]\nurl: https://user.example/\nkuskus-id: "${note.id}"\n---\n# Clean me`
-  await writeFile(notePath, legacy, 'utf8')
-  await rm(join(created.library.path, '.kuskus', 'migrations', 'visible-metadata-cleanup.json'), {
-    force: true
-  })
-
-  const state = await service.getState()
-  assert.equal(state.status, 'ready', JSON.stringify(state))
-  assert.equal(state.library.cleanup.status, 'completed')
-  assert.equal(state.library.cleanup.affectedFiles, 1)
-  assert.equal(
-    await readFile(notePath, 'utf8'),
-    '---\n# keep this\ntags: [one]\nurl: https://user.example/\n---\n# Clean me'
-  )
-  const recovered = join(
-    created.library.path,
-    state.library.cleanup.recoveryRelativePath,
-    'originals',
-    'Clean me.md'
-  )
-  assert.equal(await readFile(recovered, 'utf8'), legacy)
-})
-
-test('converts a blank legacy Markdown bookmark into a Windows Internet Shortcut', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-bookmark-cleanup-test-'))
-  context.after(() => rm(root, { recursive: true, force: true }))
-  const service = new LibraryService(join(root, 'settings.json'))
-  const created = await service.createIn(root, 'Bookmark cleanup vault')
-  const link = await service.createUrl('https://example.com/reference')
-  const shortcutPath = join(created.library.path, 'example.com.url')
-  const markdownPath = join(created.library.path, 'example.com.md')
-  await rm(shortcutPath)
-  await writeFile(
-    markdownPath,
-    `---\nkuskus-id: "${link.id}"\nkuskus-type: link\nurl: "${link.sourceUrl}"\n---\n`,
-    'utf8'
-  )
-  const recordPath = join(created.library.path, '.kuskus', 'records', `${link.id}.json`)
-  const record = JSON.parse(await readFile(recordPath, 'utf8'))
-  record.relativePath = 'example.com.md'
-  record.metadata.relativePath = 'example.com.md'
-  await writeFile(recordPath, `${JSON.stringify(record, null, 2)}\n`, 'utf8')
-  await rm(join(created.library.path, '.kuskus', 'migrations', 'visible-metadata-cleanup.json'), {
-    force: true
-  })
-
-  const state = await service.getState()
-  assert.equal(state.status, 'ready')
-  assert.equal(existsSync(markdownPath), false)
-  assert.equal(parseInternetShortcut(await readFile(shortcutPath, 'utf8')), link.sourceUrl)
-  assert.equal(
-    state.library.items.find((item) => item.id === link.id).relativePath,
-    'example.com.url'
-  )
 })
 
 test('indexes an externally created Windows Internet Shortcut', async (context) => {

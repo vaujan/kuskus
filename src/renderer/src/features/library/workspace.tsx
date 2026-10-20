@@ -311,7 +311,7 @@ export function Workspace({
   const overviewViewportRef = useRef<HTMLElement | null>(null)
   const overviewReturnScrollTopRef = useRef(0)
   const overviewSearchActiveRef = useRef(false)
-  const draftStorageKey = `kuskus-note-draft:${library.path}`
+  const captureKey = library.id
 
   const announceStatus = useCallback((message: string): void => {
     setStatusMessage('')
@@ -1499,7 +1499,7 @@ export function Workspace({
 
   const addItemComposer = (
     <AddItemComposer
-      key={draftStorageKey}
+      key={captureKey}
       open={composerOpen}
       focusRequest={composerFocusRequest}
       filePickerRequest={composerFilePickerRequest}
@@ -1511,7 +1511,6 @@ export function Workspace({
           : { type: 'inbox' }
       }
       surface="main"
-      draftStorageKey={draftStorageKey}
       importRequest={importRequest}
       view={view}
       presentation="card"
@@ -2203,15 +2202,6 @@ export function Workspace({
             }}
             onDrop={captureDroppedFile}
           >
-            {library.repairConflicts.length > 0 ? (
-              <Alert className="m-3 mb-0 shrink-0">
-                <AlertTitle>Some legacy metadata needs review</AlertTitle>
-                <AlertDescription>
-                  {library.repairConflicts.length} Markdown{' '}
-                  {library.repairConflicts.length === 1 ? 'file was' : 'files were'} left unchanged.
-                </AlertDescription>
-              </Alert>
-            ) : null}
             <FocusWorkspace
               listWidth={focusListWidth}
               onListWidthChange={setFocusListWidth}
@@ -2264,17 +2254,6 @@ export function Workspace({
                   hasBulkItemSelection(selectedItemIds.length) && 'pb-24 lg:pb-24'
                 )}
               >
-                {library.repairConflicts.length > 0 && (
-                  <Alert className="mb-4">
-                    <AlertTitle>Some legacy metadata needs review</AlertTitle>
-                    <AlertDescription>
-                      {library.repairConflicts.length} Markdown{' '}
-                      {library.repairConflicts.length === 1 ? 'file was' : 'files were'} left
-                      unchanged because removing the old bookmark metadata could hide user-authored
-                      content. The original files remain authoritative.
-                    </AlertDescription>
-                  </Alert>
-                )}
                 {view === 'visual' ? (
                   <>
                     <OrderedMasonry>{cardLayoutContent}</OrderedMasonry>

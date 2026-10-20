@@ -1,5 +1,4 @@
 import {
-  LEGACY_TRANSLUCENT_BACKGROUND_STORAGE_KEY,
   resolveTranslucentBackgroundPreference,
   TRANSLUCENT_BACKGROUND_STORAGE_KEY,
   type DesktopPlatform,
@@ -43,16 +42,9 @@ export interface WindowMaterialController {
 
 export function readTranslucentBackgroundPreference(storage: WindowMaterialStorage): boolean {
   try {
-    const storedValue = storage.getItem(TRANSLUCENT_BACKGROUND_STORAGE_KEY)
-    if (storedValue !== null) return resolveTranslucentBackgroundPreference(storedValue)
-
-    const legacyValue = storage.getItem(LEGACY_TRANSLUCENT_BACKGROUND_STORAGE_KEY)
-    const preference = resolveTranslucentBackgroundPreference(legacyValue)
-    if (legacyValue !== null) {
-      storage.setItem(TRANSLUCENT_BACKGROUND_STORAGE_KEY, String(preference))
-      storage.removeItem(LEGACY_TRANSLUCENT_BACKGROUND_STORAGE_KEY)
-    }
-    return preference
+    return resolveTranslucentBackgroundPreference(
+      storage.getItem(TRANSLUCENT_BACKGROUND_STORAGE_KEY)
+    )
   } catch {
     return true
   }

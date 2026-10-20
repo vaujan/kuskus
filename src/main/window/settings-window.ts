@@ -1,3 +1,4 @@
+import { secureWindow } from '../security'
 import { BrowserWindow } from 'electron'
 import { join } from 'node:path'
 import { is } from '@electron-toolkit/utils'
@@ -50,6 +51,7 @@ export class SettingsWindowController {
       }
     })
 
+    secureWindow(window)
     installTextContextMenu(window)
     installDevToolsShortcut(window)
     installMaximizedStateUpdates(window)

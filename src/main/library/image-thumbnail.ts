@@ -1,5 +1,3 @@
-import { nativeImage } from 'electron'
-
 import type { ImagePreviewDto } from '../../shared/library-contract'
 
 export const CARD_THUMBNAIL_EDGE = 512
@@ -16,11 +14,12 @@ export function fitThumbnailSize(
   }
 }
 
-export function createImageThumbnail(
+export async function createImageThumbnail(
   bytes: Buffer,
   width: number,
   height: number
-): ImagePreviewDto {
+): Promise<ImagePreviewDto> {
+  const { nativeImage } = await import('electron')
   const size = fitThumbnailSize(width, height)
   const image = nativeImage.createFromBuffer(bytes)
   if (image.isEmpty()) throw new Error('The saved image could not be decoded.')

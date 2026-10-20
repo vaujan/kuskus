@@ -141,7 +141,6 @@ const libraryApi: KuskusLibraryApi = {
   create: (name) => ipcRenderer.invoke(KUSKUS_CHANNELS.createLibrary, name),
   open: () => ipcRenderer.invoke(KUSKUS_CHANNELS.openLibrary),
   initializeVault: () => ipcRenderer.invoke(KUSKUS_CHANNELS.initializeVault),
-  migrateLibrary: () => ipcRenderer.invoke(KUSKUS_CHANNELS.migrateLibrary),
   createNote: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.createNote, input),
   duplicateNote: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.duplicateNote, itemId),
   updateNote: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.updateNote, input),
