@@ -271,6 +271,11 @@ export function startPerformanceReporter(
           ))
         if (editorReady) {
           await window.webContents.executeJavaScript(FOCUS_EDITOR)
+          const modifiers: ('meta' | 'control')[] = [
+            process.platform === 'darwin' ? 'meta' : 'control'
+          ]
+          window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'End', modifiers })
+          window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'End', modifiers })
           await waitStable()
           await typeKey('0')
           await waitStable()

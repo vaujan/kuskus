@@ -2092,7 +2092,7 @@ export class LibraryStore {
     if (resolved.metadata.type !== 'note') throw new Error('The saved item is not a note.')
     const temporary = kuskusPath(libraryPath, 'temp', `${metadata.id}.note-update`)
     await writeFile(temporary, markdown, 'utf8')
-    const current = `${resolved.path}.${randomUUID()}.previous`
+    const current = kuskusPath(libraryPath, 'temp', `${metadata.id}.${randomUUID()}.previous`)
     await rename(resolved.path, current)
     try {
       await rename(temporary, resolved.path)

@@ -9,6 +9,10 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 - Updated Electron, KaTeX, and Mermaid dependencies and patched transitive sanitizer/math dependencies.
 - Restricted external links to HTTP(S), blocked renderer navigation and webviews, and authenticated IPC requests from registered app main frames.
 
+### Performance
+
+- Keep note-save rollback files in the internal temporary directory so autosave does not trigger a full-vault rebuild.
+
 ### Changed
 
 - Removed obsolete library and draft migrations; vault opening no longer converts old Markdown metadata.

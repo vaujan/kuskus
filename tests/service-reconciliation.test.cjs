@@ -251,3 +251,34 @@ test('seeds and resets a cultivated isolated demo profile', async (context) => {
   assert.equal(existsSync(join(reset.libraryPath, '.kuskus', 'library.json')), true)
   assert.doesNotMatch(await readFile(typographyPath, 'utf8'), /LOCAL MARKDOWN LAB EDIT/)
 })
+
+test('note autosave does not expose its backup or trigger a full watched-vault rebuild', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-watched-autosave-'))
+  let unsubscribe = () => {}
+  context.after(async () => {
+    unsubscribe()
+    await rm(root, { recursive: true, force: true })
+  })
+  const service = new LibraryService(join(root, 'settings.json'))
+  await service.createIn(root, 'Vault')
+  const note = await service.createNote({ markdown: '# Note\n\nBefore', attachmentIds: [] })
+  await service.getState()
+  let fullRebuilds = 0
+  const build = service.store.buildLibraryDto.bind(service.store)
+  service.store.buildLibraryDto = async (...args) => {
+    fullRebuilds += 1
+    return build(...args)
+  }
+  unsubscribe = service.onVaultChanged(() => {})
+  await service.updateNote({
+    itemId: note.id,
+    expectedMarkdown: '# Note\n\nBefore',
+    markdown: '# Note\n\nAfter'
+  })
+  await new Promise((resolve) => setTimeout(resolve, 1000))
+  const state = await service.getState(true)
+  assert.equal(state.status, 'ready')
+  assert.equal(state.library.items.length, 1)
+  assert.equal(state.library.items[0].body, '# Note\n\nAfter')
+  assert.equal(fullRebuilds, 0)
+})

@@ -4,7 +4,7 @@ Windows is the supported release target. macOS and Linux packaging commands are 
 
 ## Prepare the source
 
-1. Work from a clean checkout with Node.js 24.19.0 and pnpm 11.26.0. Run `pnpm install --frozen-lockfile` and `pnpm check`. CI repeats these checks on Linux and Windows and inspects an unsigned unpacked package. A green CI build is not a signed public installer.
+1. Work from a clean checkout with Node.js 24.19.0 and pnpm 11.26.0. Run `pnpm install --frozen-lockfile` and `pnpm check`. CI repeats these checks on Linux and Windows and inspects an unsigned unpacked package. Windows CI also builds and retains an unsigned x64 test installer for seven days. A green CI build is not a signed public installer.
 2. Run `pnpm audit --prod`. Resolve advisories or record a reviewed, specific exception before release. Do not hide findings by raising the severity threshold.
 3. Enable private vulnerability reporting in GitHub settings. Review the full-history secret scan and the asset provenance inventory. No automated scan can establish asset ownership or guarantee the absence of secrets.
 4. Update the version with `pnpm version <patch|minor|major> --no-git-tag-version`, update CHANGELOG, and commit the reviewed release contents. Do not tag until the installer passes verification. The release command itself never changes the version or creates a tag.
@@ -38,3 +38,5 @@ The first Electron download is over 100 MB and may take several minutes on a slo
 CI caches Electron runtimes and packaging tools by operating system, architecture, and lockfile. A cold cache still requires a full download. If acquiring a runtime was interrupted, verify a fresh package rather than inspecting a leftover `dist` archive.
 
 To inspect a cross-compiled Windows package on Linux, run `pnpm package:verify win32`. This checks archive contents and required notices, including electron-builder's `LICENSE.electron.txt`; it does not establish Windows installation or signing correctness.
+
+When cross-building Windows on Linux, NSIS uses Wine to generate its uninstaller. Wine needs an initialized prefix owned by the current user and working system services. A partial setup stub from a failed Wine run is not an installer. Prefer the Windows CI artifact if the local Wine environment cannot finish initialization; signing and clean-machine checks are still required.

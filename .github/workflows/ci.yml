@@ -39,6 +39,18 @@ jobs:
       - name: Package for inspection (unsigned, never published)
         run: pnpm exec electron-builder --dir --publish never
       - run: pnpm package:verify
+      - name: Build unsigned Windows installer for testing
+        if: runner.os == 'Windows'
+        run: pnpm exec electron-builder --win nsis --x64 --publish never
+      - name: Save unsigned Windows test installer
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: kuskus-windows-x64-test
+          path: dist/*-x64-setup.exe
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
   secrets:
     runs-on: ubuntu-latest
     steps:
