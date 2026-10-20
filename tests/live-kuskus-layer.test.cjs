@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict')
 const { readFileSync } = require('node:fs')
 const Module = require('node:module')
+const { basename } = require('node:path')
 const test = require('node:test')
 const ts = require('typescript')
 
@@ -24,7 +25,10 @@ const { GFM } = require('@lezer/markdown')
 // dependency out of this Node-only rendering test.
 const loadModule = Module._load
 Module._load = function (request, parent, isMain) {
-  if (request === './table-context-menu' && parent?.filename.endsWith('/table-widget.ts')) {
+  if (
+    request === './table-context-menu' &&
+    basename(parent?.filename ?? '') === 'table-widget.ts'
+  ) {
     return { openTableContextMenu: () => undefined }
   }
   return loadModule.call(this, request, parent, isMain)

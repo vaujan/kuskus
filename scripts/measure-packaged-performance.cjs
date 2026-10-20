@@ -156,10 +156,10 @@ async function main() {
       ])
       const ipcCalls = entries.filter((entry) => entry.event === 'ipc-call')
       const queryItems = ipcCalls
-        .filter((entry) => entry.data.channel === 'queryItems')
+        .filter((entry) => entry.data.channel === 'library:query-items')
         .map((entry) => entry.data.milliseconds)
       const updateNotes = ipcCalls
-        .filter((entry) => entry.data.channel === 'updateNote')
+        .filter((entry) => entry.data.channel === 'library:update-note')
         .map((entry) => entry.data.milliseconds)
       const vaultScans = Math.max(...typingEvents.map((entry) => entry.data.vaultScans))
       summary.typing = {
