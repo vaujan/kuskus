@@ -212,7 +212,6 @@ export function AddItemComposer({
   destination = { type: 'inbox' },
   surface = 'main',
   ownershipActive = open,
-  draftStorageKey,
   importRequest,
   view,
   presentation = 'card',
@@ -237,7 +236,6 @@ export function AddItemComposer({
   destination?: ActiveItemLocation
   surface?: CaptureSurface
   ownershipActive?: boolean
-  draftStorageKey?: string
   importRequest: ImportRequest | null
   view: LibraryView
   presentation?: 'card' | 'pane'
@@ -258,8 +256,7 @@ export function AddItemComposer({
   const captureSession = useCaptureSession({
     libraryId,
     surface,
-    active: ownershipActive,
-    legacyStorageKey: draftStorageKey
+    active: ownershipActive
   })
   const { queue } = useCaptureQueue(libraryId)
   const draft = captureSession.markdown

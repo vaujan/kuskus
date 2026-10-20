@@ -21,7 +21,6 @@ const {
   createInternetShortcut,
   parseInternetShortcut
 } = require('../src/main/library/internet-shortcut.ts')
-const { removeKuskusFrontmatter } = require('../src/main/library/vault-frontmatter.ts')
 
 const onePixelPng = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL88wAAAABJRU5ErkJggg==',
@@ -144,9 +143,4 @@ test('parses Windows Internet Shortcuts case-insensitively and rejects unsafe UR
     '[InternetShortcut]\r\nURL=https://example.com/\r\n'
   )
   assert.throws(() => parseInternetShortcut('[InternetShortcut]\nURL=file:///C:/secret.txt'))
-  assert.equal(removeKuskusFrontmatter('---\nkuskus-id: "id"\n---\nBody'), 'Body')
-  assert.equal(
-    removeKuskusFrontmatter('---\r\ntags: [keep]\r\nkuskus-id: "id"\r\n---\r\nBody'),
-    '---\r\ntags: [keep]\r\n---\r\nBody'
-  )
 })

@@ -125,9 +125,7 @@ export function library(
     createdAt: date,
     pinnedItemIds: items.length ? [items[0].id] : [],
     items,
-    collections: options.collections ?? [],
-    cleanup: { status: 'not-needed', affectedFiles: 0, recoveryRelativePath: null },
-    repairConflicts: []
+    collections: options.collections ?? []
   }
 }
 

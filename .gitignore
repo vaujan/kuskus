@@ -11,3 +11,11 @@ tmp/
 .performance/
 .zcode/
 storybook-static/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+THIRD_PARTY_NOTICES.txt

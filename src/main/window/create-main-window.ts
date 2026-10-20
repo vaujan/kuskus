@@ -1,4 +1,5 @@
-import { BrowserWindow, shell } from 'electron'
+import { secureWindow } from '../security'
+import { BrowserWindow } from 'electron'
 import { join } from 'node:path'
 import { is } from '@electron-toolkit/utils'
 
@@ -31,6 +32,7 @@ export function createMainWindow(): BrowserWindow {
     }
   })
 
+  secureWindow(mainWindow)
   installMaximizedStateUpdates(mainWindow)
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
@@ -38,11 +40,6 @@ export function createMainWindow(): BrowserWindow {
 
   installTextContextMenu(mainWindow)
   installDevToolsShortcut(mainWindow)
-
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url)
-    return { action: 'deny' }
-  })
 
   mainWindow.webContents.on('before-input-event', (event, input) => {
     if (input.type !== 'keyDown' || !(input.control || input.meta) || input.alt) return

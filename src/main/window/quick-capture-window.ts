@@ -1,4 +1,5 @@
-import { BrowserWindow, nativeTheme, screen, shell, type WebContents } from 'electron'
+import { secureWindow } from '../security'
+import { BrowserWindow, nativeTheme, screen, type WebContents } from 'electron'
 import { join } from 'node:path'
 import { is } from '@electron-toolkit/utils'
 
@@ -184,6 +185,7 @@ export class QuickCaptureWindowController {
     this.window = window
     this.position(window)
 
+    secureWindow(window)
     installTextContextMenu(window)
     installDevToolsShortcut(window)
 
@@ -195,10 +197,6 @@ export class QuickCaptureWindowController {
         this.cancelIdleDestroy()
         this.window = null
       }
-    })
-    window.webContents.setWindowOpenHandler(({ url }) => {
-      void shell.openExternal(url)
-      return { action: 'deny' }
     })
     window.webContents.on('did-finish-load', () => {
       window.webContents.send(WINDOW_CHANNELS.reducedTransparencyChanged, this.reducedTransparency)

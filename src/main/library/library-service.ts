@@ -282,10 +282,6 @@ export class LibraryService {
       const settings = await readJson<PersistedSettings>(this.settingsPath)
       if (settings.schemaVersion !== 1 || !settings.lastLibraryPath) return
 
-      if (await this.store.isLegacyLibrary(settings.lastLibraryPath)) {
-        this.pendingLibraryPath = settings.lastLibraryPath
-        return
-      }
       if (await this.store.isUninitializedVault(settings.lastLibraryPath)) {
         this.pendingLibraryPath = settings.lastLibraryPath
         return
@@ -470,10 +466,7 @@ export class LibraryService {
   }
 
   async openAt(libraryPath: string): Promise<LibraryState> {
-    if (
-      (await this.store.isLegacyLibrary(libraryPath)) ||
-      (await this.store.isUninitializedVault(libraryPath))
-    ) {
+    if (await this.store.isUninitializedVault(libraryPath)) {
       this.pendingLibraryPath = libraryPath
       this.currentLibraryPath = null
       await writeJsonAtomic(this.settingsPath, {
@@ -498,17 +491,7 @@ export class LibraryService {
     return this.getState()
   }
 
-  async migratePendingLibrary(): Promise<{ state: LibraryState; backupPath: string }> {
-    const path = this.requirePendingLibrary()
-    const { backupPath } = await this.store.migrateLegacyLibrary(path)
-    await this.setCurrentLibrary(path)
-    return { state: await this.getState(), backupPath }
-  }
-
   private async pendingState(path: string): Promise<LibraryState> {
-    if (await this.store.isLegacyLibrary(path)) {
-      return { status: 'needs-migration', path, name: basename(path) }
-    }
     if (await this.store.isUninitializedVault(path)) {
       const preview = await this.store.inspectUninitializedVault(path)
       return { status: 'needs-initialization', path, name: basename(path), ...preview }
@@ -1491,7 +1474,7 @@ export class LibraryService {
       if (!detected || detected.mediaType !== metadata.mediaType) {
         throw new Error('The saved image content is invalid.')
       }
-      const thumbnail = createImageThumbnail(bytes, detected.width, detected.height)
+      const thumbnail = await createImageThumbnail(bytes, detected.width, detected.height)
       await this.store.writeImageThumbnailCache(
         libraryPath,
         itemId,
