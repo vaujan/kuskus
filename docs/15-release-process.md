@@ -6,7 +6,7 @@ Windows is the supported release target. macOS and Linux packaging commands are 
 
 1. Work from a clean checkout with Node.js 24.19.0 and pnpm 11.26.0. Run `pnpm install --frozen-lockfile` and `pnpm check`. CI repeats these checks on Linux and Windows and inspects an unsigned unpacked package. Windows CI also builds and retains an unsigned x64 test installer for seven days. A green CI build is not a signed public installer.
 2. Run `pnpm audit --prod`. Resolve advisories or record a reviewed, specific exception before release. Do not hide findings by raising the severity threshold.
-3. Enable private vulnerability reporting in GitHub settings. Review the full-history secret scan and the asset provenance inventory. No automated scan can establish asset ownership or guarantee the absence of secrets.
+3. Review the full-history secret scan and the asset provenance inventory before source publication. Immediately after making the repository public, enable private vulnerability reporting in GitHub settings and verify it before announcing the launch. GitHub provides this reporting feature for public repositories. No automated scan can establish asset ownership or guarantee the absence of secrets.
 4. Update the version with `pnpm version <patch|minor|major> --no-git-tag-version`, update CHANGELOG, and commit the reviewed release contents. Do not tag until the installer passes verification. The release command itself never changes the version or creates a tag.
 
 ## Build and inspect on Windows

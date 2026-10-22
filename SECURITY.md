@@ -6,4 +6,4 @@ Please report vulnerabilities through [GitHub private vulnerability reporting](h
 
 Include the affected version, operating system, reproduction steps using synthetic data, expected behavior, and potential impact. Never include credentials, signing keys, or a personal vault. There is no guaranteed response time; this is an independently maintained project.
 
-Maintainers must enable private vulnerability reporting in repository settings before the public launch. Reproduce reports on a disposable library, prepare and verify the fix, and coordinate disclosure with the reporter.
+Maintainers must enable private vulnerability reporting in repository settings immediately after making the repository public and before announcing the launch. GitHub provides this feature for public repositories. Reproduce reports on a disposable library, prepare and verify the fix, and coordinate disclosure with the reporter.
