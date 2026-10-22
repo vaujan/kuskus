@@ -19,7 +19,7 @@ Prepared 2026-10-22 (Asia/Jayapura). Launch the source repository and browser de
 2. Sign into GitHub and enable private vulnerability reporting for `vaujan/kuskus`. The local CLI credential is invalid, the in-app browser is signed out, and the connected GitHub tool does not expose that administration action. Confirm the private reporting route in `SECURITY.md` works after publication; do not post exploit details publicly.
 3. Review the repository, history, screenshots, and demo content for information you do not want to disclose. Change repository visibility to public in GitHub settings only after this review. Publishing source exposes reachable history as well as the current files.
 4. Build the site with `pnpm --dir landing-page build` and deploy `landing-page/dist/` to the existing static hosting project. It includes `LICENSE` and `THIRD_PARTY_NOTICES.txt`. Verify the demo, source link, notice links, keyboard use, and a narrow viewport on the published URL.
-5. Once the source is public, update the site's “public source release is being prepared” sentence to describe the available GPL-3.0-only source, then announce it as an early source preview with a browser demo. Do not announce desktop downloads until they exist and pass the installer gates.
+5. Announce it as an early source preview with a browser demo. The site links directly to the GPL-3.0-only source, so keep the source-publication-before-site-deployment order. Do not announce desktop downloads until they exist and pass the installer gates.
 
 The repository remains private and the site has not been deployed by this preparation. No tag, GitHub release, or public installer has been published.
 
