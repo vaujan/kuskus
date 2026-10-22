@@ -1,5 +1,6 @@
 import { lookup as defaultLookup } from 'node:dns/promises'
-import { isIP } from 'node:net'
+import { isIP, type LookupFunction } from 'node:net'
+import { Agent } from 'undici'
 
 type LookupResult = { address: string; family: number }
 export type LookupHost = (
@@ -12,8 +13,40 @@ export interface UrlNetworkDependencies {
   lookup: LookupHost
 }
 
+// Validate the addresses handed to the socket, including reconnects. A separate
+// preflight lookup alone allows a hostname to rebind before fetch connects.
+export function createPublicLookup(lookup: LookupHost): LookupFunction {
+  return (hostname, options, callback) => {
+    void lookup(hostname, { all: true, verbatim: true }).then(
+      (addresses) => {
+        if (!addresses.length || addresses.some(({ address }) => !isPublicIpAddress(address))) {
+          callback(new Error('Local or private network links cannot be fetched for metadata.'), '')
+          return
+        }
+        const matching = addresses.filter(
+          ({ family }) => !options.family || family === options.family
+        )
+        if (!matching.length) {
+          callback(new Error('The link has no address for the requested network family.'), '')
+          return
+        }
+        if (options.all) callback(null, matching)
+        else callback(null, matching[0].address, matching[0].family)
+      },
+      (error) => callback(error, '')
+    )
+  }
+}
+
+const publicResourceAgent = new Agent({
+  connect: { lookup: createPublicLookup(defaultLookup as LookupHost) }
+})
+
 export const defaultUrlNetworkDependencies: UrlNetworkDependencies = {
-  fetch,
+  fetch: (input, init) => {
+    const options = { ...init, dispatcher: publicResourceAgent }
+    return fetch(input, options)
+  },
   lookup: defaultLookup as LookupHost
 }
 
@@ -99,6 +132,7 @@ export async function fetchPublicResource(
   })
   if (response.status >= 300 && response.status < 400) {
     const location = response.headers.get('location')
+    await response.body?.cancel()
     if (!location) throw new Error('The link redirected without a destination.')
     return fetchPublicResource(
       new URL(location, initialUrl),

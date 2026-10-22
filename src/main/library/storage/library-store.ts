@@ -361,7 +361,7 @@ export class LibraryStore {
       await mkdir(libraryPath, { recursive: false })
     }
     await this.ensureLibraryDirectories(libraryPath)
-    await mkdir(join(libraryPath, DEFAULT_ARCHIVE_DIRECTORY), { recursive: true })
+    await mkdir(resolveInsideVault(libraryPath, DEFAULT_ARCHIVE_DIRECTORY), { recursive: true })
     await writeJsonAtomic(kuskusPath(libraryPath, LIBRARY_FILENAME), {
       ...library,
       schemaVersion: 2
@@ -1253,6 +1253,7 @@ export class LibraryStore {
       const relativePath = slash(relative(dirname(notePath), target))
       if (!target.startsWith(`${resolve(libraryPath)}${sep}`) || !isImageExtension(extname(target)))
         continue
+      resolveInsideVault(libraryPath, relative(libraryPath, target))
       const targetExists = await this.pathExists(target)
       const binaryRecord = this.attachmentRecordForTarget(
         libraryPath,
@@ -2234,7 +2235,8 @@ export class LibraryStore {
     itemId: string
   ): Promise<string> {
     if (location.type === 'inbox') return libraryPath
-    if (location.type === 'archive') return join(libraryPath, DEFAULT_ARCHIVE_DIRECTORY)
+    if (location.type === 'archive')
+      return resolveInsideVault(libraryPath, DEFAULT_ARCHIVE_DIRECTORY)
     if (location.type === 'trash') return kuskusPath(libraryPath, TRASH_DIRECTORY, itemId)
     const collection = (await this.currentCollectionRecords(libraryPath)).find(
       (entry) => entry.id === location.collectionId

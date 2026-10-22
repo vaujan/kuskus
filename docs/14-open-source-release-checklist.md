@@ -1,6 +1,15 @@
 # Open-source and release readiness
 
-Updated 2026-10-20 (Asia/Jayapura), following the audit of `d857bdf` and local remediation. Code-level blockers have been addressed. Public distribution remains gated on native installer verification, signing, and confirming asset rights. Nothing has been published or tagged.
+Updated 2026-10-22 (Asia/Jayapura). The first launch milestone is the public source repository and browser demo. Windows installers remain a separate milestone: the maintainer currently has neither Windows signing nor a native Windows test machine. No public installer or tag has been prepared by this pass. See [the source-launch handoff](17-source-launch.md).
+
+## Launch hardening on 2026-10-22
+
+- [x] Validate DNS answers at socket connection time using an Undici agent, closing the gap between metadata preflight validation and a subsequent DNS lookup. Redirects retain destination validation.
+- [x] Reject symbolic links and Windows junctions in resolved vault paths, including dangling links and `.kuskus` metadata paths. Archive destinations and referenced note images use the same guard. This is a filesystem guard, not a guarantee against a concurrent process replacing path components between validation and IO.
+- [x] Record the maintainer's artwork ownership/redistribution confirmation and retain upstream MIT notices for all five bundled-skill sources.
+- [x] Re-run Gitleaks 8.30.1 locally: 243 reachable commits, approximately 8.39 MB scanned, no findings. A directory scan also reported no findings; files over 5 MB were excluded. No scan guarantees the absence of secrets.
+- [x] Verify the existing remote default-branch CI at [`12c2cb2`](https://github.com/vaujan/kuskus/actions/runs/39409885178): Linux, Windows, and full-history Gitleaks jobs all passed. New changes require their own green CI run before merging.
+- [x] Add visible source, license, and third-party notice links to the landing page. Publish the repository before announcing the site so the source link resolves publicly.
 
 ## Completed fixes
 
@@ -22,17 +31,17 @@ Updated 2026-10-20 (Asia/Jayapura), following the audit of `d857bdf` and local r
 
 ## Local verification
 
-| Check                                        | Result                                                                                                                                                                                                                                             |
-| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Automated tests                              | 343 passed, zero failed or skipped; includes sender authentication, unsafe links/navigation, obsolete-format preservation, release sequencing, and package inspection                                                                              |
-| Desktop TypeScript                           | Passed                                                                                                                                                                                                                                             |
-| ESLint                                       | Passed                                                                                                                                                                                                                                             |
-| Desktop production build                     | Passed                                                                                                                                                                                                                                             |
-| Static renderer budget                       | Passed: main 2,432,571 / 2,500,000 bytes; quick capture 951,860 bytes                                                                                                                                                                              |
-| Landing-page TypeScript and production build | Passed; license and notice files copied to output                                                                                                                                                                                                  |
-| Production dependency audit                  | Zero known advisories                                                                                                                                                                                                                              |
-| Frozen-lockfile install                      | Passed with pnpm 11.26.0; Node.js 24.19.0 installed and used by project scripts                                                                                                                                                                    |
-| Native unpacked app                          | Linux x64 package built with Electron 44.7.0; runtime SHA-256 verified against the official checksum map. Archive inspection passed for 41,241 entries. Native launch with 100 synthetic notes reached its first card in 839 ms and exited cleanly |
+| Check                                        | Result                                                                                                                                                                                                                                    |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Automated tests                              | 348 passed, zero failed or skipped; includes socket DNS validation, redirects, symlink/junction containment, sender authentication, release sequencing, and package inspection                                                            |
+| Desktop TypeScript                           | Passed                                                                                                                                                                                                                                    |
+| ESLint                                       | Passed                                                                                                                                                                                                                                    |
+| Desktop production build                     | Passed                                                                                                                                                                                                                                    |
+| Static renderer budget                       | Passed: main 2,435,312 / 2,500,000 bytes; quick capture 951,860 bytes                                                                                                                                                                     |
+| Landing-page TypeScript and production build | Passed; license and notice files copied to output                                                                                                                                                                                         |
+| Production dependency audit                  | Zero known advisories                                                                                                                                                                                                                     |
+| Frozen-lockfile install                      | Passed with pnpm 11.26.0; Node.js 24.19.0 installed and used by project scripts                                                                                                                                                           |
+| Native unpacked app                          | Fresh Linux x64 package with Electron 44.7.0; archive inspection passed for 41,430 entries. Native launch with 100 synthetic notes reached its first card in approximately 1.48 seconds and exited cleanly (single smoke run, 2026-10-22) |
 
 Builds still emit CSS optimizer warnings for `::highlight` and landing-page large-chunk warnings. These do not fail the build; verify search highlighting visually. A bundle budget is not a native responsiveness measurement. The app's main surface remains close to its static ceiling.
 
@@ -41,8 +50,8 @@ Builds still emit CSS optimizer warnings for `::highlight` and landing-page larg
 - [ ] **Verify signed installers on Windows.** Provide signing credentials through the signing provider/environment, run `pnpm release`, inspect the signature and publisher, and test installation, launch, offline use, upgrade, uninstall, retained libraries, and shortcut behavior on clean x64/ARM64 systems. Do not publish an architecture solely because it cross-compiles.
 - [x] **Confirm a newly packaged Linux application.** The earlier apparent stall was a slow, incomplete runtime download repeatedly interrupted by short time limits. Resumed the official archive, verified its SHA-256, installed Electron 44.7.0, packaged the app, passed archive inspection, and completed a native launch using a disposable 100-note library. Windows packaging and native installation remain separate gates.
 - [ ] **Enable GitHub private vulnerability reporting.** SECURITY.md points to the repository's private reporting route; repository settings were not changed locally.
-- [ ] **Confirm artwork and skill provenance.** See [the asset inventory](16-third-party-assets.md). Ownership/redistribution permission for the app icon, landing illustration, demo images, and bundled skill sources cannot be inferred from the files. Confirm or replace them before source/site publication.
-- [ ] **Review GitHub CI results after pushing.** Workflow configuration is present, but no remote workflow run has been claimed as passing. Review its full-history Gitleaks results before making the repository public.
+- [x] **Confirm artwork and skill provenance.** Maintainer confirmed artwork ownership on 2026-10-22. Upstream skill MIT declarations were reviewed and notices retained. See [the asset inventory](16-third-party-assets.md).
+- [ ] **Review GitHub CI results for the launch changes.** Existing default-branch CI is green, including full-history Gitleaks; review a new run for these changes before merging and making the repository public.
 - [ ] **Perform hands-on data safety and accessibility checks** below. Automated tests do not establish native UI behavior or power-loss safety.
 - [ ] **Prepare the actual release.** Update the version and release notes, commit reviewed sources, build and verify signed artifacts, then tag the exact source and publish installers/checksums with corresponding source access. The landing page intentionally keeps browser-demo language until actual downloads exist; update its source/download links at publication time.
 
@@ -56,8 +65,8 @@ Use disposable copies of representative vaults. Record OS, architecture, install
 - [ ] Import supported media/files, then restart, rename/move items and folders, and relocate the entire vault. Inspect relative attachments.
 - [ ] Trash/restore items and folders; verify reference-aware cleanup and confirmation for permanent deletion.
 - [ ] Interrupt saves and batch moves, simulate disk-full/write failures, restart, and compare against a backup.
-- [ ] Check malformed frontmatter, missing/broken attachments, huge files, and symlinks/junctions outside the vault. Path containment is lexical and scanning skips symlinks; complete realpath containment across storage is not proven.
-- [ ] Check URL failures, redirects, offline use, and private-address rejection. URL metadata performs DNS validation before a separate fetch; DNS-rebinding resistance remains an open security-hardening item, not a verified guarantee.
+- [ ] Check malformed frontmatter, missing/broken attachments, huge files, and links/junctions introduced after indexing. Shared path guards reject links, with regression coverage; concurrent filesystem mutation and every native workflow still need manual verification.
+- [ ] Check URL failures, redirects, offline use, and private-address rejection. Socket DNS answers are now validated as well as preflight destinations, with regression coverage; native network behavior still needs manual verification.
 - [ ] Verify quick capture shortcut conflicts, cancellation/recovery, restart persistence, and focus restoration on Windows.
 - [ ] Check keyboard-only use, screen-reader labels, zoom, small windows, both color modes, reduced motion/transparency, and search highlighting.
 - [ ] Measure packaged cold startup, typing, search, capture, and scrolling on a representative large library.

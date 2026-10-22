@@ -4,7 +4,7 @@ Kuskus is a private visual library for project references, stored on your comput
 
 The app supports local Markdown notes, images, files, web references, nested folders, search, pinned items, Trash, detached note windows, and quick capture. Notes and attachments remain ordinary files in the selected vault; Kuskus keeps its index and app metadata in the hidden `.kuskus` directory. Existing Markdown folders can be indexed without converting their notes.
 
-**Release status:** Windows is the first public release target. macOS and Linux builds are experimental. Public installers must pass the [release checklist](docs/14-open-source-release-checklist.md) and [release process](docs/15-release-process.md). Updates are installed manually; there is no automatic updater.
+**Release status:** The first launch milestone is the source repository and browser demo; see the [source-launch handoff](docs/17-source-launch.md). Windows is the first public installer target, with signing and native testing still outstanding. macOS and Linux builds are experimental. Public installers must pass the [release checklist](docs/14-open-source-release-checklist.md) and [release process](docs/15-release-process.md). Updates are installed manually; there is no automatic updater.
 
 **Privacy:** library content is stored locally. Fetching web-reference metadata contacts the referenced site, and displaying remote Markdown images contacts their hosts. These requests expose the usual connection information, such as your IP address and requested URL. Offline use works for local content. Close the app and back up the entire vault, including `.kuskus`, before testing prerelease versions.
 
