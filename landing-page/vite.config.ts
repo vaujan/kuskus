@@ -18,6 +18,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(projectRoot, 'index.html'),
+        download: resolve(projectRoot, 'download.html'),
         preview: resolve(projectRoot, 'preview.html')
       }
     }

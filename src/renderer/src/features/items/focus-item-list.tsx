@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { startTransition, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   Empty,
   EmptyContent,
@@ -60,8 +60,9 @@ export function FocusItemList({
   renderActions: (item: LibraryItemDto) => React.ReactNode
   wrapRow: (item: LibraryItemDto, row: React.ReactElement) => React.ReactNode
 }): React.JSX.Element {
-  const itemIds = items.map((item) => item.id)
+  const itemIds = useMemo(() => items.map((item) => item.id), [items])
   const viewportRef = useRef<HTMLElement | null>(null)
+  const revealedItemRef = useRef<string | null>(null)
   const pendingFocusRef = useRef<string | null>(null)
   const returnScrollTopRef = useRef(0)
   const previousSearchActiveRef = useRef(searchActive)
@@ -113,9 +114,14 @@ export function FocusItemList({
 
   useEffect(() => {
     const viewport = viewportRef.current
-    if (!viewport || !activeItemId) return
+    if (!activeItemId) {
+      revealedItemRef.current = null
+      return
+    }
+    if (!viewport || revealedItemRef.current === activeItemId) return
     const row = viewport.querySelector<HTMLElement>(`[data-item-id="${CSS.escape(activeItemId)}"]`)
     if (!row) return
+    revealedItemRef.current = activeItemId
     row.scrollIntoView({ behavior: 'auto', block: 'nearest' })
   }, [activeItemId, renderLimit])
 

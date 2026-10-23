@@ -6,10 +6,7 @@ const {
   createWindowMaterialController,
   readTranslucentBackgroundPreference
 } = require('../src/renderer/src/lib/window-material-controller.ts')
-const {
-  LEGACY_TRANSLUCENT_BACKGROUND_STORAGE_KEY,
-  TRANSLUCENT_BACKGROUND_STORAGE_KEY
-} = require('../src/shared/window-contract.ts')
+const { TRANSLUCENT_BACKGROUND_STORAGE_KEY } = require('../src/shared/window-contract.ts')
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function createStorage(initialEntries = []) {
@@ -22,13 +19,10 @@ function createStorage(initialEntries = []) {
   }
 }
 
-test('defaults to enabled and migrates the legacy preference key', () => {
+test('defaults to enabled and reads the current preference key', () => {
   assert.equal(readTranslucentBackgroundPreference(createStorage()), true)
-
-  const storage = createStorage([[LEGACY_TRANSLUCENT_BACKGROUND_STORAGE_KEY, 'false']])
+  const storage = createStorage([[TRANSLUCENT_BACKGROUND_STORAGE_KEY, 'false']])
   assert.equal(readTranslucentBackgroundPreference(storage), false)
-  assert.equal(storage.values.get(TRANSLUCENT_BACKGROUND_STORAGE_KEY), 'false')
-  assert.equal(storage.values.has(LEGACY_TRANSLUCENT_BACKGROUND_STORAGE_KEY), false)
 })
 
 test('falls back to enabled when renderer preference storage is unavailable', () => {

@@ -126,7 +126,8 @@
       background: transparent;
     }
 
-    &:where(img) {
+    /* CodeMirror widget buffers are invisible cursor helpers, not content images. */
+    &:where(img:not(.cm-widgetBuffer)) {
       max-height: var(--typeset-media-max-height);
       width: auto;
       border-radius: var(--typeset-media-radius);

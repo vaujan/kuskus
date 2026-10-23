@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Check Kuskus desktop release readiness, try the browser demo, and browse the source code."
+    />
+    <meta name="theme-color" content="#f7f7f4" />
+    <link rel="icon" type="image/x-icon" href="./assets/favicon.ico" />
+    <link rel="stylesheet" href="./styles.css" />
+    <title>Download Kuskus</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <nav aria-label="Main navigation">
+        <a href="./index.html">Kuskus</a>
+        <a href="./download.html" aria-current="page">Download</a>
+        <a href="#releases">Releases</a>
+      </nav>
+    </header>
+    <main id="main" class="download-page section-inner">
+      <div class="download-intro">
+        <h1>Desktop releases<br />are being prepared.</h1>
+        <p>
+          Try the browser demo while we verify desktop installers. Demo edits are temporary and
+          disappear when you reload; the demo does not save files to your computer.
+        </p>
+        <a class="primary-action" href="./index.html#project-preview">Try the browser demo</a>
+      </div>
+      <section class="download-platforms" aria-label="Choose your platform">
+        <article class="download-card">
+          <img src="./assets/os-windows.svg" width="28" height="28" alt="" />
+          <h2>Windows</h2>
+          <p>
+            Windows is the first public installer target. Signing and native installation testing
+            remain release gates; a verified public installer is not available yet.
+          </p>
+          <a class="primary-action" href="https://github.com/vaujan/kuskus/releases"
+            >Check release status <span aria-hidden="true">↗</span></a
+          >
+        </article>
+        <article class="download-card">
+          <img src="./assets/os-linux.svg" width="28" height="28" alt="" />
+          <h2>Linux</h2>
+          <p>
+            Linux builds are experimental. Check the release notes for available assets and
+            installation instructions.
+          </p>
+          <a class="primary-action" href="https://github.com/vaujan/kuskus/releases"
+            >Check Linux releases <span aria-hidden="true">↗</span></a
+          >
+        </article>
+        <article class="download-card">
+          <img src="./assets/os-apple.svg" width="28" height="28" alt="" />
+          <h2>macOS</h2>
+          <p>
+            macOS builds are experimental. Check the release notes for availability and installation
+            details.
+          </p>
+          <a class="secondary-action" href="https://github.com/vaujan/kuskus/releases"
+            >Check macOS releases <span aria-hidden="true">↗</span></a
+          >
+        </article>
+      </section>
+      <section class="download-releases" id="releases" aria-labelledby="releases-title">
+        <div>
+          <h2 id="releases-title">See what’s new.</h2>
+          <p>
+            Verified desktop downloads will be listed on GitHub with release notes, checksums,
+            installation instructions, and corresponding source code.
+          </p>
+        </div>
+        <div class="cta-actions">
+          <a class="primary-action" href="https://github.com/vaujan/kuskus/releases"
+            >View releases <span aria-hidden="true">↗</span></a
+          >
+          <a class="secondary-action" href="https://github.com/vaujan/kuskus"
+            >Source on GitHub <span aria-hidden="true">↗</span></a
+          >
+        </div>
+      </section>
+    </main>
+    <footer class="site-footer download-footer">
+      <div class="footer-inner footer-bottom">
+        <span>Built independently in Indonesia</span>
+        <a href="./index.html">Back to Kuskus</a>
+        <a href="./LICENSE">License</a>
+        <a href="./THIRD_PARTY_NOTICES.txt">Third-party notices</a>
+      </div>
+    </footer>
+  </body>
+</html>

@@ -121,7 +121,7 @@ test('Focus Index uses text-first rows with previews and distinct active and sel
     'utf8'
   )
   assert.match(source, /min-h-\[88px\]/)
-  assert.match(source, /contain-intrinsic-size:96px/)
+  assert.match(source, /contain-intrinsic-size:auto_96px/)
   assert.doesNotMatch(source, /useImagePreview|useUrlPreview|IntersectionObserver/)
   assert.doesNotMatch(source, /<img|Thumbnail/)
   assert.match(source, /<Badge size="sm" variant=\{itemTypeBadgeVariant\(item\)\}>/)
@@ -219,4 +219,25 @@ test('New notes use the detail editor while mixed capture stays in the rail', ()
   assert.match(composerEditorSource, /event\.key === 'Enter'/)
   assert.match(listSource, /min-h-full py-2/)
   assert.match(listSource, /<OrderedMasonry gap=\{8\}>/)
+})
+
+test('paging the focus rail does not reveal the same active item again', () => {
+  const source = readFileSync(
+    require.resolve('../src/renderer/src/features/items/focus-item-list.tsx'),
+    'utf8'
+  )
+  assert.match(source, /revealedItemRef\.current === activeItemId/)
+  assert.match(source, /revealedItemRef\.current = activeItemId/)
+})
+
+test('note detail loading retains the editor and has a separate retry state', () => {
+  const source = readFileSync(
+    require.resolve('../src/renderer/src/features/library/workspace.tsx'),
+    'utf8'
+  )
+  assert.match(source, /resolvedFocusItem \?\? \(focusItemLoading \? previousFocusItem : null\)/)
+  assert.match(source, /inert=\{focusItemLoading\}/)
+  assert.match(source, /focusLoadErrorId === focusItemId/)
+  assert.match(source, /setFocusLoadAttempt\(\(attempt\) => attempt \+ 1\)/)
+  assert.match(source, /\) : focusItemLoading \? \(/)
 })

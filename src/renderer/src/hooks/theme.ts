@@ -177,7 +177,12 @@ export function createFontStack(
   fallback: FontPreference,
   generic: 'sans-serif' | 'monospace'
 ): string {
-  const families = [fontPreferenceFamily(primary), fontPreferenceFamily(fallback), generic]
+  if (primary === 'system-mono') return 'ui-monospace, monospace'
+  const families = [
+    fontPreferenceFamily(primary),
+    fontPreferenceFamily(fallback),
+    fallback === 'system-mono' ? 'monospace' : generic
+  ]
   return [...new Set(families.filter((family): family is string => family !== null))].join(', ')
 }
 

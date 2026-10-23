@@ -2,13 +2,11 @@
 
 Kuskus is a private visual library for project references, stored on your computer. It is currently a Windows-first personal MVP built with Electron, React, and TypeScript.
 
-The first implemented vertical slice supports:
+The app supports local Markdown notes, images, files, web references, nested folders, search, pinned items, Trash, detached note windows, and quick capture. Notes and attachments remain ordinary files in the selected vault; Kuskus keeps its index and app metadata in the hidden `.kuskus` directory. Existing Markdown folders can be indexed without converting their notes.
 
-- Creating or opening a local Kuskus library.
-- Writing Markdown through the inline Add Item composer.
-- Persisting readable `note.md` and `item.json` files.
-- Reloading saved notes from disk.
-- Revealing a note in Windows File Explorer.
+**Release status:** The first launch milestone is the source repository and browser demo; see the [source-launch handoff](docs/17-source-launch.md). Windows is the first public installer target, with signing and native testing still outstanding. macOS and Linux builds are experimental. Public installers must pass the [release checklist](docs/14-open-source-release-checklist.md) and [release process](docs/15-release-process.md). Updates are installed manually; there is no automatic updater.
+
+**Privacy:** library content is stored locally. Fetching web-reference metadata contacts the referenced site, and displaying remote Markdown images contacts their hosts. These requests expose the usual connection information, such as your IP address and requested URL. Offline use works for local content. Close the app and back up the entire vault, including `.kuskus`, before testing prerelease versions.
 
 ## Product context
 
@@ -30,7 +28,7 @@ pnpm dev
 
 To compile the desktop app, run `pnpm build`. The output is written to `out/`; run `pnpm start` to open it.
 
-If an earlier installation left Electron incomplete (`Electron failed to install correctly`), run `pnpm install --frozen-lockfile`, then `pnpm rebuild electron`. Verify the runtime with `pnpm exec electron --version` before starting the app.
+Electron downloads its native runtime on first use. To fetch it explicitly, run `pnpm exec install-electron`, then verify it with `pnpm exec electron --version` before starting the app. Runtime downloads require access to the official Electron release artifacts; a successful JavaScript build does not confirm the native runtime is available.
 
 Development windows load [React Scan](https://github.com/aidenybai/react-scan) and [React Grab](https://github.com/aidenybai/react-grab) so you can see re-renders and copy a component's source for an agent. Neither package is included in packaged builds. React Scan's toolbar appears in the corner. Hold **Alt+C** to start React Grab, hover a control, then press **C** to copy its component stack.
 
@@ -75,10 +73,8 @@ If `.demo` already exists, run `pnpm demo:reset` once to add or restore the cano
 ## Verification
 
 ```bash
-pnpm test
-pnpm typecheck
-pnpm lint
-pnpm build
+pnpm check
+pnpm audit --prod
 ```
 
 ## Packaging
@@ -88,6 +84,10 @@ pnpm build:win
 pnpm build:mac
 pnpm build:linux
 ```
+
+These commands prepare local artifacts without publishing. `pnpm release` runs the verification suite and builds signed Windows installers; signing credentials are required. See the [release process](docs/15-release-process.md) before distributing them.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contributions and bug reports, and [SECURITY.md](SECURITY.md) for private vulnerability reporting.
 
 ## License
 

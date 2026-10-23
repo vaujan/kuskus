@@ -50,7 +50,6 @@ export const KUSKUS_CHANNELS = {
   showItemInExplorer: 'library:show-item-in-explorer',
   openExternalUrl: 'library:open-external-url',
   initializeVault: 'library:initialize-vault',
-  migrateLibrary: 'library:migrate',
   vaultChanged: 'library:vault-changed'
 } as const
 
@@ -297,26 +296,12 @@ export interface LibraryDto {
   pinnedItemIds: string[]
   items: LibraryItemDto[]
   collections: CollectionDto[]
-  cleanup: VaultCleanupDto
-  repairConflicts: VaultRepairConflictDto[]
 }
 
 export interface LibraryOverviewDto extends Omit<LibraryDto, 'items'> {
   items: LibraryItemSummaryDto[]
   revision: number
   rebuildState: 'ready' | 'reconciling'
-}
-
-export interface VaultCleanupDto {
-  status: 'not-needed' | 'completed' | 'conflicts'
-  affectedFiles: number
-  recoveryRelativePath: string | null
-}
-
-export interface VaultRepairConflictDto {
-  kind: 'legacy-bookmark' | 'legacy-metadata'
-  relativePath: string
-  message: string
 }
 
 export const COLLECTION_ICON_KEYS = [
@@ -390,7 +375,6 @@ export type LibraryState =
       folders: number
       archiveFolderExists: boolean
     }
-  | { status: 'needs-migration'; path: string; name: string }
   | { status: 'unavailable'; path: string; message: string }
 
 export type LibraryOverviewState =
@@ -415,7 +399,6 @@ export interface KuskusLibraryApi {
   create: (name: string) => Promise<ApiResult<LibraryState>>
   open: () => Promise<ApiResult<LibraryState>>
   initializeVault: () => Promise<ApiResult<LibraryState>>
-  migrateLibrary: () => Promise<ApiResult<{ state: LibraryState; backupPath: string }>>
   createNote: (input: CreateNoteInput) => Promise<ApiResult<NoteItemDto>>
   duplicateNote: (itemId: string) => Promise<ApiResult<LibraryDto>>
   updateNote: (input: UpdateNoteInput) => Promise<UpdateNoteResult>

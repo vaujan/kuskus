@@ -51,9 +51,9 @@ test('exposes the raw YAML body for the frontmatter code block', () => {
   assert.deepEqual(empty, { yaml: '', endOffset: 8 })
 })
 
-test('inline title is a default-on persistent note preference', () => {
+test('inline title is a default-off persistent note preference', () => {
   assert.equal(NOTE_INLINE_TITLE_STORAGE_KEY, 'kuskus-note-inline-title')
-  assert.equal(parseNoteInlineTitle(null), true)
+  assert.equal(parseNoteInlineTitle(null), false)
   assert.equal(parseNoteInlineTitle('true'), true)
   assert.equal(parseNoteInlineTitle('false'), false)
 })

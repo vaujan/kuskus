@@ -42,21 +42,21 @@ const TYPING_RESET = `(() => { const s = window.__kuskusTyping; if (s) { s.keyLa
 const TYPING_READ = `(() => { const s = window.__kuskusTyping; return s ? { keyLatencies: s.keyLatencies, droppedFrames: s.droppedFrames, longTasks: s.longTasks, rafTicks: s.rafTicks } : null })()`
 
 const FOCUS_SEARCH = `(() => {
-  const input = document.querySelector('input[aria-label="Search library"]');
+  const input = document.querySelector('input[aria-label="Search"]');
   if (!input) return false;
   input.focus();
   return true;
 })()`
 
 const OPEN_SEARCH = `(() => {
-  const input = document.querySelector('input[aria-label="Search library"]');
-  if (!input) return false;
-  input.focus();
+  window.dispatchEvent(new KeyboardEvent('keydown', {
+    key: 'f', code: 'KeyF', ctrlKey: true, shiftKey: true, bubbles: true
+  }));
   return true;
 })()`
 
 const CLEAR_SEARCH = `(() => {
-  const input = document.querySelector('input[aria-label="Search library"]');
+  const input = document.querySelector('input[aria-label="Search"]');
   if (!input) return;
   const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
   setter.call(input, '');
@@ -203,7 +203,7 @@ export function startPerformanceReporter(
     const ready = await waitFor(
       () =>
         window.webContents
-          .executeJavaScript(`!!document.querySelector('input[aria-label="Search library"]')`)
+          .executeJavaScript(`!!document.querySelector('[aria-label^="Open note "]')`)
           .catch(() => false),
       250,
       60_000
@@ -221,7 +221,7 @@ export function startPerformanceReporter(
         (await waitFor(
           () =>
             window.webContents
-              .executeJavaScript(`!!document.querySelector('input[aria-label="Search library"]')`)
+              .executeJavaScript(`!!document.querySelector('input[aria-label="Search"]')`)
               .catch(() => false),
           100,
           5_000
@@ -271,6 +271,11 @@ export function startPerformanceReporter(
           ))
         if (editorReady) {
           await window.webContents.executeJavaScript(FOCUS_EDITOR)
+          const modifiers: ('meta' | 'control')[] = [
+            process.platform === 'darwin' ? 'meta' : 'control'
+          ]
+          window.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'End', modifiers })
+          window.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'End', modifiers })
           await waitStable()
           await typeKey('0')
           await waitStable()
@@ -308,7 +313,11 @@ export function startPerformanceReporter(
     )
 
     if (typingEnabled) {
-      scenarioDone = runTypingScenario().catch(() => undefined)
+      scenarioDone = runTypingScenario().catch((error: unknown) => {
+        writePerformanceEvent('typing-error', {
+          message: error instanceof Error ? error.message : String(error)
+        })
+      })
     }
 
     let firstCardWritten = false

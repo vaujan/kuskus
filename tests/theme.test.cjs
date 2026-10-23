@@ -295,3 +295,23 @@ test('toggles line numbers only in Markdown Source mode', () => {
   assert.match(sourceEditor, /lineNumbersCompartment\.reconfigure/)
   assert.doesNotMatch(liveEditor, /sourceLineNumbers/)
 })
+
+test('system monospace stays monospace when selected for UI or reading text', () => {
+  assert.equal(createFontStack('system-mono', 'system-ui', 'sans-serif'), 'ui-monospace, monospace')
+  assert.equal(createFontStack('system-mono', 'inter', 'sans-serif'), 'ui-monospace, monospace')
+})
+
+test('unavailable local fonts retain an appropriate system fallback', () => {
+  assert.equal(
+    createFontStack('local:Font That Is Not Installed', 'system-ui', 'sans-serif'),
+    '"Font That Is Not Installed", system-ui, sans-serif'
+  )
+  assert.equal(
+    createFontStack('local:Font That Is Not Installed', 'none', 'monospace'),
+    '"Font That Is Not Installed", monospace'
+  )
+  assert.equal(
+    createFontStack('local:Font That Is Not Installed', 'system-mono', 'sans-serif'),
+    '"Font That Is Not Installed", ui-monospace, monospace'
+  )
+})

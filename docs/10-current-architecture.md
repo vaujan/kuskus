@@ -40,6 +40,12 @@ one shared security boundary.
 `src/main/library/storage/json-file.ts` owns atomic JSON writes. Item parsing and metadata derivation
 belong under `src/main/library/items/`.
 
+`src/main/library/storage/note-file.ts` owns note-content replacement. It flushes a uniquely staged
+file under `.kuskus/temp`, then renames it over the destination without first moving the original.
+An interrupted process therefore leaves the old or new complete note at its visible path. Metadata
+is updated afterward and remains reconcilable from visible content. This does not establish
+power-loss durability on every filesystem or transactional recovery for multi-file moves.
+
 ### Capture
 
 `CaptureSessionService` persists the current shared draft and ownership revision.

@@ -152,7 +152,9 @@ the failure without closing Settings.
 
 Settings has no Library category. Library layout and sorting stay in the library toolbar, Focus
 rail density stays in the Focus toolbar, and note reading width and inline title stay in the note
-View menu so their effects remain directly observable. **Show referenced attachments** lives in a
+View menu so their effects remain directly observable. **Inline title** is disabled by default;
+users can enable it from the note View menu, and the preference persists per device.
+**Show referenced attachments** lives in a
 **Visibility** group in the Masonry/Grid toolbar Filter menu and Focus rail Filter menu. It is off by default so images already embedded by
 notes do not duplicate the visual canvas. The preference persists per device, contributes to the
 active-filter badge, applies in Masonry, Grid, and Focus, and resets with **Clear filters**.

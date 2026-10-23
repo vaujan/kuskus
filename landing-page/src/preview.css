@@ -1,2 +1,11 @@
 @import '../../src/renderer/src/assets/main.css';
 @source '../../src/renderer/src';
+
+/* CSS zoom in the browser preview must still fill the iframe viewport. */
+.window-root {
+  height: calc(100dvh / var(--preview-zoom, 1));
+}
+
+.sidebar-motion-container {
+  height: calc(100dvh / var(--preview-zoom, 1));
+}

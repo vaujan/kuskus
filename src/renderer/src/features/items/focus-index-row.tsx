@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { focusIndexSupportingText, searchPreview } from '@/features/items/focus-index-row-text'
 import { SearchHighlight } from '@/features/items/search-highlight'
@@ -73,13 +74,13 @@ export function FocusIndexRow({
   const addedTime = relativeAddedTime(item.createdAt)
   const typeLabel = itemTypeLabel(item)
   const detail = itemDetail(item)
-  const supportingText = focusIndexSupportingText(item)
+  const supportingText = useMemo(() => focusIndexSupportingText(item), [item])
   const preview = searchQuery ? searchPreview(supportingText, searchQuery) : supportingText
 
   return (
     <div
       {...rest}
-      className="group/focus-index-row group/saved-item relative min-h-[88px] min-w-0 overflow-hidden border-b border-border/20 bg-transparent outline-none [content-visibility:auto] [contain-intrinsic-size:96px] transition-opacity [transition-duration:var(--motion-duration-ui)] [transition-timing-function:var(--motion-ease-out)] before:pointer-events-none before:absolute before:inset-y-2.5 before:left-0 before:z-10 before:w-[3px] before:rounded-r-full before:bg-primary before:opacity-0 hover:bg-muted/40 data-[active=true]:bg-primary/12 data-[active=true]:before:opacity-100 data-[dragging=true]:opacity-40 data-[selected=true]:bg-primary/12"
+      className="group/focus-index-row group/saved-item relative min-h-[88px] min-w-0 overflow-hidden border-b border-border/20 bg-transparent outline-none [content-visibility:auto] [contain-intrinsic-size:auto_96px] transition-opacity [transition-duration:var(--motion-duration-ui)] [transition-timing-function:var(--motion-ease-out)] before:pointer-events-none before:absolute before:inset-y-2.5 before:left-0 before:z-10 before:w-[3px] before:rounded-r-full before:bg-primary before:opacity-0 hover:bg-muted/40 data-[active=true]:bg-primary/12 data-[active=true]:before:opacity-100 data-[dragging=true]:opacity-40 data-[selected=true]:bg-primary/12"
       data-item-id={item.id}
       data-active={active || undefined}
       data-selected={selected || undefined}

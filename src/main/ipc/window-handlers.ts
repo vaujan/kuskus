@@ -1,6 +1,6 @@
+import { trustedIpcMain as ipcMain } from '../security'
 import {
   BrowserWindow,
-  ipcMain,
   nativeTheme,
   session,
   type WebContents,

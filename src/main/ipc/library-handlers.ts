@@ -1,4 +1,5 @@
-import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeImage, shell } from 'electron'
+import { trustedIpcMain as ipcMain, openExternalWebUrl } from '../security'
+import { app, BrowserWindow, clipboard, ClipboardItem, dialog, nativeImage, shell } from 'electron'
 import { stat } from 'node:fs/promises'
 
 import {
@@ -149,14 +150,6 @@ export function registerLibraryIpc(
   ipcMain.handle(KUSKUS_CHANNELS.initializeVault, async () => {
     try {
       return { ok: true, data: await libraryService.initializePendingVault() }
-    } catch (error) {
-      return errorResult(error)
-    }
-  })
-
-  ipcMain.handle(KUSKUS_CHANNELS.migrateLibrary, async () => {
-    try {
-      return { ok: true, data: await libraryService.migratePendingLibrary() }
     } catch (error) {
       return errorResult(error)
     }
@@ -559,7 +552,9 @@ export function registerLibraryIpc(
       const preview = await libraryService.getImagePreview(itemId)
       const image = nativeImage.createFromBuffer(Buffer.from(preview.bytes))
       if (image.isEmpty()) throw new Error('The saved image could not be copied.')
-      clipboard.writeImage(image)
+      await clipboard.write([
+        new ClipboardItem({ 'image/png': new Blob([new Uint8Array(image.toPNG())]) })
+      ])
       return { ok: true, data: null }
     } catch (error) {
       return errorResult(error, 'not-found')
@@ -578,7 +573,7 @@ export function registerLibraryIpc(
     try {
       const state = await libraryService.getState()
       if (state.status !== 'ready') throw new Error('Open a library before copying its path.')
-      clipboard.writeText(state.library.path)
+      await clipboard.writeText(state.library.path)
       return { ok: true, data: null }
     } catch (error) {
       return errorResult(error)
@@ -590,7 +585,7 @@ export function registerLibraryIpc(
       return errorResult(new Error('The item identifier is invalid.'), 'invalid-input')
     }
     try {
-      clipboard.writeText(await libraryService.getItemRevealPath(itemId))
+      await clipboard.writeText(await libraryService.getItemRevealPath(itemId))
       return { ok: true, data: null }
     } catch (error) {
       return errorResult(error, 'not-found')
@@ -632,10 +627,7 @@ export function registerLibraryIpc(
     if (typeof url !== 'string')
       return errorResult(new Error('The link is invalid.'), 'invalid-input')
     try {
-      const parsed = new URL(url)
-      if (!['http:', 'https:'].includes(parsed.protocol))
-        throw new Error('Only web links can be opened.')
-      await shell.openExternal(parsed.toString())
+      await openExternalWebUrl(url)
       return { ok: true, data: null }
     } catch (error) {
       return errorResult(error, 'invalid-input')

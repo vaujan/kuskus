@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Collect links, images, notes, and files in a private visual library stored on your computer. Kuskus is built independently in Indonesia."
+      content="A private visual library for links, images, files, and Markdown notes. Open an existing Obsidian vault, write with Vim keybindings, and keep your files on your computer."
     />
     <meta name="theme-color" content="#f7f7f4" />
-    <link rel="icon" type="image/webp" href="assets/kuskus-icon.webp" />
+    <link rel="icon" type="image/x-icon" href="./assets/favicon.ico" />
     <link rel="stylesheet" href="styles.css" />
     <title>Kuskus — Your references, together. Your files, yours.</title>
   </head>
@@ -17,7 +17,10 @@
     <header class="site-header">
       <nav aria-label="Main navigation">
         <a href="#how-it-works">How it works</a>
+        <a href="#your-vault">Your vault</a>
+        <a href="#editor">Writing</a>
         <a href="#your-files">Privacy</a>
+        <a href="#questions">FAQ</a>
       </nav>
     </header>
 
@@ -28,24 +31,59 @@
             <h1 id="hero-title">Your references, together.<br />Your files, yours.</h1>
             <div class="hero-aside">
               <p class="hero-description">
-                Bring links, images, and files into one visual library. Write notes beside your
-                sources, with everything stored on your computer.
+                Bring links, images, files, and Markdown notes into one visual library. Start fresh
+                or open an existing Obsidian vault, with your files stored on your computer.
               </p>
-              <a class="primary-action" href="#project-preview">
-                Explore the demo <span aria-hidden="true">↓</span>
-              </a>
-              <p class="hero-details">Windows desktop · In development<br />No account required</p>
+              <div class="cta-actions">
+                <a class="primary-action" href="#project-preview">
+                  Try the browser demo <span aria-hidden="true">↓</span>
+                </a>
+                <a class="secondary-action" href="https://github.com/vaujan/kuskus">
+                  Source on GitHub <span aria-hidden="true">↗</span>
+                </a>
+              </div>
+              <div class="platform-logos" role="group" aria-label="Desktop platforms">
+                <img src="./assets/os-apple.svg" width="20" height="20" alt="macOS" title="macOS" />
+                <img
+                  src="./assets/os-windows.svg"
+                  width="20"
+                  height="20"
+                  alt="Windows"
+                  title="Windows"
+                />
+                <img src="./assets/os-linux.svg" width="20" height="20" alt="Linux" title="Linux" />
+              </div>
+              <p class="hero-details">No account required · Free and open source</p>
+              <p class="hero-details">Windows first · macOS and Linux experimental</p>
             </div>
           </div>
 
-          <figure class="app-preview" id="project-preview">
-            <div class="app-preview__window">
-              <iframe
-                src="./preview.html"
-                title="Interactive Kuskus demo: a studio website project with notes, images, a link, and a PDF"
-              ></iframe>
+          <div class="demo-section" id="project-preview">
+            <div class="demo-intro">
+              <p>
+                <strong>Try Kuskus here.</strong> Open a note, browse a folder, or write something.
+              </p>
+              <p class="demo-disclaimer">
+                Edits are temporary. Some desktop actions are unavailable in this demo.
+              </p>
             </div>
-          </figure>
+            <div class="demo-tabs" role="tablist" aria-label="Try a use case" data-demo-tabs></div>
+            <div
+              class="app-preview"
+              id="persona-panel"
+              role="tabpanel"
+              aria-labelledby="persona-tab-student"
+            >
+              <div class="app-preview__window">
+                <iframe
+                  id="persona-preview"
+                  src="./preview.html"
+                  title="Interactive Kuskus demo"
+                ></iframe>
+              </div>
+            </div>
+            <noscript><p>Enable JavaScript to try the demo.</p></noscript>
+          </div>
         </section>
       </div>
 
@@ -56,28 +94,302 @@
             Keep sources, screenshots, and your own thinking together as a project takes shape.
           </p>
           <div class="benefits">
-            <article>
+            <article class="illustrated-card">
+              <div class="feature-visual capture-visual" aria-hidden="true">
+                <div class="mini-window">
+                  <div class="mini-window-bar"><span>Quick Capture</span><span>↗</span></div>
+                  <p>A thought worth keeping<span class="illustrated-caret"></span></p>
+                  <div class="mini-window-foot">
+                    <span>Inbox</span><span class="mini-save">Save note ↵</span>
+                  </div>
+                </div>
+              </div>
               <span class="benefit-number">01 / Capture</span>
               <h3>Save it while it matters</h3>
               <p>
-                Add a link, image, file, or quick note. Leave it in your Inbox and organize it when
-                you’re ready.
+                Open Quick Capture with a global shortcut while you work in another app. Save a note
+                or reference to your Inbox and organize it when you’re ready.
               </p>
             </article>
-            <article>
+            <article class="illustrated-card">
+              <div class="feature-visual writing-visual" aria-hidden="true">
+                <div class="mini-paper">
+                  <span class="mini-label">PROJECT NOTES</span><strong>Make room for ideas.</strong
+                  ><span class="ink-line"></span><span class="ink-line short"></span
+                  ><span class="mini-task">✓ Keep the source close</span>
+                </div>
+                <span class="floating-label">Markdown · Live Preview</span>
+              </div>
               <span class="benefit-number">02 / Write</span>
               <h3>Take notes as you research</h3>
               <p>
-                Develop your thinking in Markdown notes, right beside the links, images, and files
-                that informed it.
+                Develop your thinking in Markdown notes with Live Preview, right beside the links,
+                images, and files that informed it.
               </p>
             </article>
-            <article>
+            <article class="illustrated-card">
+              <div class="feature-visual search-visual" aria-hidden="true">
+                <div class="mini-search">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <circle cx="10.5" cy="10.5" r="7.5" />
+                    <path d="m16 16 5 5" /></svg
+                  ><span>That idea from last week…</span>
+                </div>
+                <div class="mini-results">
+                  <span
+                    ><svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+                      <path d="M14 2v6h6M8 13h8M8 17h5" /></svg></span
+                  ><span class="picture-tile"
+                    ><svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <rect x="3" y="3" width="18" height="18" rx="3" />
+                      <circle cx="8" cy="8" r="1.5" />
+                      <path d="m21 15-5-5L5 21" /></svg></span
+                  ><span
+                    ><svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"
+                      /></svg
+                  ></span>
+                </div>
+              </div>
               <span class="benefit-number">03 / Return</span>
               <h3>Find that thing again</h3>
               <p>
                 Search when you remember the words. Browse visually when you remember what it looked
                 like.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="product-section" id="your-vault" aria-labelledby="vault-title">
+        <div class="section-inner product-layout">
+          <div class="product-copy">
+            <p class="eyebrow">An ordinary folder. More possibilities.</p>
+            <h2 id="vault-title">Your vault, with a<br />visual perspective.</h2>
+            <p>
+              Open an existing Markdown folder or Obsidian vault. See your notes, images, files, and
+              links together while continuing to use your other tools.
+            </p>
+            <ul class="feature-list">
+              <li>Plain Markdown notes and readable filenames.</li>
+              <li>Your existing folders become your library’s organization.</li>
+              <li>Changes made in your other tools appear in Kuskus.</li>
+              <li>Support for core Obsidian wikilinks, aliases, and note and image embeds.</li>
+            </ul>
+          </div>
+          <figure class="vault-example">
+            <figcaption>One folder. Open it your way.</figcaption>
+            <div class="vault-files" aria-label="Example vault folder">
+              <div class="vault-root">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"
+                  /></svg
+                ><strong>My vault</strong><span>Local folder</span>
+              </div>
+              <div class="vault-file">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+                  <path d="M14 2v6h6M8 13h8M8 17h5" /></svg
+                ><span>Project notes.md</span><span>Markdown</span>
+              </div>
+              <div class="vault-file">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"
+                  /></svg
+                ><span>Research</span><span>Folder</span>
+              </div>
+              <div class="vault-file vault-file-nested">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+                  <path d="M14 2v6h6M8 13h8M8 17h5" /></svg
+                ><span>Sources.md</span><span>Markdown</span>
+              </div>
+              <div class="vault-file vault-file-nested">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+                  <path d="M14 2v6h6M8 13h8M8 17h5" /></svg
+                ><span>Reading list.pdf</span><span>PDF</span>
+              </div>
+              <div class="vault-file">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="3" />
+                  <circle cx="8" cy="8" r="1.5" />
+                  <path d="m21 15-5-5L5 21" /></svg
+                ><span>Sketch.png</span><span>Image</span>
+              </div>
+            </div>
+            <div class="vault-clients" aria-label="Use your files across tools">
+              <span>Kuskus</span><span>Obsidian</span><span>Your editor</span>
+            </div>
+            <p>
+              Browse in Kuskus. Write in Obsidian or your favorite editor. The files stay yours.
+            </p>
+          </figure>
+        </div>
+      </section>
+
+      <section class="product-section editor-section" id="editor" aria-labelledby="editor-title">
+        <div class="section-inner">
+          <div class="files-layout">
+            <div>
+              <p class="eyebrow">A capable Markdown workspace</p>
+              <h2 id="editor-title">Write the way<br />you think.</h2>
+            </div>
+            <p>
+              Write with Live Preview, edit Markdown directly, or keep source and preview side by
+              side. Switch to Read when you want to focus on the finished note.
+            </p>
+          </div>
+          <div class="editor-features">
+            <article class="illustrated-card">
+              <div class="feature-visual vim-visual" aria-hidden="true">
+                <span class="mini-label">KEEP YOUR HANDS ON THE KEYS</span>
+                <div class="key-row"><kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd></div>
+                <div class="vim-status">
+                  <span>NORMAL</span><code>ideas.md</code><span>12:04</span>
+                </div>
+              </div>
+              <span class="benefit-number">01 / Your rhythm</span>
+              <h3>Vim keybindings, if you want them</h3>
+              <p>Enable optional Vim mode for familiar keyboard-driven editing in your notes.</p>
+            </article>
+            <article class="illustrated-card">
+              <div class="feature-visual diagram-visual" aria-hidden="true">
+                <div class="mini-flow">
+                  <span>Collect</span><i>→</i><span>Connect</span><i>→</i><span>Create</span>
+                </div>
+                <div class="math-example">∑ ideas → something new</div>
+                <span class="mini-label">DIAGRAMS + MATH + CODE</span>
+              </div>
+              <span class="benefit-number">02 / More than text</span>
+              <h3>Diagrams, equations, and code</h3>
+              <p>
+                Explain a flow with Mermaid, work through math, and keep highlighted code beside
+                your thinking.
+              </p>
+            </article>
+            <article class="illustrated-card">
+              <div class="feature-visual links-visual" aria-hidden="true">
+                <div class="linked-note">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+                    <path d="M14 2v6h6M8 13h8M8 17h5" /></svg
+                  ><span>Project notes</span><span class="wiki-label">[[Ideas]]</span>
+                </div>
+                <div class="note-connector"></div>
+                <div class="linked-note linked-note-offset">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+                    <path d="M14 2v6h6M8 13h8M8 17h5" /></svg
+                  ><span>Ideas</span><span class="ink-line"></span>
+                </div>
+              </div>
+              <span class="benefit-number">03 / Keep your place</span>
+              <h3>Linked notes and focused writing</h3>
+              <p>
+                Connect notes with wikilinks, embed images, fold sections, and use slash commands to
+                insert Markdown.
               </p>
             </article>
           </div>
@@ -91,87 +403,138 @@
               <h2 id="files-title">On your computer.<br />Under your control.</h2>
             </div>
             <p>
-              Kuskus keeps your library in an ordinary folder you choose. You don’t need an account
-              or a hosted library to collect and organize your references.
+              No account required. Your library lives in a folder you choose, with no hosted library
+              needed to collect and organize your references.
             </p>
           </div>
           <div class="ownership-points">
             <article class="feature-card">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M7 3h7l4 4v13a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
-                <path d="M14 3v5h5M8 13h8M8 17h4" />
-              </svg>
-              <h3>Notes for the whole process</h3>
+              <div class="feature-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="3" width="18" height="13" rx="2" />
+                  <path d="M8 21h8m-4-5v5m-4-12 3 3 5-5" />
+                </svg>
+              </div>
+              <h3>Local content works offline</h3>
               <p>
-                Write in plain Markdown with highlighting and a reading view beside the editor. Your
-                notes save locally as you work.
+                Read your saved notes and files without a connection. Websites, link previews, and
+                remote images still contact their hosts.
               </p>
             </article>
             <article class="feature-card">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path
-                  d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"
-                />
-              </svg>
-              <h3>Local by default</h3>
+              <div class="feature-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"
+                  />
+                  <path d="M12 16v-6m-3 3 3-3 3 3" />
+                </svg>
+              </div>
+              <h3>A library you can back up</h3>
               <p>
-                Your saved notes and files are available offline. Opening websites and fetching link
-                previews still use the internet.
+                Close Kuskus and copy the whole vault, including its hidden .kuskus folder, to keep
+                your files and app metadata together.
               </p>
             </article>
             <article class="feature-card">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M7 3h7l4 4v13a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
-                <path d="M14 3v5h5M8 13h8M8 17h6" />
-              </svg>
-              <h3>Files you can keep</h3>
+              <div class="feature-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="m8 7-5 5 5 5m8-10 5 5-5 5m-3-13-2 20" />
+                </svg>
+              </div>
+              <h3>Free and open source</h3>
               <p>
-                Open your notes, images, and documents outside Kuskus. Back up your library by
-                copying its folder.
+                Licensed under GPL-3.0-only.
+                <a href="https://github.com/vaujan/kuskus">Explore the source</a> to inspect,
+                modify, and share the app.
               </p>
             </article>
-            <article class="feature-card">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="m9 8-4 4 4 4m6-8 4 4-4 4m-2-11-2 14" />
-              </svg>
-              <h3>An open-source foundation</h3>
+          </div>
+        </div>
+      </section>
+
+      <section class="questions-section" id="questions" aria-labelledby="questions-title">
+        <div class="section-inner product-layout">
+          <div>
+            <p class="eyebrow">Before you settle in</p>
+            <h2 id="questions-title">A few useful answers.</h2>
+          </div>
+          <div class="questions-list">
+            <details>
+              <summary>Can I use my existing Obsidian vault?</summary>
               <p>
-                We’ve chosen GPL-3.0 for Kuskus. The public source release is being prepared, so
-                you’ll be able to inspect, modify, and share the app.
+                Yes. Kuskus can index an existing Markdown folder or Obsidian vault without
+                converting its notes. Core wikilinks, aliases, heading links, and note and image
+                embeds are supported. Obsidian plugins and every plugin-specific format are not part
+                of that compatibility.
               </p>
-            </article>
+            </details>
+            <details>
+              <summary>Does Kuskus change my Markdown files?</summary>
+              <p>
+                Opening a note or switching editing modes does not rewrite its Markdown. Edits you
+                make in Kuskus save to the actual file. Existing YAML properties remain
+                user-authored content; Kuskus keeps its own metadata in a hidden .kuskus folder and
+                leaves .obsidian alone.
+              </p>
+            </details>
+            <details>
+              <summary>What works offline?</summary>
+              <p>
+                Your local notes, images, and files remain available offline. Opening a website,
+                fetching a link preview, or displaying a remote image needs a connection and
+                contacts the relevant host.
+              </p>
+            </details>
+            <details>
+              <summary>How do I back up my library?</summary>
+              <p>
+                Close the app, then copy the entire vault folder, including .kuskus. Keeping the
+                hidden folder preserves Kuskus’s metadata alongside your notes and attachments.
+              </p>
+            </details>
+            <details>
+              <summary>Which platforms are ready?</summary>
+              <p>
+                Windows is the first public installer target. macOS and Linux builds are
+                experimental. Check
+                <a href="https://github.com/vaujan/kuskus/releases"
+                  >release notes and available assets</a
+                >
+                for the status of each build before installing.
+              </p>
+            </details>
+            <details>
+              <summary>Is Kuskus free and open source?</summary>
+              <p>
+                Yes. Kuskus is licensed under GPL-3.0-only. You can use, inspect, modify, and
+                redistribute it under that license. No account is required.
+              </p>
+            </details>
           </div>
         </div>
       </section>
@@ -182,18 +545,46 @@
         <div class="footer-main">
           <div class="footer-copy">
             <h2>Make yourself at home.</h2>
-            <p>Explore a sample project and see how your references could fit together.</p>
-            <a class="primary-action" href="#project-preview"
-              >Explore the demo <span aria-hidden="true">↑</span></a
-            >
-            <p class="release-note">The desktop app is in development. This is a browser demo.</p>
+            <p>
+              Give your references a home. Bring your existing vault or start a library of your own.
+            </p>
+            <div class="cta-actions">
+              <a class="primary-action" href="#project-preview">
+                Try the browser demo <span aria-hidden="true">↑</span>
+              </a>
+              <a class="secondary-action" href="https://github.com/vaujan/kuskus">
+                Source on GitHub <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+            <div class="platform-logos" role="group" aria-label="Desktop platforms">
+              <img src="./assets/os-apple.svg" width="20" height="20" alt="macOS" title="macOS" />
+              <img
+                src="./assets/os-windows.svg"
+                width="20"
+                height="20"
+                alt="Windows"
+                title="Windows"
+              />
+              <img src="./assets/os-linux.svg" width="20" height="20" alt="Linux" title="Linux" />
+            </div>
           </div>
-          <img class="footer-illustration" src="assets/bubuntu-line.svg" alt="" loading="lazy" />
+          <img
+            class="footer-illustration"
+            src="assets/bubuntu-line.svg"
+            alt=""
+            width="380"
+            height="570"
+            loading="lazy"
+          />
         </div>
         <div class="footer-bottom">
           <span>Built independently in Indonesia</span>
+          <a href="https://github.com/vaujan/kuskus">Source on GitHub</a>
+          <a href="LICENSE">License</a>
+          <a href="THIRD_PARTY_NOTICES.txt">Third-party notices</a>
         </div>
       </div>
     </footer>
+    <script type="module" src="./src/demo-tabs.ts"></script>
   </body>
 </html>

@@ -29,7 +29,6 @@ export type AppZoomShortcut = 'in' | 'out' | 'reset'
 export type EditCommand = 'undo' | 'redo' | 'cut' | 'copy' | 'paste' | 'selectAll'
 export type NativeThemeSource = 'dark' | 'light' | 'system'
 export const TRANSLUCENT_BACKGROUND_STORAGE_KEY = 'kuskus-translucent-background:v1'
-export const LEGACY_TRANSLUCENT_BACKGROUND_STORAGE_KEY = 'kuskus-translucent-background'
 
 export function resolveTranslucentBackgroundPreference(storedValue: string | null): boolean {
   return storedValue !== 'false'

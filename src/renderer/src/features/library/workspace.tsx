@@ -311,7 +311,7 @@ export function Workspace({
   const overviewViewportRef = useRef<HTMLElement | null>(null)
   const overviewReturnScrollTopRef = useRef(0)
   const overviewSearchActiveRef = useRef(false)
-  const draftStorageKey = `kuskus-note-draft:${library.path}`
+  const captureKey = library.id
 
   const announceStatus = useCallback((message: string): void => {
     setStatusMessage('')
@@ -675,6 +675,8 @@ export function Workspace({
     announceStatus(`Saved ${kindLabel}.`)
   }, [announceStatus, visibleItems])
 
+  const [focusLoadErrorId, setFocusLoadErrorId] = useState<string | null>(null)
+  const [focusLoadAttempt, setFocusLoadAttempt] = useState(0)
   useEffect(() => {
     const summaries = [focusItemId]
       .map((id) => library.items.find((item) => item.id === id))
@@ -690,23 +692,32 @@ export function Workspace({
         const result = await window.kuskus.getItemDetail(summary.id)
         return result.ok ? result.data : null
       })
-    ).then((details) => {
-      if (!active) return
-      setItemDetails((current) => {
-        const next = new Map(current)
-        for (const detail of details) {
-          if (!detail) continue
-          next.delete(detail.id)
-          next.set(detail.id, detail)
+    )
+      .then((details) => {
+        if (!active) return
+        if (details.some((detail) => !detail)) {
+          setFocusLoadErrorId(focusItemId)
+          return
         }
-        while (next.size > 20) next.delete(next.keys().next().value!)
-        return next
+        setFocusLoadErrorId(null)
+        setItemDetails((current) => {
+          const next = new Map(current)
+          for (const detail of details) {
+            if (!detail) continue
+            next.delete(detail.id)
+            next.set(detail.id, detail)
+          }
+          while (next.size > 20) next.delete(next.keys().next().value!)
+          return next
+        })
       })
-    })
+      .catch(() => {
+        if (active) setFocusLoadErrorId(focusItemId)
+      })
     return () => {
       active = false
     }
-  }, [focusItemId, itemDetails, library.items])
+  }, [focusItemId, itemDetails, library.items, focusLoadAttempt])
 
   const focusItemSummary = useMemo(
     () => library.items.find((item) => item.id === focusItemId) ?? null,
@@ -717,19 +728,32 @@ export function Workspace({
 
   const focusItemDetail =
     focusItemSummary?.type === 'note' ? itemDetails.get(focusItemSummary.id) : undefined
-  const focusItem =
-    focusItemSummary?.type === 'note' &&
-    focusItemSummary.bodyTruncated &&
-    focusItemDetail?.type === 'note'
-      ? {
-          ...focusItemDetail,
-          ...focusItemSummary,
-          body: focusItemDetail.body,
-          bodyTruncated: false as const
-        }
-      : focusItemSummary?.type === 'note' && focusItemSummary.bodyTruncated
-        ? null
-        : focusItemSummary
+  const resolvedFocusItem = useMemo(
+    () =>
+      focusItemSummary?.type === 'note' &&
+      focusItemSummary.bodyTruncated &&
+      focusItemDetail?.type === 'note'
+        ? {
+            ...focusItemDetail,
+            ...focusItemSummary,
+            body: focusItemDetail.body,
+            bodyTruncated: false as const
+          }
+        : focusItemSummary?.type === 'note' && focusItemSummary.bodyTruncated
+          ? null
+          : focusItemSummary,
+    [focusItemSummary, focusItemDetail]
+  )
+  // Retain the mounted editor while the requested note's full body arrives.
+  // Only committed content is retained; clearing selection still clears the pane.
+  const [previousFocusItem, setPreviousFocusItem] = useState<LibraryItemDto | null>(null)
+  if (resolvedFocusItem && previousFocusItem !== resolvedFocusItem) {
+    setPreviousFocusItem(resolvedFocusItem)
+  } else if (!focusItemSummary && previousFocusItem) {
+    setPreviousFocusItem(null)
+  }
+  const focusItemLoading = !!focusItemSummary && !resolvedFocusItem
+  const focusItem = resolvedFocusItem ?? (focusItemLoading ? previousFocusItem : null)
   const focusVisibleIndex = useMemo(
     () => visibleItems.findIndex((item) => item.id === focusItemId),
     [focusItemId, visibleItems]
@@ -1499,7 +1523,7 @@ export function Workspace({
 
   const addItemComposer = (
     <AddItemComposer
-      key={draftStorageKey}
+      key={captureKey}
       open={composerOpen}
       focusRequest={composerFocusRequest}
       filePickerRequest={composerFilePickerRequest}
@@ -1511,7 +1535,6 @@ export function Workspace({
           : { type: 'inbox' }
       }
       surface="main"
-      draftStorageKey={draftStorageKey}
       importRequest={importRequest}
       view={view}
       presentation="card"
@@ -1753,7 +1776,6 @@ export function Workspace({
   const focusList = (
     <div className="flex size-full min-h-0 flex-col">
       <FocusListHeader
-        menu={focusDetailOpen ? null : applicationMenu}
         destinationLabel={destinationLabel(destination, library)}
         composerOpen={composerOpen}
         hasDraft={composerHasDraft}
@@ -1909,6 +1931,30 @@ export function Workspace({
     </div>
   )
 
+  const focusLoadingStatus = (
+    <span
+      role="status"
+      className="flex items-center gap-2 rounded-md bg-background px-3 py-1 text-xs text-muted-foreground"
+    >
+      {focusLoadErrorId === focusItemId ? (
+        <>
+          Couldn’t open note.
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setFocusLoadErrorId(null)
+              setFocusLoadAttempt((attempt) => attempt + 1)
+            }}
+          >
+            Retry
+          </Button>
+        </>
+      ) : (
+        'Loading note…'
+      )}
+    </span>
+  )
   const focusDetail = newNoteOpen ? (
     <Suspense fallback={<div className="size-full animate-pulse bg-muted/20" />}>
       <NewNoteEditor
@@ -2007,93 +2053,102 @@ export function Workspace({
       </NewNoteEditor>
     </Suspense>
   ) : focusItem ? (
-    <Suspense fallback={<div className="size-full animate-pulse bg-muted/20" />}>
-      <ItemDetailDialog
-        ref={focusDetailRef}
-        key={`focus-${focusItem.id}`}
-        presentation="focus"
-        menu={applicationMenu}
-        item={focusItem}
-        initialNoteMode={
-          focusItemEditOnOpenId === focusItem.id ? 'live' : (focusNoteMode ?? undefined)
-        }
-        onNoteModeChange={setFocusNoteMode}
-        vimEnabled={vimEnabled}
-        expanded={focusNoteExpansionActive}
-        onExpandedChange={changeFocusNoteExpanded}
-        collections={library.collections}
-        hasPrevious={focusVisibleIndex > 0}
-        hasNext={focusVisibleIndex >= 0 && focusVisibleIndex < visibleItems.length - 1}
-        onPrevious={selectPreviousFocusItem}
-        onNext={selectNextFocusItem}
-        onOpenChange={(open) => {
-          if (open) return
-          if (focusItem.id === newlyCreatedNoteIdRef.current) {
-            restoreWorkspaceBeforeNewNote()
-            return
-          }
-          setFocusNoteExpanded(false)
-          setFocusItemEditOnOpenId(null)
-          setFocusItemId(null)
-        }}
-        onBackToList={() => {
-          if (focusItem.id === newlyCreatedNoteIdRef.current) {
-            restoreWorkspaceBeforeNewNote()
-            return
-          }
-          setFocusNoteExpanded(false)
-          setFocusItemEditOnOpenId(null)
-          setFocusDetailOpen(false)
-        }}
-        onItemUpdated={updateItem}
-        onRenameItem={renameItemTitle}
-        onUseFirstLineAsTitle={useFirstLineAsTitle}
-        libraryItems={library.items}
-        onRenameAttachment={(itemId) => {
-          const image = library.items.find((item) => item.id === itemId)
-          if (!image || image.type !== 'image') return
-          setRenameTarget(image)
-          setRenameTitle(image.title)
-        }}
-        onOpenItemInApp={(itemId) => openDetail(itemId)}
-        onMoveItem={(destination) => itemActions(focusItem, [focusItem.id]).onMove(destination)}
-        onOpenVaultLink={openVaultLink}
-        onMoveToTrash={(itemId) => {
-          const target = library.items.find((item) => item.id === itemId)
-          if (target) itemActions(target, [itemId]).onTrash()
-        }}
-        onEmptyNote={trashEmptyNote}
-        renderActions={(guard, detailOptions) => {
-          const actions = itemActions(focusItem, [focusItem.id])
-          return (
-            <ItemActionMenu
-              item={focusItem}
-              collections={library.collections}
-              targetCount={1}
-              targetLocations={[focusItem.location]}
-              pinned={library.pinnedItemIds.includes(focusItem.id)}
-              alwaysVisible
-              triggerSurface="caption"
-              hideOpenAction
-              detailOptions={detailOptions}
-              {...actions}
-              onOpenInNewWindow={() => guard(actions.onOpenInNewWindow)}
-              onDuplicate={() => guard(actions.onDuplicate)}
-              onRename={() => guard(actions.onRename)}
-              onPin={() => guard(actions.onPin)}
-              onUnpin={() => guard(actions.onUnpin)}
-              onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}
-              onArchive={() => guard(actions.onArchive)}
-              onUnarchive={() => guard(actions.onUnarchive)}
-              onTrash={() => guard(actions.onTrash)}
-              onRestore={() => guard(actions.onRestore)}
-              onDeletePermanently={() => guard(actions.onDeletePermanently)}
-            />
-          )
-        }}
-        onError={notifyActionError}
-      />
-    </Suspense>
+    <div className="relative flex size-full min-h-0 min-w-0 flex-col" aria-busy={focusItemLoading}>
+      <div className="flex min-h-0 flex-1 flex-col" inert={focusItemLoading}>
+        <Suspense fallback={<div className="size-full animate-pulse bg-muted/20" />}>
+          <ItemDetailDialog
+            ref={focusDetailRef}
+            key={`focus-${focusItem.id}`}
+            presentation="focus"
+            menu={applicationMenu}
+            item={focusItem}
+            initialNoteMode={
+              focusItemEditOnOpenId === focusItem.id ? 'live' : (focusNoteMode ?? undefined)
+            }
+            onNoteModeChange={setFocusNoteMode}
+            vimEnabled={vimEnabled}
+            expanded={focusNoteExpansionActive}
+            onExpandedChange={changeFocusNoteExpanded}
+            collections={library.collections}
+            hasPrevious={focusVisibleIndex > 0}
+            hasNext={focusVisibleIndex >= 0 && focusVisibleIndex < visibleItems.length - 1}
+            onPrevious={selectPreviousFocusItem}
+            onNext={selectNextFocusItem}
+            onOpenChange={(open) => {
+              if (open) return
+              if (focusItem.id === newlyCreatedNoteIdRef.current) {
+                restoreWorkspaceBeforeNewNote()
+                return
+              }
+              setFocusNoteExpanded(false)
+              setFocusItemEditOnOpenId(null)
+              setFocusItemId(null)
+            }}
+            onBackToList={() => {
+              if (focusItem.id === newlyCreatedNoteIdRef.current) {
+                restoreWorkspaceBeforeNewNote()
+                return
+              }
+              setFocusNoteExpanded(false)
+              setFocusItemEditOnOpenId(null)
+              setFocusDetailOpen(false)
+            }}
+            onItemUpdated={updateItem}
+            onRenameItem={renameItemTitle}
+            onUseFirstLineAsTitle={useFirstLineAsTitle}
+            libraryItems={library.items}
+            onRenameAttachment={(itemId) => {
+              const image = library.items.find((item) => item.id === itemId)
+              if (!image || image.type !== 'image') return
+              setRenameTarget(image)
+              setRenameTitle(image.title)
+            }}
+            onOpenItemInApp={(itemId) => openDetail(itemId)}
+            onMoveItem={(destination) => itemActions(focusItem, [focusItem.id]).onMove(destination)}
+            onOpenVaultLink={openVaultLink}
+            onMoveToTrash={(itemId) => {
+              const target = library.items.find((item) => item.id === itemId)
+              if (target) itemActions(target, [itemId]).onTrash()
+            }}
+            onEmptyNote={trashEmptyNote}
+            renderActions={(guard, detailOptions) => {
+              const actions = itemActions(focusItem, [focusItem.id])
+              return (
+                <ItemActionMenu
+                  item={focusItem}
+                  collections={library.collections}
+                  targetCount={1}
+                  targetLocations={[focusItem.location]}
+                  pinned={library.pinnedItemIds.includes(focusItem.id)}
+                  alwaysVisible
+                  triggerSurface="caption"
+                  hideOpenAction
+                  detailOptions={detailOptions}
+                  {...actions}
+                  onOpenInNewWindow={() => guard(actions.onOpenInNewWindow)}
+                  onDuplicate={() => guard(actions.onDuplicate)}
+                  onRename={() => guard(actions.onRename)}
+                  onPin={() => guard(actions.onPin)}
+                  onUnpin={() => guard(actions.onUnpin)}
+                  onMove={(nextDestination) => guard(() => actions.onMove(nextDestination))}
+                  onArchive={() => guard(actions.onArchive)}
+                  onUnarchive={() => guard(actions.onUnarchive)}
+                  onTrash={() => guard(actions.onTrash)}
+                  onRestore={() => guard(actions.onRestore)}
+                  onDeletePermanently={() => guard(actions.onDeletePermanently)}
+                />
+              )
+            }}
+            onError={notifyActionError}
+          />
+        </Suspense>
+      </div>
+      {focusItemLoading ? (
+        <div className="absolute right-4 bottom-4">{focusLoadingStatus}</div>
+      ) : null}
+    </div>
+  ) : focusItemLoading ? (
+    <div className="flex size-full items-center justify-center">{focusLoadingStatus}</div>
   ) : (
     <Empty className="size-full px-6">
       <img
@@ -2203,15 +2258,6 @@ export function Workspace({
             }}
             onDrop={captureDroppedFile}
           >
-            {library.repairConflicts.length > 0 ? (
-              <Alert className="m-3 mb-0 shrink-0">
-                <AlertTitle>Some legacy metadata needs review</AlertTitle>
-                <AlertDescription>
-                  {library.repairConflicts.length} Markdown{' '}
-                  {library.repairConflicts.length === 1 ? 'file was' : 'files were'} left unchanged.
-                </AlertDescription>
-              </Alert>
-            ) : null}
             <FocusWorkspace
               listWidth={focusListWidth}
               onListWidthChange={setFocusListWidth}
@@ -2264,17 +2310,6 @@ export function Workspace({
                   hasBulkItemSelection(selectedItemIds.length) && 'pb-24 lg:pb-24'
                 )}
               >
-                {library.repairConflicts.length > 0 && (
-                  <Alert className="mb-4">
-                    <AlertTitle>Some legacy metadata needs review</AlertTitle>
-                    <AlertDescription>
-                      {library.repairConflicts.length} Markdown{' '}
-                      {library.repairConflicts.length === 1 ? 'file was' : 'files were'} left
-                      unchanged because removing the old bookmark metadata could hide user-authored
-                      content. The original files remain authoritative.
-                    </AlertDescription>
-                  </Alert>
-                )}
                 {view === 'visual' ? (
                   <>
                     <OrderedMasonry>{cardLayoutContent}</OrderedMasonry>

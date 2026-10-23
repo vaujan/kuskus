@@ -58,7 +58,8 @@ export function OrderedMasonry({
         item.style.width = `${columnWidth}px`
       }
 
-      const itemHeights = visibleItems.map((item) => item.getBoundingClientRect().height)
+      // Positions use layout pixels; bounding rectangles include CSS zoom and transforms.
+      const itemHeights = visibleItems.map((item) => item.offsetHeight)
       for (const [index, item] of visibleItems.entries()) {
         const column = index % columnCount
         const top = columnHeights[column]

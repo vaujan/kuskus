@@ -14,14 +14,18 @@ const {
   isYouTubeVideoUrl,
   validateWebUrl
 } = require('../src/main/library/items/url-item.ts')
-const { isPublicIpAddress, readHtmlHead } = require('../src/main/library/url-network.ts')
+const {
+  createPublicLookup,
+  fetchPublicResource,
+  isPublicIpAddress,
+  readHtmlHead
+} = require('../src/main/library/url-network.ts')
 const { validateUrlPreview } = require('../src/main/library/url-preview.ts')
 const { isPersistedItem } = require('../src/main/library/schemas.ts')
 const {
   createInternetShortcut,
   parseInternetShortcut
 } = require('../src/main/library/internet-shortcut.ts')
-const { removeKuskusFrontmatter } = require('../src/main/library/vault-frontmatter.ts')
 
 const onePixelPng = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL88wAAAABJRU5ErkJggg==',
@@ -31,6 +35,49 @@ const lossyWebpHeader = Buffer.from([
   0x52, 0x49, 0x46, 0x46, 0x16, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x20,
   0x0a, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x9d, 0x01, 0x2a, 0x40, 0x01, 0xf0, 0x00
 ])
+
+test('socket DNS lookup rejects rebinding, mixed answers, and empty answers', async () => {
+  let addresses = [{ address: '93.184.216.34', family: 4 }]
+  const lookup = createPublicLookup(async () => addresses)
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+  const connectLookup = (options = {}) =>
+    new Promise((resolve, reject) => {
+      lookup('example.com', options, (error, address, family) => {
+        if (error) reject(error)
+        else resolve({ address, family })
+      })
+    })
+  assert.deepEqual(await connectLookup(), { address: '93.184.216.34', family: 4 })
+  assert.deepEqual((await connectLookup({ all: true })).address, addresses)
+  addresses = [{ address: '127.0.0.1', family: 4 }]
+  await assert.rejects(connectLookup(), /private network/)
+  addresses.push({ address: '93.184.216.34', family: 4 })
+  await assert.rejects(connectLookup(), /private network/)
+  addresses = []
+  await assert.rejects(connectLookup(), /private network/)
+})
+
+test('redirects cannot reach private addresses or bypass the redirect limit', async () => {
+  let calls = 0
+  const dependencies = {
+    lookup: async () => [{ address: '93.184.216.34', family: 4 }],
+    fetch: async () => {
+      calls += 1
+      return new Response(null, { status: 302, headers: { location: 'http://127.0.0.1/private' } })
+    }
+  }
+  await assert.rejects(
+    fetchPublicResource(new URL('https://example.com'), 'text/html', dependencies),
+    /private network/
+  )
+  assert.equal(calls, 1)
+  dependencies.fetch = async () =>
+    new Response(null, { status: 302, headers: { location: '/again' } })
+  await assert.rejects(
+    fetchPublicResource(new URL('https://example.com'), 'text/html', dependencies),
+    /too many times/
+  )
+})
 
 test('extracts rich metadata from a bounded HTML head and classifies video links', async () => {
   const html = `${'<html><head>'}
@@ -144,9 +191,4 @@ test('parses Windows Internet Shortcuts case-insensitively and rejects unsafe UR
     '[InternetShortcut]\r\nURL=https://example.com/\r\n'
   )
   assert.throws(() => parseInternetShortcut('[InternetShortcut]\nURL=file:///C:/secret.txt'))
-  assert.equal(removeKuskusFrontmatter('---\nkuskus-id: "id"\n---\nBody'), 'Body')
-  assert.equal(
-    removeKuskusFrontmatter('---\r\ntags: [keep]\r\nkuskus-id: "id"\r\n---\r\nBody'),
-    '---\r\ntags: [keep]\r\n---\r\nBody'
-  )
 })

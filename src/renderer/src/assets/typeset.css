@@ -327,14 +327,14 @@
     }
 
     /* Media. */
-    &:where(img, video) {
+    &:where(img:not(.cm-widgetBuffer), video) {
       border-radius: var(--typeset-media-radius, var(--radius, 0.5em));
       max-width: 100%;
       height: auto;
       margin-block-start: var(--typeset-flow);
       margin-block-end: 0;
     }
-    &:where(p img) {
+    &:where(p img:not(.cm-widgetBuffer)) {
       margin-block-start: 0;
     }
     &:where(figure) {

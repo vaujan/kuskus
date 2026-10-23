@@ -1,7 +1,9 @@
 import type {
-  ActiveItemLocation,
   ApiResult,
   CollectionDto,
+  CreateNoteInput,
+  MoveItemsInput,
+  UpdateNoteInput,
   FileItemDto,
   ImageItemDto,
   ImagePreviewDto,
@@ -10,16 +12,16 @@ import type {
   LibraryItemDto,
   LibraryOverviewDto,
   NoteItemDto,
-  UrlItemDto,
-  UrlPreviewDto
+  UrlItemDto
 } from '../../../shared/library-contract'
+import type { LibraryDestination } from '../features/shell/library-sidebar'
+import { studentBookmarkPreviews } from './student-bookmark-previews'
 import type { CaptureApi } from '../../../shared/capture-contract'
 import type { ElectronWindowApi } from '../../../shared/window-contract'
 import { NOTE_FORMATTING_MARKDOWN, SAMPLE_NOTE } from '../features/items/note-story-fixtures'
 import notebookImage from './assets/wireframe-notebook.webp?url'
 import paletteImage from './assets/material-palette.webp?url'
-import workspaceImage from './assets/evening-workspace.webp?url'
-import libraryStudyImage from './assets/library-density-study.webp?url'
+import { studentCollections, studentItems } from './student-library-fixtures'
 
 const date = '2026-09-24T00:00:00.000Z'
 const inbox = { type: 'inbox' } as const
@@ -125,9 +127,7 @@ export function library(
     createdAt: date,
     pinnedItemIds: items.length ? [items[0].id] : [],
     items,
-    collections: options.collections ?? [],
-    cleanup: { status: 'not-needed', affectedFiles: 0, recoveryRelativePath: null },
-    repairConflicts: []
+    collections: options.collections ?? []
   }
 }
 
@@ -153,12 +153,9 @@ async function imagePreview(
   return ok({ bytes, mediaType: 'image/webp', width, height })
 }
 
-async function urlPreview(url: string): Promise<ApiResult<UrlPreviewDto>> {
-  const bytes = await fetch(url).then((response) => response.arrayBuffer())
-  return ok({ bytes, mediaType: 'image/webp' })
-}
-
-export function installPreview(value: LibraryDto, destination: ActiveItemLocation = inbox): void {
+export function installPreview(value: LibraryDto, destination: LibraryDestination = inbox): void {
+  // Demo edits belong to this preview only, never to the shared fixtures or disk.
+  value = structuredClone(value)
   performance.mark('kuskus:renderer-entry')
   localStorage.setItem('kuskus-sidebar-hidden', 'false')
   localStorage.setItem('kuskus-library-view', 'visual')
@@ -168,6 +165,35 @@ export function installPreview(value: LibraryDto, destination: ActiveItemLocatio
   )
 
   const readApi = {
+    createNote: async ({ markdown }: CreateNoteInput) => {
+      const title = markdown.match(/^#\s+(.+)$/m)?.[1]?.trim() || 'Untitled note'
+      const timestamp = new Date().toISOString()
+      const item: NoteItemDto = {
+        ...SAMPLE_NOTE,
+        id: crypto.randomUUID(),
+        title,
+        body: markdown,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        location: inbox,
+        relativePath: `${title}.md`
+      }
+      value.items = [...value.items, item]
+      return ok(item)
+    },
+    updateNote: async ({ itemId, markdown }: UpdateNoteInput) => {
+      const item = value.items.find((entry) => entry.id === itemId)
+      if (item?.type !== 'note') return unavailable()
+      const updated: NoteItemDto = { ...item, body: markdown, updatedAt: new Date().toISOString() }
+      value.items = value.items.map((entry) => (entry.id === itemId ? updated : entry))
+      return ok(updated)
+    },
+    moveItems: async ({ itemIds, destination: nextLocation }: MoveItemsInput) => {
+      value.items = value.items.map((item) =>
+        itemIds.includes(item.id) ? { ...item, location: nextLocation } : item
+      )
+      return ok(value)
+    },
     getState: async () => ok({ status: 'ready' as const, library: value }),
     getOverview: async () => ok({ status: 'ready' as const, library: overview(value) }),
     reconcileOverview: async () => ok({ status: 'ready' as const, library: overview(value) }),
@@ -187,8 +213,17 @@ export function installPreview(value: LibraryDto, destination: ActiveItemLocatio
       }),
     getImageThumbnail: async (itemId: string) => imagePreviewFor(itemId),
     getImagePreview: async (itemId: string) => imagePreviewFor(itemId),
-    getUrlPreview: async (itemId: string) =>
-      itemId === 'hero-link' ? urlPreview(libraryStudyImage) : unavailable(),
+    getUrlPreview: async (itemId: string) => {
+      const item = value.items.find((entry) => entry.id === itemId)
+      const preview = item?.type === 'url' ? studentBookmarkPreviews[item.sourceUrl] : undefined
+      if (!preview) return unavailable()
+      const response = await fetch(preview)
+      if (!response.ok) return unavailable()
+      return ok({
+        bytes: await response.arrayBuffer(),
+        mediaType: response.headers.get('content-type') ?? 'image/png'
+      })
+    },
     onVaultChanged: () => unsubscribe
   }
   window.kuskus = new Proxy(readApi, {
@@ -204,7 +239,11 @@ export function installPreview(value: LibraryDto, destination: ActiveItemLocatio
     close: () => {},
     isMaximized: async () => false,
     onMaximizedChange: () => unsubscribe,
-    setZoomFactor: async (factor) => factor,
+    setZoomFactor: async (factor) => {
+      document.documentElement.style.zoom = String(factor)
+      document.documentElement.style.setProperty('--preview-zoom', String(factor))
+      return factor
+    },
     setNativeThemeSource: () => {},
     setTranslucentBackground: async () => ({
       supported: false,
@@ -256,98 +295,19 @@ export function installPreview(value: LibraryDto, destination: ActiveItemLocatio
 }
 
 function imagePreviewFor(itemId: string): Promise<ApiResult<ImagePreviewDto>> {
-  if (itemId === 'palette-image' || itemId === 'hero-palette') {
+  if (itemId === 'palette-image') {
     return imagePreview(paletteImage, 2172, 724)
   }
-  if (itemId === 'hero-workspace') return imagePreview(workspaceImage, 1122, 1402)
   return imagePreview(notebookImage, 1254, 1254)
 }
 
-export const heroCollection: CollectionDto = {
-  schemaVersion: 2,
-  id: 'studio-website',
-  name: 'Studio website refresh',
-  icon: 'palette',
-  createdAt: date,
-  relativePath: 'Studio website refresh',
-  parentId: null
-}
-
+export const heroCollection = studentCollections[0]
 export const heroLocation = { type: 'collection', collectionId: heroCollection.id } as const
-const heroPath = (name: string): string => `${heroCollection.relativePath}/${name}`
-export const heroItems: LibraryItemDto[] = [
-  {
-    ...note(
-      'hero-direction',
-      'A quieter place to begin',
-      '# A quieter place to begin\n\nThe new site should feel like stepping into the studio: considered, warm, and easy to explore.\n\n## What matters\n\n- Let the work speak first\n- Give every project room to breathe\n- Keep the path to get in touch obvious'
-    ),
-    location: heroLocation,
-    relativePath: heroPath('A quieter place to begin.md'),
-    createdAt: '2026-09-24T12:00:00.000Z',
-    updatedAt: '2026-09-24T12:00:00.000Z'
-  },
-  {
-    ...image,
-    id: 'hero-notebook',
-    title: 'Early page sketches',
-    location: heroLocation,
-    relativePath: heroPath('Early page sketches.png'),
-    createdAt: '2026-09-23T12:00:00.000Z',
-    updatedAt: '2026-09-23T12:00:00.000Z'
-  },
-  {
-    ...paletteImageItem,
-    id: 'hero-palette',
-    title: 'Materials and color direction',
-    location: heroLocation,
-    relativePath: heroPath('Materials and color direction.png'),
-    createdAt: '2026-09-22T12:00:00.000Z',
-    updatedAt: '2026-09-22T12:00:00.000Z'
-  },
-  {
-    ...link,
-    id: 'hero-link',
-    title: 'The case for quieter interfaces',
-    sourceUrl: 'https://example.com/quiet-interfaces',
-    domain: 'example.com',
-    siteName: 'Design notes',
-    hasPreviewImage: true,
-    description: 'A reference for letting content lead and giving each project room to breathe.',
-    location: heroLocation,
-    relativePath: heroPath('The case for quieter interfaces.url'),
-    createdAt: '2026-09-21T12:00:00.000Z',
-    updatedAt: '2026-09-21T12:00:00.000Z'
-  },
-  {
-    ...file,
-    id: 'hero-brief',
-    title: 'Studio website brief.pdf',
-    sourceFilename: 'Studio website brief.pdf',
-    contentFilename: 'Studio website brief.pdf',
-    location: heroLocation,
-    relativePath: heroPath('Studio website brief.pdf'),
-    createdAt: '2026-09-20T12:00:00.000Z',
-    updatedAt: '2026-09-20T12:00:00.000Z'
-  },
-  {
-    ...image,
-    id: 'hero-workspace',
-    title: 'Studio atmosphere',
-    sourceFilename: 'evening-workspace.png',
-    contentFilename: 'evening-workspace.png',
-    width: 1122,
-    height: 1402,
-    location: heroLocation,
-    relativePath: heroPath('Studio atmosphere.png'),
-    createdAt: '2026-09-19T12:00:00.000Z',
-    updatedAt: '2026-09-19T12:00:00.000Z'
-  }
-]
+export const heroItems = studentItems
 
 export function installHeroPreview(): void {
   installPreview(
-    library('landing-hero', heroItems, { name: 'My Library', collections: [heroCollection] }),
-    heroLocation
+    library('landing-hero', heroItems, { name: 'My Library', collections: studentCollections }),
+    { type: 'all' }
   )
 }

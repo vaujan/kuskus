@@ -33,7 +33,7 @@ test('keeps large-vault work bounded to changed items and near-viewport cards', 
   assert.doesNotMatch(store, /async resolveItem[\s\S]*?await this\.scanVault/)
   assert.match(noteCard, /useNearViewport\(\)/)
   assert.match(noteCard, /nearViewport \? \(/)
-  assert.match(masonry, /visibleItems\.map\(\(item\) => item\.getBoundingClientRect\(\)\.height\)/)
+  assert.match(masonry, /visibleItems\.map\(\(item\) => item\.offsetHeight\)/)
   assert.match(benchmark, /service\.queryItems/)
   assert.match(benchmark, /renameItemMs/)
   assert.match(benchmark, /archiveItemMs/)

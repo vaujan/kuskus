@@ -11,9 +11,7 @@ import type {
   ItemLocation,
   LibraryDto,
   LibraryItemDto,
-  NoteAttachmentDto,
-  VaultCleanupDto,
-  VaultRepairConflictDto
+  NoteAttachmentDto
 } from '../../../shared/library-contract'
 import type { UrlPreviewKind, UrlPreviewMediaType } from '../../../shared/library-contract'
 import {
@@ -45,13 +43,12 @@ import { createInternetShortcut, parseInternetShortcut } from '../internet-short
 import { markdownPathForAttachment, resolveAttachmentPlacement } from '../attachment-placement'
 import {
   extractVaultReferenceTargets,
-  readVaultFrontmatter,
-  removeKuskusFrontmatter,
   resolveVaultReferencePath,
   rewriteVaultReferences
 } from '../vault-frontmatter'
 import { URL_PREVIEW_EXTENSIONS } from '../url-preview'
 import { readJson, writeJsonAtomic } from './json-file'
+import { replaceNoteContent } from './note-file'
 import { kuskusPath, resolveInsideVault } from './vault-paths'
 import * as captureStore from './capture-store'
 
@@ -65,7 +62,6 @@ const LIBRARY_INDEX_FILENAME = 'library-v1.json'
 const DEFAULT_ARCHIVE_DIRECTORY = 'Archive'
 const MARKDOWN_EXTENSION = '.md'
 const INTERNET_SHORTCUT_EXTENSION = '.url'
-const CLEANUP_MARKER = 'visible-metadata-cleanup.json'
 const HIDDEN_DIRECTORY = /^\./
 const ASSETS_DIRECTORY = /\.assets$/i
 const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i
@@ -90,12 +86,6 @@ interface VaultCollectionRecord extends PersistedCollection {
   schemaVersion: 2
   relativePath: string
   parentId: string | null
-}
-
-interface CleanupMarker extends VaultCleanupDto {
-  schemaVersion: 1
-  conflicts: VaultRepairConflictDto[]
-  completedAt: string
 }
 
 interface LibraryIndexCache {
@@ -372,7 +362,7 @@ export class LibraryStore {
       await mkdir(libraryPath, { recursive: false })
     }
     await this.ensureLibraryDirectories(libraryPath)
-    await mkdir(join(libraryPath, DEFAULT_ARCHIVE_DIRECTORY), { recursive: true })
+    await mkdir(resolveInsideVault(libraryPath, DEFAULT_ARCHIVE_DIRECTORY), { recursive: true })
     await writeJsonAtomic(kuskusPath(libraryPath, LIBRARY_FILENAME), {
       ...library,
       schemaVersion: 2
@@ -417,14 +407,7 @@ export class LibraryStore {
         pinnedItemIds: Array.isArray(library.pinnedItemIds) ? library.pinnedItemIds : []
       }
     }
-    const legacyPath = join(libraryPath, LIBRARY_FILENAME)
-    if (await this.pathExists(legacyPath)) {
-      const legacy = await readJson<unknown>(legacyPath)
-      if (isPersistedLibrary(legacy) && legacy.schemaVersion === 1) {
-        throw new Error('This Kuskus library needs migration to the vault-native format.')
-      }
-    }
-    throw new Error('This folder has not been initialized as a Kuskus vault.')
+    throw new Error('This folder is not an initialized Kuskus vault.')
   }
 
   async setItemsPinned(libraryPath: string, pinnedItemIds: readonly string[]): Promise<void> {
@@ -436,21 +419,18 @@ export class LibraryStore {
     })
   }
 
-  async isLegacyLibrary(libraryPath: string): Promise<boolean> {
-    try {
-      const value = await readJson<unknown>(join(libraryPath, LIBRARY_FILENAME))
-      return isPersistedLibrary(value) && value.schemaVersion === 1
-    } catch {
-      return false
-    }
-  }
-
   async isUninitializedVault(libraryPath: string): Promise<boolean> {
-    try {
-      const value = await stat(libraryPath)
-      return (
-        value.isDirectory() && !(await this.pathExists(kuskusPath(libraryPath, LIBRARY_FILENAME)))
+    if (await this.pathExists(kuskusPath(libraryPath, LIBRARY_FILENAME))) return false
+    const rootMetadata = await readJson<unknown>(join(libraryPath, LIBRARY_FILENAME)).catch(
+      () => null
+    )
+    if (isPersistedLibrary(rootMetadata)) {
+      throw new Error(
+        'Root library.json metadata is unsupported. Open a vault-native Kuskus library.'
       )
+    }
+    try {
+      return (await stat(libraryPath)).isDirectory()
     } catch {
       return false
     }
@@ -484,153 +464,6 @@ export class LibraryStore {
       otherFiles: files.length - markdownFiles - imageFiles,
       folders: folders.size,
       archiveFolderExists: await this.pathExists(join(libraryPath, DEFAULT_ARCHIVE_DIRECTORY))
-    }
-  }
-
-  async migrateLegacyLibrary(libraryPath: string): Promise<{ backupPath: string }> {
-    const legacy = await readJson<unknown>(join(libraryPath, LIBRARY_FILENAME))
-    if (!isPersistedLibrary(legacy) || legacy.schemaVersion !== 1) {
-      throw new Error('This folder is not a supported legacy Kuskus library.')
-    }
-    const parent = dirname(libraryPath)
-    const stagingPath = join(parent, `.${basename(libraryPath)}.${randomUUID()}.vault-migration`)
-    const backupPath = join(
-      parent,
-      `${basename(libraryPath)} pre-v2 backup ${new Date().toISOString().replace(/[:.]/g, '-')}`
-    )
-    if (await this.pathExists(backupPath)) throw new Error('A migration backup already exists.')
-    await mkdir(stagingPath, { recursive: false })
-    try {
-      await this.prepareNewLibrary(stagingPath, { ...legacy, schemaVersion: 2, pinnedItemIds: [] })
-      const collectionMap = new Map<string, string>()
-      const legacyCollections = join(libraryPath, 'collections')
-      if (await this.pathExists(legacyCollections)) {
-        const entries = await readdir(legacyCollections, { withFileTypes: true })
-        const collections = (
-          await mapWithConcurrency(entries, 32, async (entry) => {
-            if (!entry.isDirectory() || !ITEM_ID_PATTERN.test(entry.name)) return null
-            try {
-              const value = await readJson<Record<string, unknown>>(
-                join(legacyCollections, entry.name, 'collection.json')
-              )
-              if (typeof value.name !== 'string') return null
-              return {
-                schemaVersion: 2,
-                id: entry.name,
-                name: value.name,
-                createdAt:
-                  typeof value.createdAt === 'string' ? value.createdAt : new Date().toISOString(),
-                ...(typeof value.icon === 'string'
-                  ? { icon: value.icon as PersistedCollection['icon'] }
-                  : {})
-              } satisfies PersistedCollection
-            } catch {
-              // Invalid legacy collections are not guessed during migration.
-              return null
-            }
-          })
-        ).filter((collection) => collection !== null)
-        await mapWithConcurrency(collections, 1, async (collection) => {
-          await this.createCollection(stagingPath, collection)
-          collectionMap.set(collection.id, collection.id)
-        })
-      }
-
-      const sources: Array<{ directory: string; location: ItemLocation }> = [
-        { directory: join(libraryPath, 'inbox'), location: { type: 'inbox' } },
-        {
-          directory: join(libraryPath, 'archive'),
-          location: { type: 'archive', originalCollectionId: null }
-        },
-        {
-          directory: join(libraryPath, 'trash'),
-          location: {
-            type: 'trash',
-            trashedFrom: 'inbox',
-            originalCollectionId: null
-          }
-        }
-      ]
-      for (const collectionId of collectionMap.keys()) {
-        sources.push({
-          directory: join(libraryPath, 'collections', collectionId, 'items'),
-          location: { type: 'collection', collectionId }
-        })
-      }
-      let migratedCount = 0
-      for (const source of sources) {
-        if (!(await this.pathExists(source.directory))) continue
-        for (const entry of await readdir(source.directory, { withFileTypes: true })) {
-          if (!entry.isDirectory() || !ITEM_ID_PATTERN.test(entry.name)) continue
-          const itemDirectory = join(source.directory, entry.name)
-          let metadata: PersistedItem
-          try {
-            const value = await readJson<unknown>(join(itemDirectory, 'item.json'))
-            if (!isPersistedItem(value, entry.name)) continue
-            metadata = { ...value, schemaVersion: 2 }
-          } catch {
-            continue
-          }
-          const files: Array<{ filename: string; data: string | Uint8Array }> = []
-          if (metadata.type === 'note') {
-            files.push({
-              filename: 'note.md',
-              data: await readFile(join(itemDirectory, 'note.md'), 'utf8')
-            })
-            files.push(
-              ...(
-                await mapWithConcurrency(metadata.attachments ?? [], 32, async (attachment) => {
-                  const asset = join(itemDirectory, 'assets', attachment.filename)
-                  if (!(await this.pathExists(asset))) return null
-                  return {
-                    filename: `assets/${attachment.filename}`,
-                    data: await readFile(asset)
-                  }
-                })
-              ).filter((file) => file !== null)
-            )
-          } else if (metadata.type === 'image') {
-            files.push({
-              filename: metadata.contentFilename,
-              data: await readFile(join(itemDirectory, metadata.contentFilename))
-            })
-          }
-          await this.finalizeInboxItem(stagingPath, metadata, files)
-          if (source.location.type !== 'inbox') {
-            const item = await this.resolveItem(stagingPath, metadata.id)
-            const destination: ItemLocation =
-              source.location.type === 'archive'
-                ? {
-                    type: 'archive',
-                    originalCollectionId: metadata.originalCollectionId
-                  }
-                : source.location.type === 'trash'
-                  ? {
-                      type: 'trash',
-                      trashedFrom: metadata.trashedFrom ?? 'inbox',
-                      originalCollectionId: metadata.originalCollectionId
-                    }
-                  : source.location
-            await this.moveItems(stagingPath, [{ item, destination, metadata }])
-          }
-          migratedCount += 1
-        }
-      }
-      const verified = await this.buildLibraryDto(stagingPath)
-      if (verified.items.length !== migratedCount) {
-        throw new Error('The converted vault did not pass item-count verification.')
-      }
-      await rename(libraryPath, backupPath)
-      try {
-        await rename(stagingPath, libraryPath)
-      } catch (error) {
-        await rename(backupPath, libraryPath)
-        throw error
-      }
-      return { backupPath }
-    } catch (error) {
-      await rm(stagingPath, { recursive: true, force: true })
-      throw error
     }
   }
 
@@ -1154,233 +987,12 @@ export class LibraryStore {
     return scan
   }
 
-  private async cleanupVisibleMetadata(
-    libraryPath: string
-  ): Promise<{ cleanup: VaultCleanupDto; conflicts: VaultRepairConflictDto[] }> {
-    const migrationDirectory = kuskusPath(libraryPath, 'migrations')
-    const markerPath = join(migrationDirectory, CLEANUP_MARKER)
-    await mkdir(migrationDirectory, { recursive: true })
-    if (await this.pathExists(markerPath)) {
-      const marker = await readJson<CleanupMarker>(markerPath)
-      return {
-        cleanup: {
-          status: marker.status,
-          affectedFiles: marker.affectedFiles,
-          recoveryRelativePath: marker.recoveryRelativePath
-        },
-        conflicts: marker.conflicts
-      }
-    }
-
-    const files = (await this.listVisibleFiles(libraryPath)).filter(
-      (file) => extname(file.path).toLowerCase() === MARKDOWN_EXTENSION
-    )
-    const records = await this.readItemRecords(libraryPath)
-    const conflicts: VaultRepairConflictDto[] = []
-    const candidates: Array<{
-      file: ScannedFile
-      source: string
-      next: string
-      destination: string
-      record: VaultItemRecord | undefined
-      url: string | null
-    }> = []
-
-    for (const file of files) {
-      const source = await readFile(file.path, 'utf8')
-      if (!/\bkuskus-(?:id|type)\s*:/i.test(source)) continue
-      let parsed
-      try {
-        parsed = readVaultFrontmatter(source)
-      } catch (error) {
-        conflicts.push({
-          kind: 'legacy-metadata',
-          relativePath: file.relativePath,
-          message: error instanceof Error ? error.message : 'The frontmatter could not be parsed.'
-        })
-        continue
-      }
-      if (!parsed.kuskusId && !parsed.kuskusType) continue
-      const record =
-        records.find((entry) => entry.id === parsed.kuskusId) ??
-        records.find(
-          (entry) => entry.relativePath.toLowerCase() === file.relativePath.toLowerCase()
-        )
-      const isBookmark = parsed.kuskusType?.toLowerCase() === 'link' && parsed.kuskusUrl
-      if (parsed.kuskusType && !isBookmark) {
-        conflicts.push({
-          kind: 'legacy-metadata',
-          relativePath: file.relativePath,
-          message: 'The legacy Kuskus bookmark properties are incomplete and were left unchanged.'
-        })
-        continue
-      }
-      if (isBookmark && (parsed.body.trim() || parsed.userPropertyCount > 0)) {
-        conflicts.push({
-          kind: 'legacy-bookmark',
-          relativePath: file.relativePath,
-          message:
-            'This legacy bookmark also contains user-authored Markdown or properties and was left unchanged.'
-        })
-        continue
-      }
-      const destination = isBookmark
-        ? join(
-            dirname(file.path),
-            `${basename(file.path, MARKDOWN_EXTENSION)}${INTERNET_SHORTCUT_EXTENSION}`
-          )
-        : file.path
-      if (destination !== file.path && (await this.pathExists(destination))) {
-        conflicts.push({
-          kind: 'legacy-bookmark',
-          relativePath: file.relativePath,
-          message: 'A matching Internet Shortcut filename already exists.'
-        })
-        continue
-      }
-      candidates.push({
-        file,
-        source,
-        next: isBookmark
-          ? createInternetShortcut(parsed.kuskusUrl as string)
-          : removeKuskusFrontmatter(source, false),
-        destination,
-        record,
-        url: isBookmark ? parsed.kuskusUrl : null
-      })
-    }
-
-    if (candidates.length === 0) {
-      const marker: CleanupMarker = {
-        schemaVersion: 1,
-        status: conflicts.length ? 'conflicts' : 'not-needed',
-        affectedFiles: 0,
-        recoveryRelativePath: null,
-        conflicts,
-        completedAt: new Date().toISOString()
-      }
-      await writeJsonAtomic(markerPath, marker)
-      return { cleanup: marker, conflicts }
-    }
-
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const recoveryDirectory = join(migrationDirectory, `visible-metadata-${stamp}`)
-    const originalsDirectory = join(recoveryDirectory, 'originals')
-    const transactionDirectory = kuskusPath(
-      libraryPath,
-      'temp',
-      `${randomUUID()}.visible-metadata-cleanup`
-    )
-    await mkdir(originalsDirectory, { recursive: true })
-    await mkdir(transactionDirectory, { recursive: true })
-    const manifest: Array<{
-      relativePath: string
-      destinationRelativePath: string
-      sha256: string
-    }> = []
-    try {
-      for (const candidate of candidates) {
-        const backup = join(originalsDirectory, candidate.file.relativePath)
-        const staged = join(transactionDirectory, candidate.file.relativePath)
-        await mkdir(dirname(backup), { recursive: true })
-        await mkdir(dirname(staged), { recursive: true })
-        await writeFile(backup, candidate.source, 'utf8')
-        await writeFile(staged, candidate.next, 'utf8')
-        const sha256 = createHash('sha256').update(candidate.source).digest('hex')
-        const backupSha256 = createHash('sha256')
-          .update(await readFile(backup))
-          .digest('hex')
-        if (backupSha256 !== sha256) {
-          throw new Error(
-            `The recovery copy for ${candidate.file.relativePath} failed verification.`
-          )
-        }
-        manifest.push({
-          relativePath: candidate.file.relativePath,
-          destinationRelativePath: slash(relative(libraryPath, candidate.destination)),
-          sha256
-        })
-      }
-      await writeJsonAtomic(join(recoveryDirectory, 'manifest.json'), {
-        schemaVersion: 1,
-        createdAt: new Date().toISOString(),
-        files: manifest
-      })
-      for (const candidate of candidates) {
-        const staged = join(transactionDirectory, candidate.file.relativePath)
-        await rm(candidate.file.path, { force: true })
-        await rename(staged, candidate.destination)
-        if (candidate.url) parseInternetShortcut(await readFile(candidate.destination, 'utf8'))
-        else {
-          const verified = readVaultFrontmatter(await readFile(candidate.destination, 'utf8'))
-          if (verified.kuskusId || verified.kuskusType) {
-            throw new Error(`Kuskus metadata remained in ${candidate.file.relativePath}.`)
-          }
-        }
-        if (candidate.record) {
-          const relativePath = slash(relative(libraryPath, candidate.destination))
-          const metadata = candidate.url
-            ? {
-                ...(candidate.record.metadata.type === 'url'
-                  ? candidate.record.metadata
-                  : createUrlMetadata(
-                      candidate.record.id,
-                      candidate.url,
-                      new Date().toISOString()
-                    )),
-                schemaVersion: 2 as const,
-                type: 'url' as const,
-                title: titleFromPath(relativePath),
-                sourceUrl: candidate.url,
-                domain: new URL(candidate.url).hostname,
-                relativePath
-              }
-            : { ...candidate.record.metadata, relativePath }
-          await this.writeItemRecord(libraryPath, {
-            ...candidate.record,
-            relativePath,
-            fingerprint: await this.fingerprint(candidate.destination),
-            fileIdentity: await this.fileIdentity(candidate.destination),
-            recovery: { lastSeenAt: new Date().toISOString(), missingSince: null },
-            metadata: metadata as PersistedItem
-          })
-        }
-      }
-    } catch (error) {
-      for (const candidate of candidates) {
-        if (candidate.destination !== candidate.file.path)
-          await rm(candidate.destination, { force: true })
-        const backup = join(originalsDirectory, candidate.file.relativePath)
-        if (await this.pathExists(backup)) {
-          await mkdir(dirname(candidate.file.path), { recursive: true })
-          await writeFile(candidate.file.path, await readFile(backup))
-        }
-        if (candidate.record) await this.writeItemRecord(libraryPath, candidate.record)
-      }
-      await rm(transactionDirectory, { recursive: true, force: true })
-      throw error
-    }
-    await rm(transactionDirectory, { recursive: true, force: true })
-    const marker: CleanupMarker = {
-      schemaVersion: 1,
-      status: conflicts.length ? 'conflicts' : 'completed',
-      affectedFiles: candidates.length,
-      recoveryRelativePath: slash(relative(libraryPath, recoveryDirectory)),
-      conflicts,
-      completedAt: new Date().toISOString()
-    }
-    await writeJsonAtomic(markerPath, marker)
-    return { cleanup: marker, conflicts }
-  }
-
   async buildLibraryDto(libraryPath: string): Promise<LibraryDto> {
     const library = await this.readPersistedLibrary(libraryPath)
-    const cleanupResult = await this.cleanupVisibleMetadata(libraryPath)
     const { records, collections } = await this.scanVault(libraryPath)
     return this.buildDto(
       libraryPath,
       library,
-      cleanupResult,
       records,
       collections,
       this.scannedNoteSources.get(resolve(libraryPath)) ?? new Map()
@@ -1425,20 +1037,18 @@ export class LibraryStore {
   }
 
   async buildLibraryDtoFromRecords(libraryPath: string): Promise<LibraryDto> {
-    const [library, cleanupResult, records, collections] = await Promise.all([
+    const [library, records, collections] = await Promise.all([
       this.readPersistedLibrary(libraryPath),
-      this.cleanupVisibleMetadata(libraryPath),
       this.readItemRecords(libraryPath),
       this.readCollectionRecords(libraryPath)
     ])
     this.scanSnapshots.set(resolve(libraryPath), { records, collections })
-    return this.buildDto(libraryPath, library, cleanupResult, records, collections, new Map())
+    return this.buildDto(libraryPath, library, records, collections, new Map())
   }
 
   private async buildDto(
     libraryPath: string,
     library: PersistedLibrary,
-    cleanupResult: { cleanup: VaultCleanupDto; conflicts: VaultRepairConflictDto[] },
     records: VaultItemRecord[],
     collections: VaultCollectionRecord[],
     noteSources: ReadonlyMap<string, string>
@@ -1452,9 +1062,7 @@ export class LibraryStore {
       schemaVersion: 2,
       path: libraryPath,
       items: items.sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-      collections: collections.map(toCollectionDto),
-      cleanup: cleanupResult.cleanup,
-      repairConflicts: cleanupResult.conflicts
+      collections: collections.map(toCollectionDto)
     }
     await this.writeCachedLibraryDto(libraryPath, dto)
     return dto
@@ -1646,6 +1254,7 @@ export class LibraryStore {
       const relativePath = slash(relative(dirname(notePath), target))
       if (!target.startsWith(`${resolve(libraryPath)}${sep}`) || !isImageExtension(extname(target)))
         continue
+      resolveInsideVault(libraryPath, relative(libraryPath, target))
       const targetExists = await this.pathExists(target)
       const binaryRecord = this.attachmentRecordForTarget(
         libraryPath,
@@ -2483,17 +2092,7 @@ export class LibraryStore {
   ): Promise<void> {
     const resolved = await this.resolveItem(libraryPath, metadata.id)
     if (resolved.metadata.type !== 'note') throw new Error('The saved item is not a note.')
-    const temporary = kuskusPath(libraryPath, 'temp', `${metadata.id}.note-update`)
-    await writeFile(temporary, markdown, 'utf8')
-    const current = `${resolved.path}.${randomUUID()}.previous`
-    await rename(resolved.path, current)
-    try {
-      await rename(temporary, resolved.path)
-      await rm(current, { force: true })
-    } catch (error) {
-      if (await this.pathExists(current)) await rename(current, resolved.path)
-      throw error
-    }
+    await replaceNoteContent(resolved.path, kuskusPath(libraryPath, 'temp'), markdown)
     await this.updateItem(libraryPath, { ...metadata, relativePath: resolved.relativePath })
   }
 
@@ -2627,7 +2226,8 @@ export class LibraryStore {
     itemId: string
   ): Promise<string> {
     if (location.type === 'inbox') return libraryPath
-    if (location.type === 'archive') return join(libraryPath, DEFAULT_ARCHIVE_DIRECTORY)
+    if (location.type === 'archive')
+      return resolveInsideVault(libraryPath, DEFAULT_ARCHIVE_DIRECTORY)
     if (location.type === 'trash') return kuskusPath(libraryPath, TRASH_DIRECTORY, itemId)
     const collection = (await this.currentCollectionRecords(libraryPath)).find(
       (entry) => entry.id === location.collectionId

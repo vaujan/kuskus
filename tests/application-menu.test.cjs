@@ -34,7 +34,10 @@ test('application menu reuses workspace, editor, capture, and zoom actions', () 
   assert.match(menu, /Find in Note/)
   assert.match(menu, /Replace in Note/)
   assert.doesNotMatch(menu, /Zen Mode/)
-  assert.match(workspace, /menu=\{focusDetailOpen \? null : applicationMenu\}/)
+  assert.match(
+    workspace,
+    /focusWorkspaceOpen \? null : \(\s*<AppToolbar\s+menu=\{applicationMenu\}/
+  )
   assert.match(workspace, /presentation="focus"\s+menu=\{applicationMenu\}/)
   assert.match(workspace, /onFind=\{\(\) => focusDetailRef\.current\?\.openFind\(false\)\}/)
   assert.match(workspace, /filePickerRequest=\{composerFilePickerRequest\}/)
