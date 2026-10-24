@@ -5,9 +5,16 @@ const { join, resolve } = require('node:path')
 const { spawnSync } = require('node:child_process')
 const { createPackage } = require('@electron/asar')
 const test = require('node:test')
+const manifest = require('../package.json')
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-async function inspect(context, extraFile = null, atomicNotice = true, electronNotice = true) {
+async function inspect(
+  context,
+  extraFile = null,
+  atomicNotice = true,
+  electronNotice = true,
+  version = manifest.version
+) {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-package-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const input = join(root, 'input')
@@ -19,6 +26,7 @@ async function inspect(context, extraFile = null, atomicNotice = true, electronN
     'out/main/index.js': '',
     'out/preload/index.js': '',
     'out/renderer/index.html': '',
+    'package.json': JSON.stringify({ name: manifest.name, version }),
     LICENSE: 'Kuskus license',
     'THIRD_PARTY_NOTICES.txt': atomicNotice ? 'Kenny Bergquist' : 'missing notice',
     ...(extraFile ? { [extraFile]: 'unexpected data' } : {})
@@ -57,4 +65,15 @@ test('package inspection rejects a package missing Electron licensing', async (c
   const result = await inspect(context, null, true, false)
   assert.notEqual(result.status, 0)
   assert.match(result.stderr, /Electron notice missing: LICENSE.electron.txt/)
+})
+
+test('package inspection rejects stale release versions and development tooling', async (context) => {
+  const stale = await inspect(context, null, true, true, '0.0.0')
+  assert.notEqual(stale.status, 0)
+  assert.match(stale.stderr, /name\/version does not match/)
+  for (const dependency of ['react-grab', 'react-scan']) {
+    const result = await inspect(context, `node_modules/${dependency}/index.js`)
+    assert.notEqual(result.status, 0)
+    assert.match(result.stderr, /Development tooling/)
+  }
 })

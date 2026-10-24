@@ -2,6 +2,7 @@
 const { existsSync } = require('node:fs')
 const { join } = require('node:path')
 const { listPackage, extractFile } = require('@electron/asar')
+const manifest = require('../package.json')
 const platform = process.argv[2] ?? process.platform
 if (!['win32', 'linux'].includes(platform)) throw new Error('Inspect a win32 or linux package.')
 const root = join('dist', platform === 'win32' ? 'win-unpacked' : 'linux-unpacked')
@@ -20,15 +21,25 @@ for (const file of files) {
   if (/(^|\/)\.env(?:\.|$)|\.(?:pfx|p12|pem|key)$/i.test(file)) {
     throw new Error(`Potential secret file in package: ${file}`)
   }
+  if (/(^|\/)node_modules\/(react-grab|react-scan)(\/|$)/.test(file)) {
+    throw new Error(`Development tooling found in package: ${file}`)
+  }
 }
 for (const required of [
   'out/main/index.js',
   'out/preload/index.js',
   'out/renderer/index.html',
+  'package.json',
   'LICENSE',
   'THIRD_PARTY_NOTICES.txt'
 ]) {
   if (!files.includes(required)) throw new Error(`Package is missing ${required}`)
+}
+const packagedManifest = JSON.parse(extractFile(archive, 'package.json').toString('utf8'))
+if (packagedManifest.name !== manifest.name || packagedManifest.version !== manifest.version) {
+  throw new Error(
+    'Packaged name/version does not match the source release candidate. Rebuild the package.'
+  )
 }
 if (!extractFile(archive, 'THIRD_PARTY_NOTICES.txt').includes(Buffer.from('Kenny Bergquist'))) {
   throw new Error('Package is missing the atomic editor attribution.')

@@ -6,15 +6,25 @@ Read [AGENTS.md](AGENTS.md) for implementation rules and [the architecture](docs
 
 ## Set up and verify
 
+Run `pnpm format` before submitting changes; formatting is checked in CI. Use
+[the release maintenance routine](docs/20-release-maintenance.md) for a fresh build and full
+pre-release verification. Remove confirmed obsolete paths rather than keeping unused scaffolding.
+
 Use Node.js 24.19.0 and pnpm 11.26.0. Install with `pnpm install --frozen-lockfile`, start with `pnpm dev`, and run `pnpm check` before submitting a pull request. `pnpm audit --prod` checks dependency advisories. `pnpm build:unpack` creates an unsigned local package; run `pnpm package:verify` on Windows or Linux to inspect its archive and required notices.
 
 Use `pnpm dev:demo` for a disposable sample library. Never test destructive operations on your only copy of a vault. Use synthetic content in bug reports and fixtures.
 
 ## Issues and pull requests
 
+For user-facing changes, add a concise entry under `unreleased` in `releases/notes.json` and run
+`pnpm changelog:generate`. Do not edit the generated changelog or bump versions in feature work.
+See [the versioning policy](docs/19-versioning.md) for categories, beta preparation, and release gates.
+
 Search existing [issues](https://github.com/vaujan/kuskus/issues) before opening one. For bugs, include the Kuskus version or commit, OS version, steps to reproduce, expected and actual results, and whether the issue occurs with the demo library. Redact file paths, note contents, URLs, and other personal data from logs and screenshots.
 
 Explain the user-facing problem and resulting behavior in a pull request, along with relevant verification. Add behavioral tests for data integrity and security changes. For UI changes, include screenshots with synthetic content and check keyboard interaction, both color modes, and reduced motion preferences.
+
+For ideas, use the [feature request form](https://github.com/vaujan/kuskus/issues/new?template=feature-request.yml). Describe what you are trying to accomplish, how you handle it today, and how often you need it. Requests help guide development; they are not delivery commitments.
 
 Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 

@@ -4,14 +4,18 @@ Windows is the supported release target. macOS and Linux packaging commands are 
 
 ## Prepare the source
 
+Start with [release maintenance](20-release-maintenance.md): preserve any needed build artifacts,
+run `pnpm clean`, and run `pnpm check:release` for a fresh source, Storybook, audit, and package
+inspection pass. The unsigned package produced here is for verification only.
+
 1. Work from a clean checkout with Node.js 24.19.0 and pnpm 11.26.0. Run `pnpm install --frozen-lockfile` and `pnpm check`. CI repeats these checks on Linux and Windows and inspects an unsigned unpacked package. Windows CI also builds and retains an unsigned x64 test installer for seven days. A green CI build is not a signed public installer.
 2. Run `pnpm audit --prod`. Resolve advisories or record a reviewed, specific exception before release. Do not hide findings by raising the severity threshold.
 3. Review the full-history secret scan and the asset provenance inventory before source publication. Immediately after making the repository public, enable private vulnerability reporting in GitHub settings and verify it before announcing the launch. GitHub provides this reporting feature for public repositories. No automated scan can establish asset ownership or guarantee the absence of secrets.
-4. Update the version with `pnpm version <patch|minor|major> --no-git-tag-version`, update CHANGELOG, and commit the reviewed release contents. Do not tag until the installer passes verification. The release command itself never changes the version or creates a tag.
+4. Follow [the versioning policy](19-versioning.md). Edit `unreleased` in `releases/notes.json`, then run `pnpm release:prepare <version> <YYYY-MM-DD>` with the actual preparation date in Asia/Jayapura. Review and commit the root package version, structured notes, and generated changelog together. Run `pnpm release:verify`. Do not tag until the installer passes verification. The release command itself never changes the version or creates a tag.
 
 ## Build and inspect on Windows
 
-Run `pnpm release` on Windows with the signing credentials supplied through the signing provider or electron-builder's documented environment variables. Never put credentials in the repository or command arguments. This command runs the complete verification suite and dependency audit, then builds with `forceCodeSigning=true` and `--publish never`. It fails if signing is unavailable. Local `build:win` and CI packaging may be unsigned and must not be mistaken for approved public releases.
+Run `pnpm release` on Windows with the signing credentials supplied through the signing provider or electron-builder's documented environment variables. Never put credentials in the repository or command arguments. This command checks version/notes consistency, empty unreleased notes, and a clean committed tree, runs the complete verification suite and dependency audit, then builds with `forceCodeSigning=true` and `--publish never`. It fails if signing is unavailable. Local `build:win` and CI packaging may be unsigned and must not be mistaken for approved public releases.
 
 Run `pnpm package:verify` after packaging. Generated THIRD_PARTY_NOTICES.txt, Kuskus LICENSE, and Electron's LICENSE.electron.txt and LICENSES.chromium.html must be present. Confirm the installer signature and publisher using Windows signature inspection. Generate SHA-256 checksums with `Get-FileHash` for every released installer.
 

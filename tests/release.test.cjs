@@ -37,9 +37,12 @@ test('release validates before requiring signed Windows packaging and never muta
   assert.deepEqual(
     result.calls.map((call) => call.args),
     [
+      ['release:verify'],
       ['check'],
       ['audit', '--prod'],
-      ['exec', 'electron-builder', '--win', '--publish', 'never', '--config.forceCodeSigning=true']
+      ['build:storybook'],
+      ['exec', 'electron-builder', '--win', '--publish', 'never', '--config.forceCodeSigning=true'],
+      ['package:verify']
     ]
   )
 })

@@ -34,11 +34,8 @@ jobs:
             ~/AppData/Local/electron/Cache
             ~/AppData/Local/electron-builder/Cache
           key: electron-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
-      - run: pnpm check
-      - run: pnpm audit --prod
-      - name: Package for inspection (unsigned, never published)
-        run: pnpm exec electron-builder --dir --publish never
-      - run: pnpm package:verify
+      - name: Verify source, stories, dependencies, and unpacked application
+        run: pnpm check:release
       - name: Build unsigned Windows installer for testing
         if: runner.os == 'Windows'
         run: pnpm exec electron-builder --win nsis --x64 --publish never

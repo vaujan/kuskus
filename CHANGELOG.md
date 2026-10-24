@@ -1,17 +1,25 @@
 # Changelog
 
+<!-- Generated from releases/notes.json. Run pnpm changelog:generate; do not edit directly. -->
+
 All notable changes to Kuskus are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Security
+### Added
 
-- Updated Electron, KaTeX, and Mermaid dependencies and patched transitive sanitizer/math dependencies.
-- Restricted external links to HTTP(S), blocked renderer navigation and webviews, and authenticated IPC requests from registered app main frames.
+- Development-only React Scan and React Grab overlays for spotting wasted renders and copying component source.
+- Documented versioning policy and added validated, structured release notes with release preparation and consistency checks.
+- Added repeatable release maintenance checks for formatting, Storybook builds, production dependency auditing, and unpacked application inspection.
+- Added Vercel website deployment configuration and documentation.
 
-### Performance
+### Changed
 
-- Keep staged note saves in the internal temporary directory so autosave does not trigger a full-vault rebuild.
+- Keep Download Kuskus and Source on GitHub as the landing page's main actions; the download page tracks installer availability.
+- Removed obsolete library and draft migrations; vault opening no longer converts old Markdown metadata.
+- Restricted packaged repository files, generated third-party notices, and added package inspection.
+- Added Windows/Linux CI checks and a Windows release command that validates and requires signing without changing versions or publishing.
+- Documented release scope, privacy, contributions, vulnerability reporting, and release verification.
 
 ### Fixed
 
@@ -20,17 +28,15 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 - Watch canonical vault paths to prevent a native Windows crash when a folder uses a short path alias.
 - Measure typing against the current search controls and isolate body autosave from title-driven file renames.
 
-### Changed
+### Security
 
-- Make the browser demo the landing page's primary action until verified desktop installers are available.
-- Removed obsolete library and draft migrations; vault opening no longer converts old Markdown metadata.
-- Restricted packaged repository files, generated third-party notices, and added package inspection.
-- Added Windows/Linux CI checks and a Windows release command that validates and requires signing without changing versions or publishing.
-- Documented release scope, privacy, contributions, vulnerability reporting, and release verification.
+- Updated Electron, KaTeX, and Mermaid dependencies and patched transitive sanitizer/math dependencies.
+- Restricted external links to HTTP(S), blocked renderer navigation and webviews, and authenticated IPC requests from registered app main frames.
+- Patched Storybook and Vite development tooling and the transitive proxy-addr dependency after reviewing their security advisories.
 
-### Added
+### Performance
 
-- Development-only React Scan and React Grab overlays for spotting wasted renders and copying component source.
+- Keep staged note saves in the internal temporary directory so autosave does not trigger a full-vault rebuild.
 
 ## [0.0.3] - 2026-08-17
 
@@ -95,5 +101,7 @@ First tracked release of the local-first visual library.
 - Rename triggering from anywhere in the detail pane instead of a single hot spot.
 
 ## [0.0.1] - 2026-08-13
+
+### Added
 
 - Hello, world!

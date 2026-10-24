@@ -50,6 +50,8 @@ Builds still emit CSS optimizer warnings for `::highlight` and landing-page larg
 
 ## Remaining publication gates
 
+- [ ] **Review development-tool advisories.** The 2026-10-23 full audit has no remaining critical findings but still reports 40 high and 23 moderate advisories. Resolve or explicitly review their exposure before broad distribution; see [the dependency audit follow-up](21-dependency-audit.md). A clean production audit does not close this gate.
+
 - [ ] **Verify signed installers on Windows.** Provide signing credentials through the signing provider/environment, run `pnpm release`, inspect the signature and publisher, and test installation, launch, offline use, upgrade, uninstall, retained libraries, and shortcut behavior on clean x64/ARM64 systems. Do not publish an architecture solely because it cross-compiles.
 - [x] **Confirm a newly packaged Linux application.** The earlier apparent stall was a slow, incomplete runtime download repeatedly interrupted by short time limits. Resumed the official archive, verified its SHA-256, installed Electron 44.7.0, packaged the app, passed archive inspection, and completed a native launch using a disposable 100-note library. Windows packaging and native installation remain separate gates.
 - [ ] **Enable GitHub private vulnerability reporting.** Immediately after making the repository public, enable this public-repository feature and verify the route in SECURITY.md before announcing the launch. Repository settings were not changed locally.
