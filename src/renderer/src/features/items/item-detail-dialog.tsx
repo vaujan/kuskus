@@ -155,6 +155,10 @@ import {
   rewriteMarkdownImageAltText
 } from '../../../../shared/markdown-image-references'
 
+import { isPdfFile } from '../../../../shared/file-type'
+
+const PdfViewer = lazy(() => import('@/features/items/pdf-viewer'))
+
 const NoteSourceEditor = lazy(() =>
   import('@/features/items/note-source-editor').then((module) => ({
     default: module.NoteSourceEditor
@@ -2052,6 +2056,26 @@ function FileCanvas({
   )
 }
 
+function FileProperties({
+  item
+}: {
+  item: Extract<LibraryItemDto, { type: 'file' }>
+}): React.JSX.Element {
+  return (
+    <PropertyList>
+      <PropertyRow icon={File} label="File name" valueClassName="break-words">
+        {item.sourceFilename || item.contentFilename}
+      </PropertyRow>
+      <PropertyRow icon={FileTypography} label="Type" valueClassName="break-words">
+        {item.mediaType || 'Unknown'}
+      </PropertyRow>
+      <PropertyRow icon={Calendar} label="Added" valueClassName="tabular-nums">
+        <time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time>
+      </PropertyRow>
+    </PropertyList>
+  )
+}
+
 function FileInspector({
   item,
   titleRef,
@@ -2070,17 +2094,7 @@ function FileInspector({
         className="text-2xl leading-8 font-semibold tracking-tight text-balance"
         textClassName="break-words"
       />
-      <PropertyList>
-        <PropertyRow icon={File} label="File name" valueClassName="break-words">
-          {item.sourceFilename || item.contentFilename}
-        </PropertyRow>
-        <PropertyRow icon={FileTypography} label="Type" valueClassName="break-words">
-          {item.mediaType || 'Unknown'}
-        </PropertyRow>
-        <PropertyRow icon={Calendar} label="Added" valueClassName="tabular-nums">
-          <time dateTime={item.createdAt}>{formatDate(item.createdAt)}</time>
-        </PropertyRow>
-      </PropertyList>
+      <FileProperties item={item} />
     </DetailInspector>
   )
 }
@@ -2165,7 +2179,8 @@ export interface ItemDetailProps {
   onOpenItemInApp: (itemId: string) => void
   renderActions?: (
     guard: (action: () => void) => void,
-    detailOptions?: NoteDetailMenuOptions
+    detailOptions?: NoteDetailMenuOptions,
+    onShowPdfDetails?: () => void
   ) => React.ReactNode
   onOpenVaultLink: (target: string) => void
   onMoveItem: (destination: ActiveItemLocation) => void
@@ -2281,6 +2296,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
     const [vimMode, setVimMode] = useState<NoteVimMode | null>(null)
     const [attachmentsOpen, setAttachmentsOpen] = useState(false)
     const [noteDetailsOpen, setNoteDetailsOpen] = useState(false)
+    const [pdfDetailsItemId, setPdfDetailsItemId] = useState<string | null>(null)
     const [renameDialogOpen, setRenameDialogOpen] = useState(false)
     const [renameDraft, setRenameDraft] = useState('')
     const changeExpanded = useCallback(
@@ -2632,7 +2648,8 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
                   zen: expanded,
                   onZenChange: expandable && !item.missingContent ? changeExpanded : undefined
                 }
-              : undefined
+              : undefined,
+            item.type === 'file' && isPdfFile(item) ? () => setPdfDetailsItemId(item.id) : undefined
           )}
           hasPrevious={hasPrevious}
           hasNext={hasNext}
@@ -2710,6 +2727,16 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
                 />
               ) : null}
             </div>
+          ) : item.type === 'file' && !item.missingContent && isPdfFile(item) ? (
+            <Suspense
+              fallback={
+                <p role="status" className="p-8 text-sm text-muted-foreground">
+                  Loading PDF reader…
+                </p>
+              }
+            >
+              <PdfViewer key={item.id} itemId={item.id} title={item.title} />
+            </Suspense>
           ) : (
             <ScrollArea className="min-h-0 min-w-0 flex-1 [&_[data-slot=scroll-area-viewport]]:focus-visible:ring-0 [&_[data-slot=scroll-area-viewport]]:focus-visible:outline-none">
               <ItemClipboardContextMenu
@@ -2824,6 +2851,24 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
             onOpenInApp={(itemId) => requestGuardedAction(() => onOpenItemInApp(itemId))}
             onError={onError}
           />
+        ) : null}
+        {item?.type === 'file' && isPdfFile(item) && pdfDetailsItemId === item.id ? (
+          <ConflictDialog
+            open
+            onOpenChange={(open) => {
+              if (!open) setPdfDetailsItemId(null)
+            }}
+          >
+            <ConflictDialogContent className="max-h-[85vh] overflow-auto sm:max-w-lg">
+              <ConflictDialogHeader>
+                <ConflictDialogTitle>PDF details</ConflictDialogTitle>
+                <ConflictDialogDescription className="break-words">
+                  {item.title}
+                </ConflictDialogDescription>
+              </ConflictDialogHeader>
+              <FileProperties item={item} />
+            </ConflictDialogContent>
+          </ConflictDialog>
         ) : null}
         <RenameDialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
           <RenameDialogContent data-detail-rename-dialog showCloseButton>

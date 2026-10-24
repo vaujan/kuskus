@@ -522,7 +522,7 @@ export function registerLibraryIpc(
     }
   })
 
-  const registerImagePreview = (
+  const registerPreview = (
     channel: string,
     operation: (itemId: string) => Promise<unknown>
   ): void => {
@@ -537,12 +537,14 @@ export function registerLibraryIpc(
       }
     })
   }
-  registerImagePreview(KUSKUS_CHANNELS.getImageThumbnail, (itemId) =>
+  registerPreview(KUSKUS_CHANNELS.getImageThumbnail, (itemId) =>
     libraryService.getImageThumbnail(itemId)
   )
-  registerImagePreview(KUSKUS_CHANNELS.getImagePreview, (itemId) =>
+  registerPreview(KUSKUS_CHANNELS.getImagePreview, (itemId) =>
     libraryService.getImagePreview(itemId)
   )
+
+  registerPreview(KUSKUS_CHANNELS.getPdfPreview, (itemId) => libraryService.getPdfPreview(itemId))
 
   ipcMain.handle(KUSKUS_CHANNELS.copyImage, async (_event, itemId: unknown) => {
     if (typeof itemId !== 'string') {

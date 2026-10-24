@@ -1,4 +1,5 @@
 import { resolve } from 'path'
+import { viteStaticCopy } from 'vite-plugin-static-copy'
 import { defineConfig } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
@@ -13,6 +14,15 @@ export default defineConfig({
         '@renderer': resolve('src/renderer/src')
       }
     },
-    plugins: [react(), tailwindcss()]
+    plugins: [
+      react(),
+      tailwindcss(),
+      viteStaticCopy({
+        targets: ['cmaps', 'standard_fonts', 'wasm', 'iccs'].map((directory) => ({
+          src: resolve('node_modules/pdfjs-dist', directory),
+          dest: 'pdfjs'
+        }))
+      })
+    ]
   }
 })

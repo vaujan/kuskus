@@ -42,6 +42,7 @@ export const KUSKUS_CHANNELS = {
   inspectItemDeletion: 'library:inspect-item-deletion',
   getImageThumbnail: 'library:get-image-thumbnail',
   getImagePreview: 'library:get-image-preview',
+  getPdfPreview: 'library:get-pdf-preview',
   copyImage: 'library:copy-image',
   importFile: 'library:import-file',
   copyLibraryPath: 'library:copy-library-path',
@@ -441,6 +442,7 @@ export interface KuskusLibraryApi {
   permanentlyDeleteItems: (input: PermanentlyDeleteItemsInput) => Promise<ApiResult<LibraryDto>>
   getImageThumbnail: (itemId: string) => Promise<ApiResult<ImagePreviewDto>>
   getImagePreview: (itemId: string) => Promise<ApiResult<ImagePreviewDto>>
+  getPdfPreview: (itemId: string) => Promise<ApiResult<ArrayBuffer>>
   copyImage: (itemId: string) => Promise<ApiResult<null>>
   importFile: (input: FileImportInput) => Promise<ApiResult<FileItemDto>>
   copyLibraryPath: () => Promise<ApiResult<null>>

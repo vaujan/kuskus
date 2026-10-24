@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { focusIndexSupportingText, searchPreview } from '@/features/items/focus-index-row-text'
 import { SearchHighlight } from '@/features/items/search-highlight'
+import { isPdfFile } from '../../../../shared/file-type'
 import type { LibraryItemDto } from '../../../../shared/library-contract'
 
 const MINUTE = 60_000
@@ -33,7 +34,7 @@ function itemTypeLabel(item: LibraryItemDto): string {
   if (item.type === 'note') return 'Note'
   if (item.type === 'url') return 'Link'
   if (item.type === 'image') return item.mediaType.split('/').pop()?.toLocaleUpperCase() || 'Image'
-  return extensionFromFilename(item.contentFilename)
+  return isPdfFile(item) ? 'PDF' : extensionFromFilename(item.contentFilename)
 }
 
 function itemTypeBadgeVariant(item: LibraryItemDto): 'note' | 'linkType' | 'image' | 'file' {
@@ -94,7 +95,7 @@ export function FocusIndexRow({
         type="button"
         data-slot="item-card-primary-action"
         className="absolute inset-0 z-20 cursor-pointer outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/70"
-        aria-label={`Open ${item.type} ${item.title}`}
+        aria-label={`Open ${item.type === 'file' && isPdfFile(item) ? 'PDF' : item.type} ${item.title}`}
         aria-pressed={selected}
         onClick={onActivate}
         onKeyDown={(event) => {

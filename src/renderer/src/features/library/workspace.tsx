@@ -2015,7 +2015,7 @@ export function Workspace({
               if (target) itemActions(target, [itemId]).onTrash()
             }}
             onEmptyNote={trashEmptyNote}
-            renderActions={(guard, detailOptions) => {
+            renderActions={(guard, detailOptions, onShowPdfDetails) => {
               const actions = itemActions(state.item, [state.item.id])
               return (
                 <ItemActionMenu
@@ -2029,6 +2029,7 @@ export function Workspace({
                   triggerSurface="caption"
                   hideOpenAction
                   detailOptions={detailOptions}
+                  onShowPdfDetails={onShowPdfDetails}
                   {...actions}
                   onOpenInNewWindow={() => guard(actions.onOpenInNewWindow)}
                   onDuplicate={() => guard(actions.onDuplicate)}
@@ -2111,7 +2112,7 @@ export function Workspace({
               if (target) itemActions(target, [itemId]).onTrash()
             }}
             onEmptyNote={trashEmptyNote}
-            renderActions={(guard, detailOptions) => {
+            renderActions={(guard, detailOptions, onShowPdfDetails) => {
               const actions = itemActions(focusItem, [focusItem.id])
               return (
                 <ItemActionMenu
@@ -2124,6 +2125,7 @@ export function Workspace({
                   triggerSurface="caption"
                   hideOpenAction
                   detailOptions={detailOptions}
+                  onShowPdfDetails={onShowPdfDetails}
                   {...actions}
                   onOpenInNewWindow={() => guard(actions.onOpenInNewWindow)}
                   onDuplicate={() => guard(actions.onDuplicate)}

@@ -23,9 +23,7 @@ interface NoteImageProps {
 
 /** The lightbox overlay reuses the same button via `data-zoomed` — the
  *  read-mode CSS (`markdown.css`) turns the button into a fixed,
- *  screen-sized overlay when `data-zoomed="true"`. This is the exact
- *  pattern the old read-mode renderer used, so the live widgets (via
- *  `buildNoteImageDom`) and React share one zoom implementation. */
+ *  screen-sized overlay when `data-zoomed="true"`. */
 export function NoteImage({
   resolved,
   interactive = false,

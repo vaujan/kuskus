@@ -3,8 +3,15 @@ import {
   COMMAND_PALETTE_SHORTCUT
 } from '@/features/commands/command-catalog'
 import { useEffect, useState } from 'react'
-import { IconFlask, IconKeyboard, IconPalette, IconPencil } from '@tabler/icons-react'
+import {
+  IconFlask,
+  IconInfoCircle,
+  IconKeyboard,
+  IconPalette,
+  IconPencil
+} from '@tabler/icons-react'
 
+import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -63,7 +70,7 @@ import { APP_ZOOM_FACTORS } from '../../../../shared/window-contract'
 
 const FONT_SIZES: readonly BaseFontSize[] = ['13', '14', '15', '16', '17', '18', '20']
 
-type SettingsSection = 'appearance' | 'editing' | 'shortcuts'
+type SettingsSection = 'appearance' | 'editing' | 'shortcuts' | 'about'
 
 function FontSizeSelect({
   value,
@@ -224,6 +231,16 @@ export function SettingsWindowApp(): React.JSX.Element {
                       <span>Keyboard shortcuts</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      aria-current={section === 'about' ? 'page' : undefined}
+                      isActive={section === 'about'}
+                      onClick={() => setSection('about')}
+                    >
+                      <IconInfoCircle aria-hidden="true" />
+                      <span>About Kuskus</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -233,7 +250,55 @@ export function SettingsWindowApp(): React.JSX.Element {
         <SidebarInset className="min-h-0 overflow-hidden bg-transparent">
           <SidebarTrigger className="absolute top-1 left-1 z-40 md:hidden" />
           <ScrollArea className="scroll-fade-y size-full [&_[data-slot=scroll-area-viewport]]:focus-visible:ring-0 [&_[data-slot=scroll-area-viewport]]:focus-visible:outline-none">
-            {section === 'appearance' ? (
+            {section === 'about' ? (
+              <div className="mx-auto flex w-full max-w-3xl flex-col gap-7 px-8 pt-12 pb-8">
+                <div className="flex flex-col gap-1">
+                  <h1 className="text-balance text-xl font-semibold">About Kuskus</h1>
+                  <p className="text-pretty text-sm text-muted-foreground">
+                    A private visual library for project references, stored on your computer.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-3">
+                  <h2 className="text-base font-medium">Help Kuskus keep growing</h2>
+                  <p className="text-pretty text-sm text-muted-foreground">
+                    Kuskus is free and open source, built independently by Fauzan in Indonesia.
+                    Support helps me spend more time improving the app and maintaining releases. You
+                    can also help by reporting bugs, sharing your workflow, or contributing code.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        void openExternalUrlWithFeedback('https://github.com/vaujan/kuskus')
+                      }
+                    >
+                      Source on GitHub
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        void openExternalUrlWithFeedback(
+                          'https://github.com/vaujan/kuskus/issues/new?template=feature-request.yml'
+                        )
+                      }
+                    >
+                      Share a feature request
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() =>
+                        void openExternalUrlWithFeedback('https://github.com/vaujan/kuskus/issues')
+                      }
+                    >
+                      Report a bug
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-pretty text-sm text-muted-foreground">
+                  Licensed under GPL-3.0-only. No account is required to use Kuskus.
+                </p>
+              </div>
+            ) : section === 'appearance' ? (
               <div className="mx-auto flex w-full max-w-3xl flex-col gap-7 px-8 pt-12 pb-8">
                 <div className="flex flex-col gap-1">
                   <h1 className="text-balance text-xl font-semibold">Appearance</h1>

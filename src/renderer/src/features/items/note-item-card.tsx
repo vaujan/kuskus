@@ -23,6 +23,7 @@ export function NoteItemCard({
   opensDialog,
   view,
   compact = false,
+  searchQuery = '',
   showSelectionVisual = true
 }: {
   item: NoteItemDto
@@ -31,6 +32,7 @@ export function NoteItemCard({
   selected: boolean
   opensDialog: boolean
   view: LibraryView
+  searchQuery?: string
   compact?: boolean
   showSelectionVisual?: boolean
 }): React.JSX.Element {
@@ -67,7 +69,7 @@ export function NoteItemCard({
             <span className="text-xs">Empty note</span>
           </div>
         ) : nearViewport ? (
-          <NoteCardMarkdown markdown={snippet} compact={compact} />
+          <NoteCardMarkdown markdown={snippet} compact={compact} searchQuery={searchQuery} />
         ) : (
           <div
             className={cn('size-full', compact ? 'min-h-[13rem]' : 'min-h-[20rem]')}

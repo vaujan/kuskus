@@ -185,6 +185,7 @@ const libraryApi: KuskusLibraryApi = {
   inspectItemDeletion: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.inspectItemDeletion, input),
   getImageThumbnail: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.getImageThumbnail, itemId),
   getImagePreview: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.getImagePreview, itemId),
+  getPdfPreview: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.getPdfPreview, itemId),
   copyImage: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.copyImage, itemId),
   importFile: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.importFile, input),
   copyLibraryPath: () => ipcRenderer.invoke(KUSKUS_CHANNELS.copyLibraryPath),

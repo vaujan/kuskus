@@ -1,17 +1,30 @@
-import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  type ReactNode,
+  memo,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
 
 import { closeUnbalancedCodeFences } from '@/features/items/markdown-fence-balance'
+import { SearchHighlight } from '@/features/items/search-highlight'
 import { cn } from '@/lib/utils'
 
 export const NoteCardMarkdown = memo(function NoteCardMarkdown({
   markdown,
-  compact = false
+  compact = false,
+  searchQuery = ''
 }: {
   markdown: string
   compact?: boolean
+  searchQuery?: string
 }): React.JSX.Element {
   const balancedMarkdown = useMemo(() => closeUnbalancedCodeFences(markdown), [markdown])
   const previewRef = useRef<HTMLDivElement>(null)
@@ -35,8 +48,21 @@ export const NoteCardMarkdown = memo(function NoteCardMarkdown({
     }
   }, [balancedMarkdown, compact])
 
-  const components = useMemo<Components>(
-    () => ({
+  const components = useMemo<Components>(() => {
+    const highlight = (children: ReactNode): ReactNode =>
+      Children.map(children, (child) => {
+        if (typeof child === 'string') return <SearchHighlight text={child} query={searchQuery} />
+        if (isValidElement<{ children?: ReactNode }>(child) && child.props.children) {
+          return cloneElement(child, {}, highlight(child.props.children))
+        }
+        return child
+      })
+    return {
+      p: ({ children }) => <p>{highlight(children)}</p>,
+      h1: ({ children }) => <h1>{highlight(children)}</h1>,
+      h2: ({ children }) => <h2>{highlight(children)}</h2>,
+      h3: ({ children }) => <h3>{highlight(children)}</h3>,
+      li: ({ children }) => <li>{highlight(children)}</li>,
       a: ({ children }) => (
         <span className="underline decoration-foreground/30 underline-offset-2">{children}</span>
       ),
@@ -54,9 +80,8 @@ export const NoteCardMarkdown = memo(function NoteCardMarkdown({
             {alt}
           </span>
         ) : null
-    }),
-    []
-  )
+    }
+  }, [searchQuery])
 
   return (
     <div

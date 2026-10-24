@@ -113,6 +113,7 @@ interface ItemActionMenuProps extends ItemActionHandlers {
   hideOpenAction?: boolean
   viewOnly?: boolean
   detailOptions?: NoteDetailMenuOptions
+  onShowPdfDetails?: () => void
 }
 
 function selectedItemsLabel(count: number): string {
@@ -309,6 +310,17 @@ function ItemActions({
                 Use first line as title
               </DropdownMenuItem>
             ) : null}
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+        </>
+      ) : null}
+      {surface === 'dropdown' && props.onShowPdfDetails ? (
+        <>
+          <DropdownMenuGroup>
+            <DropdownMenuItem onClick={props.onShowPdfDetails}>
+              <IconInfoCircle aria-hidden="true" />
+              PDF details
+            </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
         </>

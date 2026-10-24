@@ -1,4 +1,5 @@
-import { IconFile as File } from '@tabler/icons-react'
+import { IconFile as File, IconFileTypePdf } from '@tabler/icons-react'
+import { isPdfFile } from '../../../../shared/file-type'
 
 import {
   ItemCard,
@@ -27,11 +28,15 @@ export function FileItemCard({
   compact?: boolean
   showSelectionVisual?: boolean
 }): React.JSX.Element {
-  const extension = item.contentFilename.split('.').pop()?.toLocaleUpperCase() || 'FILE'
+  const pdf = isPdfFile(item)
+  const FileIcon = pdf ? IconFileTypePdf : File
+  const extension = pdf
+    ? 'PDF'
+    : item.contentFilename.split('.').pop()?.toLocaleUpperCase() || 'FILE'
   return (
     <ItemCard data-selected={selected && showSelectionVisual}>
       <ItemCardPrimaryAction
-        aria-label={`Open file ${item.title}`}
+        aria-label={`Open ${pdf ? 'PDF' : 'file'} ${item.title}`}
         aria-haspopup="dialog"
         aria-pressed={selected}
         onClick={onActivate}
@@ -46,7 +51,7 @@ export function FileItemCard({
         }
       >
         <div className="flex flex-col items-center gap-3 text-muted-foreground">
-          <File className={compact ? 'size-8' : 'size-10'} aria-hidden="true" />
+          <FileIcon className={compact ? 'size-8' : 'size-10'} aria-hidden="true" />
           <span className="text-xs font-medium tracking-wide">{extension}</span>
         </div>
       </ItemCardSurface>

@@ -126,6 +126,23 @@ export function SettingsProvider({ children }: { children: ReactNode }): React.J
   )
 }
 
+/** In-memory settings for isolated previews; never reads or changes app preferences. */
+export function SettingsPreviewProvider({ children }: { children: ReactNode }): React.JSX.Element {
+  const [values, setValues] = useState<Record<string, SettingValue>>(() =>
+    Object.fromEntries(SETTINGS_SCHEMA.map((definition) => [definition.key, definition.default]))
+  )
+  const setSetting = useCallback((key: SettingKey, value: SettingValue) => {
+    setValues((current) => ({ ...current, [key]: value }))
+  }, [])
+  return (
+    <SettingsValuesContext.Provider value={values}>
+      <SettingsDispatchContext.Provider value={setSetting}>
+        {children}
+      </SettingsDispatchContext.Provider>
+    </SettingsValuesContext.Provider>
+  )
+}
+
 export function useSetting<T extends SettingValue>(key: SettingKey): [T, (value: T) => void] {
   const values = useContext(SettingsValuesContext)
   const setSetting = useContext(SettingsDispatchContext)

@@ -1,3 +1,4 @@
+import { isPdfFile } from '../../shared/file-type'
 import { randomUUID } from 'node:crypto'
 import { realpathSync, watch, type FSWatcher } from 'node:fs'
 import { basename, dirname, extname, join } from 'node:path'
@@ -1485,6 +1486,16 @@ export class LibraryService {
     })().finally(() => this.thumbnailRequests.delete(requestKey))
     this.thumbnailRequests.set(requestKey, request)
     return request
+  }
+
+  async getPdfPreview(itemId: string): Promise<ArrayBuffer> {
+    const libraryPath = this.requireCurrentLibrary()
+    const metadata = await this.store.readPersistedItem(libraryPath, itemId)
+    if (metadata.type !== 'file' || !isPdfFile(metadata)) {
+      throw new Error('The saved item is not a PDF.')
+    }
+    const bytes = await this.store.readItemContent(libraryPath, metadata)
+    return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer
   }
 
   async getImagePreview(itemId: string): Promise<ImagePreviewDto> {
