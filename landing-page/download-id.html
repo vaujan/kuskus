@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Periksa kesiapan rilis desktop Kuskus, coba demo di browser, dan jelajahi kode sumbernya."
+    />
+    <meta name="theme-color" content="#f7f7f4" />
+    <link rel="icon" type="image/x-icon" href="./assets/favicon.ico" />
+    <link rel="stylesheet" href="./styles.css" />
+    <title>Unduh Kuskus</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Langsung ke konten</a>
+    <header class="site-header">
+      <nav aria-label="Navigasi utama">
+        <a href="./index-id.html">Kuskus</a>
+        <a href="./download-id.html" aria-current="page">Unduh</a>
+        <a href="#releases">Rilis</a>
+      </nav>
+      <div class="language-picker">
+        <svg
+          class="language-picker__globe"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="M3 12h18M12 3a18 18 0 0 1 0 18 18 18 0 0 1 0-18Z" />
+        </svg>
+        <select class="language-switch" aria-label="Pilih bahasa" data-language-select>
+          <option value="./download.html" lang="en">English</option>
+          <option value="./download-id.html" lang="id" selected>Bahasa Indonesia</option>
+        </select>
+        <svg
+          class="language-picker__chevron"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="m4 6 4 4 4-4" />
+        </svg>
+      </div>
+    </header>
+    <main id="main" class="download-page section-inner">
+      <div class="download-intro">
+        <h1>Rilis desktop<br />sedang disiapkan.</h1>
+        <p>
+          Windows menjadi target rilis desktop pertama kami. Penginstal terverifikasi akan tersedia
+          di sini setelah penandatanganan dan pengujian instalasi selesai.
+        </p>
+      </div>
+      <section class="download-platforms" aria-label="Pilih platformmu">
+        <article class="download-card">
+          <img src="./assets/os-windows.svg" width="28" height="28" alt="" />
+          <h2>Windows</h2>
+          <p>
+            Windows menjadi target pertama untuk penginstal publik. Penandatanganan dan pengujian
+            instalasi langsung di Windows masih menjadi syarat rilis. Penginstal publik
+            terverifikasi belum tersedia.
+          </p>
+          <a class="primary-action" href="https://github.com/vaujan/kuskus/releases"
+            >Periksa status rilis <span aria-hidden="true">↗</span></a
+          >
+        </article>
+        <article class="download-card">
+          <img src="./assets/os-linux.svg" width="28" height="28" alt="" />
+          <h2>Linux</h2>
+          <p>
+            Versi Linux masih eksperimental. Periksa catatan rilis untuk berkas yang tersedia dan
+            petunjuk instalasi.
+          </p>
+          <a class="primary-action" href="https://github.com/vaujan/kuskus/releases"
+            >Periksa rilis Linux <span aria-hidden="true">↗</span></a
+          >
+        </article>
+        <article class="download-card">
+          <img src="./assets/os-apple.svg" width="28" height="28" alt="" />
+          <h2>macOS</h2>
+          <p>
+            Versi macOS masih eksperimental. Periksa catatan rilis untuk ketersediaan dan rincian
+            instalasi.
+          </p>
+          <a class="secondary-action" href="https://github.com/vaujan/kuskus/releases"
+            >Periksa rilis macOS <span aria-hidden="true">↗</span></a
+          >
+        </article>
+      </section>
+      <section class="download-releases" id="releases" aria-labelledby="releases-title">
+        <div>
+          <h2 id="releases-title">Lihat yang terbaru.</h2>
+          <p>
+            Unduhan desktop terverifikasi akan tersedia di GitHub bersama catatan rilis, checksum,
+            petunjuk instalasi, dan kode sumber yang sesuai.
+          </p>
+        </div>
+        <div class="cta-actions">
+          <a class="primary-action" href="https://github.com/vaujan/kuskus/releases"
+            >Lihat rilis <span aria-hidden="true">↗</span></a
+          >
+          <a class="secondary-action" href="https://github.com/vaujan/kuskus"
+            >Kode sumber di GitHub <span aria-hidden="true">↗</span></a
+          >
+        </div>
+      </section>
+    </main>
+    <footer class="site-footer download-footer">
+      <div class="footer-inner footer-bottom">
+        <span
+          >Dikembangkan secara independen di Indonesia oleh
+          <a href="https://x.com/buildfrombed">@buildfrombed</a></span
+        >
+        <a href="./index-id.html">Kembali ke Kuskus</a>
+        <a href="./LICENSE">Lisensi</a>
+        <a href="./THIRD_PARTY_NOTICES.txt">Pemberitahuan pihak ketiga</a>
+      </div>
+    </footer>
+    <script type="module" src="./src/language-select.ts"></script>
+  </body>
+</html>

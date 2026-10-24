@@ -20,15 +20,43 @@
         <a href="./download.html" aria-current="page">Download</a>
         <a href="#releases">Releases</a>
       </nav>
+      <div class="language-picker">
+        <svg
+          class="language-picker__globe"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="M3 12h18M12 3a18 18 0 0 1 0 18 18 18 0 0 1 0-18Z" />
+        </svg>
+        <select class="language-switch" aria-label="Choose language" data-language-select>
+          <option value="./download.html" lang="en" selected>English</option>
+          <option value="./download-id.html" lang="id">Bahasa Indonesia</option>
+        </select>
+        <svg
+          class="language-picker__chevron"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="m4 6 4 4 4-4" />
+        </svg>
+      </div>
     </header>
     <main id="main" class="download-page section-inner">
       <div class="download-intro">
         <h1>Desktop releases<br />are being prepared.</h1>
         <p>
-          Try the browser demo while we verify desktop installers. Demo edits are temporary and
-          disappear when you reload; the demo does not save files to your computer.
+          Windows is our first desktop release target. Verified installers will appear here once
+          signing and installation testing are complete.
         </p>
-        <a class="primary-action" href="./index.html#project-preview">Try the browser demo</a>
       </div>
       <section class="download-platforms" aria-label="Choose your platform">
         <article class="download-card">
@@ -85,11 +113,15 @@
     </main>
     <footer class="site-footer download-footer">
       <div class="footer-inner footer-bottom">
-        <span>Built independently in Indonesia</span>
+        <span
+          >Built independently in Indonesia by
+          <a href="https://x.com/buildfrombed">@buildfrombed</a></span
+        >
         <a href="./index.html">Back to Kuskus</a>
         <a href="./LICENSE">License</a>
         <a href="./THIRD_PARTY_NOTICES.txt">Third-party notices</a>
       </div>
     </footer>
+    <script type="module" src="./src/language-select.ts"></script>
   </body>
 </html>

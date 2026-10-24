@@ -19,3 +19,4 @@ storybook-static/
 *.p12
 *.pfx
 THIRD_PARTY_NOTICES.txt
+.vercel/

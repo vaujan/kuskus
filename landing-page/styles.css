@@ -747,19 +747,6 @@ a:focus-visible {
 }
 
 /* Product details share the landing page's quiet editorial layout. */
-.demo-intro {
-  margin-bottom: 20px;
-  font-size: 14px;
-  line-height: 1.65;
-}
-.demo-intro p {
-  margin: 0;
-}
-.demo-intro .demo-disclaimer {
-  margin-top: 4px;
-  color: var(--muted);
-  font-size: 12px;
-}
 .product-section,
 .questions-section {
   padding-block: 64px;
@@ -1242,4 +1229,210 @@ a:focus-visible {
   .vault-root > span:last-child {
     display: none;
   }
+}
+
+/* The language picker remains at the top right as navigation wraps. */
+.site-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.site-header nav {
+  flex-wrap: wrap;
+}
+.language-picker {
+  position: relative;
+  justify-self: end;
+  border-radius: 999px;
+  color: #484b44;
+}
+.language-switch {
+  appearance: none;
+  display: block;
+  min-height: 44px;
+  width: 190px;
+  padding: 10px 34px 10px 40px;
+  border: 1px solid var(--rule);
+  border-radius: inherit;
+  background: #fcfcfa;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgb(38 44 32 / 3%);
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease;
+}
+.language-switch:hover {
+  border-color: #b6bcae;
+  background: #eff1ea;
+}
+.language-switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.language-picker svg {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--muted);
+}
+.language-picker__globe {
+  left: 14px;
+  width: 17px;
+  height: 17px;
+}
+.language-picker__chevron {
+  right: 13px;
+  width: 14px;
+  height: 14px;
+}
+@media (max-width: 650px) {
+  .site-header {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+  .language-picker {
+    grid-row: 1;
+  }
+  .site-header nav {
+    grid-row: 2;
+  }
+}
+
+/* Captured from the app renderer in how-card.html; retain the directional crop. */
+.feature-visual.workflow-visual {
+  display: block;
+  min-height: 0;
+  padding: 0;
+  aspect-ratio: 4 / 3;
+}
+.workflow-visual img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.vault-app-visual {
+  overflow: hidden;
+  border-radius: 8px;
+  margin-block: 24px;
+}
+.vault-app-visual img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.live-workflow-visual {
+  background: #e5e8df;
+}
+.live-workflow-visual iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.vault-folder-example {
+  margin: 0;
+  border: 1px solid #dce0d5;
+  border-radius: 14px;
+  background: #f4f5ef;
+  overflow: hidden;
+}
+.vault-folder-example figcaption {
+  padding: 26px 28px 20px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.vault-folder-path {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 0 28px 22px;
+  border-bottom: 1px solid #dce0d5;
+  font-size: 20px;
+}
+.vault-folder-path > span:last-child {
+  color: #a3ac98;
+}
+.vault-folder-dot {
+  width: 15px;
+  height: 12px;
+  border: 1.5px solid #79856d;
+  border-radius: 2px;
+  background: #e2e7d9;
+}
+.vault-folder-tree {
+  padding: 20px 28px;
+  background: #fcfcf8;
+}
+.vault-folder-tree details + details {
+  margin-top: 20px;
+}
+.vault-folder-tree summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 550;
+  color: #505947;
+}
+.vault-folder-tree summary > span {
+  float: right;
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--muted);
+}
+.vault-folder-tree ul {
+  list-style: none;
+  margin: 12px 0 0 6px;
+  padding: 0 0 0 18px;
+  border-left: 1px solid #dce0d5;
+}
+.vault-folder-tree li {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 9px 0;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.file-extension {
+  display: inline-block;
+  flex: 0 0 30px;
+  text-align: center;
+  border-radius: 4px;
+  background: #edf0e7;
+  color: #647157;
+  font: 10px monospace;
+  padding: 4px 0;
+}
+.vault-folder-footer {
+  border-top: 1px solid #dce0d5;
+  padding: 22px 28px;
+}
+.vault-folder-footer > strong {
+  font-size: 14px;
+  font-weight: 550;
+}
+.vault-folder-footer p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin: 8px 0 16px;
+}
+.vault-folder-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.vault-folder-tools span {
+  border: 1px solid #d5dccb;
+  padding: 6px 12px;
+  font-size: 11px;
+  border-radius: 5px;
+  color: #59634f;
 }

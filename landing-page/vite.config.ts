@@ -19,7 +19,10 @@ export default defineConfig({
       input: {
         main: resolve(projectRoot, 'index.html'),
         download: resolve(projectRoot, 'download.html'),
-        preview: resolve(projectRoot, 'preview.html')
+        indonesian: resolve(projectRoot, 'index-id.html'),
+        downloadIndonesian: resolve(projectRoot, 'download-id.html'),
+        preview: resolve(projectRoot, 'preview.html'),
+        workflow: resolve(projectRoot, 'how-card.html')
       }
     }
   }

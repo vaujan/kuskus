@@ -4,6 +4,13 @@ const tablist = document.querySelector<HTMLElement>('[data-demo-tabs]')!
 const frame = document.querySelector<HTMLIFrameElement>('#persona-preview')!
 const panel = document.querySelector<HTMLElement>('#persona-panel')!
 let selectedIndex = 0
+const indonesianLabels = {
+  student: ['Belajar', 'Catatan, latihan, dan referensi.'],
+  developer: ['Membangun', 'Proyek, kode, dan dokumentasi.'],
+  researcher: ['Riset', 'Sumber, bukti, dan pertanyaan.'],
+  creative: ['Berkarya', 'Ide, draf, dan inspirasi.']
+} as const
+const isIndonesian = document.documentElement.lang === 'id'
 
 const iconPaths = {
   book: '<path d="M12 7v14m0-14C8 4 5 4 2 5v15c3-1 6-1 10 1 4-2 7-2 10-1V5c-3-1-6-1-10 2Z"/>',
@@ -57,11 +64,11 @@ for (const [index, persona] of demoPersonas.entries()) {
   const label = document.createElement('span')
   label.className = 'demo-tab-label'
   label.id = `persona-label-${persona.id}`
-  label.textContent = persona.label
+  label.textContent = isIndonesian ? indonesianLabels[persona.id][0] : persona.label
   const description = document.createElement('span')
   description.className = 'demo-tab-description'
   description.id = `persona-description-${persona.id}`
-  description.textContent = persona.description
+  description.textContent = isIndonesian ? indonesianLabels[persona.id][1] : persona.description
   copy.append(label, description)
   tab.append(icon, copy)
 

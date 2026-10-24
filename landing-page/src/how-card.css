@@ -1,0 +1,195 @@
+body {
+  margin: 0;
+  background: transparent;
+}
+.workflow-scene {
+  position: relative;
+  width: 520px;
+  height: 390px;
+  overflow: clip;
+  background: #e5e8df;
+}
+.workflow-note {
+  position: absolute;
+  left: 28px;
+  top: 26px;
+  width: 520px;
+  height: 850px;
+  padding: 8px;
+}
+.workflow-note > div {
+  zoom: 0.92;
+  height: calc(100% / 0.92);
+}
+.workflow-capture-grid {
+  position: absolute;
+  left: 24px;
+  top: 24px;
+  width: 940px;
+  height: 850px;
+  padding: 16px;
+  border-radius: 10px;
+  background: var(--background);
+}
+.workflow-capture {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  width: 288px;
+}
+.workflow-neighbor {
+  position: absolute;
+  width: 288px;
+}
+.workflow-neighbor--0 {
+  left: 328px;
+  top: 16px;
+}
+.workflow-neighbor--1 {
+  left: 16px;
+  top: 290px;
+}
+.workflow-neighbor--2 {
+  left: 640px;
+  top: 16px;
+}
+.workflow-search {
+  position: absolute;
+  left: 28px;
+  top: 26px;
+  width: 750px;
+  padding: 18px;
+  background: var(--background);
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 6%);
+}
+.workflow-search > div:first-child {
+  max-width: 440px;
+  margin-bottom: 18px;
+}
+.workflow-results {
+  display: grid;
+  grid-template-columns: repeat(3, 230px);
+  gap: 16px;
+}
+/* Freeze transient entrance and cursor states for reproducible image captures. */
+.workflow-scene *,
+.workflow-scene *::before,
+.workflow-scene *::after {
+  animation: none !important;
+  transition: none !important;
+}
+.workflow-scene .cm-cursor {
+  visibility: hidden !important;
+}
+.workflow-capture [data-slot='card'] {
+  background: var(--card);
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 6%),
+    0 2px 4px rgb(0 0 0 / 3%);
+}
+
+.workflow-capture-grid {
+  background: transparent;
+}
+
+.workflow-search {
+  background: transparent;
+  box-shadow: none;
+}
+
+.workflow-search {
+  transform: scale(1.22);
+  transform-origin: top left;
+}
+.feature-editor {
+  position: absolute;
+  left: 28px;
+  top: 26px;
+  width: 540px;
+  height: 720px;
+  padding: 8px;
+}
+.feature-editor--vim {
+  width: 550px;
+  height: 340px;
+  display: flex;
+  flex-direction: column;
+}
+.feature-editor--vim > div:first-child {
+  flex: 1;
+  min-height: 0;
+}
+.feature-vim-status {
+  display: flex;
+  gap: 18px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  color: var(--primary);
+  font: 12px monospace;
+}
+.feature-vim-status span {
+  color: var(--muted-foreground);
+}
+.feature-editor--diagram {
+  width: 510px;
+}
+.feature-editor--diagram > div {
+  zoom: 0.83;
+  height: calc(100% / 0.83);
+}
+.feature-editor--links {
+  width: 510px;
+}
+.feature-editor--links > div {
+  zoom: 0.88;
+  height: calc(100% / 0.88);
+}
+.feature-vault {
+  position: absolute;
+  left: 24px;
+  top: 24px;
+  width: 880px;
+  height: 560px;
+  overflow: hidden;
+  border-radius: 9px;
+  background: var(--background);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 6%);
+}
+.feature-vault-layout {
+  min-height: 560px !important;
+}
+.feature-vault-notes {
+  margin-left: 228px;
+  padding: 20px;
+  width: 620px;
+  display: grid;
+  grid-template-columns: repeat(2, 280px);
+  gap: 18px;
+  align-content: start;
+}
+.feature-vault {
+  transform: translateZ(0);
+}
+.feature-vault-notes {
+  margin-left: 0;
+}
+.feature-vault [data-slot='sidebar-container'] {
+  height: 560px;
+}
+
+html[data-embedded-scene] body {
+  overflow: hidden;
+}
+html[data-embedded-scene] .workflow-scene {
+  transform: scale(var(--scene-scale));
+  transform-origin: top left;
+}
+.workflow-neighbor [data-slot='item-card-primary-action'],
+.workflow-results [data-slot='item-card-primary-action'] {
+  pointer-events: none;
+}
+.workflow-neighbor,
+.workflow-results {
+  user-select: text;
+}

@@ -22,6 +22,35 @@
         <a href="#your-files">Privacy</a>
         <a href="#questions">FAQ</a>
       </nav>
+      <div class="language-picker">
+        <svg
+          class="language-picker__globe"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="M3 12h18M12 3a18 18 0 0 1 0 18 18 18 0 0 1 0-18Z" />
+        </svg>
+        <select class="language-switch" aria-label="Choose language" data-language-select>
+          <option value="./index.html" lang="en" selected>English</option>
+          <option value="./index-id.html" lang="id">Bahasa Indonesia</option>
+        </select>
+        <svg
+          class="language-picker__chevron"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="m4 6 4 4 4-4" />
+        </svg>
+      </div>
     </header>
 
     <main id="main">
@@ -35,8 +64,8 @@
                 or open an existing Obsidian vault, with your files stored on your computer.
               </p>
               <div class="cta-actions">
-                <a class="primary-action" href="#project-preview">
-                  Try the browser demo <span aria-hidden="true">↓</span>
+                <a class="primary-action" href="./download.html">
+                  Download Kuskus <span aria-hidden="true">↓</span>
                 </a>
                 <a class="secondary-action" href="https://github.com/vaujan/kuskus">
                   Source on GitHub <span aria-hidden="true">↗</span>
@@ -59,14 +88,6 @@
           </div>
 
           <div class="demo-section" id="project-preview">
-            <div class="demo-intro">
-              <p>
-                <strong>Try Kuskus here.</strong> Open a note, browse a folder, or write something.
-              </p>
-              <p class="demo-disclaimer">
-                Edits are temporary. Some desktop actions are unavailable in this demo.
-              </p>
-            </div>
             <div class="demo-tabs" role="tablist" aria-label="Try a use case" data-demo-tabs></div>
             <div
               class="app-preview"
@@ -95,15 +116,14 @@
           </p>
           <div class="benefits">
             <article class="illustrated-card">
-              <div class="feature-visual capture-visual" aria-hidden="true">
-                <div class="mini-window">
-                  <div class="mini-window-bar"><span>Quick Capture</span><span>↗</span></div>
-                  <p>A thought worth keeping<span class="illustrated-caret"></span></p>
-                  <div class="mini-window-foot">
-                    <span>Inbox</span><span class="mini-save">Save note ↵</span>
-                  </div>
-                </div>
+              <div class="feature-visual workflow-visual live-workflow-visual">
+                <iframe
+                  data-scene-src="./how-card.html?kind=capture&amp;embed=1"
+                  title="Capture a research note"
+                  loading="lazy"
+                ></iframe>
               </div>
+
               <span class="benefit-number">01 / Capture</span>
               <h3>Save it while it matters</h3>
               <p>
@@ -112,14 +132,14 @@
               </p>
             </article>
             <article class="illustrated-card">
-              <div class="feature-visual writing-visual" aria-hidden="true">
-                <div class="mini-paper">
-                  <span class="mini-label">PROJECT NOTES</span><strong>Make room for ideas.</strong
-                  ><span class="ink-line"></span><span class="ink-line short"></span
-                  ><span class="mini-task">✓ Keep the source close</span>
-                </div>
-                <span class="floating-label">Markdown · Live Preview</span>
+              <div class="feature-visual workflow-visual live-workflow-visual">
+                <iframe
+                  data-scene-src="./how-card.html?kind=write&amp;embed=1"
+                  title="Markdown note with code"
+                  loading="lazy"
+                ></iframe>
               </div>
+
               <span class="benefit-number">02 / Write</span>
               <h3>Take notes as you research</h3>
               <p>
@@ -128,63 +148,14 @@
               </p>
             </article>
             <article class="illustrated-card">
-              <div class="feature-visual search-visual" aria-hidden="true">
-                <div class="mini-search">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <circle cx="10.5" cy="10.5" r="7.5" />
-                    <path d="m16 16 5 5" /></svg
-                  ><span>That idea from last week…</span>
-                </div>
-                <div class="mini-results">
-                  <span
-                    ><svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.5"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
-                      <path d="M14 2v6h6M8 13h8M8 17h5" /></svg></span
-                  ><span class="picture-tile"
-                    ><svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.5"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      aria-hidden="true"
-                    >
-                      <rect x="3" y="3" width="18" height="18" rx="3" />
-                      <circle cx="8" cy="8" r="1.5" />
-                      <path d="m21 15-5-5L5 21" /></svg></span
-                  ><span
-                    ><svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.5"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"
-                      /></svg
-                  ></span>
-                </div>
+              <div class="feature-visual workflow-visual live-workflow-visual">
+                <iframe
+                  data-scene-src="./how-card.html?kind=return&amp;embed=1"
+                  title="Search research notes"
+                  loading="lazy"
+                ></iframe>
               </div>
+
               <span class="benefit-number">03 / Return</span>
               <h3>Find that thing again</h3>
               <p>
@@ -212,103 +183,44 @@
               <li>Support for core Obsidian wikilinks, aliases, and note and image embeds.</li>
             </ul>
           </div>
-          <figure class="vault-example">
-            <figcaption>One folder. Open it your way.</figcaption>
-            <div class="vault-files" aria-label="Example vault folder">
-              <div class="vault-root">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"
-                  /></svg
-                ><strong>My vault</strong><span>Local folder</span>
-              </div>
-              <div class="vault-file">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
-                  <path d="M14 2v6h6M8 13h8M8 17h5" /></svg
-                ><span>Project notes.md</span><span>Markdown</span>
-              </div>
-              <div class="vault-file">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"
-                  /></svg
-                ><span>Research</span><span>Folder</span>
-              </div>
-              <div class="vault-file vault-file-nested">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
-                  <path d="M14 2v6h6M8 13h8M8 17h5" /></svg
-                ><span>Sources.md</span><span>Markdown</span>
-              </div>
-              <div class="vault-file vault-file-nested">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
-                  <path d="M14 2v6h6M8 13h8M8 17h5" /></svg
-                ><span>Reading list.pdf</span><span>PDF</span>
-              </div>
-              <div class="vault-file">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <rect x="3" y="3" width="18" height="18" rx="3" />
-                  <circle cx="8" cy="8" r="1.5" />
-                  <path d="m21 15-5-5L5 21" /></svg
-                ><span>Sketch.png</span><span>Image</span>
+          <figure class="vault-folder-example">
+            <figcaption>A folder you can recognize.</figcaption>
+            <div class="vault-folder-path">
+              <span class="vault-folder-dot" aria-hidden="true"></span
+              ><strong>Product research</strong><span>/</span>
+            </div>
+            <div class="vault-folder-tree">
+              <details open>
+                <summary>Checkout research <span>3 files</span></summary>
+                <ul>
+                  <li>
+                    <span class="file-extension">md</span
+                    ><span>Delivery costs before payment.md</span>
+                  </li>
+                  <li><span class="file-extension">md</span><span>Friday test plan.md</span></li>
+                  <li><span class="file-extension">pdf</span><span>Interview consent.pdf</span></li>
+                </ul>
+              </details>
+              <details open>
+                <summary>Interview notes <span>2 files</span></summary>
+                <ul>
+                  <li>
+                    <span class="file-extension">md</span
+                    ><span>Session 04 — delivery costs.md</span>
+                  </li>
+                  <li>
+                    <span class="file-extension">png</span><span>Order summary — before.png</span>
+                  </li>
+                </ul>
+              </details>
+            </div>
+            <div class="vault-folder-footer">
+              <strong>The same folder, in every tool.</strong>
+              <p>Plain notes. Original files. Open them with the tools you choose.</p>
+              <div class="vault-folder-tools">
+                <span>Kuskus</span><span>Obsidian</span><span>Your editor</span>
               </div>
             </div>
-            <div class="vault-clients" aria-label="Use your files across tools">
-              <span>Kuskus</span><span>Obsidian</span><span>Your editor</span>
-            </div>
-            <p>
-              Browse in Kuskus. Write in Obsidian or your favorite editor. The files stay yours.
-            </p>
           </figure>
         </div>
       </section>
@@ -327,25 +239,27 @@
           </div>
           <div class="editor-features">
             <article class="illustrated-card">
-              <div class="feature-visual vim-visual" aria-hidden="true">
-                <span class="mini-label">KEEP YOUR HANDS ON THE KEYS</span>
-                <div class="key-row"><kbd>h</kbd><kbd>j</kbd><kbd>k</kbd><kbd>l</kbd></div>
-                <div class="vim-status">
-                  <span>NORMAL</span><code>ideas.md</code><span>12:04</span>
-                </div>
+              <div class="feature-visual workflow-visual live-workflow-visual">
+                <iframe
+                  data-scene-src="./how-card.html?kind=vim&amp;embed=1"
+                  title="Vim Markdown editor"
+                  loading="lazy"
+                ></iframe>
               </div>
+
               <span class="benefit-number">01 / Your rhythm</span>
               <h3>Vim keybindings, if you want them</h3>
               <p>Enable optional Vim mode for familiar keyboard-driven editing in your notes.</p>
             </article>
             <article class="illustrated-card">
-              <div class="feature-visual diagram-visual" aria-hidden="true">
-                <div class="mini-flow">
-                  <span>Collect</span><i>→</i><span>Connect</span><i>→</i><span>Create</span>
-                </div>
-                <div class="math-example">∑ ideas → something new</div>
-                <span class="mini-label">DIAGRAMS + MATH + CODE</span>
+              <div class="feature-visual workflow-visual live-workflow-visual">
+                <iframe
+                  data-scene-src="./how-card.html?kind=diagram&amp;embed=1"
+                  title="Mermaid diagram, equation, and code"
+                  loading="lazy"
+                ></iframe>
               </div>
+
               <span class="benefit-number">02 / More than text</span>
               <h3>Diagrams, equations, and code</h3>
               <p>
@@ -354,37 +268,14 @@
               </p>
             </article>
             <article class="illustrated-card">
-              <div class="feature-visual links-visual" aria-hidden="true">
-                <div class="linked-note">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
-                    <path d="M14 2v6h6M8 13h8M8 17h5" /></svg
-                  ><span>Project notes</span><span class="wiki-label">[[Ideas]]</span>
-                </div>
-                <div class="note-connector"></div>
-                <div class="linked-note linked-note-offset">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
-                    <path d="M14 2v6h6M8 13h8M8 17h5" /></svg
-                  ><span>Ideas</span><span class="ink-line"></span>
-                </div>
+              <div class="feature-visual workflow-visual live-workflow-visual">
+                <iframe
+                  data-scene-src="./how-card.html?kind=links&amp;embed=1"
+                  title="Linked research notes"
+                  loading="lazy"
+                ></iframe>
               </div>
+
               <span class="benefit-number">03 / Keep your place</span>
               <h3>Linked notes and focused writing</h3>
               <p>
@@ -538,6 +429,39 @@
           </div>
         </div>
       </section>
+      <section class="questions-section" id="support" aria-labelledby="support-title">
+        <div class="section-inner product-layout">
+          <div>
+            <p class="eyebrow">Built independently</p>
+            <h2 id="support-title">Help Kuskus keep growing.</h2>
+          </div>
+          <div class="questions-list">
+            <p>
+              Kuskus is free and open source, built independently by
+              <a href="https://x.com/buildfrombed">@buildfrombed</a> in Indonesia. Support helps me
+              spend more time improving the app and maintaining releases.
+            </p>
+            <p>
+              You can help by reporting bugs, sharing your workflow, or contributing code. Tell me
+              what you are trying to accomplish and how you handle it today.
+            </p>
+            <div class="cta-actions">
+              <a
+                class="secondary-action"
+                href="https://github.com/vaujan/kuskus/issues/new?template=feature-request.yml"
+              >
+                Share a feature request <span aria-hidden="true">↗</span>
+              </a>
+              <a
+                class="secondary-action"
+                href="https://github.com/vaujan/kuskus/blob/main/CONTRIBUTING.md"
+              >
+                Contribute to Kuskus <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
 
     <footer class="site-footer">
@@ -549,8 +473,8 @@
               Give your references a home. Bring your existing vault or start a library of your own.
             </p>
             <div class="cta-actions">
-              <a class="primary-action" href="#project-preview">
-                Try the browser demo <span aria-hidden="true">↑</span>
+              <a class="primary-action" href="./download.html">
+                Download Kuskus <span aria-hidden="true">↓</span>
               </a>
               <a class="secondary-action" href="https://github.com/vaujan/kuskus">
                 Source on GitHub <span aria-hidden="true">↗</span>
@@ -578,13 +502,19 @@
           />
         </div>
         <div class="footer-bottom">
-          <span>Built independently in Indonesia</span>
+          <span
+            >Built independently in Indonesia by
+            <a href="https://x.com/buildfrombed">@buildfrombed</a></span
+          >
+          <a href="#support">Support Kuskus</a>
           <a href="https://github.com/vaujan/kuskus">Source on GitHub</a>
           <a href="LICENSE">License</a>
           <a href="THIRD_PARTY_NOTICES.txt">Third-party notices</a>
         </div>
       </div>
     </footer>
+    <script type="module" src="./src/live-card-frames.ts"></script>
     <script type="module" src="./src/demo-tabs.ts"></script>
+    <script type="module" src="./src/language-select.ts"></script>
   </body>
 </html>

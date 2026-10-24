@@ -20,6 +20,36 @@ pnpm build
 
 Deploy the generated `dist/` directory to any static host. Building from source requires the app repository because the preview imports its renderer and demo fixture.
 
+## Public deployment on Vercel
+
+Production: [kuskus-tau.vercel.app](https://kuskus-tau.vercel.app). The `kuskus` project is linked
+to `vaujan/kuskus` in the `ahmad-fauzans-projects-9878f23f` Vercel scope, with `main` as the
+production branch. The first production upload reached Ready on 2026-10-23 (Asia/Jayapura).
+Vercel Authentication protects preview deployments only; production is public.
+
+Import the repository with its root directory set to the repository root, not `landing-page`.
+The root `vercel.json` defines installation, website type checking/building, and the
+`landing-page/dist` output. Electron's runtime download is skipped for this static website build.
+The uploaded source includes the renderer and license-generation inputs; `.vercelignore` excludes
+local profiles, scratch work, credentials, and generated builds.
+
+Use an authenticated Vercel CLI to link the intended project and run `vercel deploy --prod` from
+the repository root. Verify the deployment reaches Ready in Vercel. The CLI's local `.vercel/`
+linkage is ignored by Git. No website runtime environment variables or backend are required.
+Keep production deployment protection disabled if the site is intended to be publicly accessible.
+For this project's CLI commands, use `--scope ahmad-fauzans-projects-9878f23f`.
+
+Connect the GitHub repository in Vercel for subsequent deployments. Configure `main` as the
+production branch, preview deployments for pull requests, and required GitHub checks before
+merging. A CLI upload alone does not establish Git integration or branch protection. Use Vercel's
+deployment history to roll back production to a previously verified deployment.
+The first deployment uploaded the local working tree without committing or pushing it. Commit
+the deployment configuration and intended website changes before relying on later Git deployments.
+
+Before announcing, confirm the public source link is accessible, check `/`, `/download.html`,
+`/preview.html`, `/LICENSE`, and `/THIRD_PARTY_NOTICES.txt`, and inspect mobile/keyboard use.
+Website publication does not publish desktop installers or make the GitHub repository public.
+
 ## Edit the interactive demo
 
 Learn, Build, Research, and Create sit above the mockup. Each tab has an icon and a short description. `src/demo-personas.ts` defines their content and appearance presets; `src/demo-tabs.ts` handles keyboard navigation and sends the selected preset to the preview.
@@ -36,4 +66,28 @@ The macOS (Apple), Windows, and Linux logos in `assets/os-*.svg` come from [Simp
 
 ## Download page
 
-`download.html` is a separate static entry in the Vite build and explains the outstanding desktop release gates. The landing page's primary actions lead to the browser demo; demo edits are temporary. Platform links and the release section open the repository’s GitHub Releases page. Switch to download actions only after verified installers are published, and update platform availability to match tested artifacts.
+`download.html` is a separate static entry in the Vite build and explains the outstanding desktop release gates. The landing page's primary actions are Download Kuskus and Source on GitHub. Download opens this status page until verified installers are available. Platform links and the release section open the repository’s GitHub Releases page. Update platform availability to match tested artifacts.
+
+## Languages and builder attribution
+
+English is available at `index.html` and `download.html`; Bahasa Indonesia at
+`index-id.html` and `download-id.html`. Each page has a native language dropdown that opens the equivalent page in
+the other language, preserving the current section. Pages and language options declare
+their languages. `src/language-select.ts` handles navigation.
+Keep both static versions in sync when changing copy. Demo tabs are translated in
+`src/demo-tabs.ts`; the embedded app interface and example library remain in English.
+Builder credits must refer to [@buildfrombed](https://x.com/buildfrombed).
+
+## Live feature cards
+
+All six workflow and writing cards embed actual renderer components through
+`how-card.html?kind=capture|write|return|vim|diagram|links&embed=1`, lazy-loaded by
+`src/live-card-frames.ts`. Text is selectable, search filters example notes, and
+capture uses an in-memory session. Both languages share these previews.
+
+Edit example content in `src/how-card.tsx` and framing in `src/how-card.css`.
+Each scene uses a 520 × 390 layout, scaled to its card while keeping native DOM
+content. Preview settings are isolated from the hero and app preferences. The
+background uses the landing page’s muted green palette, without gradients.
+
+The vault figure is a native HTML folder tree with expandable folders.

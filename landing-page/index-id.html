@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Pustaka visual pribadi untuk tautan, gambar, berkas, dan catatan Markdown. Buka vault Obsidian, gunakan pintasan Vim, dan simpan berkas di komputermu."
+    />
+    <meta name="theme-color" content="#f7f7f4" />
+    <link rel="icon" type="image/x-icon" href="./assets/favicon.ico" />
+    <link rel="stylesheet" href="styles.css" />
+    <title>Kuskus — Referensi terkumpul. Berkas tetap milikmu.</title>
+  </head>
+  <body id="top">
+    <a class="skip-link" href="#main">Langsung ke konten</a>
+    <header class="site-header">
+      <nav aria-label="Navigasi utama">
+        <a href="#how-it-works">Cara kerja</a>
+        <a href="#your-vault">Vault milikmu</a>
+        <a href="#editor">Menulis</a>
+        <a href="#your-files">Privasi</a>
+        <a href="#questions">Tanya jawab</a>
+      </nav>
+      <div class="language-picker">
+        <svg
+          class="language-picker__globe"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="M3 12h18M12 3a18 18 0 0 1 0 18 18 18 0 0 1 0-18Z" />
+        </svg>
+        <select class="language-switch" aria-label="Pilih bahasa" data-language-select>
+          <option value="./index.html" lang="en">English</option>
+          <option value="./index-id.html" lang="id" selected>Bahasa Indonesia</option>
+        </select>
+        <svg
+          class="language-picker__chevron"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="m4 6 4 4 4-4" />
+        </svg>
+      </div>
+    </header>
+
+    <main id="main">
+      <div class="hero-shell">
+        <section class="hero" aria-labelledby="hero-title">
+          <div class="hero-copy">
+            <h1 id="hero-title">Referensi terkumpul.<br />Berkas tetap milikmu.</h1>
+            <div class="hero-aside">
+              <p class="hero-description">
+                Kumpulkan tautan, gambar, berkas, dan catatan Markdown dalam satu pustaka visual.
+                Mulai dari awal atau buka vault Obsidian yang sudah ada. Berkasmu tersimpan di
+                komputermu sendiri.
+              </p>
+              <div class="cta-actions">
+                <a class="primary-action" href="./download-id.html">
+                  Unduh Kuskus <span aria-hidden="true">↓</span>
+                </a>
+                <a class="secondary-action" href="https://github.com/vaujan/kuskus">
+                  Kode sumber di GitHub <span aria-hidden="true">↗</span>
+                </a>
+              </div>
+              <div class="platform-logos" role="group" aria-label="Platform desktop">
+                <img src="./assets/os-apple.svg" width="20" height="20" alt="macOS" title="macOS" />
+                <img
+                  src="./assets/os-windows.svg"
+                  width="20"
+                  height="20"
+                  alt="Windows"
+                  title="Windows"
+                />
+                <img src="./assets/os-linux.svg" width="20" height="20" alt="Linux" title="Linux" />
+              </div>
+              <p class="hero-details">Tanpa akun · Gratis dan sumber terbuka</p>
+              <p class="hero-details">Windows lebih dulu · macOS dan Linux masih eksperimental</p>
+            </div>
+          </div>
+
+          <div class="demo-section" id="project-preview">
+            <div
+              class="demo-tabs"
+              role="tablist"
+              aria-label="Coba contoh penggunaan"
+              data-demo-tabs
+            ></div>
+            <div
+              class="app-preview"
+              id="persona-panel"
+              role="tabpanel"
+              aria-labelledby="persona-tab-student"
+            >
+              <div class="app-preview__window">
+                <iframe
+                  id="persona-preview"
+                  src="./preview.html"
+                  title="Demo interaktif Kuskus"
+                ></iframe>
+              </div>
+            </div>
+            <noscript><p>Aktifkan JavaScript untuk mencoba demo.</p></noscript>
+          </div>
+        </section>
+      </div>
+
+      <section class="how-section" id="how-it-works" aria-labelledby="how-title">
+        <div class="section-inner">
+          <h2 id="how-title">Simpan konteksnya.<br />Lanjutkan pekerjaanmu.</h2>
+          <p class="section-description">
+            Satukan sumber, tangkapan layar, dan pemikiranmu seiring berkembangnya proyek.
+          </p>
+          <div class="benefits">
+            <article class="illustrated-card">
+              <div class="feature-visual workflow-visual live-workflow-visual">
+                <iframe
+                  data-scene-src="./how-card.html?kind=capture&amp;embed=1"
+                  title="Capture a research note"
+                  loading="lazy"
+                ></iframe>
+              </div>
+
+              <span class="benefit-number">01 / Simpan</span>
+              <h3>Simpan selagi teringat</h3>
+              <p>
+                Buka Catat Cepat dengan pintasan global saat bekerja di aplikasi lain. Simpan
+                catatan atau referensi ke Kotak masuk, lalu rapikan saat kamu siap.
+              </p>
+            </article>
+            <article class="illustrated-card">
+              <div class="feature-visual workflow-visual live-workflow-visual">
+                <iframe
+                  data-scene-src="./how-card.html?kind=write&amp;embed=1"
+                  title="Markdown note with code"
+                  loading="lazy"
+                ></iframe>
+              </div>
+
+              <span class="benefit-number">02 / Tulis</span>
+              <h3>Catat sambil meneliti</h3>
+              <p>
+                Kembangkan pemikiranmu dalam catatan Markdown dengan Pratinjau Langsung,
+                berdampingan dengan tautan, gambar, dan berkas sumbernya.
+              </p>
+            </article>
+            <article class="illustrated-card">
+              <div class="feature-visual workflow-visual live-workflow-visual">
+                <iframe
+                  data-scene-src="./how-card.html?kind=return&amp;embed=1"
+                  title="Search research notes"
+                  loading="lazy"
+                ></iframe>
+              </div>
+
+              <span class="benefit-number">03 / Temukan kembali</span>
+              <h3>Temukan lagi yang kamu cari</h3>
+              <p>
+                Cari saat kamu ingat kata-katanya. Jelajahi secara visual saat kamu ingat
+                tampilannya.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="product-section" id="your-vault" aria-labelledby="vault-title">
+        <div class="section-inner product-layout">
+          <div class="product-copy">
+            <p class="eyebrow">Folder biasa. Lebih banyak kemungkinan.</p>
+            <h2 id="vault-title">Vault milikmu, dengan<br />sudut pandang visual.</h2>
+            <p>
+              Buka folder Markdown atau vault Obsidian yang sudah ada. Lihat catatan, gambar,
+              berkas, dan tautan bersama-sama sambil tetap menggunakan aplikasi lainnya.
+            </p>
+            <ul class="feature-list">
+              <li>Catatan Markdown biasa dan nama berkas yang mudah dibaca.</li>
+              <li>Susunan foldermu menjadi struktur pustakamu.</li>
+              <li>Perubahan dari aplikasi lain muncul di Kuskus.</li>
+              <li>Mendukung wikilink dasar Obsidian, alias, serta sematan catatan dan gambar.</li>
+            </ul>
+          </div>
+          <figure class="vault-folder-example">
+            <figcaption>Folder yang kamu kenal.</figcaption>
+            <div class="vault-folder-path">
+              <span class="vault-folder-dot" aria-hidden="true"></span
+              ><strong>Product research</strong><span>/</span>
+            </div>
+            <div class="vault-folder-tree">
+              <details open>
+                <summary>Checkout research <span>3 files</span></summary>
+                <ul>
+                  <li>
+                    <span class="file-extension">md</span
+                    ><span>Delivery costs before payment.md</span>
+                  </li>
+                  <li><span class="file-extension">md</span><span>Friday test plan.md</span></li>
+                  <li><span class="file-extension">pdf</span><span>Interview consent.pdf</span></li>
+                </ul>
+              </details>
+              <details open>
+                <summary>Interview notes <span>2 files</span></summary>
+                <ul>
+                  <li>
+                    <span class="file-extension">md</span
+                    ><span>Session 04 — delivery costs.md</span>
+                  </li>
+                  <li>
+                    <span class="file-extension">png</span><span>Order summary — before.png</span>
+                  </li>
+                </ul>
+              </details>
+            </div>
+            <div class="vault-folder-footer">
+              <strong>Satu folder, di setiap alat.</strong>
+              <p>Catatan biasa. Berkas asli. Buka dengan alat pilihanmu.</p>
+              <div class="vault-folder-tools">
+                <span>Kuskus</span><span>Obsidian</span><span>Editor pilihanmu</span>
+              </div>
+            </div>
+          </figure>
+        </div>
+      </section>
+
+      <section class="product-section editor-section" id="editor" aria-labelledby="editor-title">
+        <div class="section-inner">
+          <div class="files-layout">
+            <div>
+              <p class="eyebrow">Ruang kerja Markdown yang andal</p>
+              <h2 id="editor-title">Menulis sesuai<br />alur pikirmu.</h2>
+            </div>
+            <p>
+              Tulis dengan Pratinjau Langsung, sunting Markdown secara langsung, atau tampilkan kode
+              sumber dan pratinjau berdampingan. Beralih ke mode Baca untuk fokus pada catatan yang
+              sudah selesai.
+            </p>
+          </div>
+          <div class="editor-features">
+            <article class="illustrated-card">
+              <div class="feature-visual workflow-visual live-workflow-visual">
+                <iframe
+                  data-scene-src="./how-card.html?kind=vim&amp;embed=1"
+                  title="Vim Markdown editor"
+                  loading="lazy"
+                ></iframe>
+              </div>
+
+              <span class="benefit-number">01 / Ritmemu</span>
+              <h3>Pintasan Vim, jika kamu mau</h3>
+              <p>
+                Aktifkan mode Vim untuk menyunting catatan dengan pintasan papan ketik yang sudah
+                kamu kenal.
+              </p>
+            </article>
+            <article class="illustrated-card">
+              <div class="feature-visual workflow-visual live-workflow-visual">
+                <iframe
+                  data-scene-src="./how-card.html?kind=diagram&amp;embed=1"
+                  title="Mermaid diagram, equation, and code"
+                  loading="lazy"
+                ></iframe>
+              </div>
+
+              <span class="benefit-number">02 / Lebih dari teks</span>
+              <h3>Diagram, persamaan, dan kode</h3>
+              <p>
+                Jelaskan alur dengan Mermaid, kerjakan persamaan matematika, dan simpan kode dengan
+                penyorotan sintaks di samping pemikiranmu.
+              </p>
+            </article>
+            <article class="illustrated-card">
+              <div class="feature-visual workflow-visual live-workflow-visual">
+                <iframe
+                  data-scene-src="./how-card.html?kind=links&amp;embed=1"
+                  title="Linked research notes"
+                  loading="lazy"
+                ></iframe>
+              </div>
+
+              <span class="benefit-number">03 / Tetap terarah</span>
+              <h3>Catatan terhubung, menulis lebih fokus</h3>
+              <p>
+                Hubungkan catatan dengan wikilink, sematkan gambar, lipat bagian catatan, dan
+                gunakan perintah garis miring untuk menyisipkan Markdown.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="files-section" id="your-files" aria-labelledby="files-title">
+        <div class="section-inner">
+          <div class="files-layout">
+            <div>
+              <h2 id="files-title">Di komputermu.<br />Dalam kendalimu.</h2>
+            </div>
+            <p>
+              Tanpa akun. Pustakamu tersimpan di folder pilihanmu. Kumpulkan dan atur referensi
+              tanpa perlu menyimpan pustaka di server.
+            </p>
+          </div>
+          <div class="ownership-points">
+            <article class="feature-card">
+              <div class="feature-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="3" width="18" height="13" rx="2" />
+                  <path d="M8 21h8m-4-5v5m-4-12 3 3 5-5" />
+                </svg>
+              </div>
+              <h3>Konten lokal bisa dibuka tanpa internet</h3>
+              <p>
+                Baca catatan dan berkas tersimpan tanpa koneksi internet. Situs web, pratinjau
+                tautan, dan gambar daring tetap menghubungi server asalnya.
+              </p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"
+                  />
+                  <path d="M12 16v-6m-3 3 3-3 3 3" />
+                </svg>
+              </div>
+              <h3>Pustaka yang bisa dicadangkan</h3>
+              <p>
+                Tutup Kuskus dan salin seluruh vault, termasuk folder tersembunyi .kuskus, agar
+                berkas dan metadata aplikasi tetap tersimpan bersama.
+              </p>
+            </article>
+            <article class="feature-card">
+              <div class="feature-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="m8 7-5 5 5 5m8-10 5 5-5 5m-3-13-2 20" />
+                </svg>
+              </div>
+              <h3>Gratis dan sumber terbuka</h3>
+              <p>
+                Berlisensi GPL-3.0-only.
+                <a href="https://github.com/vaujan/kuskus">Jelajahi kode sumber</a> untuk memeriksa,
+                memodifikasi, dan membagikan aplikasi.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="questions-section" id="questions" aria-labelledby="questions-title">
+        <div class="section-inner product-layout">
+          <div>
+            <p class="eyebrow">Sebelum mulai</p>
+            <h2 id="questions-title">Jawaban yang mungkin kamu butuhkan.</h2>
+          </div>
+          <div class="questions-list">
+            <details>
+              <summary>Bisakah saya menggunakan vault Obsidian yang sudah ada?</summary>
+              <p>
+                Bisa. Kuskus dapat mengindeks folder Markdown atau vault Obsidian tanpa mengonversi
+                catatannya. Wikilink dasar, alias, tautan judul bagian, serta sematan catatan dan
+                gambar didukung. Kompatibilitas ini tidak mencakup plugin Obsidian maupun semua
+                format khusus plugin.
+              </p>
+            </details>
+            <details>
+              <summary>Apakah Kuskus mengubah berkas Markdown saya?</summary>
+              <p>
+                Membuka catatan atau beralih mode penyuntingan tidak menulis ulang Markdown.
+                Perubahan yang kamu buat di Kuskus disimpan ke berkas aslinya. Properti YAML tetap
+                menjadi konten milik pengguna. Kuskus menyimpan metadatanya di folder tersembunyi
+                .kuskus dan tidak mengubah .obsidian.
+              </p>
+            </details>
+            <details>
+              <summary>Apa yang bisa digunakan tanpa internet?</summary>
+              <p>
+                Catatan, gambar, dan berkas lokal tetap tersedia tanpa internet. Membuka situs web,
+                mengambil pratinjau tautan, atau menampilkan gambar daring membutuhkan koneksi dan
+                menghubungi server terkait.
+              </p>
+            </details>
+            <details>
+              <summary>Bagaimana cara mencadangkan pustaka saya?</summary>
+              <p>
+                Tutup aplikasi, lalu salin seluruh folder vault, termasuk .kuskus. Menyertakan
+                folder tersembunyi ini menjaga metadata Kuskus bersama catatan dan lampiranmu.
+              </p>
+            </details>
+            <details>
+              <summary>Platform mana yang sudah siap?</summary>
+              <p>
+                Windows menjadi target pertama untuk penginstal publik. Versi macOS dan Linux masih
+                eksperimental. Periksa
+                <a href="https://github.com/vaujan/kuskus/releases"
+                  >catatan rilis dan berkas yang tersedia</a
+                >
+                untuk mengetahui status setiap versi sebelum menginstal.
+              </p>
+            </details>
+            <details>
+              <summary>Apakah Kuskus gratis dan sumber terbuka?</summary>
+              <p>
+                Ya. Kuskus berlisensi GPL-3.0-only. Kamu dapat menggunakan, memeriksa, memodifikasi,
+                dan mendistribusikannya kembali sesuai lisensi tersebut. Tidak perlu akun.
+              </p>
+            </details>
+          </div>
+        </div>
+      </section>
+      <section class="questions-section" id="support" aria-labelledby="support-title">
+        <div class="section-inner product-layout">
+          <div>
+            <p class="eyebrow">Dikembangkan secara independen</p>
+            <h2 id="support-title">Bantu Kuskus terus berkembang.</h2>
+          </div>
+          <div class="questions-list">
+            <p>
+              Kuskus gratis dan sumber terbuka, dikembangkan secara independen oleh
+              <a href="https://x.com/buildfrombed">@buildfrombed</a> di Indonesia. Dukunganmu
+              membantu saya meluangkan lebih banyak waktu untuk meningkatkan aplikasi dan memelihara
+              rilis.
+            </p>
+            <p>
+              Kamu bisa membantu dengan melaporkan bug, berbagi alur kerja, atau menyumbangkan kode.
+              Ceritakan apa yang ingin kamu capai dan bagaimana kamu mengerjakannya saat ini.
+            </p>
+            <div class="cta-actions">
+              <a
+                class="secondary-action"
+                href="https://github.com/vaujan/kuskus/issues/new?template=feature-request.yml"
+              >
+                Usulkan fitur <span aria-hidden="true">↗</span>
+              </a>
+              <a
+                class="secondary-action"
+                href="https://github.com/vaujan/kuskus/blob/main/CONTRIBUTING.md"
+              >
+                Berkontribusi untuk Kuskus <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="footer-main">
+          <div class="footer-copy">
+            <h2>Beri tempat untuk idemu.</h2>
+            <p>
+              Beri tempat untuk semua referensimu. Gunakan vault yang sudah ada atau mulai pustakamu
+              sendiri.
+            </p>
+            <div class="cta-actions">
+              <a class="primary-action" href="./download-id.html">
+                Unduh Kuskus <span aria-hidden="true">↓</span>
+              </a>
+              <a class="secondary-action" href="https://github.com/vaujan/kuskus">
+                Kode sumber di GitHub <span aria-hidden="true">↗</span>
+              </a>
+            </div>
+            <div class="platform-logos" role="group" aria-label="Platform desktop">
+              <img src="./assets/os-apple.svg" width="20" height="20" alt="macOS" title="macOS" />
+              <img
+                src="./assets/os-windows.svg"
+                width="20"
+                height="20"
+                alt="Windows"
+                title="Windows"
+              />
+              <img src="./assets/os-linux.svg" width="20" height="20" alt="Linux" title="Linux" />
+            </div>
+          </div>
+          <img
+            class="footer-illustration"
+            src="assets/bubuntu-line.svg"
+            alt=""
+            width="380"
+            height="570"
+            loading="lazy"
+          />
+        </div>
+        <div class="footer-bottom">
+          <span
+            >Dikembangkan secara independen di Indonesia oleh
+            <a href="https://x.com/buildfrombed">@buildfrombed</a></span
+          >
+          <a href="#support">Dukung Kuskus</a>
+          <a href="https://github.com/vaujan/kuskus">Kode sumber di GitHub</a>
+          <a href="LICENSE">Lisensi</a>
+          <a href="THIRD_PARTY_NOTICES.txt">Pemberitahuan pihak ketiga</a>
+        </div>
+      </div>
+    </footer>
+    <script type="module" src="./src/live-card-frames.ts"></script>
+    <script type="module" src="./src/demo-tabs.ts"></script>
+    <script type="module" src="./src/language-select.ts"></script>
+  </body>
+</html>
