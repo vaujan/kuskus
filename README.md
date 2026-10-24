@@ -2,7 +2,7 @@
 
 Kuskus is a private visual library for project references, stored on your computer. It is currently a Windows-first personal MVP built with Electron, React, and TypeScript.
 
-The app supports local Markdown notes, images, files, web references, nested folders, search, pinned items, Trash, detached note windows, and quick capture. Notes and attachments remain ordinary files in the selected vault; Kuskus keeps its index and app metadata in the hidden `.kuskus` directory. Existing Markdown folders can be indexed without converting their notes.
+The app supports local Markdown notes, images, files, web references, nested folders, search, pinned items, Trash, detached note windows, and quick capture. Notes and attachments remain ordinary files in the selected vault; Kuskus keeps its index and app metadata in the hidden `.kuskus` directory. Existing Markdown folders can be indexed without converting their notes. PDFs open in an offline reader with page navigation, zoom, text selection, and document search (Ctrl/Cmd+F). Scanned PDFs require a text layer for search; OCR and PDF editing are not included.
 
 **Release status:** The first launch milestone is the source repository and browser demo; see the [source-launch handoff](docs/17-source-launch.md). Windows is the first public installer target, with signing and native testing still outstanding. macOS and Linux builds are experimental. Public installers must pass the [release checklist](docs/14-open-source-release-checklist.md) and [release process](docs/15-release-process.md). Updates are installed manually; there is no automatic updater.
 
@@ -72,6 +72,14 @@ If `.demo` already exists, run `pnpm demo:reset` once to add or restore the cano
 
 ## Verification
 
+For a clean pre-release build, follow [release maintenance](docs/20-release-maintenance.md).
+`pnpm check:release` adds dependency auditing, Storybook compilation, native unpacked packaging,
+and archive inspection to the regular checks. It never publishes.
+
+Versioning and release notes follow [the versioning policy](docs/19-versioning.md). Edit
+`releases/notes.json` and run `pnpm changelog:generate`; `pnpm check` verifies that the generated
+changelog and desktop version agree. Release preparation does not publish or create a Git tag.
+
 ```bash
 pnpm check
 pnpm audit --prod
@@ -88,6 +96,12 @@ pnpm build:linux
 These commands prepare local artifacts without publishing. `pnpm release` runs the verification suite and builds signed Windows installers; signing credentials are required. See the [release process](docs/15-release-process.md) before distributing them.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contributions and bug reports, and [SECURITY.md](SECURITY.md) for private vulnerability reporting.
+
+## Support development
+
+Kuskus is free and open source, built independently by Fauzan in Indonesia. Support helps me spend more time improving the app and maintaining releases.
+
+You can help by [reporting bugs](https://github.com/vaujan/kuskus/issues), [sharing a feature request](https://github.com/vaujan/kuskus/issues/new?template=feature-request.yml), or [contributing code](CONTRIBUTING.md). For feature requests, describe your goal, your current workflow, and how often the need comes up.
 
 ## License
 

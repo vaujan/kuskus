@@ -1,0 +1,26 @@
+name: Feature request
+description: Tell us what you want to accomplish with Kuskus.
+title: 'Feature: '
+body:
+  - type: markdown
+    attributes:
+      value: Search existing issues before submitting. Use examples without private notes, files, or personal information.
+  - type: textarea
+    id: goal
+    attributes:
+      label: What are you trying to accomplish?
+      description: Describe a real task and where Kuskus gets in your way.
+    validations:
+      required: true
+  - type: textarea
+    id: current-workflow
+    attributes:
+      label: How do you handle this today?
+      description: Include any workarounds or other tools you use, and how often this comes up.
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: What would help?
+      description: A proposed solution is welcome, but describing the problem is enough.

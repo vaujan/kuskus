@@ -265,8 +265,8 @@ Classify each source assertion as one of:
 
 Done:
 
-- `focus-view.test.cjs`: the "Detail capture stays in the rail" test's `workspaceSource` *capture
-  wiring* pins — `openComposer`, `window.capture.onMainItemRequested`, `handleNewItemShortcut`,
+- `focus-view.test.cjs`: the "Detail capture stays in the rail" test's `workspaceSource` _capture
+  wiring_ pins — `openComposer`, `window.capture.onMainItemRequested`, `handleNewItemShortcut`,
   the `composer={composerOpen || showExternalDropShadow …}` slot, `openDetail(nextItem.id, true)` —
   were replaced with behavior assertions over the already-extracted pure `detectCaptureKind` and
   `shouldYieldMainComposer`. These were the pins that would break once Phase 3.4 moves capture

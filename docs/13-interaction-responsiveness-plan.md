@@ -85,10 +85,10 @@ What the runs confirm, architecture-wise:
 
 The goal is Obsidian-like smoothness. The three mature designs that matter here:
 
-- **Joplin (Markdown source editor + separate preview).** Typing touches *only* the CodeMirror 6
+- **Joplin (Markdown source editor + separate preview).** Typing touches _only_ the CodeMirror 6
   editor: the parser is incremental and only viewport lines render. The preview pane lives in its own
-  iframe/webview and receives HTML via `setHtml`; it is *decoupled* from typing, so a heavy preview
-  never blocks a keystroke. Joplin also fixed (issue #9891) that a *hidden* preview pane must not
+  iframe/webview and receives HTML via `setHtml`; it is _decoupled_ from typing, so a heavy preview
+  never blocks a keystroke. Joplin also fixed (issue #9891) that a _hidden_ preview pane must not
   re-render at all — hiding a pane used to cost seconds on long notes because the viewer stayed
   mounted.
 - **Obsidian (CodeMirror 6 "live preview").** One editor renders the document with decorations
@@ -133,16 +133,16 @@ packaged runs. Use the deterministic fixtures from the prior plans.
 
 ### New primary budgets (interactivity)
 
-| Scenario                                                |                                    Budget |
-| ------------------------------------------------------- | ---------------------------------------: |
-| Note editor keystroke to committed paint                |          p95 ≤ 100 ms, no task > 100 ms |
-| Rapid key burst (10 keys, any surface) in main window   |           no long task > 100 ms during it |
-| Scroll through 100 mixed cards                          | ≥ 55 FPS p95, no task > 100 ms (existing) |
-| Search keystroke to settled results at 5,000 items      |    p95 ≤ 100 ms of render + IPC after the 150 ms debounce |
-| Autosave commit while typing a note                     |      no task > 100 ms, zero vault rescan |
-| Open vault for the first time (5,000 items)             |          toast shown; no frozen UI frame |
+| Scenario                                              |                                                 Budget |
+| ----------------------------------------------------- | -----------------------------------------------------: |
+| Note editor keystroke to committed paint              |                         p95 ≤ 100 ms, no task > 100 ms |
+| Rapid key burst (10 keys, any surface) in main window |                        no long task > 100 ms during it |
+| Scroll through 100 mixed cards                        |              ≥ 55 FPS p95, no task > 100 ms (existing) |
+| Search keystroke to settled results at 5,000 items    | p95 ≤ 100 ms of render + IPC after the 150 ms debounce |
+| Autosave commit while typing a note                   |                    no task > 100 ms, zero vault rescan |
+| Open vault for the first time (5,000 items)           |                        toast shown; no frozen UI frame |
 
-The search row is measured as the latency *after* the 150 ms debounce commits (typing latency itself
+The search row is measured as the latency _after_ the 150 ms debounce commits (typing latency itself
 stays ≤ 100 ms p95). A "keystroke → settled results" budget below the debounce is not physically
 meaningful; Phase 4 addresses the render cost that sits on top of it.
 
@@ -324,7 +324,7 @@ pnpm perf:packaged
 - all existing budgets still pass;
 - typing in the note editor and search box keeps p95 keystroke-to-paint ≤ 100 ms with no task
   > 100 ms at 5,000 items, and no O(doc) scan or preview re-parse runs per keystroke ✅ (re-validate on
-  a fast desktop);
+  > a fast desktop);
 - no library card render ever parses a full note document ✅, and the overview no longer ships every
   note body (full content loads at open time) ✅;
 - search results settle within 100 ms (post-debounce) and never mount the full result set at once ✅
