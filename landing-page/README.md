@@ -66,7 +66,20 @@ The macOS (Apple), Windows, and Linux logos in `assets/os-*.svg` come from [Simp
 
 ## Download page
 
-`download.html` is a separate static entry in the Vite build and explains the outstanding desktop release gates. The landing page's primary actions are Download Kuskus and Source on GitHub. Download opens this status page until verified installers are available. Platform links and the release section open the repository’s GitHub Releases page. Update platform availability to match tested artifacts.
+`download.html` and `download-id.html` load the latest published, non-prerelease GitHub
+release through the public GitHub API. Windows NSIS (`-setup.exe`), macOS (`.dmg`), and
+Linux (`.AppImage`) assets appear as direct downloads with their filenames (including
+architecture) and sizes. Source archives and a link to all release files, checksums,
+and notes use the same release tag. Platform icons on the landing page open the matching
+OS section. Installation guidance and experimental macOS/Linux labels appear in both languages.
+
+Publish tested artifacts on GitHub Releases to make them appear without rebuilding the
+website. Only architectures actually attached to the latest release are offered. An OS
+without a matching artifact remains unavailable; an unpublished release or an API error
+shows an explicit status with a permanent GitHub Releases link. JavaScript is required
+for the inline file list. The public API requires no credentials and may be rate limited.
+Publishing source or the website does not publish installers or verify signing/native
+installation. Follow the repository release process before attaching public artifacts.
 
 ## Languages and builder attribution
 

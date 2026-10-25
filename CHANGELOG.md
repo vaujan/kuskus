@@ -12,6 +12,8 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 - Documented versioning policy and added validated, structured release notes with release preparation and consistency checks.
 - Added repeatable release maintenance checks for formatting, Storybook builds, production dependency auditing, and unpacked application inspection.
 - Added Vercel website deployment configuration and documentation.
+- Added OS-specific landing-page downloads from the latest GitHub release, with installation guidance and source archives in English and Indonesian.
+- Added native Windows, Linux, and macOS installer builds in GitHub Actions with SHA-256 checksums and explicit unsigned-test labeling.
 
 ### Changed
 
