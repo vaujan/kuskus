@@ -12,6 +12,8 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 - Documented versioning policy and added validated, structured release notes with release preparation and consistency checks.
 - Added repeatable release maintenance checks for formatting, Storybook builds, production dependency auditing, and unpacked application inspection.
 - Added Vercel website deployment configuration and documentation.
+- Added OS-specific landing-page downloads from the latest GitHub release, with installation guidance and source archives in English and Indonesian.
+- Added native Windows, Linux, and macOS installer builds in GitHub Actions with SHA-256 checksums and explicit unsigned-test labeling.
 
 ### Changed
 
@@ -33,6 +35,7 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 - Updated Electron, KaTeX, and Mermaid dependencies and patched transitive sanitizer/math dependencies.
 - Restricted external links to HTTP(S), blocked renderer navigation and webviews, and authenticated IPC requests from registered app main frames.
 - Patched Storybook and Vite development tooling and the transitive proxy-addr dependency after reviewing their security advisories.
+- Updated Electron and Undici to patched releases after the installer workflow detected new advisories.
 
 ### Performance
 

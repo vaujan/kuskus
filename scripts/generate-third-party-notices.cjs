@@ -7,6 +7,7 @@ const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
 const groups = JSON.parse(
   execFileSync(pnpm, ['licenses', 'list', '--prod', '--json'], {
     encoding: 'utf8',
+    maxBuffer: 16 * 1024 * 1024,
     shell: process.platform === 'win32'
   })
 )
@@ -27,6 +28,7 @@ const visit = (name, pkg) => {
 const trees = JSON.parse(
   execFileSync(pnpm, ['list', '--prod', '--depth', 'Infinity', '--json'], {
     encoding: 'utf8',
+    maxBuffer: 16 * 1024 * 1024,
     shell: process.platform === 'win32'
   })
 )

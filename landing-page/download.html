@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Check Kuskus desktop release readiness, try the browser demo, and browse the source code."
+      content="Download Kuskus for Windows, macOS, and Linux. Find installers, source archives, and installation instructions."
     />
     <meta name="theme-color" content="#f7f7f4" />
     <link rel="icon" type="image/x-icon" href="./assets/favicon.ico" />
@@ -52,56 +52,53 @@
     </header>
     <main id="main" class="download-page section-inner">
       <div class="download-intro">
-        <h1>Desktop releases<br />are being prepared.</h1>
+        <h1>Download Kuskus.<br />Make it yours.</h1>
         <p>
-          Windows is our first desktop release target. Verified installers will appear here once
-          signing and installation testing are complete.
+          Installers and files from the latest GitHub release. Choose the file matching your
+          computer’s architecture.
         </p>
+        <p data-download-status role="status">Checking available downloads…</p>
+        <noscript><p>Enable JavaScript or browse the files on GitHub Releases.</p></noscript>
       </div>
       <section class="download-platforms" aria-label="Choose your platform">
-        <article class="download-card">
+        <article class="download-card" id="windows">
           <img src="./assets/os-windows.svg" width="28" height="28" alt="" />
           <h2>Windows</h2>
-          <p>
-            Windows is the first public installer target. Signing and native installation testing
-            remain release gates; a verified public installer is not available yet.
-          </p>
-          <a class="primary-action" href="https://github.com/vaujan/kuskus/releases"
-            >Check release status <span aria-hidden="true">↗</span></a
-          >
+          <p>Installers for Windows x64 and ARM64.</p>
+          <div class="download-files" data-download-platform="windows">
+            No downloads loaded yet.
+          </div>
+          <p class="download-instructions">Run the .exe file and follow the setup instructions.</p>
         </article>
-        <article class="download-card">
-          <img src="./assets/os-linux.svg" width="28" height="28" alt="" />
-          <h2>Linux</h2>
-          <p>
-            Linux builds are experimental. Check the release notes for available assets and
-            installation instructions.
-          </p>
-          <a class="primary-action" href="https://github.com/vaujan/kuskus/releases"
-            >Check Linux releases <span aria-hidden="true">↗</span></a
-          >
-        </article>
-        <article class="download-card">
+        <article class="download-card" id="macos">
           <img src="./assets/os-apple.svg" width="28" height="28" alt="" />
           <h2>macOS</h2>
-          <p>
-            macOS builds are experimental. Check the release notes for availability and installation
-            details.
+          <p>Experimental · macOS 13 or later.</p>
+          <div class="download-files" data-download-platform="macos">No downloads loaded yet.</div>
+          <p class="download-instructions">
+            Open the .dmg and drag Kuskus to Applications. Choose arm64 for Apple silicon or x64 for
+            Intel.
           </p>
-          <a class="secondary-action" href="https://github.com/vaujan/kuskus/releases"
-            >Check macOS releases <span aria-hidden="true">↗</span></a
-          >
+        </article>
+        <article class="download-card" id="linux">
+          <img src="./assets/os-linux.svg" width="28" height="28" alt="" />
+          <h2>Linux</h2>
+          <p>Experimental · AppImage.</p>
+          <div class="download-files" data-download-platform="linux">No downloads loaded yet.</div>
+          <p class="download-instructions">
+            Allow the .AppImage to run as a program in its file properties, then open it.
+          </p>
         </article>
       </section>
       <section class="download-releases" id="releases" aria-labelledby="releases-title">
         <div>
           <h2 id="releases-title">See what’s new.</h2>
           <p>
-            Verified desktop downloads will be listed on GitHub with release notes, checksums,
-            installation instructions, and corresponding source code.
+            Read the release notes for supported architectures, installation details, and known
+            limitations. Download checksums and additional files from the same release.
           </p>
         </div>
-        <div class="cta-actions">
+        <div class="cta-actions" data-release-files>
           <a class="primary-action" href="https://github.com/vaujan/kuskus/releases"
             >View releases <span aria-hidden="true">↗</span></a
           >
@@ -123,5 +120,6 @@
       </div>
     </footer>
     <script type="module" src="./src/language-select.ts"></script>
+    <script type="module" src="./src/downloads.ts"></script>
   </body>
 </html>

@@ -9,6 +9,9 @@ allowBuilds:
   esbuild: true
 minimumReleaseAge: 10080
 minimumReleaseAgeExclude:
+  # Security patches verified against the installer audit advisories.
+  - electron@44.9.1
+  - undici@7.30.1
   - eventsource-parser@3.1.1
   - hono@4.13.1
   - ip-address@10.5.0
@@ -29,7 +32,7 @@ trustPolicyIgnoreAfter: 10080
 overrides:
   dompurify: ^3.4.17
   katex: 0.18.10
-  undici: ^7.29.1
+  undici: ^7.30.1
   proxy-addr: ^2.0.8
 
   # PDF.js uses Chromium's canvas in the renderer; its optional Node backend is unused.

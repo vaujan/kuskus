@@ -4,9 +4,19 @@ const { join } = require('node:path')
 const { listPackage, extractFile } = require('@electron/asar')
 const manifest = require('../package.json')
 const platform = process.argv[2] ?? process.platform
-if (!['win32', 'linux'].includes(platform)) throw new Error('Inspect a win32 or linux package.')
-const root = join('dist', platform === 'win32' ? 'win-unpacked' : 'linux-unpacked')
-const archive = join(root, 'resources', 'app.asar')
+if (!['win32', 'linux', 'darwin'].includes(platform))
+  throw new Error('Inspect a win32, linux, or darwin package.')
+const root =
+  platform === 'darwin'
+    ? join(
+        'dist',
+        process.arch === 'arm64' ? 'mac-arm64' : 'mac',
+        'Kuskus.app',
+        'Contents',
+        'Resources'
+      )
+    : join('dist', platform === 'win32' ? 'win-unpacked' : 'linux-unpacked')
+const archive = join(root, platform === 'darwin' ? '' : 'resources', 'app.asar')
 const files = listPackage(archive).map((name) => name.replaceAll('\\', '/').replace(/^\/+/, ''))
 const allowedRoots = new Set([
   'out',
