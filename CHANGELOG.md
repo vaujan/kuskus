@@ -35,6 +35,7 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 - Updated Electron, KaTeX, and Mermaid dependencies and patched transitive sanitizer/math dependencies.
 - Restricted external links to HTTP(S), blocked renderer navigation and webviews, and authenticated IPC requests from registered app main frames.
 - Patched Storybook and Vite development tooling and the transitive proxy-addr dependency after reviewing their security advisories.
+- Updated Electron and Undici to patched releases after the installer workflow detected new advisories.
 
 ### Performance
 
