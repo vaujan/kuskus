@@ -1,0 +1,48 @@
+name: Publish experimental preview
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Successful Build desktop installers run ID
+        type: string
+        required: true
+      tag:
+        description: Existing draft prerelease tag
+        type: string
+        required: true
+  pull_request:
+    paths:
+      - .github/workflows/publish-preview.yml
+      - scripts/publish-preview.cjs
+permissions:
+  contents: read
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: node --check scripts/publish-preview.cjs
+  publish:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+      - name: Verify and publish draft preview assets
+        run: node scripts/publish-preview.cjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PREVIEW_RUN_ID: ${{ inputs.run_id }}
+          PREVIEW_TAG: ${{ inputs.tag }}
