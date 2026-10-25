@@ -1,5 +1,6 @@
 # Source and browser-demo launch
 
+Current review: [public launch readiness, 2026-10-25](22-public-launch-review.md). The results below are historical; the current audit reports production advisories and the latest default-branch CI failed.
 Prepared 2026-10-22 (Asia/Jayapura). Launch the source repository and browser demo first. Public Windows installers follow when signing and native testing are available. Do not describe the desktop app as a verified public binary release yet.
 
 ## Ready locally

@@ -1,5 +1,6 @@
 # Open-source and release readiness
 
+Current review: [public launch readiness, 2026-10-25](22-public-launch-review.md). The results below are historical; the current audit reports production advisories and the latest default-branch CI failed.
 See [the desktop beta plan](18-beta-release-plan.md) for the 2026-10-23 hardening follow-up and
 remaining transaction-recovery gates. The verification counts below describe the earlier pass.
 

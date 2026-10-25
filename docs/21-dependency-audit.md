@@ -1,5 +1,6 @@
 # Dependency audit follow-up
 
+Current review: [public launch readiness, 2026-10-25](22-public-launch-review.md). The results below are historical; the current audit reports production advisories and the latest default-branch CI failed.
 Recorded 2026-10-23 (Asia/Jayapura). This is a dated maintenance record, not an advisory allowlist.
 Re-run the audits against the exact release commit; database results change over time.
 
