@@ -22,6 +22,7 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 - Restricted packaged repository files, generated third-party notices, and added package inspection.
 - Added Windows/Linux CI checks and a Windows release command that validates and requires signing without changing versions or publishing.
 - Documented release scope, privacy, contributions, vulnerability reporting, and release verification.
+- Display published experimental desktop previews on both download pages, including signing status and manual-update guidance.
 
 ### Fixed
 

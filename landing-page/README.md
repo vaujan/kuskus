@@ -66,8 +66,8 @@ The macOS (Apple), Windows, and Linux logos in `assets/os-*.svg` come from [Simp
 
 ## Download page
 
-`download.html` and `download-id.html` load the latest published, non-prerelease GitHub
-release through the public GitHub API. Windows NSIS (`-setup.exe`), macOS (`.dmg`), and
+`download.html` and `download-id.html` load the latest published GitHub
+release (including explicitly labeled experimental previews) through the public GitHub API. Windows NSIS (`-setup.exe`), macOS (`.dmg`), and
 Linux (`.AppImage`) assets appear as direct downloads with their filenames (including
 architecture) and sizes. Source archives and a link to all release files, checksums,
 and notes use the same release tag. Platform icons on the landing page open the matching

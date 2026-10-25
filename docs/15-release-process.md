@@ -68,8 +68,6 @@ and [macOS options](https://www.electron.build/v26/docs/api/app-builder-lib.inte
 Linux AppImages do not use Windows or Apple signing credentials.
 
 The website currently reads `vaujan/kuskus` public GitHub releases. That repository
-is private as checked on 2026-10-25, so anonymous visitors cannot access its files.
-Before enabling public downloads, choose either public source publication or a
-separate public distribution repository. If using a separate repository, update
-the website download repository and retain corresponding GPL source archives for
-every distributed build. Never embed GitHub access tokens in the website.
+was made public on 2026-10-25 with owner approval. Public experimental previews
+are labeled as unsigned test builds, with checksums and corresponding tagged source.
+They do not establish native installation verification or signing readiness. Never embed GitHub access tokens in the website.

@@ -21,7 +21,8 @@
         "Removed obsolete library and draft migrations; vault opening no longer converts old Markdown metadata.",
         "Restricted packaged repository files, generated third-party notices, and added package inspection.",
         "Added Windows/Linux CI checks and a Windows release command that validates and requires signing without changing versions or publishing.",
-        "Documented release scope, privacy, contributions, vulnerability reporting, and release verification."
+        "Documented release scope, privacy, contributions, vulnerability reporting, and release verification.",
+        "Display published experimental desktop previews on both download pages, including signing status and manual-update guidance."
       ],
       "Added": [
         "Development-only React Scan and React Grab overlays for spotting wasted renders and copying component source.",

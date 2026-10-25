@@ -7,7 +7,9 @@ const copy = indonesian
       error: 'Daftar unduhan tidak dapat dimuat. Periksa berkas langsung di GitHub Releases.',
       release: 'Rilis terbaru:',
       source: 'Kode sumber',
-      download: 'Unduh'
+      download: 'Unduh',
+      preview:
+        'Pratinjau eksperimental · Windows belum ditandatangani; macOS memakai penandatanganan ad-hoc tanpa notarisasi. Pembaruan dipasang manual.'
     }
   : {
       empty: 'No files for this platform in the latest release yet.',
@@ -16,7 +18,9 @@ const copy = indonesian
       error: 'Downloads could not be loaded. Check the files directly on GitHub Releases.',
       release: 'Latest release:',
       source: 'Source code',
-      download: 'Download'
+      download: 'Download',
+      preview:
+        'Experimental preview · Windows is unsigned; macOS uses ad-hoc signing without notarization. Updates are installed manually.'
     }
 
 interface ReleaseAsset {
@@ -28,6 +32,8 @@ interface ReleaseAsset {
 interface Release {
   tag_name: string
   assets: ReleaseAsset[]
+  prerelease: boolean
+  draft: boolean
 }
 
 function addDownload(container: Element, label: string, url: string, primary = false): void {
@@ -41,18 +47,26 @@ function addDownload(container: Element, label: string, url: string, primary = f
 async function loadDownloads(): Promise<void> {
   const status = document.querySelector<HTMLElement>('[data-download-status]')!
   try {
-    const response = await fetch('https://api.github.com/repos/vaujan/kuskus/releases/latest', {
-      headers: { Accept: 'application/vnd.github+json' },
-      signal: AbortSignal.timeout(10000)
-    })
+    const response = await fetch(
+      'https://api.github.com/repos/vaujan/kuskus/releases?per_page=10',
+      {
+        headers: { Accept: 'application/vnd.github+json' },
+        signal: AbortSignal.timeout(10000)
+      }
+    )
     if (response.status === 404) {
       status.textContent = copy.unpublished
       return
     }
     if (!response.ok) throw new Error(`GitHub returned ${response.status}`)
-    const release: Release = await response.json()
+    const releases: Release[] = await response.json()
+    const release = releases.find((candidate) => !candidate.draft)
+    if (!release) {
+      status.textContent = copy.unpublished
+      return
+    }
     const releaseUrl = `${repository}/releases/tag/${encodeURIComponent(release.tag_name)}`
-    status.textContent = `${copy.release} ${release.tag_name}`
+    status.textContent = `${copy.release} ${release.tag_name}${release.prerelease ? ` · ${copy.preview}` : ''}`
     const formats = {
       windows: /-setup\.exe$/i,
       macos: /\.dmg$/i,
