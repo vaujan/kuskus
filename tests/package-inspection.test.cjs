@@ -13,14 +13,25 @@ async function inspect(
   extraFile = null,
   atomicNotice = true,
   electronNotice = true,
-  version = manifest.version
+  version = manifest.version,
+  target = process.platform
 ) {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-package-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const input = join(root, 'input')
-  const platform = process.platform === 'win32' ? 'win-unpacked' : 'linux-unpacked'
-  const packaged = join(root, 'dist', platform)
-  const resources = join(packaged, 'resources')
+  const platform = target === 'win32' ? 'win-unpacked' : 'linux-unpacked'
+  const packaged =
+    target === 'darwin'
+      ? join(
+          root,
+          'dist',
+          process.arch === 'arm64' ? 'mac-arm64' : 'mac',
+          'Kuskus.app',
+          'Contents',
+          'Resources'
+        )
+      : join(root, 'dist', platform)
+  const resources = target === 'darwin' ? packaged : join(packaged, 'resources')
   await mkdir(resources, { recursive: true })
   const files = {
     'out/main/index.js': '',
@@ -38,7 +49,7 @@ async function inspect(
   await createPackage(input, join(resources, 'app.asar'))
   for (const name of electronNotice ? ['LICENSE.electron.txt', 'LICENSES.chromium.html'] : [])
     await writeFile(join(packaged, name), 'Electron notice')
-  return spawnSync(process.execPath, [resolve('scripts/verify-package.cjs')], {
+  return spawnSync(process.execPath, [resolve('scripts/verify-package.cjs'), target], {
     cwd: root,
     encoding: 'utf8'
   })
@@ -76,4 +87,12 @@ test('package inspection rejects stale release versions and development tooling'
     assert.notEqual(result.status, 0)
     assert.match(result.stderr, /Development tooling/)
   }
+})
+
+test('macOS package inspection uses app bundle resources and requires Electron notices', async (context) => {
+  const valid = await inspect(context, null, true, true, manifest.version, 'darwin')
+  assert.equal(valid.status, 0, valid.stderr)
+  const invalid = await inspect(context, null, true, false, manifest.version, 'darwin')
+  assert.notEqual(invalid.status, 0)
+  assert.match(invalid.stderr, /Electron notice missing/)
 })

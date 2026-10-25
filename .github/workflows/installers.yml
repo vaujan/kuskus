@@ -58,7 +58,6 @@ jobs:
       - name: Package unsigned installer for native testing
         run: pnpm exec electron-builder ${{ matrix.arguments }} --publish never
       - name: Inspect packaged application
-        if: runner.os != 'macOS'
         run: pnpm package:verify
       - name: Collect installers and SHA-256 checksums
         run: node scripts/collect-installers.cjs

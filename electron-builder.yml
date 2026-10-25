@@ -25,6 +25,11 @@ nsis:
 mac:
   icon: build/icon.png
   target: [dmg]
+  extraFiles:
+    - from: node_modules/electron/dist/LICENSE
+      to: Resources/LICENSE.electron.txt
+    - from: node_modules/electron/dist/LICENSES.chromium.html
+      to: Resources/LICENSES.chromium.html
   minimumSystemVersion: 13.0.0
   notarize: true
   category: public.app-category.productivity
