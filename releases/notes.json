@@ -30,7 +30,8 @@
         "Added repeatable release maintenance checks for formatting, Storybook builds, production dependency auditing, and unpacked application inspection.",
         "Added Vercel website deployment configuration and documentation.",
         "Added OS-specific landing-page downloads from the latest GitHub release, with installation guidance and source archives in English and Indonesian.",
-        "Added native Windows, Linux, and macOS installer builds in GitHub Actions with SHA-256 checksums and explicit unsigned-test labeling."
+        "Added native Windows, Linux, and macOS installer builds in GitHub Actions with SHA-256 checksums and explicit unsigned-test labeling.",
+        "Added GitHub-hosted preview publication that verifies all four installers, source provenance, and checksums before publishing a draft prerelease."
       ]
     }
   },

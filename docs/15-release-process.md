@@ -71,3 +71,21 @@ The website currently reads `vaujan/kuskus` public GitHub releases. That reposit
 was made public on 2026-10-25 with owner approval. Public experimental previews
 are labeled as unsigned test builds, with checksums and corresponding tagged source.
 They do not establish native installation verification or signing readiness. Never embed GitHub access tokens in the website.
+
+### Publishing an experimental preview
+
+The **Publish experimental preview** workflow accepts a successful **Build desktop
+installers** run ID and an existing draft prerelease tag. Create the draft with its
+target set to the full `Source commit` SHA recorded in the build's `BUILD-INFO.txt`
+(the PR merge commit for PR builds), and explain signing and testing limitations in
+the release notes. Use a prerelease tag such as `v0.0.3-preview.1`; it must match
+the version inside the installer filenames.
+
+Dispatch the workflow from the reviewed source ref. It downloads artifacts inside
+GitHub, requires all four installers, verifies every SHA-256 hash and the source
+commit against the draft, uploads installers plus a combined `SHA256SUMS.txt` and
+`BUILD-INFO.txt`, then publishes the prerelease. Failed verification or uploads
+leave the release unpublished. This flow never creates a stable release and does
+not satisfy the signed/native installation gates for one. Public preview downloads
+appear automatically on both website download pages, with experimental signing
+status and manual-update guidance.

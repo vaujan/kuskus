@@ -14,6 +14,7 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 - Added Vercel website deployment configuration and documentation.
 - Added OS-specific landing-page downloads from the latest GitHub release, with installation guidance and source archives in English and Indonesian.
 - Added native Windows, Linux, and macOS installer builds in GitHub Actions with SHA-256 checksums and explicit unsigned-test labeling.
+- Added GitHub-hosted preview publication that verifies all four installers, source provenance, and checksums before publishing a draft prerelease.
 
 ### Changed
 
