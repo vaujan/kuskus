@@ -46,7 +46,7 @@ try {
     buildInfo = info
     const checksum = readFileSync(join(root, 'SHA256SUMS.txt'), 'utf8').trim()
     const match = checksum.match(
-      /^([a-f0-9]{64})  (kuskus-\d+\.\d+\.\d+-(?:x64-setup\.exe|(?:x64|arm64)\.dmg|x86_64\.AppImage))$/
+      /^([a-f0-9]{64}) {2}(kuskus-\d+\.\d+\.\d+-(?:x64-setup\.exe|(?:x64|arm64)\.dmg|x86_64\.AppImage))$/
     )
     if (!match || names.has(match[2]))
       throw new Error(`Invalid installer checksum manifest: ${artifact}`)
