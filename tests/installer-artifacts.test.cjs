@@ -22,7 +22,7 @@ test('installer collection includes only current artifacts and produces verifiab
     const installers = [
       `${name}-${version}-x64-setup.exe`,
       `${name}-${version}-arm64.dmg`,
-      `${name}-${version}-x64.AppImage`
+      `${name}-${version}-x86_64.AppImage`
     ]
     for (const filename of [...installers, `${name}-0.0.0-x64-setup.exe`, 'builder-debug.yml']) {
       writeFileSync(join(cwd, 'dist', filename), filename)

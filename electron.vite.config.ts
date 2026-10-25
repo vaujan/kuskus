@@ -1,4 +1,5 @@
 import { resolve } from 'path'
+import { normalizePath } from 'vite'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
 import { defineConfig } from 'electron-vite'
 import react from '@vitejs/plugin-react'
@@ -19,7 +20,7 @@ export default defineConfig({
       tailwindcss(),
       viteStaticCopy({
         targets: ['cmaps', 'standard_fonts', 'wasm', 'iccs'].map((directory) => ({
-          src: resolve('node_modules/pdfjs-dist', directory),
+          src: normalizePath(resolve('node_modules/pdfjs-dist', directory)),
           dest: 'pdfjs'
         }))
       })

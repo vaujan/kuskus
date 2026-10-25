@@ -12,7 +12,7 @@ const filenames = readdirSync(input)
       [
         `${name}-${version}-${arch}-setup.exe`,
         `${name}-${version}-${arch}.dmg`,
-        `${name}-${version}-${arch}.AppImage`
+        `${name}-${version}-${arch === 'x64' ? 'x86_64' : arch}.AppImage`
       ].includes(filename)
     )
   )

@@ -40,6 +40,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      # Only ad-hoc identities are used; this workflow receives no signing secrets.
+      CSC_FOR_PULL_REQUEST: 'true'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -52,6 +54,8 @@ jobs:
           node-version: 24.19.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Install Electron runtime and its license notices
+        run: pnpm exec install-electron
       - run: pnpm version:check
       - run: pnpm audit --prod
       - run: pnpm build
