@@ -5,7 +5,8 @@
         "Updated Electron, KaTeX, and Mermaid dependencies and patched transitive sanitizer/math dependencies.",
         "Restricted external links to HTTP(S), blocked renderer navigation and webviews, and authenticated IPC requests from registered app main frames.",
         "Patched Storybook and Vite development tooling and the transitive proxy-addr dependency after reviewing their security advisories.",
-        "Updated Electron and Undici to patched releases after the installer workflow detected new advisories."
+        "Updated Electron and Undici to patched releases after the installer workflow detected new advisories.",
+        "Removed demo bookmark image copies without recorded redistribution permission."
       ],
       "Performance": [
         "Keep staged note saves in the internal temporary directory so autosave does not trigger a full-vault rebuild."

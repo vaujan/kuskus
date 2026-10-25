@@ -15,7 +15,6 @@ import type {
   UrlItemDto
 } from '../../../shared/library-contract'
 import type { LibraryDestination } from '../features/shell/library-sidebar'
-import { studentBookmarkPreviews } from './student-bookmark-previews'
 import type { CaptureApi } from '../../../shared/capture-contract'
 import type { ElectronWindowApi } from '../../../shared/window-contract'
 import { NOTE_FORMATTING_MARKDOWN, SAMPLE_NOTE } from '../features/items/note-story-fixtures'
@@ -213,17 +212,7 @@ export function installPreview(value: LibraryDto, destination: LibraryDestinatio
       }),
     getImageThumbnail: async (itemId: string) => imagePreviewFor(itemId),
     getImagePreview: async (itemId: string) => imagePreviewFor(itemId),
-    getUrlPreview: async (itemId: string) => {
-      const item = value.items.find((entry) => entry.id === itemId)
-      const preview = item?.type === 'url' ? studentBookmarkPreviews[item.sourceUrl] : undefined
-      if (!preview) return unavailable()
-      const response = await fetch(preview)
-      if (!response.ok) return unavailable()
-      return ok({
-        bytes: await response.arrayBuffer(),
-        mediaType: response.headers.get('content-type') ?? 'image/png'
-      })
-    },
+    getUrlPreview: async () => unavailable(),
     onVaultChanged: () => unsubscribe
   }
   window.kuskus = new Proxy(readApi, {

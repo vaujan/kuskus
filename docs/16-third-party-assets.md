@@ -15,3 +15,9 @@ The generator excludes the Electron npm downloader subtree, which is build tooli
 | `.agents/skills/`                                                                 | Five upstream sources recorded in `skills-lock.json`; MIT declarations verified on 2026-10-22 | Source attribution and notices retained in [third-party/skills](../third-party/skills/README.md); excluded from application archives |
 
 Artwork clearance records the maintainer's explicit confirmation, rather than inferring ownership from files being checked into Git. Preserve third-party notices when redistributing the repository. Review screenshots and sample text for personal information as well.
+
+## Bookmark previews
+
+Publisher images and book covers were removed from the browser demo on 2026-10-25 because their redistribution permission was not recorded. Demo bookmarks retain their titles, descriptions, and source links and use the app's normal cards without preview images. Do not reintroduce copied previews without recorded redistribution terms and attribution.
+
+The removed images remain in earlier Git commits. Review their presence in published history before changing repository visibility; removing files from the current tree does not clear historical redistribution rights.

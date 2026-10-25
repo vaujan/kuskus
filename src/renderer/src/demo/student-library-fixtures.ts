@@ -1,5 +1,4 @@
 import type { CollectionDto, LibraryItemDto } from '../../../shared/library-contract'
-import { studentBookmarkPreviews } from './student-bookmark-previews'
 import { SAMPLE_NOTE } from '../features/items/note-story-fixtures'
 
 // Original student notes and real bookmarks. No generated photographs or borrowed lecture files.
@@ -357,7 +356,7 @@ export const studentItems: LibraryItemDto[] = entries.flatMap((group, folderInde
         contentKind: 'webpage',
         metadataVersion: 1,
         hasFavicon: false,
-        hasPreviewImage: Boolean(studentBookmarkPreviews[entry.url]),
+        hasPreviewImage: false,
         metadataStatus: 'ready',
         metadataError: null,
         relativePath: `${folder.relativePath}/${entry.title}.url`
