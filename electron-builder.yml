@@ -21,9 +21,16 @@ nsis:
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
-# macOS and Linux builds are experimental; the release command targets Windows.
+# macOS and Linux remain experimental until native installation checks pass.
 mac:
   icon: build/icon.png
+  target: [dmg]
+  extraFiles:
+    - from: node_modules/electron/dist/LICENSE
+      to: Resources/LICENSE.electron.txt
+    - from: node_modules/electron/dist/LICENSES.chromium.html
+      to: Resources/LICENSES.chromium.html
+  minimumSystemVersion: 13.0.0
   notarize: true
   category: public.app-category.productivity
 dmg:

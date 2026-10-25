@@ -12,6 +12,9 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 - Documented versioning policy and added validated, structured release notes with release preparation and consistency checks.
 - Added repeatable release maintenance checks for formatting, Storybook builds, production dependency auditing, and unpacked application inspection.
 - Added Vercel website deployment configuration and documentation.
+- Added OS-specific landing-page downloads from the latest GitHub release, with installation guidance and source archives in English and Indonesian.
+- Added native Windows, Linux, and macOS installer builds in GitHub Actions with SHA-256 checksums and explicit unsigned-test labeling.
+- Added GitHub-hosted preview publication that verifies all four installers, source provenance, and checksums before publishing a draft prerelease.
 
 ### Changed
 
@@ -20,6 +23,7 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 - Restricted packaged repository files, generated third-party notices, and added package inspection.
 - Added Windows/Linux CI checks and a Windows release command that validates and requires signing without changing versions or publishing.
 - Documented release scope, privacy, contributions, vulnerability reporting, and release verification.
+- Display published experimental desktop previews on both download pages, including signing status and manual-update guidance.
 
 ### Fixed
 
@@ -27,12 +31,14 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 - Update the application-menu regression check for the current focus workspace toolbar ownership.
 - Watch canonical vault paths to prevent a native Windows crash when a folder uses a short path alias.
 - Measure typing against the current search controls and isolate body autosave from title-driven file renames.
+- Rebuild pnpm package-store indexes during Vercel installs so cached dependencies do not break website license generation.
 
 ### Security
 
 - Updated Electron, KaTeX, and Mermaid dependencies and patched transitive sanitizer/math dependencies.
 - Restricted external links to HTTP(S), blocked renderer navigation and webviews, and authenticated IPC requests from registered app main frames.
 - Patched Storybook and Vite development tooling and the transitive proxy-addr dependency after reviewing their security advisories.
+- Updated Electron and Undici to patched releases after the installer workflow detected new advisories.
 
 ### Performance
 

@@ -44,3 +44,48 @@ CI caches Electron runtimes and packaging tools by operating system, architectur
 To inspect a cross-compiled Windows package on Linux, run `pnpm package:verify win32`. This checks archive contents and required notices, including electron-builder's `LICENSE.electron.txt`; it does not establish Windows installation or signing correctness.
 
 When cross-building Windows on Linux, NSIS uses Wine to generate its uninstaller. Wine needs an initialized prefix owned by the current user and working system services. A partial setup stub from a failed Wine run is not an installer. Prefer the Windows CI artifact if the local Wine environment cannot finish initialization; signing and clean-machine checks are still required.
+
+## Cross-platform installer builds
+
+The **Build desktop installers** Actions workflow creates Windows x64 NSIS setup,
+Linux x64 AppImage, and macOS ARM64/Intel DMG files on native hosted runners.
+It runs on packaging/app pull requests and can also be dispatched manually once
+merged into the default branch. Each job uploads an archive containing its installer,
+`SHA256SUMS.txt`, and `BUILD-INFO.txt` for 14 days. Download the matching artifact
+from the workflow run; extract the archive before using its installer.
+
+These are unsigned test builds; macOS uses ad-hoc signing without notarization.
+They do not satisfy the public release signing or native installation checks above.
+The workflow never publishes a release or changes repository visibility. GitHub
+requires repository access to download Actions artifacts, so do not link these
+archives from the public website. See [GitHub artifact access](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts).
+
+After native verification, build signed Windows installers using `pnpm release`.
+For macOS distribution, supply a Developer ID certificate through `CSC_LINK` and
+`CSC_KEY_PASSWORD` plus Apple's notarization credentials, then run `pnpm build:mac`;
+keep `mac.notarize` enabled. See [electron-builder signing](https://www.electron.build/v26/docs/features/code-signing/)
+and [macOS options](https://www.electron.build/v26/docs/api/app-builder-lib.interface.macconfiguration/).
+Linux AppImages do not use Windows or Apple signing credentials.
+
+The website currently reads `vaujan/kuskus` public GitHub releases. That repository
+was made public on 2026-10-25 with owner approval. Public experimental previews
+are labeled as unsigned test builds, with checksums and corresponding tagged source.
+They do not establish native installation verification or signing readiness. Never embed GitHub access tokens in the website.
+
+### Publishing an experimental preview
+
+The **Publish experimental preview** workflow accepts a successful **Build desktop
+installers** run ID and an existing draft prerelease tag. Create the draft with its
+target set to the full `Source commit` SHA recorded in the build's `BUILD-INFO.txt`
+(the PR merge commit for PR builds), and explain signing and testing limitations in
+the release notes. Use a prerelease tag such as `v0.0.3-preview.1`; it must match
+the version inside the installer filenames.
+
+Dispatch the workflow from the reviewed source ref. It downloads artifacts inside
+GitHub, requires all four installers, verifies every SHA-256 hash and the source
+commit against the draft, uploads installers plus a combined `SHA256SUMS.txt` and
+`BUILD-INFO.txt`, then publishes the prerelease. Failed verification or uploads
+leave the release unpublished. This flow never creates a stable release and does
+not satisfy the signed/native installation gates for one. Public preview downloads
+appear automatically on both website download pages, with experimental signing
+status and manual-update guidance.

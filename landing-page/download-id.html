@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Periksa kesiapan rilis desktop Kuskus, coba demo di browser, dan jelajahi kode sumbernya."
+      content="Unduh Kuskus untuk Windows, macOS, dan Linux. Temukan penginstal, arsip kode sumber, dan petunjuk instalasi."
     />
     <meta name="theme-color" content="#f7f7f4" />
     <link rel="icon" type="image/x-icon" href="./assets/favicon.ico" />
@@ -52,57 +52,57 @@
     </header>
     <main id="main" class="download-page section-inner">
       <div class="download-intro">
-        <h1>Rilis desktop<br />sedang disiapkan.</h1>
+        <h1>Unduh Kuskus.<br />Pilih platformmu.</h1>
         <p>
-          Windows menjadi target rilis desktop pertama kami. Penginstal terverifikasi akan tersedia
-          di sini setelah penandatanganan dan pengujian instalasi selesai.
+          Penginstal dan berkas dari rilis GitHub terbaru. Pilih berkas sesuai arsitektur
+          komputermu.
         </p>
+        <p data-download-status role="status">Memeriksa unduhan yang tersedia…</p>
+        <noscript><p>Aktifkan JavaScript atau lihat berkas di GitHub Releases.</p></noscript>
       </div>
       <section class="download-platforms" aria-label="Pilih platformmu">
-        <article class="download-card">
+        <article class="download-card" id="windows">
           <img src="./assets/os-windows.svg" width="28" height="28" alt="" />
           <h2>Windows</h2>
-          <p>
-            Windows menjadi target pertama untuk penginstal publik. Penandatanganan dan pengujian
-            instalasi langsung di Windows masih menjadi syarat rilis. Penginstal publik
-            terverifikasi belum tersedia.
-          </p>
-          <a class="primary-action" href="https://github.com/vaujan/kuskus/releases"
-            >Periksa status rilis <span aria-hidden="true">↗</span></a
-          >
+          <p>Untuk Windows 64-bit (x64).</p>
+          <div class="download-files" data-download-platform="windows">
+            Belum ada unduhan yang dimuat.
+          </div>
+          <p class="download-instructions">Jalankan berkas .exe dan ikuti petunjuk instalasi.</p>
         </article>
-        <article class="download-card">
-          <img src="./assets/os-linux.svg" width="28" height="28" alt="" />
-          <h2>Linux</h2>
-          <p>
-            Versi Linux masih eksperimental. Periksa catatan rilis untuk berkas yang tersedia dan
-            petunjuk instalasi.
-          </p>
-          <a class="primary-action" href="https://github.com/vaujan/kuskus/releases"
-            >Periksa rilis Linux <span aria-hidden="true">↗</span></a
-          >
-        </article>
-        <article class="download-card">
+        <article class="download-card" id="macos">
           <img src="./assets/os-apple.svg" width="28" height="28" alt="" />
           <h2>macOS</h2>
-          <p>
-            Versi macOS masih eksperimental. Periksa catatan rilis untuk ketersediaan dan rincian
-            instalasi.
+          <p>Eksperimental · macOS 13 atau lebih baru.</p>
+          <div class="download-files" data-download-platform="macos">
+            Belum ada unduhan yang dimuat.
+          </div>
+          <p class="download-instructions">
+            Buka .dmg, lalu seret Kuskus ke Applications. Pilih arm64 untuk Apple silicon atau x64
+            untuk Intel.
           </p>
-          <a class="secondary-action" href="https://github.com/vaujan/kuskus/releases"
-            >Periksa rilis macOS <span aria-hidden="true">↗</span></a
-          >
+        </article>
+        <article class="download-card" id="linux">
+          <img src="./assets/os-linux.svg" width="28" height="28" alt="" />
+          <h2>Linux</h2>
+          <p>Eksperimental · AppImage.</p>
+          <div class="download-files" data-download-platform="linux">
+            Belum ada unduhan yang dimuat.
+          </div>
+          <p class="download-instructions">
+            Izinkan berkas .AppImage dijalankan sebagai program melalui properti berkas, lalu buka.
+          </p>
         </article>
       </section>
       <section class="download-releases" id="releases" aria-labelledby="releases-title">
         <div>
           <h2 id="releases-title">Lihat yang terbaru.</h2>
           <p>
-            Unduhan desktop terverifikasi akan tersedia di GitHub bersama catatan rilis, checksum,
-            petunjuk instalasi, dan kode sumber yang sesuai.
+            Baca catatan rilis untuk arsitektur yang didukung, rincian instalasi, dan batasan yang
+            diketahui. Unduh checksum dan berkas tambahan dari rilis yang sama.
           </p>
         </div>
-        <div class="cta-actions">
+        <div class="cta-actions" data-release-files>
           <a class="primary-action" href="https://github.com/vaujan/kuskus/releases"
             >Lihat rilis <span aria-hidden="true">↗</span></a
           >
@@ -124,5 +124,6 @@
       </div>
     </footer>
     <script type="module" src="./src/language-select.ts"></script>
+    <script type="module" src="./src/downloads.ts"></script>
   </body>
 </html>
