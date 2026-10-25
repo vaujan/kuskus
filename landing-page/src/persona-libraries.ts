@@ -4,7 +4,6 @@ import {
   studentCollections,
   studentItems
 } from '../../src/renderer/src/demo/student-library-fixtures'
-import { studentBookmarkPreviews } from '../../src/renderer/src/demo/student-bookmark-previews'
 import type { DemoPersonaId } from './demo-personas'
 
 interface DemoEntry {
@@ -362,7 +361,7 @@ export function personaLibrary(id: DemoPersonaId): LibraryDto {
                 contentKind: 'webpage',
                 metadataVersion: 1,
                 hasFavicon: false,
-                hasPreviewImage: Boolean(studentBookmarkPreviews[entry.url]),
+                hasPreviewImage: false,
                 metadataStatus: 'ready',
                 metadataError: null,
                 relativePath: `${collection.relativePath}/${entry.title}.url`
