@@ -14,7 +14,8 @@
         "Flush staged note content before replacing the original in one rename, keeping a complete note at its original path if the save process exits before or after replacement.",
         "Update the application-menu regression check for the current focus workspace toolbar ownership.",
         "Watch canonical vault paths to prevent a native Windows crash when a folder uses a short path alias.",
-        "Measure typing against the current search controls and isolate body autosave from title-driven file renames."
+        "Measure typing against the current search controls and isolate body autosave from title-driven file renames.",
+        "Rebuild pnpm package-store indexes during Vercel installs so cached dependencies do not break website license generation."
       ],
       "Changed": [
         "Keep Download Kuskus and Source on GitHub as the landing page's main actions; the download page tracks installer availability.",

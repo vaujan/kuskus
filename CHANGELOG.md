@@ -31,6 +31,7 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 - Update the application-menu regression check for the current focus workspace toolbar ownership.
 - Watch canonical vault paths to prevent a native Windows crash when a folder uses a short path alias.
 - Measure typing against the current search controls and isolate body autosave from title-driven file renames.
+- Rebuild pnpm package-store indexes during Vercel installs so cached dependencies do not break website license generation.
 
 ### Security
 

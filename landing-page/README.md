@@ -29,7 +29,9 @@ Vercel Authentication protects preview deployments only; production is public.
 
 Import the repository with its root directory set to the repository root, not `landing-page`.
 The root `vercel.json` defines installation, website type checking/building, and the
-`landing-page/dist` output. Electron's runtime download is skipped for this static website build.
+`landing-page/dist` output. Electron's runtime download is skipped for this static website build. The Vercel install
+uses `--force` because its dependency cache can restore `node_modules` without pnpm's
+package-store indexes; license generation requires those indexes to be rebuilt.
 The uploaded source includes the renderer and license-generation inputs; `.vercelignore` excludes
 local profiles, scratch work, credentials, and generated builds.
 
