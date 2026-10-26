@@ -1,7 +1,6 @@
 // shadcn's framework detector expects a conventional Vite config file.
 // Electron builds use electron.vite.config.ts; this mirrors the renderer setup.
 import { resolve } from 'path'
-import { normalizePath } from 'vite'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'

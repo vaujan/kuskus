@@ -57,7 +57,7 @@ jobs:
       - name: Install Electron runtime and its license notices
         run: pnpm exec install-electron
       - run: pnpm version:check
-      - run: pnpm audit --prod
+      - run: pnpm audit
       - run: pnpm build
       - name: Package unsigned installer for native testing
         run: pnpm exec electron-builder ${{ matrix.arguments }} --publish never

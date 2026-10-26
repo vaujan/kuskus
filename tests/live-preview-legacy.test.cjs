@@ -17,6 +17,7 @@ require.extensions['.ts'] = (module, filename) => {
 }
 
 const { markdown } = require('@codemirror/lang-markdown')
+const { ensureSyntaxTree } = require('@codemirror/language')
 const { EditorState } = require('@codemirror/state')
 const { GFM } = require('@lezer/markdown')
 const {
@@ -44,8 +45,12 @@ test('builds live-preview block decorations outside a view plugin', () => {
     extensions: [markdown({ extensions: GFM })]
   })
 
+  // State creation may stop parsing at its time budget under parallel test load.
+  assert.ok(ensureSyntaxTree(state, state.doc.length, 1_000))
+  // Publish the completed parse context into the immutable language state.
+  const parsedState = state.update({}).state
   const blocks = []
-  buildLivePreviewDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
+  buildLivePreviewDecorations(parsedState, {}).between(0, state.doc.length, (from, to, value) => {
     if (value.spec.block) blocks.push({ from, to })
   })
 
