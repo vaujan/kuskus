@@ -28,6 +28,8 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 ### Fixed
 
+- Recover interrupted item and folder moves, renames, reference rewrites, and metadata writes from persisted vault transaction journals.
+- Check the standalone Vite configuration with the normal TypeScript checks and remove its duplicate import.
 - Generate third-party notices from installed packages so Vercel builds do not depend on pnpm's cached package-store indexes.
 - Flush staged note content before replacing the original in one rename, keeping a complete note at its original path if the save process exits before or after replacement.
 - Update the application-menu regression check for the current focus workspace toolbar ownership.
@@ -37,6 +39,7 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 ### Security
 
+- Update supported development and packaging dependencies and retain exact security patch exceptions under the dependency age policy.
 - Updated Electron, KaTeX, and Mermaid dependencies and patched transitive sanitizer/math dependencies.
 - Restricted external links to HTTP(S), blocked renderer navigation and webviews, and authenticated IPC requests from registered app main frames.
 - Patched Storybook and Vite development tooling and the transitive proxy-addr dependency after reviewing their security advisories.

@@ -1,6 +1,6 @@
 # Open-source and release readiness
 
-Current review: [public launch readiness, 2026-10-25](22-public-launch-review.md). The results below are historical; the current audit reports production advisories and the latest default-branch CI failed.
+Current review: [public launch readiness, 2026-10-26](22-public-launch-review.md). The results below are historical; consult the current review and rerun audits/CI for the exact candidate.
 See [the desktop beta plan](18-beta-release-plan.md) for the 2026-10-23 hardening follow-up and
 remaining transaction-recovery gates. The verification counts below describe the earlier pass.
 
@@ -51,13 +51,13 @@ Builds still emit CSS optimizer warnings for `::highlight` and landing-page larg
 
 ## Remaining publication gates
 
-- [ ] **Review development-tool advisories.** The 2026-10-23 full audit has no remaining critical findings but still reports 40 high and 23 moderate advisories. Resolve or explicitly review their exposure before broad distribution; see [the dependency audit follow-up](21-dependency-audit.md). A clean production audit does not close this gate.
+- [x] **Resolve development-tool advisories.** The 2026-10-26 integrated lockfile passes the full audit with zero advisories. Both release commands now require the full audit. See [the dependency audit](21-dependency-audit.md); rerun it for the exact release candidate.
 
 - [ ] **Verify signed installers on Windows.** Provide signing credentials through the signing provider/environment, run `pnpm release`, inspect the signature and publisher, and test installation, launch, offline use, upgrade, uninstall, retained libraries, and shortcut behavior on clean x64/ARM64 systems. Do not publish an architecture solely because it cross-compiles.
 - [x] **Confirm a newly packaged Linux application.** The earlier apparent stall was a slow, incomplete runtime download repeatedly interrupted by short time limits. Resumed the official archive, verified its SHA-256, installed Electron 44.7.0, packaged the app, passed archive inspection, and completed a native launch using a disposable 100-note library. Windows packaging and native installation remain separate gates.
-- [ ] **Enable GitHub private vulnerability reporting.** Immediately after making the repository public, enable this public-repository feature and verify the route in SECURITY.md before announcing the launch. Repository settings were not changed locally.
+- [x] **Enable GitHub private vulnerability reporting.** Verified enabled on 2026-10-26. Secret scanning, push protection, dependency security updates, and main-branch protections were also enabled. Recheck the reporting route before announcing.
 - [x] **Confirm artwork and skill provenance.** Maintainer confirmed artwork ownership on 2026-10-22. Upstream skill MIT declarations were reviewed and notices retained. See [the asset inventory](16-third-party-assets.md).
-- [ ] **Review GitHub CI results for the launch changes.** Existing default-branch CI is green, including full-history Gitleaks; review a new run for these changes before merging and making the repository public.
+- [ ] **Review GitHub CI results for the integrated fixes.** The repository is public and committed source `19e3a17` has green Linux/Windows/Gitleaks CI. Require a new successful run after reviewing and committing this integration.
 - [ ] **Perform hands-on data safety and accessibility checks** below. Automated tests do not establish native UI behavior or power-loss safety.
 - [ ] **Prepare the actual release.** Update the version and release notes, commit reviewed sources, build and verify signed artifacts, then tag the exact source and publish installers/checksums with corresponding source access. The landing page intentionally keeps browser-demo language until actual downloads exist; update its source/download links at publication time.
 

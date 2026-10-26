@@ -9,7 +9,7 @@ run `pnpm clean`, and run `pnpm check:release` for a fresh source, Storybook, au
 inspection pass. The unsigned package produced here is for verification only.
 
 1. Work from a clean checkout with Node.js 24.19.0 and pnpm 11.26.0. Run `pnpm install --frozen-lockfile` and `pnpm check`. CI repeats these checks on Linux and Windows and inspects an unsigned unpacked package. Windows CI also builds and retains an unsigned x64 test installer for seven days. A green CI build is not a signed public installer.
-2. Run `pnpm audit --prod`. Resolve advisories or record a reviewed, specific exception before release. Do not hide findings by raising the severity threshold.
+2. Run `pnpm audit:all`. Resolve production and development-tool advisories before release. Do not hide findings by raising the severity threshold.
 3. Review the full-history secret scan and the asset provenance inventory before source publication. Immediately after making the repository public, enable private vulnerability reporting in GitHub settings and verify it before announcing the launch. GitHub provides this reporting feature for public repositories. No automated scan can establish asset ownership or guarantee the absence of secrets.
 4. Follow [the versioning policy](19-versioning.md). Edit `unreleased` in `releases/notes.json`, then run `pnpm release:prepare <version> <YYYY-MM-DD>` with the actual preparation date in Asia/Jayapura. Review and commit the root package version, structured notes, and generated changelog together. Run `pnpm release:verify`. Do not tag until the installer passes verification. The release command itself never changes the version or creates a tag.
 
