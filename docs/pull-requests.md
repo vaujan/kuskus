@@ -26,7 +26,7 @@ Link the issue if there is one. Small changes don’t need a file-by-file summar
 
 Every PR must include one of these: no AI used, or the tools and models used with a short account of their roles. This includes help with reviews, tests, documentation, and the PR text, not only generated code.
 
-Use the model label the tool actually shows. A tool name alone doesn’t identify its model. If you used several models, list them. If the tool uses automatic routing or doesn’t show a model, write “model not exposed” or “automatic selection; model unknown.” Don’t infer the model from the output or ask a chatbot to identify itself as proof.
+Use the exact model label shown by the tool or session metadata, such as GPT-6.1. Check that metadata before drafting the disclosure. A tool name alone doesn’t identify its model; do not omit an available model label or replace it with “unknown.” If you used several models, list each model and its role. Only when no model label is available, write “model not exposed” or “automatic selection; model unknown.” Don’t infer the model from the output or ask a chatbot to identify itself as proof.
 
 A disclosure can look like this:
 

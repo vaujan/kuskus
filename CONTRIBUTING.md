@@ -35,7 +35,7 @@ The [development guide](docs/development.md) covers Storybook and isolated works
 
 You can use AI to write, debug, review, or document a contribution. The quality bar stays the same: read the whole diff, understand how it works, and verify the behavior yourself. Don’t submit output you can’t explain or assume an AI review replaces your own.
 
-Every PR needs an honest AI disclosure. Name the tool and model used, and explain what each helped with, including code, tests, docs, and the PR description. Copy the model name shown by the tool. If it hides the model or chooses automatically, say that; don’t guess a version or claim you used a model you didn’t. If you didn’t use AI, say so.
+Every PR needs an honest AI disclosure. Name the tool and model used, and explain what each helped with, including code, tests, docs, and the PR description. Copy the exact model label shown by the tool or session metadata, such as GPT-6.1. Check that metadata before writing the disclosure; a tool name alone is insufficient, and an available model label must not be replaced with “unknown.” Only write “model not exposed” or “automatic selection; model unknown” when no model label is available. Don’t guess a version or claim you used a model you didn’t. If you didn’t use AI, say so.
 
 Write the opening explanation in your own words: what prompted the change, who it helps, and why you chose this approach. AI can help organize technical details, but you need to check every claim. Don’t paste a generated summary in place of your own account of the work. You don’t need polished English or a long essay.
 
