@@ -28,6 +28,7 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 ### Fixed
 
+- Generate third-party notices from installed packages so Vercel builds do not depend on pnpm's cached package-store indexes.
 - Flush staged note content before replacing the original in one rename, keeping a complete note at its original path if the save process exits before or after replacement.
 - Update the application-menu regression check for the current focus workspace toolbar ownership.
 - Watch canonical vault paths to prevent a native Windows crash when a folder uses a short path alias.

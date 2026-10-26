@@ -4,20 +4,27 @@ const { existsSync, readFileSync, readdirSync, writeFileSync } = require('node:f
 const { join } = require('node:path')
 
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
-const groups = JSON.parse(
-  execFileSync(pnpm, ['licenses', 'list', '--prod', '--json'], {
-    encoding: 'utf8',
-    maxBuffer: 16 * 1024 * 1024,
-    shell: process.platform === 'win32'
-  })
-)
 // Electron's executable and its notices are shipped separately by electron-builder.
 // Its npm downloader subtree is tooling, not application code.
 const runtimePaths = new Set()
+// Read installed manifests rather than pnpm's separate package-store index,
+// which may be absent when a CI provider restores node_modules from cache.
+const installedPackages = new Map()
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 const visit = (name, pkg) => {
   if (name === 'electron' || runtimePaths.has(pkg.path)) return
   runtimePaths.add(pkg.path)
+  const manifest = JSON.parse(readFileSync(join(pkg.path, 'package.json'), 'utf8'))
+  const key = `${manifest.name}@${manifest.version}`
+  const installed = installedPackages.get(key)
+  if (installed) installed.paths.push(pkg.path)
+  else
+    installedPackages.set(key, {
+      name: manifest.name,
+      versions: [manifest.version],
+      license: manifest.license ?? 'See license text below',
+      paths: [pkg.path]
+    })
   for (const [childName, child] of Object.entries({
     ...pkg.dependencies,
     ...pkg.optionalDependencies
@@ -36,9 +43,7 @@ for (const tree of trees) {
   for (const [name, pkg] of Object.entries({ ...tree.dependencies, ...tree.optionalDependencies }))
     visit(name, pkg)
 }
-const packages = Object.values(groups)
-  .flat()
-  .filter((pkg) => pkg.paths.some((path) => runtimePaths.has(path)))
+const packages = [...installedPackages.values()]
 const sections = [
   'Kuskus third-party notices',
   'Generated from installed production dependencies. Electron also distributes LICENSE.electron.txt and LICENSES.chromium.html alongside the packaged executable.',
