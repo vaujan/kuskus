@@ -18,6 +18,7 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 ### Changed
 
+- Recolored the curled-tail application logo and matching website favicon with natural brown and cream tones.
 - Keep Download Kuskus and Source on GitHub as the landing page's main actions; the download page tracks installer availability.
 - Removed obsolete library and draft migrations; vault opening no longer converts old Markdown metadata.
 - Restricted packaged repository files, generated third-party notices, and added package inspection.

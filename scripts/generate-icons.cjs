@@ -17,6 +17,8 @@ async function main() {
   const ico = await pngToIco(source)
   await writeFile(resolve(outDir, 'icon.ico'), ico)
   console.log(`Wrote ${ico.length} bytes to ${resolve(outDir, 'icon.ico')}`)
+  await writeFile(resolve(root, 'landing-page/assets/favicon.ico'), ico)
+  console.log('Updated landing-page/assets/favicon.ico from the application icon')
 
   copyFileSync(source, resolve(outDir, 'icon.png'))
   console.log(`Copied ${source} to ${resolve(outDir, 'icon.png')}`)
