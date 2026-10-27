@@ -71,7 +71,7 @@ After reviewing the intended changes, run from the repository root:
 ```bash
 pnpm release:prepare 0.1.0-beta.1 2026-10-23
 pnpm check
-pnpm audit --prod
+pnpm audit:all
 ```
 
 Choose the actual preparation date in Asia/Jayapura, in `YYYY-MM-DD` format; the example is not an
@@ -88,7 +88,7 @@ make a website display a download or claim availability automatically.
 ## Verify and publish
 
 `pnpm release:verify` additionally requires empty unreleased notes and a clean committed working
-tree. `pnpm release` runs this gate before the full checks, production audit, and signed Windows
+tree. `pnpm release` runs this gate before the full checks, full dependency audit, and signed Windows
 packaging. Follow [the release process](15-release-process.md) for package inspection, native
 testing, signatures, checksums, and corresponding source access.
 

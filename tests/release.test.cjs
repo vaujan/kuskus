@@ -39,7 +39,7 @@ test('release validates before requiring signed Windows packaging and never muta
     [
       ['release:verify'],
       ['check'],
-      ['audit', '--prod'],
+      ['audit'],
       ['build:storybook'],
       ['exec', 'electron-builder', '--win', '--publish', 'never', '--config.forceCodeSigning=true'],
       ['package:verify']

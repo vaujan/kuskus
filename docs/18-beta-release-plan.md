@@ -1,55 +1,20 @@
 # Desktop beta release plan
 
-Updated 2026-10-23 (Asia/Jayapura). Ship the browser demo and source preview first, then invite
-5–10 Windows testers after the desktop gates below pass. This is a release plan, not approval
-to publish installers.
+Updated 2026-10-26 (Asia/Jayapura). Public source and an experimental desktop prerelease already exist. A supported desktop beta remains a separate milestone.
 
-## Integrated hardening
+## Integrated recovery
 
-- Note-content replacement is isolated in `src/main/library/storage/note-file.ts`. It flushes
-  a unique staged file, then replaces the destination in one rename. The original is never moved
-  out of the way before replacement.
-- Process-interruption tests exit during staging, after staging, and after replacement, then reopen
-  and reconcile a real vault. Additional tests cover partial writes, replacement failures, and
-  successful cleanup. These establish process-interruption behavior, not power-loss safety.
-- The application-menu regression check follows the current focus workspace toolbar ownership.
-- Landing-page primary actions open the browser demo. The desktop page explains installer gates
-  and temporary demo edits.
+`note-file.ts` replaces individual note content atomically. `vault-transaction.ts` records undo actions before item/folder moves, renames, reference rewrites, and metadata changes. Uncommitted journals roll back before the vault is opened or scanned; committed journals preserve the result. Recovery is repeatable, validates vault paths, and stops on conflicting files. Transactions are serialized per vault within one process.
 
-## Local verification
-
-On 2026-10-23, `pnpm check` passed: 356 tests, no failures or skips, lint, desktop and landing-page
-type checks and production builds, and the renderer bundle budget. `pnpm audit --prod` reported
-no known vulnerabilities. Builds still emit the existing search-highlight CSS and website chunk-size
-warnings. No fresh installer, native Windows test, remote CI, or published-site verification was
-performed in this pass.
+Interruption tests terminate child processes during journal persistence, file moves, and metadata/reference replacement, then reopen and reconcile real vaults. These checks establish process-interruption behavior for the covered operations. They do not establish power-loss durability or coordination with external editors. Keep the complete vault, including `.kuskus`, when backing up or repairing it.
 
 ## Remaining gates, in order
 
-1. **Multi-file transaction recovery.** `LibraryStore.rewriteVisibleNoteReferences` still moves
-   original notes to backups before replacement, and `moveItems` stages files in hidden storage.
-   Their exception rollback does not run if the process terminates. Implement persisted transaction
-   recovery and interruption tests before calling those operations crash-safe. Verify folder moves,
-   reference rewrites, and attachment moves together; do not infer safety from note-save tests.
-2. **Fix the release candidate.** Review and commit the intended sources; run `pnpm check`,
-   `pnpm audit --prod`, and package inspection. Require green Linux, Windows, and full-history
-   secret-scan CI for that exact commit. Local checks do not confirm remote CI or publication state.
-3. **Native Windows verification.** Arrange signing and an x64 Windows machine. Follow
-   `14-open-source-release-checklist.md`: install, edit and immediately close, reopen, concurrent
-   edits, attachment/folder moves, Trash/restore, offline use, quick capture, upgrade, uninstall,
-   retained vaults, keyboard access, and representative library performance. Record build, OS,
-   architecture, and results. ARM64 requires separate native verification.
-4. **Distribution.** Build using the signed release flow; inspect publisher/signatures, generate
-   SHA-256 checksums, publish the exact corresponding source and known limitations, verify private
-   vulnerability reporting, and download/test the published artifact. Change website actions only
-   when those artifacts exist. Updates remain manual.
-5. **Small beta.** Invite 5–10 testers with backup instructions and a bug-reporting route. Check
-   whether they can install, create/open a library, capture references, and recover their work after
-   restarting. Prioritize data loss and blocked workflows before expanding distribution.
+1. **Review the candidate.** Review the recovery implementation and its tests, commit the intended sources, and run `pnpm check:release` and `pnpm audit:all`. Require green Linux, Windows, and full-history secret-scan CI for that exact commit. See [the current launch review](22-public-launch-review.md) for repository settings and the separate artwork-history gate.
+2. **Native verification.** Arrange signing and clean test machines. Follow [the native checklist](14-open-source-release-checklist.md): install, edit and immediately close, reopen, concurrent edits, attachment/folder moves, Trash/restore, offline use, quick capture, upgrade, uninstall, retained vaults, keyboard access, and representative library performance. Test interruption recovery on native filesystems. Record build, OS, architecture, and results for every distributed target.
+3. **Distribution.** Prepare a new version and accurate notes; existing preview installers predate the new fixes. Build using the signed release flow, inspect publisher/signatures, generate SHA-256 checksums, retain exact corresponding source, and download/test the published artifact. Updates remain manual. Keep unsigned or unverified builds clearly experimental.
+4. **Small beta.** Invite 5–10 testers with backup instructions and a bug-reporting route. Check whether they can install, create/open a library, capture references, and recover work after restarting. Prioritize data loss and blocked workflows before expanding distribution.
 
-## Architecture work after the safety gates
+## Architecture work after verification
 
-Extract complete responsibilities with behavioral tests when touching them: scanning/reconciliation
-and item transactions from storage, then editor state and workflow coordination from the large
-renderer components. Keep the current Electron process boundaries and typed APIs. A broad rewrite
-is not a release prerequisite.
+Keep storage transactions, scanning/reconciliation, and editor workflow responsibilities separate. Extend behavioral tests when changing persistence. Preserve the Electron process boundaries and typed APIs; a broad rewrite is not a release prerequisite.

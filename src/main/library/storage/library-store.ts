@@ -49,6 +49,11 @@ import {
 import { URL_PREVIEW_EXTENSIONS } from '../url-preview'
 import { readJson, writeJsonAtomic } from './json-file'
 import { replaceNoteContent } from './note-file'
+import {
+  recoverVaultTransactions,
+  runVaultTransaction,
+  type VaultTransaction
+} from './vault-transaction'
 import { kuskusPath, resolveInsideVault } from './vault-paths'
 import * as captureStore from './capture-store'
 
@@ -308,7 +313,8 @@ export class LibraryStore {
 
   private async rewriteInboundReferences(
     libraryPath: string,
-    replacements: ReadonlyMap<string, string>
+    replacements: ReadonlyMap<string, string>,
+    transaction: VaultTransaction
   ): Promise<void> {
     if (replacements.size === 0) return
     const records = await this.currentItemRecords(libraryPath)
@@ -322,28 +328,8 @@ export class LibraryStore {
         return next === source ? null : { path, source, next }
       })
     ).filter((update): update is { path: string; source: string; next: string } => update !== null)
-    const committed: Array<{ path: string; previous: string }> = []
-    try {
-      for (const update of updates) {
-        const temporary = `${update.path}.${randomUUID()}.reference-update`
-        const previous = `${update.path}.${randomUUID()}.previous`
-        await writeFile(temporary, update.next, 'utf8')
-        await rename(update.path, previous)
-        try {
-          await rename(temporary, update.path)
-        } catch (error) {
-          await rename(previous, update.path)
-          throw error
-        }
-        committed.push({ path: update.path, previous })
-      }
-      await Promise.all(committed.map((entry) => rm(entry.previous, { force: true })))
-    } catch (error) {
-      for (const entry of committed.reverse()) {
-        await rm(entry.path, { force: true })
-        await rename(entry.previous, entry.path)
-      }
-      throw error
+    for (const update of updates) {
+      await transaction.writeText(update.path, update.next)
     }
   }
 
@@ -394,6 +380,7 @@ export class LibraryStore {
   }
 
   async readPersistedLibrary(libraryPath: string): Promise<PersistedLibrary> {
+    await recoverVaultTransactions(libraryPath)
     const targetStat = await stat(libraryPath)
     if (!targetStat.isDirectory()) throw new Error('The library path is not a folder.')
     const v2Path = kuskusPath(libraryPath, LIBRARY_FILENAME)
@@ -555,8 +542,14 @@ export class LibraryStore {
     )
   }
 
-  private async writeItemRecord(libraryPath: string, record: VaultItemRecord): Promise<void> {
-    await writeJsonAtomic(this.itemRecordPath(libraryPath, record.id), record)
+  private async writeItemRecord(
+    libraryPath: string,
+    record: VaultItemRecord,
+    transaction?: VaultTransaction
+  ): Promise<void> {
+    const path = this.itemRecordPath(libraryPath, record.id)
+    if (transaction) await transaction.writeJson(path, record)
+    else await writeJsonAtomic(path, record)
     const snapshot = this.scanSnapshots.get(resolve(libraryPath))
     if (!snapshot) return
     const index = snapshot.records.findIndex((entry) => entry.id === record.id)
@@ -566,9 +559,12 @@ export class LibraryStore {
 
   private async writeCollectionRecord(
     libraryPath: string,
-    record: VaultCollectionRecord
+    record: VaultCollectionRecord,
+    transaction?: VaultTransaction
   ): Promise<void> {
-    await writeJsonAtomic(this.collectionRecordPath(libraryPath, record.id), record)
+    const path = this.collectionRecordPath(libraryPath, record.id)
+    if (transaction) await transaction.writeJson(path, record)
+    else await writeJsonAtomic(path, record)
     const snapshot = this.scanSnapshots.get(resolve(libraryPath))
     if (!snapshot) return
     const index = snapshot.collections.findIndex((entry) => entry.id === record.id)
@@ -778,6 +774,7 @@ export class LibraryStore {
   private async performScanVault(
     libraryPath: string
   ): Promise<{ records: VaultItemRecord[]; collections: VaultCollectionRecord[] }> {
+    await recoverVaultTransactions(libraryPath)
     await this.ensureLibraryDirectories(libraryPath)
     const files = await this.listVisibleFiles(libraryPath)
     const collections = await this.scanCollections(libraryPath, files)
@@ -1398,6 +1395,21 @@ export class LibraryStore {
   }
 
   async updateCollection(libraryPath: string, collection: PersistedCollection): Promise<void> {
+    try {
+      await runVaultTransaction(libraryPath, (transaction) =>
+        this.updateCollectionInTransaction(libraryPath, collection, transaction)
+      )
+    } catch (error) {
+      this.scanSnapshots.delete(resolve(libraryPath))
+      throw error
+    }
+  }
+
+  private async updateCollectionInTransaction(
+    libraryPath: string,
+    collection: PersistedCollection,
+    transaction: VaultTransaction
+  ): Promise<void> {
     const records = await this.readCollectionRecords(libraryPath)
     const current = records.find((entry) => entry.id === collection.id)
     if (!current) throw new Error('This folder no longer exists.')
@@ -1408,7 +1420,7 @@ export class LibraryStore {
         dirname(source),
         safeStem(collection.name, current.name)
       )
-      await rename(source, destination)
+      await transaction.rename(source, destination)
       relativePath = slash(relative(libraryPath, destination))
       const items = (await this.readItemRecords(libraryPath))
         .filter((item) => item.relativePath.startsWith(`${current.relativePath}/`))
@@ -1424,24 +1436,43 @@ export class LibraryStore {
           child.name = basename(child.relativePath)
           return child
         })
-      await Promise.all([
-        ...items.map((item) => this.writeItemRecord(libraryPath, item)),
-        ...children.map((child) => this.writeCollectionRecord(libraryPath, child))
-      ])
+      for (const item of items) await this.writeItemRecord(libraryPath, item, transaction)
+      for (const child of children)
+        await this.writeCollectionRecord(libraryPath, child, transaction)
     }
-    await this.writeCollectionRecord(libraryPath, {
-      ...current,
-      ...collection,
-      schemaVersion: 2,
-      name: basename(relativePath),
-      relativePath
-    })
+    await this.writeCollectionRecord(
+      libraryPath,
+      {
+        ...current,
+        ...collection,
+        schemaVersion: 2,
+        name: basename(relativePath),
+        relativePath
+      },
+      transaction
+    )
   }
 
   async moveCollection(
     libraryPath: string,
     collectionId: string,
     parentId: string | null
+  ): Promise<void> {
+    try {
+      await runVaultTransaction(libraryPath, (transaction) =>
+        this.moveCollectionInTransaction(libraryPath, collectionId, parentId, transaction)
+      )
+    } catch (error) {
+      this.scanSnapshots.delete(resolve(libraryPath))
+      throw error
+    }
+  }
+
+  private async moveCollectionInTransaction(
+    libraryPath: string,
+    collectionId: string,
+    parentId: string | null,
+    transaction: VaultTransaction
   ): Promise<void> {
     const collectionRecords = await this.readCollectionRecords(libraryPath)
     const current = collectionRecords.find((entry) => entry.id === collectionId)
@@ -1469,40 +1500,31 @@ export class LibraryStore {
         collection.relativePath.startsWith(`${current.relativePath}/`)
     )
 
-    await rename(source, destination)
-    try {
-      const writes = await Promise.allSettled([
-        ...affectedItems.map((item) => {
-          const relativePath = `${nextRoot}${item.relativePath.slice(current.relativePath.length)}`
-          return this.writeItemRecord(libraryPath, {
-            ...item,
-            relativePath,
-            metadata: { ...item.metadata, relativePath }
-          })
-        }),
-        ...affectedCollections.map((collection) => {
-          const relativePath = `${nextRoot}${collection.relativePath.slice(current.relativePath.length)}`
-          return this.writeCollectionRecord(libraryPath, {
-            ...collection,
-            name: basename(relativePath),
-            relativePath,
-            parentId: collection.id === current.id ? parentId : collection.parentId
-          })
-        })
-      ])
-      const failure = writes.find((result) => result.status === 'rejected')
-      if (failure) throw failure.reason
-    } catch (error) {
-      if ((await this.pathExists(destination)) && !(await this.pathExists(source))) {
-        await rename(destination, source)
-      }
-      await Promise.allSettled([
-        ...affectedItems.map((item) => this.writeItemRecord(libraryPath, item)),
-        ...affectedCollections.map((collection) =>
-          this.writeCollectionRecord(libraryPath, collection)
-        )
-      ])
-      throw error
+    await transaction.rename(source, destination)
+    for (const item of affectedItems) {
+      const relativePath = `${nextRoot}${item.relativePath.slice(current.relativePath.length)}`
+      await this.writeItemRecord(
+        libraryPath,
+        {
+          ...item,
+          relativePath,
+          metadata: { ...item.metadata, relativePath }
+        },
+        transaction
+      )
+    }
+    for (const collection of affectedCollections) {
+      const relativePath = `${nextRoot}${collection.relativePath.slice(current.relativePath.length)}`
+      await this.writeCollectionRecord(
+        libraryPath,
+        {
+          ...collection,
+          name: basename(relativePath),
+          relativePath,
+          parentId: collection.id === current.id ? parentId : collection.parentId
+        },
+        transaction
+      )
     }
   }
 
@@ -1950,6 +1972,21 @@ export class LibraryStore {
   }
 
   async updateItem(libraryPath: string, item: PersistedItem): Promise<void> {
+    try {
+      await runVaultTransaction(libraryPath, (transaction) =>
+        this.updateItemInTransaction(libraryPath, item, transaction)
+      )
+    } catch (error) {
+      this.scanSnapshots.delete(resolve(libraryPath))
+      throw error
+    }
+  }
+
+  private async updateItemInTransaction(
+    libraryPath: string,
+    item: PersistedItem,
+    transaction: VaultTransaction
+  ): Promise<void> {
     const resolved = await this.resolveItem(libraryPath, item.id)
     let path = resolved.path
     if (item.title !== resolved.metadata.title && resolved.location.type !== 'trash') {
@@ -1958,7 +1995,7 @@ export class LibraryStore {
         dirname(path),
         `${safeStem(item.title)}${extension}`
       )
-      await rename(path, destination)
+      await transaction.rename(path, destination)
       if (resolved.metadata.type === 'note') {
         const oldAssets = join(dirname(path), `${basename(path, MARKDOWN_EXTENSION)}.assets`)
         const newAssets = join(
@@ -1968,7 +2005,7 @@ export class LibraryStore {
         const movedLegacyAssets =
           (await this.pathExists(oldAssets)) && !(await this.pathExists(newAssets))
         if (movedLegacyAssets) {
-          await rename(oldAssets, newAssets)
+          await transaction.rename(oldAssets, newAssets)
         }
         const source = await readFile(destination, 'utf8')
         const replacements = new Map<string, string>()
@@ -1996,9 +2033,13 @@ export class LibraryStore {
           libraryPath,
           replacements
         )
-        if (rewritten !== source) await writeFile(destination, rewritten, 'utf8')
+        if (rewritten !== source) await transaction.writeText(destination, rewritten)
       } else if (resolved.metadata.type === 'image' || resolved.metadata.type === 'file') {
-        await this.rewriteInboundReferences(libraryPath, new Map([[path, destination]]))
+        await this.rewriteInboundReferences(
+          libraryPath,
+          new Map([[path, destination]]),
+          transaction
+        )
       }
       path = destination
     }
@@ -2006,25 +2047,29 @@ export class LibraryStore {
     const existing = (await this.currentItemRecords(libraryPath)).find(
       (entry) => entry.id === item.id
     )
-    await this.writeItemRecord(libraryPath, {
-      schemaVersion: 2,
-      id: item.id,
-      relativePath,
-      fingerprint: (await this.pathExists(path))
-        ? await this.fingerprint(path)
-        : (existing?.fingerprint ?? null),
-      fileIdentity: (await this.pathExists(path))
-        ? await this.fileIdentity(path)
-        : (existing?.fileIdentity ?? null),
-      recovery: { lastSeenAt: new Date().toISOString(), missingSince: null },
-      metadata: {
-        ...item,
+    await this.writeItemRecord(
+      libraryPath,
+      {
         schemaVersion: 2,
-        title: titleFromPath(relativePath),
-        contentFilename: item.type === 'url' ? null : basename(path),
-        relativePath
-      } as PersistedItem
-    })
+        id: item.id,
+        relativePath,
+        fingerprint: (await this.pathExists(path))
+          ? await this.fingerprint(path)
+          : (existing?.fingerprint ?? null),
+        fileIdentity: (await this.pathExists(path))
+          ? await this.fileIdentity(path)
+          : (existing?.fileIdentity ?? null),
+        recovery: { lastSeenAt: new Date().toISOString(), missingSince: null },
+        metadata: {
+          ...item,
+          schemaVersion: 2,
+          title: titleFromPath(relativePath),
+          contentFilename: item.type === 'url' ? null : basename(path),
+          relativePath
+        } as PersistedItem
+      },
+      transaction
+    )
   }
 
   async importNoteImage(
@@ -2237,143 +2282,148 @@ export class LibraryStore {
   }
 
   async moveItems(libraryPath: string, requests: ItemMoveRequest[]): Promise<void> {
+    try {
+      await runVaultTransaction(libraryPath, (transaction) =>
+        this.moveItemsInTransaction(libraryPath, requests, transaction)
+      )
+    } catch (error) {
+      this.scanSnapshots.delete(resolve(libraryPath))
+      throw error
+    }
+  }
+
+  private async moveItemsInTransaction(
+    libraryPath: string,
+    requests: ItemMoveRequest[],
+    transaction: VaultTransaction
+  ): Promise<void> {
     if (requests.length === 0) return
-    const transaction = kuskusPath(libraryPath, 'temp', `${randomUUID()}.item-move`)
-    await mkdir(transaction, { recursive: true })
+    const stagingDirectory = kuskusPath(libraryPath, 'temp', `${randomUUID()}.item-move`)
+    await mkdir(stagingDirectory, { recursive: true })
     const staged: Array<{
       request: ItemMoveRequest
       file: string
       assets: string | null
       original: string
       originalAssets: string | null
-      destination: string | null
-      destinationAssets: string | null
-      referenceReplacements: Map<string, string> | null
       missingSource: boolean
     }> = []
-    try {
-      for (const request of requests) {
-        const missingSource = !(await this.pathExists(request.item.path))
-        if (missingSource && request.destination.type !== 'trash') {
-          throw new Error(
-            "The item's file is missing from the library, so it cannot be moved or archived. Move it to Trash to remove it."
-          )
-        }
-        const stagedFile = join(
-          transaction,
-          `${request.item.metadata.id}${extname(request.item.path)}`
+    for (const request of requests) {
+      const missingSource = !(await this.pathExists(request.item.path))
+      if (missingSource && request.destination.type !== 'trash') {
+        throw new Error(
+          "The item's file is missing from the library, so it cannot be moved or archived. Move it to Trash to remove it."
         )
-        let stagedAssets: string | null = null
-        let originalAssets: string | null = null
-        if (!missingSource) {
-          await rename(request.item.path, stagedFile)
-          if (request.item.metadata.type === 'note') {
-            originalAssets = join(
-              dirname(request.item.path),
-              `${basename(request.item.path, MARKDOWN_EXTENSION)}.assets`
-            )
-            if (await this.pathExists(originalAssets)) {
-              stagedAssets = join(transaction, `${request.item.metadata.id}.assets`)
-              await rename(originalAssets, stagedAssets)
-            }
-          }
-        }
-        staged.push({
-          request,
-          file: stagedFile,
-          assets: stagedAssets,
-          original: request.item.path,
-          originalAssets,
-          destination: null,
-          destinationAssets: null,
-          referenceReplacements: null,
-          missingSource
-        })
       }
-      for (const entry of staged) {
-        const directory = await this.destinationDirectory(
-          libraryPath,
-          entry.request.destination,
-          entry.request.item.metadata.id
-        )
-        await mkdir(directory, { recursive: true })
-        const destination = await this.uniquePath(directory, basename(entry.original))
-        if (!entry.missingSource) await rename(entry.file, destination)
-        entry.destination = destination
-        let legacyAssetDestination: string | null = null
-        if (entry.assets) {
-          const assetDestination = join(
-            directory,
-            `${basename(destination, MARKDOWN_EXTENSION)}.assets`
+      const stagedFile = join(
+        stagingDirectory,
+        `${request.item.metadata.id}${extname(request.item.path)}`
+      )
+      let stagedAssets: string | null = null
+      let originalAssets: string | null = null
+      if (!missingSource) {
+        await transaction.rename(request.item.path, stagedFile)
+        if (request.item.metadata.type === 'note') {
+          originalAssets = join(
+            dirname(request.item.path),
+            `${basename(request.item.path, MARKDOWN_EXTENSION)}.assets`
           )
-          await rename(entry.assets, assetDestination)
-          legacyAssetDestination = assetDestination
-          entry.destinationAssets = assetDestination
+          if (await this.pathExists(originalAssets)) {
+            stagedAssets = join(stagingDirectory, `${request.item.metadata.id}.assets`)
+            await transaction.rename(originalAssets, stagedAssets)
+          }
         }
-        let nextRequestMetadata = entry.request.metadata
-        if (!entry.missingSource && entry.request.item.metadata.type === 'note') {
-          const source = await readFile(destination, 'utf8')
-          const replacements = new Map<string, string>()
-          const availablePaths = (await this.currentItemRecords(libraryPath)).flatMap((record) => [
-            resolveInsideVault(libraryPath, record.relativePath),
-            ...(record.metadata.trashedFromRelativePath
-              ? [resolveInsideVault(libraryPath, record.metadata.trashedFromRelativePath)]
-              : [])
+      }
+      staged.push({
+        request,
+        file: stagedFile,
+        assets: stagedAssets,
+        original: request.item.path,
+        originalAssets,
+        missingSource
+      })
+    }
+    for (const entry of staged) {
+      const directory = await this.destinationDirectory(
+        libraryPath,
+        entry.request.destination,
+        entry.request.item.metadata.id
+      )
+      await mkdir(directory, { recursive: true })
+      const destination = await this.uniquePath(directory, basename(entry.original))
+      if (!entry.missingSource) await transaction.rename(entry.file, destination)
+      let legacyAssetDestination: string | null = null
+      if (entry.assets) {
+        const assetDestination = join(
+          directory,
+          `${basename(destination, MARKDOWN_EXTENSION)}.assets`
+        )
+        await transaction.rename(entry.assets, assetDestination)
+        legacyAssetDestination = assetDestination
+      }
+      let nextRequestMetadata = entry.request.metadata
+      if (!entry.missingSource && entry.request.item.metadata.type === 'note') {
+        const source = await readFile(destination, 'utf8')
+        const replacements = new Map<string, string>()
+        const availablePaths = (await this.currentItemRecords(libraryPath)).flatMap((record) => [
+          resolveInsideVault(libraryPath, record.relativePath),
+          ...(record.metadata.trashedFromRelativePath
+            ? [resolveInsideVault(libraryPath, record.metadata.trashedFromRelativePath)]
+            : [])
+        ])
+        for (const reference of extractVaultReferenceTargets(source)) {
+          const previousTarget = resolveVaultReferencePath(reference, entry.original, libraryPath, [
+            ...availablePaths,
+            entry.originalAssets ?? entry.original
           ])
-          for (const reference of extractVaultReferenceTargets(source)) {
-            const previousTarget = resolveVaultReferencePath(
-              reference,
-              entry.original,
-              libraryPath,
-              [...availablePaths, entry.originalAssets ?? entry.original]
-            )
-            const nextTarget =
-              entry.originalAssets &&
-              legacyAssetDestination &&
-              previousTarget.startsWith(`${entry.originalAssets}${sep}`)
-                ? join(legacyAssetDestination, relative(entry.originalAssets, previousTarget))
-                : previousTarget
-            replacements.set(previousTarget, nextTarget)
-          }
-          entry.referenceReplacements = replacements
-          const rewritten = rewriteVaultReferences(
-            source,
-            entry.original,
-            destination,
-            libraryPath,
-            replacements
-          )
-          if (rewritten !== source) await writeFile(destination, rewritten, 'utf8')
-          if (nextRequestMetadata.type === 'note' && nextRequestMetadata.attachments) {
-            nextRequestMetadata = {
-              ...nextRequestMetadata,
-              attachments: nextRequestMetadata.attachments.map((attachment) => {
-                const previousTarget = resolve(dirname(entry.original), attachment.relativePath)
-                const nextTarget = replacements.get(previousTarget) ?? previousTarget
-                return {
-                  ...attachment,
-                  relativePath: markdownPathForAttachment(destination, nextTarget)
-                }
-              })
-            }
-          }
-        } else if (
-          !entry.missingSource &&
-          entry.request.destination.type !== 'trash' &&
-          (entry.request.item.metadata.type === 'image' ||
-            entry.request.item.metadata.type === 'file')
-        ) {
-          const previousPath = entry.request.item.metadata.trashedFromRelativePath
-            ? resolveInsideVault(libraryPath, entry.request.item.metadata.trashedFromRelativePath)
-            : entry.original
-          entry.referenceReplacements = new Map([[previousPath, destination]])
-          await this.rewriteInboundReferences(libraryPath, entry.referenceReplacements)
+          const nextTarget =
+            entry.originalAssets &&
+            legacyAssetDestination &&
+            previousTarget.startsWith(`${entry.originalAssets}${sep}`)
+              ? join(legacyAssetDestination, relative(entry.originalAssets, previousTarget))
+              : previousTarget
+          replacements.set(previousTarget, nextTarget)
         }
-        const relativePath = slash(relative(libraryPath, destination))
-        const record = (await this.currentItemRecords(libraryPath)).find(
-          (item) => item.id === entry.request.item.metadata.id
+        const rewritten = rewriteVaultReferences(
+          source,
+          entry.original,
+          destination,
+          libraryPath,
+          replacements
         )
-        await this.writeItemRecord(libraryPath, {
+        if (rewritten !== source) await transaction.writeText(destination, rewritten)
+        if (nextRequestMetadata.type === 'note' && nextRequestMetadata.attachments) {
+          nextRequestMetadata = {
+            ...nextRequestMetadata,
+            attachments: nextRequestMetadata.attachments.map((attachment) => {
+              const previousTarget = resolve(dirname(entry.original), attachment.relativePath)
+              const nextTarget = replacements.get(previousTarget) ?? previousTarget
+              return {
+                ...attachment,
+                relativePath: markdownPathForAttachment(destination, nextTarget)
+              }
+            })
+          }
+        }
+      } else if (
+        !entry.missingSource &&
+        entry.request.destination.type !== 'trash' &&
+        (entry.request.item.metadata.type === 'image' ||
+          entry.request.item.metadata.type === 'file')
+      ) {
+        const previousPath = entry.request.item.metadata.trashedFromRelativePath
+          ? resolveInsideVault(libraryPath, entry.request.item.metadata.trashedFromRelativePath)
+          : entry.original
+        const referenceReplacements = new Map([[previousPath, destination]])
+        await this.rewriteInboundReferences(libraryPath, referenceReplacements, transaction)
+      }
+      const relativePath = slash(relative(libraryPath, destination))
+      const record = (await this.currentItemRecords(libraryPath)).find(
+        (item) => item.id === entry.request.item.metadata.id
+      )
+      await this.writeItemRecord(
+        libraryPath,
+        {
           schemaVersion: 2,
           id: entry.request.item.metadata.id,
           relativePath,
@@ -2385,69 +2435,11 @@ export class LibraryStore {
             relativePath,
             contentFilename: nextRequestMetadata.type === 'url' ? null : basename(destination)
           } as PersistedItem
-        })
-      }
-      await rm(transaction, { recursive: true, force: true })
-    } catch (error) {
-      for (const entry of staged.reverse()) {
-        try {
-          if (entry.destination && (await this.pathExists(entry.destination))) {
-            if (entry.referenceReplacements) {
-              const reversed = new Map(
-                [...entry.referenceReplacements].map(([from, to]) => [to, from])
-              )
-              if (entry.request.item.metadata.type === 'note') {
-                const source = await readFile(entry.destination, 'utf8')
-                const restored = rewriteVaultReferences(
-                  source,
-                  entry.destination,
-                  entry.original,
-                  libraryPath,
-                  reversed
-                )
-                if (restored !== source) await writeFile(entry.destination, restored, 'utf8')
-              } else if (entry.request.destination.type !== 'trash') {
-                await this.rewriteInboundReferences(libraryPath, reversed)
-              }
-            }
-            await rename(entry.destination, entry.original)
-          } else if (await this.pathExists(entry.file)) {
-            await rename(entry.file, entry.original)
-          }
-          if (
-            entry.destinationAssets &&
-            entry.originalAssets &&
-            (await this.pathExists(entry.destinationAssets))
-          ) {
-            await rename(entry.destinationAssets, entry.originalAssets)
-          } else if (
-            entry.assets &&
-            entry.originalAssets &&
-            (await this.pathExists(entry.assets))
-          ) {
-            await rename(entry.assets, entry.originalAssets)
-          }
-          const relativePath = slash(relative(libraryPath, entry.original))
-          await this.writeItemRecord(libraryPath, {
-            schemaVersion: 2,
-            id: entry.request.item.metadata.id,
-            relativePath,
-            fingerprint: await this.fingerprint(entry.original),
-            fileIdentity: await this.fileIdentity(entry.original),
-            recovery: { lastSeenAt: new Date().toISOString(), missingSince: null },
-            metadata: {
-              ...entry.request.item.metadata,
-              relativePath,
-              contentFilename:
-                entry.request.item.metadata.type === 'url' ? null : basename(entry.original)
-            } as PersistedItem
-          })
-        } catch {
-          // Preserve the original failure; startup scanning can reconcile any remaining paths.
-        }
-      }
-      throw error
+        },
+        transaction
+      )
     }
+    await rm(stagingDirectory, { recursive: true, force: true })
   }
 
   async permanentlyDeleteItems(libraryPath: string, itemIds: string[]): Promise<void> {

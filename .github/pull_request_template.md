@@ -12,4 +12,9 @@
 
 ## AI disclosure
 
-<!-- Required: “No AI used”, or tool + model + what each helped with (including PR text). Use the displayed model label; if hidden or automatic, say so. Don't guess. Describe your own review. See CONTRIBUTING.md and docs/pull-requests.md. -->
+<!-- Required: “No AI used”, or fill in every field below for each tool/model used. Check tool/session metadata for the exact displayed model label (for example, GPT-6.1). Never replace an available model label with “unknown.” Only use “model not exposed” or “automatic selection; model unknown” when no label is available. Don't guess. See CONTRIBUTING.md and docs/pull-requests.md. -->
+
+Tool:
+Model:
+Helped with:
+My review:

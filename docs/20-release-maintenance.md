@@ -37,17 +37,16 @@ root compiler/lint caches. It deletes existing installers in `dist`, so preserve
 need before running it. It leaves installed dependencies, source assets, vaults, demo/onboarding
 profiles, and performance measurements intact. It accepts no custom paths.
 
-`pnpm check:release` runs `pnpm check`, the production vulnerability audit, the Storybook production
+`pnpm check:release` runs `pnpm check`, the full production and development vulnerability audit, the Storybook production
 build, unsigned native unpacked packaging, and archive inspection. Run on Linux and Windows;
 CI uses both. It does not publish, sign, or certify an installer. Experimental macOS packaging has
 a separate native validation path; this archive inspector currently supports Linux and Windows.
 
-Also run `pnpm audit:all` to review development-tool advisories. The production gate does not
-cover the tools used to build and preview the app. Review the full report, update affected tools
+`pnpm audit:all` runs the same full audit independently. Review the report, update affected tools
 within supported versions, and document remaining findings rather than automatically applying
 cross-major overrides. Do not expose development servers publicly. A clean production audit alone
 is not evidence that development dependencies have no advisories.
-The current outstanding findings are recorded in [the dependency audit follow-up](21-dependency-audit.md).
+The latest audit results are recorded in [the dependency audit follow-up](21-dependency-audit.md).
 
 Package inspection rejects repository-only files, credential filenames, bundled development
 overlays, missing application/license files, and a package whose identity/version differs from the
@@ -71,11 +70,11 @@ native UI works. CI's full-history Gitleaks job remains a separate required chec
 
 Prepare and commit the versioned candidate, then require green Linux/Windows and secret-scan CI.
 `pnpm release` additionally checks a clean committed tree and prepared notes, runs the source
-checks, production audit, and Storybook build, builds signed Windows installers, and inspects the
+checks, full dependency audit, and Storybook build, builds signed Windows installers, and inspects the
 resulting unpacked application. Check signatures and checksums, and complete native install,
 upgrade, save/recovery, capture, accessibility, and uninstall testing before tagging or publishing.
 
-Multi-file transaction recovery and the outstanding Windows testing/signing requirements remain
+Native interruption-recovery verification and the outstanding Windows testing/signing requirements remain
 tracked in [the beta plan](18-beta-release-plan.md). A green maintenance check does not close those
 gates automatically. Record OS, architecture, commit/version, commands, failures, accepted warnings,
 and manual results in the release checklist. Update website download claims only after tested

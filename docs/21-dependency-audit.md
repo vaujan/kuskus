@@ -1,38 +1,21 @@
-# Dependency audit follow-up
+# Dependency audit
 
-Current review: [public launch readiness, 2026-10-25](22-public-launch-review.md). The results below are historical; the current audit reports production advisories and the latest default-branch CI failed.
-Recorded 2026-10-23 (Asia/Jayapura). This is a dated maintenance record, not an advisory allowlist.
-Re-run the audits against the exact release commit; database results change over time.
+Updated 2026-10-26 (Asia/Jayapura). This is evidence for the current local lockfile, not an advisory allowlist or a guarantee against unknown vulnerabilities. Rerun the audit for the exact release commit.
 
-## Results
+## Current result
 
-The full development and production audit initially reported 71 advisories: 2 critical, 42 high,
-26 moderate, and 1 low. After targeted patches, it reports 63: **0 critical, 40 high, 23 moderate**.
-The production-only audit remains a separate release check. Development advisories can affect the
-build environment even when they do not appear in the production dependency audit.
+`pnpm audit --json` reports **zero advisories** across production and development dependencies: 0 critical, 0 high, 0 moderate, 0 low. The audit reports 1,413 total dependencies. Before this integration, the full audit reported 41 high, 25 moderate, and 2 low advisories; the production-only audit was already clean.
 
-Patched all three Storybook packages together from 10.6.0 to 10.6.2, raised Vite's minimum to
-7.3.7 in both workspaces, and constrained transitive `proxy-addr` to patched 2.0.8 or later. These
-address the reviewed [Storybook origin-validation advisory](https://github.com/advisories/GHSA-f2ph-cmg5-wxc8),
-[Vite Windows editor-launch advisory](https://github.com/advisories/GHSA-587h-7wmj-h5pm), and
-[proxy-addr advisory](https://github.com/advisories/GHSA-jqcg-44mw-7w3h). The dependency age and
-trust policies remain enabled.
+Direct tooling and its transitive dependencies were updated within supported major versions. Patched packages include Fast URI, brace-expansion, PostCSS, js-yaml, nanoid, tar, Browserslist, qs, xmldom, baseline-browser-mapping, Hono, ip-address, http-cache-semantics, source-map-js, postcss-selector-parser, the MCP TypeScript SDK, Zod, and body-parser.
 
-## Outstanding work before broad distribution
+`pnpm-workspace.yaml` keeps the seven-day minimum release age and trust policy. Exact exceptions allow audited security patch versions without disabling those policies globally. Same-major transitive patch floors prevent affected versions of Fast URI 3.x, brace-expansion 2.x, tar 7.x, xmldom 0.8.x, http-cache-semantics 4.x, and body-parser 2.x from returning through older parent constraints. No incompatible cross-major transitive override was introduced.
 
-Remaining reported modules include `fast-uri`, `brace-expansion`, `postcss`, `js-yaml`, `nanoid`,
-`tar`, `browserslist`, `qs`, `@xmldom/xmldom`, `baseline-browser-mapping`, `hono`, `ip-address`,
-`http-cache-semantics`, `braces`, `source-map-js`, `postcss-selector-parser`, and
-`@modelcontextprotocol/sdk`. Multiple advisories and installed versions can affect the same module;
-the module count is not the advisory count.
+Base UI is pinned to the existing 1.6.0 API used by controlled context-menu triggers. A later 1.x update removed that API; a UI migration is outside this security integration. The retained version passes the full audit. React and React DOM remain at the previously used 19.2.7 release; the unrelated 19.3 update exceeded the existing renderer bundle budget. The budget was not increased.
 
-Run `pnpm audit:all` and `pnpm why <package>` to identify the affected parent and usage. Upgrade
-the owning tools within supported ranges, inspect release notes before major updates, and rerun
-`pnpm check:release` after lockfile changes. For findings without a compatible fix, review the
-actual exposure and record the decision, owner, and follow-up before releasing. No such exceptions
-have been approved by this cleanup pass. Do not force a new major transitive dependency across
-incompatible parent APIs or raise audit thresholds to hide findings.
+## Ongoing gate
 
-Until reviewed, keep the development servers local and use trusted build inputs. This pass does
-not establish that all development tooling is vulnerability-free, and a passing production audit
-must not be described as a clean full audit.
+`pnpm check:release`, the signed Windows release command, and the installer workflow require the full audit, including development tooling. CI uses `pnpm check:release`, so a new tooling advisory also fails the release check. `pnpm audit:all` runs the full audit independently; `pnpm audit --prod` remains useful for inspecting shipped dependencies separately.
+
+For a new finding, use `pnpm why <package>` to locate the owning tool and inspect its supported dependency range. Prefer a supported parent update or a compatible patch floor. Review upstream changes before major upgrades; do not hide findings by raising audit thresholds or adding blanket exclusions. Keep development servers local and use trusted build inputs.
+
+Package inspection and native runtime checks remain necessary after dependency changes. A clean audit does not establish correct application behavior or installer readiness. See [the launch review](22-public-launch-review.md) for the remaining release gates.

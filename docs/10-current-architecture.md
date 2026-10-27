@@ -44,7 +44,13 @@ belong under `src/main/library/items/`.
 file under `.kuskus/temp`, then renames it over the destination without first moving the original.
 An interrupted process therefore leaves the old or new complete note at its visible path. Metadata
 is updated afterward and remains reconcilable from visible content. This does not establish
-power-loss durability on every filesystem or transactional recovery for multi-file moves.
+power-loss durability on every filesystem.
+
+`src/main/library/storage/vault-transaction.ts` owns persisted undo journals for item/folder moves,
+renames, reference rewrites, and associated metadata changes. Each undo action is flushed before
+its mutation; commit is persisted after the complete operation. Opening/scanning a vault recovers
+uncommitted operations before indexing. Transactions serialize within one process; conflicts stop
+recovery and retain the journal. This does not coordinate external editors or certify power-loss safety.
 
 ### Capture
 

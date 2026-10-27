@@ -4,7 +4,7 @@ Kuskus keeps your project references in one place: Markdown notes, images, files
 
 Kuskus is still taking shape, and contributions are welcome.
 
-[![Kuskus browser demo showing a sample library of notes and references](docs/images/demo.png)](https://kuskus-tau.vercel.app)
+[![Kuskus with Stacks & queues open in Vim Normal mode, framed by a soft pastel background](docs/images/demo.png)](https://kuskus-tau.vercel.app)
 
 ## Try it
 
@@ -12,7 +12,7 @@ You can explore the [browser demo](https://kuskus-tau.vercel.app). It uses sampl
 
 The desktop app is an early preview. Windows is the first installer target; macOS and Linux builds are experimental. Signing and native Windows testing are still outstanding. Check the [release checklist](docs/14-open-source-release-checklist.md) before distributing builds. Updates are manual.
 
-If you run the app from source, start with a test library. Close Kuskus and back up your whole vault, including its hidden `.kuskus` folder, before trying a new version. Recovery after an interrupted multi-file move is still unfinished; see the [beta plan](docs/18-beta-release-plan.md).
+If you run the app from source, start with a test library. Close Kuskus and back up your whole vault, including its hidden `.kuskus` folder, before trying a new version. Interrupted moves and renames use a persisted recovery journal. Power-loss durability and native release verification remain separate gates; see the [beta plan](docs/18-beta-release-plan.md).
 
 ## What you can do
 
@@ -53,7 +53,7 @@ pnpm audit --prod
 
 `pnpm check` covers formatting, tests, lint, type checks, desktop and website builds, and the renderer bundle budget. The audit checks known dependency advisories separately.
 
-`pnpm check:release` also audits production dependencies, builds Storybook, packages the app, and inspects the archive. It doesn’t publish anything. See [release maintenance](docs/20-release-maintenance.md) for a clean build and [versioning](docs/19-versioning.md) for release notes.
+`pnpm check:release` also audits production and development dependencies, builds Storybook, packages the app, and inspects the archive. It doesn’t publish anything. See [release maintenance](docs/20-release-maintenance.md) for a clean build and [versioning](docs/19-versioning.md) for release notes.
 
 ## Build the desktop app
 

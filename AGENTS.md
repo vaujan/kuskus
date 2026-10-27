@@ -12,6 +12,6 @@
 ## Contributions and PR descriptions
 
 - Follow [CONTRIBUTING.md](CONTRIBUTING.md) and [the PR guide](docs/pull-requests.md).
-- Disclose AI tools, the model labels actually shown, and their roles in every PR. If the model is hidden or selected automatically, say it is unknown; never invent a model name.
+- Every AI-assisted PR description must name each AI tool, its exact displayed model label (for example, GPT-6.1), and its role. Check the available session or tool metadata before drafting the disclosure; do not omit a known model or replace it with “unknown.” Use “model not exposed” or “automatic selection; model unknown” only when no model label is available. Never invent a model name.
 - Leave the contributor’s personal reason for the change for the human to write. Do not impersonate their experience or claim they reviewed or tested something without evidence.
 - State only checks actually run and their results. Keep explanations concrete and concise.

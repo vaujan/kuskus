@@ -18,7 +18,7 @@ const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
 const run = (args) => execFileSync(pnpm, args, { stdio: 'inherit', shell: true })
 run(['release:verify'])
 run(['check'])
-run(['audit', '--prod'])
+run(['audit'])
 run(['build:storybook'])
 run(['exec', 'electron-builder', '--win', '--publish', 'never', '--config.forceCodeSigning=true'])
 run(['package:verify'])

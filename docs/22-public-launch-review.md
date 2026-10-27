@@ -1,68 +1,57 @@
-# Public launch review
+# Public launch readiness
 
-Reviewed 2026-10-25 (Asia/Jayapura), starting from `1adec7b5a2ee173cce47eac900413fff2765fff1`. This review covers source publication, contributor documentation, and release evidence. It doesn’t approve a desktop release or change repository visibility.
+Updated 2026-10-26 (Asia/Jayapura). Source publication and stable desktop distribution are separate milestones. The repository is already public and has an experimental desktop prerelease. Keep stable distribution gated on native verification, signing, and the remaining artwork history review.
 
-I would hold the public announcement until the source gates below are closed. The project has a license, attribution tooling, automated checks, and a working contribution path, but current CI is red and some demo artwork has no recorded redistribution clearance. Publishing as an early source preview is a smaller milestone than distributing supported installers.
+## Repository and security settings
 
-## What GitHub shows today
+The last verified committed source is `19e3a1793aeb85635a586cfd5d1a2b9d3b3dc740`. Its [Verify run](https://github.com/vaujan/kuskus/actions/runs/40266293523) passed Linux, Windows, and full-history Gitleaks. Changes after that commit need their own green run; local results do not replace it.
 
-- The repository is private, its default branch is `main`, and it has no GitHub releases.
-- The [latest default-branch run](https://github.com/vaujan/kuskus/actions/runs/40099022804) tests the starting commit above. Linux and Windows verification failed; the full-history Gitleaks job passed.
-- Linux reached the production dependency audit and failed on four advisories. Windows failed earlier: `vite-plugin-static-copy` could not find the PDF.js `cmaps` input using a Windows path. Inspect path normalization in `electron.vite.config.ts` and `vite.config.ts` before retrying Windows CI.
-- Branch protection could not be inspected: the integration returned HTTP 403. The ruleset endpoint also returned 403, requesting GitHub Pro or a public repository. This is not evidence that protections are configured. Verify required reviews and Linux/Windows/secret checks in repository settings when available.
+The repository has a GPL-3.0-only license, contributor and AI-disclosure guidance, bug/feature forms, generated dependency notices, and an enabled private vulnerability-reporting route. Secret scanning, secret push protection, and automated dependency security updates were enabled during this integration. The repository description and website are configured.
 
-The previous launch handoff describes an earlier state. In particular, its statements about green CI and an unpublished website aren’t current launch evidence.
+The `main` branch now requires an up-to-date branch, successful Linux/Windows/secret checks, one approving review, and resolved review conversations. These requirements apply to administrators. Force pushes and branch deletion are blocked. A maintainer cannot approve their own PR; arrange an independent reviewer before merging. The older disabled ruleset is not the enforcement mechanism; branch protection is.
 
-## Dependency audit
+## Integrated source fixes
 
-Fresh audit results:
+- Removed the duplicate `normalizePath` import and included `vite.config.ts` in the normal Node TypeScript check.
+- Updated direct and transitive dependencies within their supported major versions. The seven-day age policy and trust checks remain enabled; exact security patch exceptions are recorded in `pnpm-workspace.yaml`. See [the dependency audit](21-dependency-audit.md).
+- Added persisted rollback journals for item moves and renames, folder moves and renames, reference rewrites, and associated metadata writes. Recovery runs before opening/scanning the vault, and operations are serialized per vault within the process. Process-interruption tests reopen real libraries; journals with conflicting paths stop recovery instead of overwriting both copies.
+- Reference updates replace the note atomically without first moving its original out of the way. The journal retains the previous text until commit.
 
-| Scope                                   | Critical | High | Moderate | Low |
-| --------------------------------------- | -------- | ---- | -------- | --- |
-| Production (`pnpm audit --prod --json`) | 0        | 2    | 2        | 0   |
-| All dependencies (`pnpm audit --json`)  | 0        | 43   | 27       | 2   |
+These changes establish tested process-interruption behavior, not power-loss durability or coordination with another process editing the same vault. Keep backups and use disposable copies when testing a preview. A failed recovery retains its journal for repair.
 
-The production report includes Electron and Undici. Electron is declared as a development dependency but is the shipped desktop runtime; its classification doesn’t make it irrelevant to users.
+## Outstanding source-publication gate
 
-- Electron 44.7.0 is affected by the [compromised intermediate certificate advisory](https://github.com/advisories/GHSA-jr5w-w6x2-84p9). The advisory lists 44.9.1 as the patched version in this major line.
-- Undici is affected by [excessive content-encoding handling](https://github.com/advisories/GHSA-xjj6-f33q-929c), [EventSource memory growth](https://github.com/advisories/GHSA-4qv8-2p9j-2685), and [integrity-token handling](https://github.com/advisories/GHSA-f72v-6w45-q472). The report lists 7.30.1 as the patched version in this major line.
+The [asset inventory](16-third-party-assets.md) records 16 copied bookmark images plus their source manifest in earlier commits. Their removal from the current tree did not remove them from published history. Obtain redistribution clearance or coordinate a reviewed history rewrite covering branches and tags. Review affected release source archives and installers as well. Never treat an image URL as a redistribution license.
 
-Update compatible direct dependencies and the Undici override together, regenerate the lockfile, and rerun the audits and builds. Check the existing seven-day dependency age policy rather than silently disabling it. Review the remaining tooling advisories by actual exposure; a passing production audit won’t resolve them. No dependency exceptions or upgrades were made in this documentation pass.
+A public history rewrite changes commit/tag identities and needs coordination with contributors and release provenance. Do not force-push a filtered history or replace existing release artifacts as part of routine source fixes. Prepare and review the filtered result first; retain a private recovery copy, then explicitly approve the publication step. GitHub cached objects and existing clones may require separate follow-up.
 
-## Before opening the source
+## Desktop distribution
 
-- [ ] Fix Windows PDF asset copying and require green Linux and Windows CI for the final launch commit.
-- [ ] Resolve the production advisories and review outstanding development-tool exposure. Preserve the audit gate in CI.
-- [ ] Clear the copied bookmark artwork in `src/renderer/src/demo/assets/bookmarks/`. `sources.json` records URLs, but the asset inventory has no license or permission record for these images. Record redistribution terms and attribution, or replace the images with original or licensed assets. The earlier confirmation for maintainer artwork doesn’t cover these additions.
-- [ ] Review all published refs, history, sample content, screenshots, and commit metadata for information you don’t want public. The starting commit has a successful full-history secret-scan job; require a fresh successful scan after the final changes. No new local full-history scanner was run in this pass.
-- [ ] Commit and review the documentation changes. Require a contributor-written reason, accurate verification, and honest AI disclosure in PRs.
-- [ ] Change visibility only after those checks. Immediately enable private vulnerability reporting and verify the route in `SECURITY.md` before announcing. Configure required checks/reviews and enable available secret protection.
-- [ ] Verify the public repository and website without signing in. Check the demo, source link, license, notices, keyboard use, and mobile layout. The website guide records an earlier deployment; this pass hasn’t inspected the live UI.
+The [v0.0.3-preview.1 prerelease](https://github.com/vaujan/kuskus/releases/tag/v0.0.3-preview.1) contains Windows x64, Linux x64, and macOS ARM64/x64 installers, checksums, and build metadata. Its source predates this integration. Those assets do not contain the new recovery fixes merely because `main` has changed.
 
-Repository description and homepage are empty in GitHub. Add a short description, the website URL, and useful topics so visitors can identify the project. These are discoverability improvements rather than safety gates.
+The release explicitly records unsigned Windows installers, ad-hoc-signed/not-notarized macOS builds, and incomplete clean-machine installation/runtime testing. Do not describe them as signed stable builds. Produce a new versioned candidate only after reviewing the source and completing the [beta gates](18-beta-release-plan.md).
 
-## Before distributing desktop installers
+Before stable distribution:
 
-Keep the [beta plan](18-beta-release-plan.md) and [release process](15-release-process.md) as the release gates. In particular:
+- Require green CI and a clean full dependency audit for the exact candidate.
+- Build and inspect that candidate, verify signatures/publisher and SHA-256 checksums, and retain corresponding source.
+- Test installation, upgrade, retained vaults, offline workflows, capture, immediate close/reopen, interruption recovery, keyboard access, accessibility, and uninstall on each distributed OS/architecture.
+- Download and test the published artifacts and check the public website without signing in.
 
-- `LibraryStore.moveItems` stages original files inside hidden storage and uses in-memory rollback on exceptions. Process termination doesn’t execute that rollback. Persisted recovery and interruption coverage remain necessary before claiming crash-safe multi-file operations.
-- Windows signing and hands-on install, upgrade, uninstall, save/recovery, accessibility, and capture checks are still unverified here. Test each architecture you distribute.
-- Build and inspect the exact release candidate, verify signatures and checksums, and publish its corresponding source and known limitations.
+## Verification record
 
-Source availability alone doesn’t establish that an installer is ready for people’s only copy of their notes.
+Before integration, `pnpm check` passed with 376 tests and the production audit reported zero advisories. The full audit reported 41 high, 25 moderate, and 2 low findings. The original standalone Vite config built successfully but failed a targeted TypeScript check because of its duplicate import.
 
-## Documentation prepared in this pass
+Final integrated verification passed:
 
-The README now starts with what the app does, its preview status, privacy behavior, and setup. Detailed development profiles moved into [the development guide](development.md). Contribution guidance allows AI assistance while requiring the contributor to understand and verify the whole diff.
+- `pnpm install --frozen-lockfile --ignore-scripts`: lockfile and installed dependencies are consistent. Earlier update/install runs also completed the Electron installation and native-dependency postinstall steps.
+- `pnpm check:release`: 395 tests passed, none failed or skipped; formatting, lint, desktop/website type checks and builds, the full dependency audit, Storybook, Linux x64 unpacked packaging, and archive inspection passed. Inspection verified 32,327 archive entries and Electron notices with Electron 44.9.1.
+- The full audit reports zero advisories. The main renderer surface is 2,451,844 bytes against the unchanged 2,500,000-byte budget; Quick Capture is 952,505 bytes.
+- Gitleaks 8.30.1, downloaded from its upstream release and checked against its published SHA-256 manifest, found no leaks in reachable local Git history, an export of current tracked/unignored source, or the prepared filtered history. The filtered copy has no reachable objects under the removed bookmark directory, and its main tip has the same source tree as the original committed main.
+- `git diff --check` and formatting of the final documentation updates passed.
 
-The [PR guide](pull-requests.md) and GitHub template separate the contributor’s own reason, technical explanation, verification, and AI disclosure. Model names must come from the tool’s displayed label; unknown or automatically selected models must be described honestly. The agent instructions also prohibit inventing the contributor’s experience or claiming checks that didn’t run. A bug form now asks for reproducible details and warns against posting private data.
+The full check initially exposed a timing-dependent live-preview test, an incompatible Base UI update, and renderer growth from React 19.3. The test now completes and publishes its parse before assertions. Base UI remains at the existing 1.6.0 API, and React/React DOM remain at 19.2.7. No performance ceiling or audit threshold was raised. Builds retain the existing search-highlight CSS and large-chunk warnings.
 
-## Local verification
+Changes remain local and uncommitted; GitHub security settings are live. The green remote CI above predates this integration. No new release, history force-push, signed installer, clean-machine native installation test, or live-site interaction is claimed.
 
-`pnpm check` passed locally: 367 tests passed, none failed or skipped; version consistency, formatting, lint, desktop type checks/build, renderer budget, and website type checks/build passed. The main renderer surface measured 2,437,981 bytes against a 2,500,000-byte budget. Builds still warn about `::highlight` CSS optimization and large website chunks.
-
-The fresh production and full audits completed with the findings listed above, so the audit gate is failing. Local Markdown links and `git diff --check` passed. Formatting was checked again after the final documentation edits.
-
-No fresh native package, Storybook build, Windows runtime test, local full-history secret scan, or live-site UI inspection was performed. These local results don’t replace Windows CI, native testing, artwork clearance, or a final history review.
-
-AI assistance for this documentation pass: Codex, identified in this session as GPT-6; the exact serving variant isn’t exposed. AI inspected repository files and GitHub evidence, drafted the docs, and ran the recorded commands. The maintainer’s personal review and launch decision are still pending.
+AI assistance: Codex implemented and checked this integration and drafted its technical documentation. The exact model label is not exposed in the active user interface; model unknown. Human review, artwork clearance, and native release approval are not claimed.
