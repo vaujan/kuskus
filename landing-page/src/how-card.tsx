@@ -199,6 +199,7 @@ createRoot(document.getElementById('root')!).render(
           <div className="feature-vault">
             <SidebarProvider defaultWidth={228} className="feature-vault-layout">
               <LibrarySidebar
+                beforeDevReload={async () => true}
                 library={previewLibrary}
                 destination={{ type: 'collection', collectionId: 'checkout' }}
                 onDestinationChange={noop}
