@@ -278,6 +278,26 @@ export class LibraryService {
     return item
   }
 
+  async resetOnboarding(): Promise<void> {
+    await this.reconciliation
+    await writeJsonAtomic(this.settingsPath, {
+      schemaVersion: 1,
+      lastLibraryPath: null
+    } satisfies PersistedSettings)
+    this.vaultWatcher?.close()
+    this.vaultWatcher = null
+    if (this.vaultChangeTimer) clearTimeout(this.vaultChangeTimer)
+    this.vaultChangeTimer = null
+    if (this.ignoredAppMoveTimer) clearTimeout(this.ignoredAppMoveTimer)
+    this.ignoredAppMoveTimer = null
+    this.ignoredAppMovePaths.clear()
+    this.currentLibraryPath = null
+    this.pendingLibraryPath = null
+    this.unavailableLibrary = null
+    this.librarySnapshot = null
+    this.startupReconciliationPending = false
+  }
+
   async initialize(): Promise<void> {
     try {
       const settings = await readJson<PersistedSettings>(this.settingsPath)

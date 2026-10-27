@@ -20,7 +20,16 @@ pnpm dev:onboarding
 
 Each launch clears `.onboarding/` and starts with no library, saved theme, or other app preferences. The Create Library folder picker starts in `.onboarding/libraries/`; create test libraries there so the next launch clears them too. Libraries created elsewhere are not removed. This profile is separate from the normal development, demo, and packaged app profiles. Close the onboarding app before starting another run.
 
-To clear the workspace without starting the app, run `pnpm onboarding:reset` after closing it.
+To clear the workspace without starting the app, run `pnpm onboarding:reset` after closing it. This command only clears `.onboarding/`; it does not reset a normal `pnpm dev` or demo session.
+
+In a running development app, open **Development** in the sidebar for testing actions:
+
+- **Reset onboarding (keep library files)** forgets the active library and reloads into setup. Existing library files and capture recovery data remain available when you reopen the library.
+- **Reset UI preferences** clears saved renderer preferences and reloads the app.
+- **Reload app** reloads the main window.
+- **Toggle DevTools** opens or closes Electron DevTools.
+
+The menu and its backend actions are available only in development mode.
 
 ## Isolated demo environment
 

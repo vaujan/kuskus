@@ -51,6 +51,12 @@ ipcRenderer.on(CAPTURE_CHANNELS.mainItemRequested, (_event, itemId: string) => {
 })
 
 const windowApi: ElectronWindowApi = {
+  ...(import.meta.env.DEV
+    ? {
+        devAction: (action: 'reset-onboarding' | 'devtools'): Promise<boolean> =>
+          ipcRenderer.invoke(WINDOW_CHANNELS.devAction, action)
+      }
+    : {}),
   platform: process.platform,
   minimize: (): void => ipcRenderer.send(WINDOW_CHANNELS.minimize),
   toggleMaximize: (): void => ipcRenderer.send(WINDOW_CHANNELS.toggleMaximize),

@@ -16,6 +16,7 @@ import {
 } from '@tabler/icons-react'
 import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 
+import { DevMenu } from './dev-menu'
 import { Button } from '@/components/ui/button'
 import {
   AlertDialog,
@@ -534,7 +535,8 @@ export function LibrarySidebar({
   onError,
   onStatus,
   librarySwitchBlocked,
-  onOpenSettings
+  onOpenSettings,
+  beforeDevReload
 }: {
   ref?: React.Ref<LibrarySidebarHandle>
   library: LibraryDto
@@ -546,6 +548,7 @@ export function LibrarySidebar({
   onStatus: (message: string) => void
   librarySwitchBlocked: boolean
   onOpenSettings: () => void
+  beforeDevReload: () => Promise<boolean>
 }): React.JSX.Element {
   const { flyoutOpen, isFloating, toggleSidebar } = useSidebar()
   const sidebarVariant = isFloating ? 'floating' : 'sidebar'
@@ -1012,6 +1015,12 @@ export function LibrarySidebar({
           </SidebarGroup>
         </SidebarContent>
         <SidebarFooter className="[-webkit-app-region:no-drag]">
+          {import.meta.env.DEV ? (
+            <DevMenu
+              resetBlocked={librarySwitchBlocked || libraryOperationBusy}
+              beforeReload={beforeDevReload}
+            />
+          ) : null}
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton

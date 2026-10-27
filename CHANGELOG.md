@@ -18,6 +18,7 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 ### Changed
 
+- Add a development-only sidebar menu to reset onboarding without deleting library files, reset UI preferences, reload, and toggle DevTools.
 - Simplified onboarding with a centered Kuskus mascot, compact library actions, and a consistent layout throughout setup.
 - Recolored the curled-tail application logo and matching website favicon with natural brown and cream tones.
 - Keep Download Kuskus and Source on GitHub as the landing page's main actions; the download page tracks installer availability.

@@ -1,3 +1,4 @@
+import { trustedIpcMain } from './security'
 import { app, BrowserWindow, globalShortcut, nativeTheme } from 'electron'
 import { join, resolve } from 'node:path'
 import { performance } from 'node:perf_hooks'
@@ -185,6 +186,21 @@ if (!hasSingleInstanceLock) {
       (itemId) => noteWindows.open(itemId),
       (sender, approved) => noteWindows.resolveClose(sender, approved)
     )
+    if (import.meta.env.DEV && !app.isPackaged) {
+      trustedIpcMain.handle(WINDOW_CHANNELS.devAction, async (event, action: unknown) => {
+        if (event.sender !== mainWindow?.webContents) throw new Error('Main window required.')
+        if (action === 'devtools') {
+          event.sender.toggleDevTools()
+          return true
+        }
+        if (action !== 'reset-onboarding') throw new Error('Unsupported development action.')
+        if (!(await noteWindows.closeAll())) return false
+        await libraryService!.resetOnboarding()
+        quickCaptureWindow?.hide()
+        settingsWindow.destroy()
+        return true
+      })
+    }
     trackPerformanceIpcTimings()
     registerLibraryIpc(libraryService, () => noteWindows.closeAll())
     registerCaptureIpc(captureSessions, libraryService, {
