@@ -61,7 +61,7 @@ export const SETTINGS_SCHEMA: readonly SettingDefinition[] = [
   {
     key: 'colorTheme',
     storageKey: 'kuskus-color-theme',
-    default: 'kuskus',
+    default: 'one',
     parse: resolveColorTheme
   },
   {
