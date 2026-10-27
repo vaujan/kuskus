@@ -2192,6 +2192,7 @@ export function Workspace({
       className="window-root h-screen min-h-0 overflow-hidden text-foreground"
     >
       <LibrarySidebar
+        beforeDevReload={() => focusDetailRef.current?.flush() ?? Promise.resolve(true)}
         ref={librarySidebarRef}
         key={library.id}
         library={library}

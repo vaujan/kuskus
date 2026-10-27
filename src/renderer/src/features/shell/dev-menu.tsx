@@ -1,3 +1,4 @@
+import { runDevReloadAction, type DevReloadAction } from './dev-menu-actions'
 import { useState } from 'react'
 import { IconCode } from '@tabler/icons-react'
 import { toast } from 'sonner'
@@ -11,15 +12,21 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from './app-sidebar'
 
-export function DevMenu({ resetBlocked }: { resetBlocked: boolean }): React.JSX.Element {
+export function DevMenu({
+  resetBlocked,
+  beforeReload
+}: {
+  resetBlocked: boolean
+  beforeReload: () => Promise<boolean>
+}): React.JSX.Element {
   const [busy, setBusy] = useState(false)
 
-  async function resetOnboarding(): Promise<void> {
+  async function reload(action: DevReloadAction): Promise<void> {
     setBusy(true)
     try {
-      if (await window.electron.window.devAction?.('reset-onboarding')) window.location.reload()
+      await runDevReloadAction(action, beforeReload)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Could not reset onboarding.')
+      toast.error(error instanceof Error ? error.message : 'Could not complete development action.')
     } finally {
       setBusy(false)
     }
@@ -36,18 +43,22 @@ export function DevMenu({ resetBlocked }: { resetBlocked: boolean }): React.JSX.
           <DropdownMenuContent side="right" align="end">
             <DropdownMenuGroup>
               <DropdownMenuLabel>Development tools</DropdownMenuLabel>
-              <DropdownMenuItem disabled={resetBlocked} onClick={() => void resetOnboarding()}>
+              <DropdownMenuItem
+                disabled={resetBlocked || busy}
+                onClick={() => void reload('reset-onboarding')}
+              >
                 Reset onboarding (keep library files)
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => {
-                  localStorage.clear()
-                  window.location.reload()
-                }}
+                disabled={resetBlocked || busy}
+                onClick={() => void reload('reset-preferences')}
               >
                 Reset UI preferences
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => window.location.reload()}>
+              <DropdownMenuItem
+                disabled={resetBlocked || busy}
+                onClick={() => void reload('reload')}
+              >
                 Reload app
               </DropdownMenuItem>
               <DropdownMenuItem
