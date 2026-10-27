@@ -1,4 +1,5 @@
 export const WINDOW_CHANNELS = {
+  devAction: 'window:dev-action',
   minimize: 'window:minimize',
   toggleMaximize: 'window:toggle-maximize',
   close: 'window:close',
@@ -90,6 +91,7 @@ export type DesktopPlatform =
   | 'netbsd'
 
 export interface ElectronWindowApi {
+  devAction?: (action: 'reset-onboarding' | 'devtools') => Promise<boolean>
   platform: DesktopPlatform
   minimize: () => void
   toggleMaximize: () => void

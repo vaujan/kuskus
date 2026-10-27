@@ -16,6 +16,7 @@ import {
 } from '@tabler/icons-react'
 import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 
+import { DevMenu } from './dev-menu'
 import { Button } from '@/components/ui/button'
 import {
   AlertDialog,
@@ -1012,6 +1013,9 @@ export function LibrarySidebar({
           </SidebarGroup>
         </SidebarContent>
         <SidebarFooter className="[-webkit-app-region:no-drag]">
+          {import.meta.env.DEV ? (
+            <DevMenu resetBlocked={librarySwitchBlocked || libraryOperationBusy} />
+          ) : null}
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton

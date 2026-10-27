@@ -37,6 +37,10 @@ async function run() {
   await rm(onboardingRoot, { recursive: true, force: true })
   if (resetOnly) {
     console.log(`Cleared onboarding workspace: ${onboardingRoot}`)
+    console.log('This only resets pnpm dev:onboarding, not pnpm dev or pnpm dev:demo.')
+    console.log(
+      'To reset the active development profile, use Development → Reset onboarding in the sidebar.'
+    )
     return
   }
 
