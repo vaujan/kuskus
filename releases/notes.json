@@ -25,6 +25,7 @@
         "Rebuild pnpm package-store indexes during Vercel installs so cached dependencies do not break website license generation."
       ],
       "Changed": [
+        "Simplified onboarding with a centered Kuskus mascot, compact library actions, and a consistent layout throughout setup.",
         "Recolored the curled-tail application logo and matching website favicon with natural brown and cream tones.",
         "Keep Download Kuskus and Source on GitHub as the landing page's main actions; the download page tracks installer availability.",
         "Removed obsolete library and draft migrations; vault opening no longer converts old Markdown metadata.",

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import bubuntuLine from '@/assets/bubuntu-line.svg'
+import kuskusIcon from '../../../../../resources/icon.png'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -131,7 +131,7 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
     : libraryCreated
       ? 'Your library is ready'
       : step === 'welcome'
-        ? 'Welcome to Kuskus'
+        ? 'Kuskus'
         : step === 'options'
           ? 'Choose your starting point'
           : 'Create a library'
@@ -142,42 +142,26 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
     : libraryCreated
       ? 'The library was created, but the starter guide could not be added.'
       : step === 'welcome'
-        ? 'Give your notes, images, links, and ideas a place to live.'
+        ? 'A home for everything worth keeping.'
         : step === 'options'
           ? 'Choose a look and a starting path.'
           : 'Choose a name and a location on your computer.'
 
   return (
-    <div className="window-canvas grid h-screen min-h-0 grid-cols-[minmax(220px,34%)_minmax(0,1fr)] overflow-hidden text-foreground">
-      <aside className="setup-hero flex min-h-0 flex-col overflow-hidden text-white">
-        <div className="flex h-11 shrink-0 items-center px-5 [-webkit-app-region:drag]">
-          <span className="text-sm font-semibold tracking-tight">Kuskus</span>
-        </div>
-        <div className="flex min-h-0 flex-1 items-center justify-center px-5">
-          <img
-            src={bubuntuLine}
-            alt=""
-            draggable={false}
-            className="pointer-events-none max-h-full w-full max-w-[22rem] select-none object-contain opacity-90 invert"
-          />
-        </div>
-        <div className="flex shrink-0 flex-col gap-2 px-6 pb-8">
-          <p className="max-w-xs text-balance text-xl leading-snug font-semibold tracking-tight">
-            A home for everything worth keeping.
-          </p>
-          <p className="max-w-xs text-pretty text-sm leading-relaxed text-white/75">
-            Yours to collect. Yours to keep.
-          </p>
-        </div>
-      </aside>
-
-      <div className="flex min-h-0 flex-col bg-background">
+    <div className="window-canvas flex h-screen min-h-0 flex-col overflow-hidden bg-background text-foreground">
+      <div className="flex min-h-0 flex-1 flex-col">
         <header className="flex h-11 shrink-0 justify-end [-webkit-app-region:drag]">
           <WindowControls />
         </header>
         <main className="setup-main flex min-h-0 flex-1 justify-center overflow-y-auto px-7 py-8">
-          <div className="setup-content my-auto flex w-full max-w-lg flex-col gap-7">
-            <div className="setup-intro flex flex-col gap-3 text-center">
+          <div className="setup-content my-auto flex w-full max-w-[34rem] flex-col gap-7">
+            <div className="setup-intro flex flex-col items-center gap-3 text-center">
+              <img
+                src={kuskusIcon}
+                alt=""
+                draggable={false}
+                className="setup-logo pointer-events-none mb-2 size-24 select-none object-contain"
+              />
               <h1 className="text-balance text-3xl font-semibold tracking-tight">{title}</h1>
               <p className="text-pretty text-sm leading-relaxed text-muted-foreground">
                 {description}
@@ -193,33 +177,41 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
 
             {showWelcome ? (
               <Card className="setup-welcome-card gap-0 py-0">
-                <CardHeader className="border-b py-5">
+                <CardHeader className="sr-only">
                   <CardTitle>Get started</CardTitle>
-                  <CardDescription>Your library is stored in a folder you choose.</CardDescription>
+                  <CardDescription>
+                    Create a library or open a folder on your computer.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="py-1">
-                  <div className="flex items-center justify-between gap-4 py-5">
+                  <div className="flex items-center justify-between gap-4 py-6">
                     <div className="flex min-w-0 flex-col gap-1">
                       <p className="text-sm font-medium">Create a new library</p>
                       <p className="text-pretty text-xs leading-relaxed text-muted-foreground">
                         Start with a fresh space for your collection.
                       </p>
                     </div>
-                    <Button className="w-24" disabled={busy} onClick={() => setStep('options')}>
+                    <Button
+                      size="lg"
+                      className="w-24"
+                      disabled={busy}
+                      onClick={() => setStep('options')}
+                    >
                       Create
                     </Button>
                   </div>
                   <Separator />
-                  <div className="flex items-center justify-between gap-4 py-5">
+                  <div className="flex items-center justify-between gap-4 py-6">
                     <div className="flex min-w-0 flex-col gap-1">
-                      <p className="text-sm font-medium">Open an existing library</p>
+                      <p className="text-sm font-medium">Open a folder as a library</p>
                       <p className="text-pretty text-xs leading-relaxed text-muted-foreground">
-                        Continue with a library already on this computer.
+                        Choose an existing library or a folder of files.
                       </p>
                     </div>
                     <Button
                       className="w-24"
-                      variant="outline"
+                      size="lg"
+                      variant="secondary"
                       disabled={busy}
                       onClick={openLibrary}
                     >
@@ -228,8 +220,9 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
                     </Button>
                   </div>
                 </CardContent>
-                <CardFooter className="border-t py-4 text-xs text-muted-foreground">
-                  Private by default. Your files stay on your computer.
+                <CardFooter className="flex-col gap-1 border-t py-4 text-center text-xs text-muted-foreground">
+                  <p>Your files stay on your computer.</p>
+                  <p>No account needed. Yours to collect, yours to keep.</p>
                 </CardFooter>
               </Card>
             ) : needsPreparation ? (
