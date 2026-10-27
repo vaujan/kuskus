@@ -112,7 +112,7 @@ export function registerLibraryIpc(
       }
       return {
         ok: true,
-        data: await libraryService.createIn(selection.filePaths[0], requestedName)
+        data: await libraryService.createWithTutorialIn(selection.filePaths[0], requestedName)
       }
     } catch (error) {
       return errorResult(error)

@@ -39,6 +39,34 @@ function noteDto(body, updatedAt = '2026-07-21T00:00:00.000Z') {
   }
 }
 
+test('creates a new library with a tutorial note in its own folder', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-tutorial-test-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const settingsPath = join(root, 'settings', 'kuskus-settings.json')
+  const service = new LibraryService(settingsPath)
+  const state = await service.createWithTutorialIn(root, 'My library')
+
+  assert.equal(state.status, 'ready')
+  assert.equal(state.library.collections.length, 1)
+  const folder = state.library.collections[0]
+  assert.equal(folder.name, 'Getting started')
+  assert.equal(state.library.items.length, 1)
+  const note = state.library.items[0]
+  assert.equal(note.title, 'Start here')
+  assert.deepEqual(note.location, { type: 'collection', collectionId: folder.id })
+  assert.match(
+    await readFile(await service.getItemContentPath(note.id), 'utf8'),
+    /## 1\. Save something/
+  )
+
+  const reopenedService = new LibraryService(settingsPath)
+  await reopenedService.initialize()
+  const reopened = await reopenedService.getState()
+  assert.equal(reopened.status, 'ready')
+  assert.equal(reopened.library.items.length, 1)
+  assert.equal(reopened.library.collections.length, 1)
+})
+
 test('creates, persists, reopens, and reveals a Markdown note path', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kuskus-library-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
