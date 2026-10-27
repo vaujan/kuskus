@@ -18,6 +18,9 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 ### Changed
 
+- Simplify library setup and include a starter guide in a Getting started folder in each new library.
+- Use the One theme, system fonts, and 16px source text by default.
+- Show a Create folder prompt when the sidebar has no folders.
 - Add a development-only sidebar menu to reset onboarding without deleting library files, reset UI preferences, reload, and toggle DevTools.
 - Simplified onboarding with a centered Kuskus mascot, compact library actions, and a consistent layout throughout setup.
 - Recolored the curled-tail application logo and matching website favicon with natural brown and cream tones.
