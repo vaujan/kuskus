@@ -3,7 +3,7 @@ const { copyFileSync } = require('node:fs')
 const { resolve } = require('node:path')
 const { execFileSync } = require('node:child_process')
 const root = resolve(__dirname, '..')
-const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
+const pnpm = 'pnpm'
 execFileSync(pnpm, ['licenses:generate'], {
   cwd: root,
   stdio: 'inherit',

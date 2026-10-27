@@ -28,6 +28,7 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 ### Fixed
 
+- Resolve pnpm commands on Windows with either executable or command-shim installations.
 - Recover interrupted item and folder moves, renames, reference rewrites, and metadata writes from persisted vault transaction journals.
 - Check the standalone Vite configuration with the normal TypeScript checks and remove its duplicate import.
 - Generate third-party notices from installed packages so Vercel builds do not depend on pnpm's cached package-store indexes.
