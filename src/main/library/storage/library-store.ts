@@ -845,17 +845,21 @@ export class LibraryStore {
       id: string
       textSource: string | undefined
     }> = []
+    // Existing paths own their IDs even when a new file shares or reuses a file identity.
+    const presentPaths = new Set(scanEntries.map(({ file }) => file.relativePath.toLowerCase()))
     for (const { file, fileIdentity, fingerprint, textSource, unchanged } of scanEntries) {
       let current = byPath.get(file.relativePath.toLowerCase())
       if (!current && fileIdentity) {
         const matches = (byFileIdentity.get(fileIdentity) ?? []).filter(
-          (record) => !seenIds.has(record.id)
+          (record) =>
+            !seenIds.has(record.id) && !presentPaths.has(record.relativePath.toLowerCase())
         )
         if (matches.length === 1) current = matches[0]
       }
       if (!current && fingerprint && fingerprintCounts.get(fingerprint) === 1) {
         const matches = (byFingerprint.get(fingerprint) ?? []).filter(
-          (record) => !seenIds.has(record.id)
+          (record) =>
+            !seenIds.has(record.id) && !presentPaths.has(record.relativePath.toLowerCase())
         )
         if (matches.length === 1) current = matches[0]
       }

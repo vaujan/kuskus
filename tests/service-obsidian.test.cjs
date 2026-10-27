@@ -1,5 +1,14 @@
 const assert = require('node:assert/strict')
-const { mkdir, mkdtemp, readFile, rename, rm, unlink, writeFile } = require('node:fs/promises')
+const {
+  link,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rename,
+  rm,
+  unlink,
+  writeFile
+} = require('node:fs/promises')
 const { tmpdir } = require('node:os')
 const { join } = require('node:path')
 const test = require('node:test')
@@ -196,6 +205,25 @@ test('keeps note identity across an external filesystem rename without visible m
   )
   assert.equal(resolved.id, note.id)
   assert.equal(resolved.body, '# Stable note\n\nEdited outside Kuskus')
+})
+
+test('keeps an existing path identity when a new file shares its file identity', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kuskus-shared-file-identity-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  const created = await service.createIn(root, 'Vault')
+  const note = await service.createNote({ markdown: '# Z original', attachmentIds: [] })
+  // Scan the new path first while both paths refer to the same filesystem identity.
+  await link(join(created.library.path, note.relativePath), join(created.library.path, 'A copy.md'))
+
+  const state = await service.reconcileState()
+  assert.equal(
+    state.library.items.find((item) => item.id === note.id).relativePath,
+    note.relativePath
+  )
+  const copy = state.library.items.find((item) => item.relativePath === 'A copy.md')
+  assert.ok(copy)
+  assert.notEqual(copy.id, note.id)
 })
 
 test('does not guess identity when duplicate fingerprints make an external move ambiguous', async (context) => {

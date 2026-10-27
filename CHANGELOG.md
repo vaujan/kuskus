@@ -29,6 +29,7 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 ### Fixed
 
+- Preserve existing item IDs when newly discovered files share or reuse a filesystem identity during vault reconciliation.
 - Resolve pnpm commands on Windows with either executable or command-shim installations.
 - Download the Electron runtime during dependency installation so desktop development starts successfully on a fresh setup.
 - Recover interrupted item and folder moves, renames, reference rewrites, and metadata writes from persisted vault transaction journals.
