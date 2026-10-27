@@ -18,6 +18,7 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 ### Changed
 
+- Simplified onboarding with a centered Kuskus mascot, compact library actions, and a consistent layout throughout setup.
 - Recolored the curled-tail application logo and matching website favicon with natural brown and cream tones.
 - Keep Download Kuskus and Source on GitHub as the landing page's main actions; the download page tracks installer availability.
 - Removed obsolete library and draft migrations; vault opening no longer converts old Markdown metadata.
@@ -28,6 +29,9 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 ### Fixed
 
+- Preserve existing item IDs when newly discovered files share or reuse a filesystem identity during vault reconciliation.
+- Resolve pnpm commands on Windows with either executable or command-shim installations.
+- Download the Electron runtime during dependency installation so desktop development starts successfully on a fresh setup.
 - Recover interrupted item and folder moves, renames, reference rewrites, and metadata writes from persisted vault transaction journals.
 - Check the standalone Vite configuration with the normal TypeScript checks and remove its duplicate import.
 - Generate third-party notices from installed packages so Vercel builds do not depend on pnpm's cached package-store indexes.

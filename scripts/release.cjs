@@ -11,9 +11,9 @@ if (process.platform !== 'win32') {
   console.error('Public releases must be prepared and verified on Windows.')
   process.exit(1)
 }
-const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
+const pnpm = 'pnpm'
 // No version, Git tag, or publication is changed by this command.
-// Windows needs a shell to invoke the pnpm.cmd shim; every argument is constant.
+// Windows uses a shell to resolve pnpm executables and shims; every argument is constant.
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 const run = (args) => execFileSync(pnpm, args, { stdio: 'inherit', shell: true })
 run(['release:verify'])

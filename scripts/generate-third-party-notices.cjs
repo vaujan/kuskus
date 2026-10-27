@@ -3,7 +3,7 @@ const { execFileSync } = require('node:child_process')
 const { existsSync, readFileSync, readdirSync, writeFileSync } = require('node:fs')
 const { join } = require('node:path')
 
-const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
+const pnpm = 'pnpm'
 // Electron's executable and its notices are shipped separately by electron-builder.
 // Its npm downloader subtree is tooling, not application code.
 const runtimePaths = new Set()
