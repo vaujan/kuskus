@@ -38,7 +38,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-Electron downloads its native runtime on first use. If that download hasn’t completed, run `pnpm exec install-electron`, then `pnpm exec electron --version` before starting the app.
+The install step downloads Electron’s native runtime. If that download hasn’t completed, run `pnpm exec install-electron`, then `pnpm exec electron --version` before starting the app.
 
 Use `pnpm dev:demo` for a separate sample library, or `pnpm dev:onboarding` for a fresh start. The [development guide](docs/development.md) covers these profiles, Storybook, and the renderer tools.
 
