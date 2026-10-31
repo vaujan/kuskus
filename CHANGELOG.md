@@ -6,10 +6,22 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [0.0.5] - 2026-10-31
+
+### Added
+
+- Show the installed app version in Settings → About Kuskus.
+
+### Changed
+
+- Add a folder icon and subtle dashed border to the sidebar's empty folder prompt.
+- Unify the landing page feature previews, simplify their copy, and use borderless cards with hover backgrounds alongside icon cards for local/offline use, no required account, and free/open-source availability in English and Indonesian.
+
 ### Fixed
 
-- Show locally rendered link preview cards and domain icons in the browser demo.
+- Bundle actual publisher preview images for every landing-page sample link so the demo consistently demonstrates link previews.
 - Show a loading state while fetching download options and clear it when releases are unavailable.
+- Use the app mode button and scroll area in the writing preview, scale capture menus with the embedded scene, and disable capture submission and file actions in feature previews.
 
 ## [0.0.4] - 2026-10-31
 
