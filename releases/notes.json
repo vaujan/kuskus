@@ -132,9 +132,7 @@
       "date": "2026-08-13",
       "notes": {
         "changes": {
-          "Added": [
-            "Hello, world!"
-          ]
+          "Added": ["Hello, world!"]
         }
       }
     }
