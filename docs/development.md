@@ -6,6 +6,18 @@ Development windows load [React Scan](https://github.com/aidenybai/react-scan) a
 
 ## Component stories
 
+The shadcn components are checked in as source. Their shared Tailwind stylesheet is
+vendored from shadcn 4.22.1 in `src/renderer/src/assets/shadcn.css`, with its MIT license
+in `third-party/shadcn.LICENSE.txt`. The generator CLI is not an installed dependency;
+it brought in an unpatched `deepmerge` vulnerability without being needed to build
+the application.
+
+The dependency audit excludes GHSA-g3hv-75wg-m249 only because minimatch 3.1.5 and
+5.1.9 do not contain the advisory's `firstPhasePreProcess` optimizer. All modern
+minimatch copies resolve to 11.0.1 or newer. `tests/security-dependencies.test.cjs`
+checks both the legacy source and the lockfile so the exception cannot hide a
+vulnerable modern copy. See the [upstream advisory](https://github.com/advisories/GHSA-g3hv-75wg-m249).
+
 ```bash
 pnpm storybook
 ```

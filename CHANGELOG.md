@@ -48,6 +48,7 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 ### Security
 
+- Remove the unused shadcn generator CLI and its vulnerable dependencies, vendor its shared styles with attribution, and update modern glob and minimatch tooling dependencies.
 - Update supported development and packaging dependencies and retain exact security patch exceptions under the dependency age policy.
 - Updated Electron, KaTeX, and Mermaid dependencies and patched transitive sanitizer/math dependencies.
 - Restricted external links to HTTP(S), blocked renderer navigation and webviews, and authenticated IPC requests from registered app main frames.
