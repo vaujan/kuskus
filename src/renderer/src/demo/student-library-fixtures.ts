@@ -1,5 +1,6 @@
 import type { CollectionDto, LibraryItemDto } from '../../../shared/library-contract'
 import { SAMPLE_NOTE } from '../features/items/note-story-fixtures'
+import { bookmarkAsset } from './bookmark-assets'
 
 // Original student notes and real bookmarks. No generated photographs or borrowed lecture files.
 export const studentCollections: CollectionDto[] = [
@@ -100,10 +101,10 @@ const entries: StudyEntry[][] = [
       body: '## Can I explain these without notes?\n\n- [x] Stack vs queue, with a real example\n- [x] Why binary search needs sorted input\n- [ ] BFS vs DFS: traversal order, storage, use cases\n- [ ] Average vs worst-case hash-table lookup\n- [ ] Why a BST is not automatically balanced\n\n## Friday plan\n\n25 minutes: trace one graph by hand.\n25 minutes: solve two boundary-case problems.\n10 minutes: write down anything I still cannot explain.\n\nDo not spend the whole session rereading. The useful part is finding where I get stuck.'
     },
     {
-      title: 'VisuAlgo \u2014 animate the algorithm',
-      url: 'https://visualgo.net/en',
+      title: 'Data structures and algorithms \u2014 study roadmap',
+      url: 'https://roadmap.sh/datastructures-and-algorithms',
       description:
-        'Run a small graph by hand first, then compare the queue and traversal order with the animation.'
+        'Compare the graph, queue, and traversal topics with the exercises still on my revision list.'
     },
     {
       title: 'Python collections \u2014 deque & Counter',
@@ -268,10 +269,10 @@ const entries: StudyEntry[][] = [
         'Reference for splitting the flashcard script into small modules and reading its data file.'
     },
     {
-      title: 'Git \u2014 the official book',
-      url: 'https://git-scm.com/book/en/v2',
+      title: 'GitHub Docs \u2014 Git fundamentals',
+      url: 'https://docs.github.com/en/get-started/using-git/about-git',
       description:
-        'Read the branching chapter before the group project. Practice merges in a separate repository.'
+        'Review commits and branches before the group project. Practice in a separate repository.'
     }
   ],
   [
@@ -294,8 +295,8 @@ const entries: StudyEntry[][] = [
         'Return to the algorithms and memory material when the lecture notes feel too compressed.'
     },
     {
-      title: 'The Rust Programming Language',
-      url: 'https://doc.rust-lang.org/book/',
+      title: 'Rust \u2014 learning resources',
+      url: 'https://rust-lang.org/learn/',
       description:
         'Curious about ownership. Save for after the current Python assignment rather than starting another course tonight.'
     },
@@ -306,14 +307,14 @@ const entries: StudyEntry[][] = [
         'Read after finishing the SQLite planner. Compare joins and constraints using a tiny dataset.'
     },
     {
-      title: 'Pro Git \u2014 branching practice',
-      url: 'https://git-scm.com/book/en/v2/Git-Branching-Branches-in-a-Nutshell',
+      title: 'MIT \u2014 version control with Git',
+      url: 'https://missing.csail.mit.edu/2026/version-control/',
       description:
         'Do this before the next group assignment. Draw the commits, then reproduce the branch history.'
     },
     {
-      title: 'SQLite \u2014 foreign key support',
-      url: 'https://www.sqlite.org/foreignkeys.html',
+      title: 'SQLite Tutorial \u2014 foreign keys',
+      url: 'https://www.sqlitetutorial.net/sqlite-foreign-key/',
       description:
         'Check connection setup and deletion behavior before adding course deletion to the planner.'
     },
@@ -355,8 +356,8 @@ export const studentItems: LibraryItemDto[] = entries.flatMap((group, folderInde
         description: entry.description ?? null,
         contentKind: 'webpage',
         metadataVersion: 1,
-        hasFavicon: true,
-        hasPreviewImage: true,
+        hasFavicon: Boolean(bookmarkAsset(entry.url, 'favicon')),
+        hasPreviewImage: Boolean(bookmarkAsset(entry.url, 'preview')),
         metadataStatus: 'ready',
         metadataError: null,
         relativePath: `${folder.relativePath}/${entry.title}.url`
