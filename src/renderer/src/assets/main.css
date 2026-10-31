@@ -2,7 +2,7 @@
 
 @import 'tailwindcss';
 @import 'tw-animate-css';
-@import 'shadcn/tailwind.css';
+@import './shadcn.css';
 @import './window-material.css';
 @import './typeset.css';
 @import './katex-woff2.css';
@@ -96,8 +96,8 @@
   --control-shadow: color-mix(in srgb, var(--foreground) 5%, transparent);
   --control-shadow-soft: color-mix(in srgb, var(--foreground) 2%, transparent);
   --control-press: color-mix(in srgb, var(--foreground) 11%, transparent);
-  --font-ui: 'Inter Variable', sans-serif;
-  --font-content: 'Inter Variable', sans-serif;
+  --font-ui: system-ui, sans-serif;
+  --font-content: system-ui, sans-serif;
   --font-code: ui-monospace, monospace;
   --background: #faf9f4;
   --foreground: #263037;
@@ -1829,24 +1829,5 @@ html[data-quick-capture-corners='native'] .quick-capture-shell {
   .setup-welcome-card [data-slot='card-footer'],
   .setup-welcome-card [data-slot='card-content'] > div:not([data-slot='separator']) {
     padding-block: 0.75rem;
-  }
-
-  .setup-options-card [data-slot='card-header'],
-  .setup-options-card [data-slot='card-content'],
-  .setup-options-card [data-slot='card-footer'] {
-    padding-block: 0.75rem;
-  }
-
-  .setup-options-card [data-slot='field-group'] {
-    gap: 0.5rem;
-  }
-
-  .setup-options-card [data-slot='field'] {
-    gap: 0.25rem;
-  }
-
-  .setup-options-card [data-slot='toggle-group-item'] {
-    height: 1.75rem;
-    font-size: 0.75rem;
   }
 }

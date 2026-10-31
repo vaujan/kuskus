@@ -15,8 +15,6 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { Spinner } from '@/components/ui/spinner'
-import { StarterOptions, type StarterContent } from '@/features/library/starter-options'
-import { STARTER_TUTORIAL } from '@/features/library/starter-tutorial'
 import { WindowControls } from '@/features/shell/window-controls'
 import { dismissVaultIndexing, notifyVaultIndexingStarted } from '@/lib/notify'
 import type { LibraryState } from '../../../../shared/library-contract'
@@ -36,32 +34,21 @@ function LibraryAlert({
   )
 }
 
-export function SetupScreen({ initialState }: { initialState: LibraryState }): React.JSX.Element {
+export function SetupScreen({
+  initialState,
+  onLibraryChange
+}: {
+  initialState: LibraryState
+  onLibraryChange: (state: LibraryState) => void
+}): React.JSX.Element {
   const [name, setName] = useState('My Kuskus Library')
-  const [step, setStep] = useState<'welcome' | 'options' | 'create'>('welcome')
-  const [starterContent, setStarterContent] = useState<StarterContent>('tutorials')
-  const [libraryCreated, setLibraryCreated] = useState(false)
+  const [step, setStep] = useState<'welcome' | 'create'>('welcome')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  const addStarterTutorial = async (): Promise<boolean> => {
-    try {
-      const result = await window.kuskus.createNote({
-        markdown: STARTER_TUTORIAL,
-        attachmentIds: []
-      })
-      if (result.ok) return true
-      setError(result.error)
-      return false
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'Could not save the starter guide.')
-      return false
-    }
-  }
-
   const createLibrary = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault()
-    if (!name.trim() || busy || libraryCreated) return
+    if (!name.trim() || busy) return
 
     setBusy(true)
     setError('')
@@ -71,22 +58,9 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
         if (result.code !== 'cancelled') setError(result.error)
         return
       }
-      setLibraryCreated(true)
-      if (starterContent === 'tutorials' && !(await addStarterTutorial())) return
-      window.location.reload()
+      onLibraryChange(result.data)
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'Could not create the library.')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const retryStarterTutorial = async (): Promise<void> => {
-    if (busy || !libraryCreated) return
-    setBusy(true)
-    setError('')
-    try {
-      if (await addStarterTutorial()) window.location.reload()
     } finally {
       setBusy(false)
     }
@@ -99,7 +73,7 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
     try {
       const result = await window.kuskus.open()
       if (!result.ok && result.code !== 'cancelled') setError(result.error)
-      if (result.ok) window.location.reload()
+      if (result.ok) onLibraryChange(result.data)
     } finally {
       setBusy(false)
     }
@@ -118,7 +92,7 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
         dismissVaultIndexing()
         setError(result.error)
       }
-      if (result.ok) window.location.reload()
+      if (result.ok) onLibraryChange(result.data)
     } finally {
       setBusy(false)
     }
@@ -128,24 +102,16 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
   const showWelcome = !needsPreparation && step === 'welcome'
   const title = needsPreparation
     ? 'Make this folder a library'
-    : libraryCreated
-      ? 'Your library is ready'
-      : step === 'welcome'
-        ? 'Kuskus'
-        : step === 'options'
-          ? 'Choose your starting point'
-          : 'Create a library'
+    : step === 'welcome'
+      ? 'Kuskus'
+      : 'Create a library'
   const description = needsPreparation
     ? initialState.status === 'needs-initialization'
       ? 'Kuskus will index the files in this folder and keep them where they are.'
       : 'Kuskus will build a readable library and keep a backup of the current one.'
-    : libraryCreated
-      ? 'The library was created, but the starter guide could not be added.'
-      : step === 'welcome'
-        ? 'A home for everything worth keeping.'
-        : step === 'options'
-          ? 'Choose a look and a starting path.'
-          : 'Choose a name and a location on your computer.'
+    : step === 'welcome'
+      ? 'A home for everything worth keeping.'
+      : 'Choose a name and a location on your computer.'
 
   return (
     <div className="window-canvas flex h-screen min-h-0 flex-col overflow-hidden bg-background text-foreground">
@@ -183,8 +149,8 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
                     Create a library or open a folder on your computer.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="py-1">
-                  <div className="flex items-center justify-between gap-4 py-6">
+                <CardContent className="px-0 py-1">
+                  <div className="flex items-center justify-between gap-4 px-(--card-spacing) py-6">
                     <div className="flex min-w-0 flex-col gap-1">
                       <p className="text-sm font-medium">Create a new library</p>
                       <p className="text-pretty text-xs leading-relaxed text-muted-foreground">
@@ -195,13 +161,13 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
                       size="lg"
                       className="w-24"
                       disabled={busy}
-                      onClick={() => setStep('options')}
+                      onClick={() => setStep('create')}
                     >
                       Create
                     </Button>
                   </div>
                   <Separator />
-                  <div className="flex items-center justify-between gap-4 py-6">
+                  <div className="flex items-center justify-between gap-4 px-(--card-spacing) py-6">
                     <div className="flex min-w-0 flex-col gap-1">
                       <p className="text-sm font-medium">Open a folder as a library</p>
                       <p className="text-pretty text-xs leading-relaxed text-muted-foreground">
@@ -264,34 +230,6 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
                   </Button>
                 </CardFooter>
               </Card>
-            ) : libraryCreated ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Starter guide</CardTitle>
-                  <CardDescription>
-                    You can try again or begin with an empty library.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {error && <LibraryAlert title="Could not add tutorial" description={error} />}
-                </CardContent>
-                <CardFooter className="flex justify-between gap-3">
-                  <Button variant="ghost" disabled={busy} onClick={() => window.location.reload()}>
-                    Continue without guide
-                  </Button>
-                  <Button disabled={busy} onClick={retryStarterTutorial}>
-                    {busy && <Spinner data-icon="inline-start" />}
-                    Try again
-                  </Button>
-                </CardFooter>
-              </Card>
-            ) : step === 'options' ? (
-              <StarterOptions
-                starterContent={starterContent}
-                onStarterContentChange={setStarterContent}
-                onBack={() => setStep('welcome')}
-                onContinue={() => setStep('create')}
-              />
             ) : (
               <form onSubmit={createLibrary}>
                 <Card>
@@ -328,7 +266,7 @@ export function SetupScreen({ initialState }: { initialState: LibraryState }): R
                       variant="ghost"
                       disabled={busy}
                       onClick={() => {
-                        setStep('options')
+                        setStep('welcome')
                         setError('')
                       }}
                     >

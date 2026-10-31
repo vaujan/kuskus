@@ -20,7 +20,7 @@ function StoryTheme({
   controlStyle: ControlStyle
 }): React.JSX.Element {
   useEffect(() => {
-    applyTheme(mode, 'kuskus', DEFAULT_TYPOGRAPHY)
+    applyTheme(mode, 'one', DEFAULT_TYPOGRAPHY)
     applyControlStyle(controlStyle)
   }, [mode, controlStyle])
 

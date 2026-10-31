@@ -53,6 +53,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
+import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import {
   Sidebar as AppSidebar,
   SidebarContent,
@@ -954,6 +955,26 @@ export function LibrarySidebar({
               <IconPlus aria-hidden="true" />
             </SidebarGroupAction>
             <SidebarGroupContent>
+              {folderTree.length === 0 && (
+                <Empty className="gap-3 px-2 py-4 group-data-[collapsible=icon]:hidden">
+                  <EmptyHeader className="gap-1">
+                    <EmptyTitle className="text-sm">No folders yet</EmptyTitle>
+                    <EmptyDescription className="text-xs">
+                      Group related notes, links, and files in a folder.
+                    </EmptyDescription>
+                  </EmptyHeader>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setFolderName('')
+                      setFolderDialog({ type: 'create', parentId: null })
+                    }}
+                  >
+                    Create folder
+                  </Button>
+                </Empty>
+              )}
               <FolderTree
                 nodes={folderTree}
                 collapsedIds={collapsedFolderIds}

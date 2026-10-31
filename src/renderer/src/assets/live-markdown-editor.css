@@ -443,7 +443,7 @@
   padding-inline: var(--typeset-detail-gutter);
   color: var(--foreground);
   font-family: var(--font-mono);
-  font-size: var(--markdown-source-font-size, 14px);
+  font-size: var(--markdown-source-font-size, 16px);
   line-height: 1.7;
 }
 

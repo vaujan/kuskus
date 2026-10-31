@@ -14,6 +14,8 @@ async function generate(context, includeLicense = true) {
   await mkdir(packagePath, { recursive: true })
   await mkdir(atomicPath, { recursive: true })
   await writeFile(join(atomicPath, 'LICENSE'), 'Atomic editor license')
+  await mkdir(join(root, 'third-party'), { recursive: true })
+  await writeFile(join(root, 'third-party/shadcn.LICENSE.txt'), 'Shadcn copyright and license')
   await writeFile(
     join(packagePath, 'package.json'),
     JSON.stringify({ name: 'example', version: '1.0.0', license: 'MIT' })
@@ -54,6 +56,7 @@ test('notices use installed packages without consulting a package-store index', 
   assert.equal(result.status, 0, result.stderr)
   const notices = await readFile(join(root, 'THIRD_PARTY_NOTICES.txt'), 'utf8')
   assert.match(notices, /Atomic editor license/)
+  assert.match(notices, /Vendored shadcn styles\nShadcn copyright and license/)
   assert.match(notices, /example 1\.0\.0\nLicense: MIT\nExample copyright and license/)
   assert.equal(notices.match(/example 1\.0\.0/g).length, 1)
   assert.doesNotMatch(notices, /excluded-electron/)

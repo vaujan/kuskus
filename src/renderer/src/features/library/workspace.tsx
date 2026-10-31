@@ -1335,10 +1335,13 @@ export function Workspace({
   useEffect(() => {
     const handleCreateShortcut = (event: KeyboardEvent): void => {
       const target = event.target
+      const commandModifierPressed =
+        window.electron.window.platform === 'darwin'
+          ? event.metaKey && !event.ctrlKey
+          : event.ctrlKey && !event.metaKey
       if (
         event.defaultPrevented ||
-        !event.ctrlKey ||
-        event.metaKey ||
+        !commandModifierPressed ||
         event.altKey ||
         event.key.toLocaleLowerCase() !== 'n' ||
         document.querySelector('[role="dialog"]') !== null ||

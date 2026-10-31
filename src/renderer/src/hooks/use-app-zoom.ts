@@ -55,6 +55,7 @@ export function useAppZoom(): AppZoom {
   }, [])
 
   useEffect(() => {
+    document.documentElement.style.setProperty('--app-zoom-factor', String(factor))
     localStorage.setItem(ZOOM_STORAGE_KEY, String(factor))
     void window.electron.window.setZoomFactor(factor).catch(() => undefined)
   }, [factor])

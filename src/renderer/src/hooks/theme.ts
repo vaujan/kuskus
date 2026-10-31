@@ -63,13 +63,13 @@ export interface TypographyPreferences {
 }
 
 export const DEFAULT_TYPOGRAPHY: TypographyPreferences = {
-  uiFont: 'inter',
+  uiFont: 'system-ui',
   uiFontFallback: 'system-ui',
-  contentFont: 'inter',
+  contentFont: 'system-ui',
   contentFontFallback: 'system-ui',
   codeFont: 'system-mono',
   codeFontFallback: 'none',
-  sourceFontSize: '14',
+  sourceFontSize: '16',
   contentFontSize: '16'
 }
 
@@ -91,7 +91,8 @@ export function applyControlStyle(
 }
 
 export function resolveColorTheme(value: string | null): ColorTheme {
-  return value === 'graphite' ||
+  return value === 'kuskus' ||
+    value === 'graphite' ||
     value === 'obsidian' ||
     value === 'github' ||
     value === 'vscode' ||
@@ -108,7 +109,7 @@ export function resolveColorTheme(value: string | null): ColorTheme {
     value === 'gruvbox' ||
     value === 'nord'
     ? value
-    : 'kuskus'
+    : 'one'
 }
 
 function isLocalFontPreference(value: string): value is `local:${string}` {

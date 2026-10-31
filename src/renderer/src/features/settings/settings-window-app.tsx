@@ -197,7 +197,7 @@ export function SettingsWindowApp(): React.JSX.Element {
         className="min-h-0 flex-1"
       >
         <Sidebar>
-          <SidebarContent className={cn(isMac && 'pt-10')}>
+          <SidebarContent>
             <SidebarGroup>
               <SidebarGroupContent>
                 <SidebarMenu aria-label="Settings categories">

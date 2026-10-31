@@ -1,4 +1,5 @@
 import { isPdfFile } from '../../shared/file-type'
+import { STARTER_TUTORIAL } from '../../shared/starter-tutorial'
 import { randomUUID } from 'node:crypto'
 import { realpathSync, watch, type FSWatcher } from 'node:fs'
 import { basename, dirname, extname, join } from 'node:path'
@@ -483,6 +484,17 @@ export class LibraryService {
 
     await this.store.prepareNewLibrary(libraryPath, library)
     await this.setCurrentLibrary(libraryPath)
+    return this.getState()
+  }
+
+  async createWithTutorialIn(parentPath: string, requestedName: string): Promise<LibraryState> {
+    await this.createIn(parentPath, requestedName)
+    const folder = await this.createCollection({ name: 'Getting started', icon: 'book' })
+    const note = await this.createNote({ markdown: STARTER_TUTORIAL, attachmentIds: [] })
+    await this.moveItems({
+      itemIds: [note.id],
+      destination: { type: 'collection', collectionId: folder.id }
+    })
     return this.getState()
   }
 

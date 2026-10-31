@@ -18,6 +18,9 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 ### Changed
 
+- Simplify library setup and include a starter guide in a Getting started folder in each new library.
+- Use the One theme, system fonts, and 16px source text by default.
+- Show a Create folder prompt when the sidebar has no folders.
 - Add a development-only sidebar menu to reset onboarding without deleting library files, reset UI preferences, reload, and toggle DevTools.
 - Simplified onboarding with a centered Kuskus mascot, compact library actions, and a consistent layout throughout setup.
 - Recolored the curled-tail application logo and matching website favicon with natural brown and cream tones.
@@ -30,6 +33,7 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 ### Fixed
 
+- Keep macOS native window controls clear of library, note, and settings actions at every app zoom level, and use Command shortcuts for toolbar creation actions.
 - Preserve existing item IDs when newly discovered files share or reuse a filesystem identity during vault reconciliation.
 - Resolve pnpm commands on Windows with either executable or command-shim installations.
 - Download the Electron runtime during dependency installation so desktop development starts successfully on a fresh setup.
@@ -44,6 +48,7 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 ### Security
 
+- Remove the unused shadcn generator CLI and its vulnerable dependencies, vendor its shared styles with attribution, and update modern glob and minimatch tooling dependencies.
 - Update supported development and packaging dependencies and retain exact security patch exceptions under the dependency age policy.
 - Updated Electron, KaTeX, and Mermaid dependencies and patched transitive sanitizer/math dependencies.
 - Restricted external links to HTTP(S), blocked renderer navigation and webviews, and authenticated IPC requests from registered app main frames.

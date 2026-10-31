@@ -48,7 +48,8 @@ const sections = [
   'Kuskus third-party notices',
   'Generated from installed production dependencies. Electron also distributes LICENSE.electron.txt and LICENSES.chromium.html alongside the packaged executable.',
   'Vendored atomic editor\n' +
-    readFileSync('src/renderer/src/features/items/live/atomic/LICENSE', 'utf8')
+    readFileSync('src/renderer/src/features/items/live/atomic/LICENSE', 'utf8'),
+  'Vendored shadcn styles\n' + readFileSync('third-party/shadcn.LICENSE.txt', 'utf8')
 ]
 for (const pkg of packages.sort((a, b) => a.name.localeCompare(b.name))) {
   const notices = new Set()

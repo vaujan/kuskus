@@ -4,7 +4,7 @@ Kuskus keeps your project references in one place: Markdown notes, images, files
 
 Kuskus is still taking shape, and contributions are welcome.
 
-[![Kuskus with Stacks & queues open in Vim Normal mode, framed by a soft pastel background](docs/images/demo.png)](https://kuskus-tau.vercel.app)
+[![Kuskus with Stacks & queues open in one window, split diagonally between light and One Dark themes on a rounded pastel gradient background](docs/images/demo.png)](https://kuskus-tau.vercel.app)
 
 ## Try it
 

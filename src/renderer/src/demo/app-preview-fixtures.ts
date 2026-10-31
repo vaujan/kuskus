@@ -152,9 +152,14 @@ async function imagePreview(
   return ok({ bytes, mediaType: 'image/webp', width, height })
 }
 
-export function installPreview(value: LibraryDto, destination: LibraryDestination = inbox): void {
+export function installPreview(
+  value: LibraryDto,
+  destination: LibraryDestination = inbox,
+  platform: ElectronWindowApi['platform'] = 'linux'
+): void {
   // Demo edits belong to this preview only, never to the shared fixtures or disk.
   value = structuredClone(value)
+  document.documentElement.dataset.platform = platform
   performance.mark('kuskus:renderer-entry')
   localStorage.setItem('kuskus-sidebar-hidden', 'false')
   localStorage.setItem('kuskus-library-view', 'visual')
@@ -222,7 +227,7 @@ export function installPreview(value: LibraryDto, destination: LibraryDestinatio
   }) as unknown as KuskusLibraryApi
 
   const windowApi: ElectronWindowApi = {
-    platform: 'linux',
+    platform,
     minimize: () => {},
     toggleMaximize: () => {},
     close: () => {},

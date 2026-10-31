@@ -1,3 +1,4 @@
+import { MACOS_WINDOW_CHROME } from './macos-chrome'
 import { secureWindow } from '../security'
 import { BrowserWindow } from 'electron'
 import { join } from 'node:path'
@@ -41,7 +42,7 @@ export class SettingsWindowController {
       backgroundColor: process.platform === 'linux' ? '#00000000' : OPAQUE_WINDOW_BACKGROUND,
       autoHideMenuBar: true,
       frame: isMac,
-      ...(isMac ? { titleBarStyle: 'hiddenInset' as const } : {}),
+      ...(isMac ? MACOS_WINDOW_CHROME : {}),
       ...(isMac ? {} : { icon }),
       webPreferences: {
         preload: join(__dirname, '../preload/index.js'),

@@ -42,7 +42,7 @@ function App(): React.JSX.Element {
       ) : state.status === 'ready' ? (
         <Workspace initialLibrary={state.library} zoom={zoom} />
       ) : (
-        <SetupScreen initialState={state} />
+        <SetupScreen initialState={state} onLibraryChange={setState} />
       )}
       <Toaster position="bottom-right" />
     </TooltipProvider>

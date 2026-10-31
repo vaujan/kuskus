@@ -4,6 +4,7 @@ const test = require('node:test')
 require('./helpers/install-ts-require.cjs')()
 
 const {
+  DEFAULT_TYPOGRAPHY,
   applyControlStyle,
   applyTheme,
   createFontStack,
@@ -16,6 +17,14 @@ const {
   resolveControlStyle,
   resolveFontPreference
 } = require('../src/renderer/src/hooks/theme.ts')
+
+test('defaults to system fonts and equal note sizes across editing and reading', () => {
+  assert.equal(DEFAULT_TYPOGRAPHY.uiFont, 'system-ui')
+  assert.equal(DEFAULT_TYPOGRAPHY.contentFont, 'system-ui')
+  assert.equal(DEFAULT_TYPOGRAPHY.codeFont, 'system-mono')
+  assert.equal(DEFAULT_TYPOGRAPHY.sourceFontSize, '16')
+  assert.equal(DEFAULT_TYPOGRAPHY.contentFontSize, '16')
+})
 
 test('resolves and applies the saved control style', () => {
   assert.equal(resolveControlStyle('flat'), 'flat')
@@ -54,8 +63,8 @@ test('resolves curated color themes and rejects stale values', () => {
   assert.equal(resolveColorTheme('dracula'), 'dracula')
   assert.equal(resolveColorTheme('gruvbox'), 'gruvbox')
   assert.equal(resolveColorTheme('nord'), 'nord')
-  assert.equal(resolveColorTheme('custom'), 'kuskus')
-  assert.equal(resolveColorTheme(null), 'kuskus')
+  assert.equal(resolveColorTheme('custom'), 'one')
+  assert.equal(resolveColorTheme(null), 'one')
 })
 
 test('resolves bundled and local font preferences safely', () => {
@@ -222,8 +231,6 @@ test('settings keeps contextual view controls on the surfaces they affect', () =
   assert.match(panel, /<SidebarProvider/)
   assert.match(panel, /<SidebarMenuButton/)
   assert.match(panel, /md:left-\[208px\]/)
-  assert.match(panel, /isMac && 'pt-10'/)
-  assert.doesNotMatch(panel, /showCustomTitleBar && 'pt-10'/)
   assert.match(panel, /SettingsSection = 'appearance' \| 'editing'/)
   assert.doesNotMatch(panel, /IconBolt|>Capture</)
   assert.match(panel, /<ScrollArea/)

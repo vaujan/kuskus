@@ -6,6 +6,71 @@
   --control-height-xl: calc(var(--spacing) * 10);
 }
 
+@layer utilities {
+  /* Native controls use window points, independent of the renderer's app zoom. */
+  html[data-platform='darwin'] {
+    --mac-header-height: max(48px, calc(48px / var(--app-zoom-factor, 1)));
+    --mac-controls-inset: calc(88px / var(--app-zoom-factor, 1));
+  }
+
+  html[data-platform='darwin'] .window-root {
+    --mac-leading-inset: var(--mac-controls-inset);
+  }
+
+  html[data-platform='darwin']
+    .window-root:has([data-slot='sidebar-container'][data-overlay='false'][data-hidden='false']) {
+    --mac-leading-inset: 0px;
+  }
+
+  html[data-platform='darwin'] .window-root [data-slot='sidebar-inner']::before {
+    content: '';
+    display: block;
+    height: var(--mac-header-height);
+    flex-shrink: 0;
+    -webkit-app-region: drag;
+  }
+
+  html[data-platform='darwin'] .window-toolbar {
+    min-height: var(--mac-header-height);
+    padding-left: var(--mac-leading-inset);
+  }
+
+  html[data-platform='darwin'] [data-focus-list-header],
+  html[data-platform='darwin'] [data-detail-focus-header] {
+    min-height: var(--mac-header-height);
+  }
+
+  /* A narrow focus rail puts its actions below the controls instead of squeezing them. */
+  html[data-platform='darwin']
+    .window-root:not(
+      :has([data-slot='sidebar-container'][data-overlay='false'][data-hidden='false'])
+    )
+    [data-focus-list-header] {
+    padding-top: var(--mac-header-height);
+  }
+
+  html[data-platform='darwin'] [data-focus-single-pane='true'] [data-detail-focus-header],
+  html[data-platform='darwin'] [data-focus-expanded='true'] [data-detail-focus-header],
+  html[data-platform='darwin']
+    .window-root:not([data-slot='sidebar-wrapper'])
+    [data-detail-focus-header] {
+    padding-left: max(8px, var(--mac-leading-inset));
+  }
+
+  html[data-platform='darwin'] .settings-window > [aria-hidden='true'] {
+    left: 0;
+    height: var(--mac-header-height);
+  }
+
+  html[data-platform='darwin']
+    .settings-window
+    [data-slot='sidebar-inset']
+    > [data-slot='sidebar-trigger'] {
+    left: var(--mac-controls-inset);
+    top: calc((var(--mac-header-height) - 32px) / 2);
+  }
+}
+
 @layer components {
   .windows-caption-glyph {
     font-family: 'Segoe Fluent Icons', 'Segoe MDL2 Assets', sans-serif;
