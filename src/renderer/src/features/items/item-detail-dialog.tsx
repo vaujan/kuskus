@@ -47,6 +47,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
+import { NoteModeButton } from '@/features/items/note-mode-button'
 import { ShellSidebarTrigger } from '@/features/shell/shell-sidebar-trigger'
 import { ContextMenu as ContextMenuPrimitive } from '@base-ui/react/context-menu'
 import {
@@ -637,28 +638,24 @@ function NoteModeControls({
     {
       value: 'read' as const,
       label: 'Read (Ctrl+E)',
-      shortLabel: 'Read',
       icon: Eye,
       shortcut: 'Control+E'
     },
     {
       value: 'live' as const,
       label: 'Live preview (Ctrl+E)',
-      shortLabel: 'Live',
       icon: EyeEdit,
       shortcut: 'Control+E'
     },
     {
       value: 'markdown' as const,
       label: 'Markdown source (Ctrl+Alt+E)',
-      shortLabel: 'Markdown',
       icon: Code,
       shortcut: 'Control+Alt+E'
     },
     {
       value: 'split' as const,
       label: 'Split view (Ctrl+Shift+E)',
-      shortLabel: 'Split',
       icon: Columns2,
       shortcut: 'Control+Shift+E'
     }
@@ -666,7 +663,6 @@ function NoteModeControls({
 
   if (surface === 'caption') {
     const activeOption = options.find((option) => option.value === mode) ?? options[0]
-    const ActiveIcon = activeOption.icon
 
     return (
       <Tooltip>
@@ -675,20 +671,11 @@ function NoteModeControls({
             render={
               <TooltipTrigger
                 render={
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    className="text-muted-foreground"
-                    aria-label={`Note mode: ${activeOption.label}`}
-                  />
+                  <NoteModeButton mode={mode} aria-label={`Note mode: ${activeOption.label}`} />
                 }
               />
             }
-          >
-            <ActiveIcon aria-hidden="true" />
-            <span>{activeOption.shortLabel}</span>
-          </DropdownMenuTrigger>
+          />
           <DropdownMenuContent align="end" className="w-72">
             <DropdownMenuGroup>
               <DropdownMenuLabel>Note view</DropdownMenuLabel>

@@ -22,7 +22,7 @@ import { NOTE_FORMATTING_MARKDOWN, SAMPLE_NOTE } from '../features/items/note-st
 import notebookImage from './assets/wireframe-notebook.webp?url'
 import paletteImage from './assets/material-palette.webp?url'
 import { studentCollections, studentItems } from './student-library-fixtures'
-import { demoUrlPreview } from './url-preview'
+import { bookmarkAsset } from './bookmark-assets'
 
 const date = '2026-09-24T00:00:00.000Z'
 const inbox = { type: 'inbox' } as const
@@ -161,6 +161,15 @@ export function installPreview(
 ): void {
   // Demo edits belong to this preview only, never to the shared fixtures or disk.
   value = structuredClone(value)
+  value.items = value.items.map((item) =>
+    item.type === 'url'
+      ? {
+          ...item,
+          hasPreviewImage: Boolean(bookmarkAsset(item.sourceUrl, 'preview')),
+          hasFavicon: Boolean(bookmarkAsset(item.sourceUrl, 'favicon'))
+        }
+      : item
+  )
   document.documentElement.dataset.platform = platform
   performance.mark('kuskus:renderer-entry')
   localStorage.setItem('kuskus-sidebar-hidden', 'false')
@@ -221,8 +230,11 @@ export function installPreview(
     getImagePreview: async (itemId: string) => imagePreviewFor(itemId),
     getUrlPreview: async (itemId: string, kind: UrlPreviewKind) => {
       const item = value.items.find((entry) => entry.id === itemId)
-      if (item?.type !== 'url') return unavailable()
-      return ok(await demoUrlPreview(item, kind))
+      const asset = item?.type === 'url' ? bookmarkAsset(item.sourceUrl, kind) : null
+      if (!asset) return unavailable()
+      const response = await fetch(asset.url)
+      if (!response.ok) return unavailable()
+      return ok({ bytes: await response.arrayBuffer(), mediaType: asset.mediaType })
     },
     onVaultChanged: () => unsubscribe
   }

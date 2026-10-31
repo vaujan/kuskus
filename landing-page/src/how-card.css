@@ -110,26 +110,28 @@ body {
   height: 720px;
   padding: 8px;
 }
-.feature-editor--vim {
-  width: 550px;
+.feature-editor--edit {
+  width: 464px;
   height: 340px;
   display: flex;
   flex-direction: column;
 }
-.feature-editor--vim > div:first-child {
+.feature-editor-body {
   flex: 1;
   min-height: 0;
 }
-.feature-vim-status {
-  display: flex;
-  gap: 18px;
-  padding: 10px 14px;
-  border-top: 1px solid var(--border);
-  color: var(--primary);
-  font: 12px monospace;
+.feature-editor-body .cm-editor {
+  height: auto;
 }
-.feature-vim-status span {
-  color: var(--muted-foreground);
+.feature-editor-body .cm-scroller {
+  overflow: visible;
+}
+.feature-editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 4px 6px 10px;
+  border-bottom: 1px solid var(--border);
 }
 .feature-editor--diagram {
   width: 510px;
@@ -184,6 +186,18 @@ html[data-embedded-scene] body {
 html[data-embedded-scene] .workflow-scene {
   transform: scale(var(--scene-scale));
   transform-origin: top left;
+}
+/* The app's menus portal to body, outside the scaled scene. */
+html[data-embedded-scene] .cm-kuskus-slash-menu {
+  transform: scale(var(--scene-scale));
+  transform-origin: top left;
+}
+html[data-embedded-scene] [data-slot='dropdown-menu-content'] {
+  zoom: var(--scene-scale);
+  max-height: calc(var(--available-height) / var(--scene-scale));
+}
+html[data-embedded-scene] [data-slot='dropdown-menu-content'] [data-slot='kbd-group'] {
+  display: none;
 }
 .workflow-neighbor [data-slot='item-card-primary-action'],
 .workflow-results [data-slot='item-card-primary-action'] {

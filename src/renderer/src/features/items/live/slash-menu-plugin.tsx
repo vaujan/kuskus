@@ -104,8 +104,8 @@ class SlashMenu {
           rect,
           { width: window.innerWidth, height: window.innerHeight },
           {
-            width: this.menu.offsetWidth,
-            height: this.menu.offsetHeight
+            width: this.menu.getBoundingClientRect().width,
+            height: this.menu.getBoundingClientRect().height
           }
         )
       },

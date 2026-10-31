@@ -146,7 +146,11 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.match(focusToolbarSource, /\{menu\}/)
   assert.match(focusToolbarSource, /aria-label="Back to items"/)
   assert.match(focusToolbarSource, /size="icon-sm"[\s\S]*?<ChevronLeft aria-hidden="true" \/>/)
-  assert.match(detailSource, /surface === 'caption'[\s\S]*?size="sm"[\s\S]*?Note mode:/)
+  assert.match(detailSource, /surface === 'caption'[\s\S]*?<NoteModeButton mode=\{mode\}/)
+  assert.match(
+    readFileSync('src/renderer/src/features/items/note-mode-button.tsx', 'utf8'),
+    /size="sm"[\s\S]*?Note mode:/
+  )
   assert.doesNotMatch(focusToolbarSource, />\s*Items\s*</)
   assert.match(detailSource, /onBackToList\?: \(\) => void/)
   assert.match(detailSource, /requestGuardedAction\(onBackToList\)/)
@@ -174,7 +178,10 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.doesNotMatch(focusToolbarSource, /Previous item|Next item/)
   assert.doesNotMatch(focusToolbarSource, /\[-webkit-app-region:drag\]/)
   assert.doesNotMatch(detailSource, /stroke=\{1\.5\}/)
-  assert.match(detailSource, /<span>{activeOption\.shortLabel}<\/span>/)
+  assert.match(
+    readFileSync('src/renderer/src/features/items/note-mode-button.tsx', 'utf8'),
+    /<span>\{label\}<\/span>/
+  )
   assert.doesNotMatch(detailSource, /mode === 'live' && 'bg-muted text-foreground'/)
   assert.match(detailSource, /function NoteModeHud/)
   assert.match(detailSource, /note-status-bar/)

@@ -226,6 +226,7 @@ export function AddItemComposer({
   completionDelayMs = MORPH_DURATION_MS,
   completeLinkAfterLocalSave = false,
   dismissNoteInBackground = false,
+  actionsDisabled = false,
   onFileDialogActiveChange
 }: {
   open: boolean
@@ -251,6 +252,7 @@ export function AddItemComposer({
   completionDelayMs?: number
   completeLinkAfterLocalSave?: boolean
   dismissNoteInBackground?: boolean
+  actionsDisabled?: boolean
   onFileDialogActiveChange?: (active: boolean) => void
 }): React.JSX.Element | null {
   const captureSession = useCaptureSession({
@@ -295,10 +297,11 @@ export function AddItemComposer({
   const previousRevision = useRef(captureSession.revision)
 
   const openFileDialog = useCallback((): void => {
+    if (actionsDisabled) return
     onFileDialogActiveChange?.(true)
     fileInputRef.current?.click()
     window.addEventListener('focus', () => onFileDialogActiveChange?.(false), { once: true })
-  }, [onFileDialogActiveChange])
+  }, [actionsDisabled, onFileDialogActiveChange])
 
   useEffect(() => {
     if (!open || filePickerRequest === handledFilePickerRequest.current) return
@@ -422,6 +425,7 @@ export function AddItemComposer({
       origin: 'clipboard' | 'file' = 'file',
       insertRichImage?: (src: string) => void
     ): Promise<void> => {
+      if (actionsDisabled) return
       if (fileCandidate) {
         setError('Save or remove the staged file before adding an image.')
         return
@@ -470,7 +474,16 @@ export function AddItemComposer({
         setStagingCount((count) => Math.max(0, count - 1))
       }
     },
-    [attachments, draft, fileCandidate, insertAtSelection, onStatus, setDraft, touchAssets]
+    [
+      actionsDisabled,
+      attachments,
+      draft,
+      fileCandidate,
+      insertAtSelection,
+      onStatus,
+      setDraft,
+      touchAssets
+    ]
   )
 
   useEffect(() => {
@@ -526,6 +539,7 @@ export function AddItemComposer({
 
   const stageCaptureFile = useCallback(
     async (file: File): Promise<void> => {
+      if (actionsDisabled) return
       if (draft.trim() || attachments.length > 0) {
         setError('Save or discard the current note before staging a separate file.')
         return
@@ -562,7 +576,7 @@ export function AddItemComposer({
         setStagingCount((count) => Math.max(0, count - 1))
       }
     },
-    [attachments.length, draft, onStatus, setDraft, touchAssets]
+    [actionsDisabled, attachments.length, draft, onStatus, setDraft, touchAssets]
   )
 
   const finishCreate = useCallback(
@@ -612,7 +626,7 @@ export function AddItemComposer({
   )
 
   const save = async (openInEditor = false): Promise<void> => {
-    if (effectiveKind === 'empty' || saving || captureBlocked) return
+    if (actionsDisabled || effectiveKind === 'empty' || saving || captureBlocked) return
     setSaving(true)
     setError('')
     const kind = effectiveKind
@@ -878,6 +892,7 @@ export function AddItemComposer({
           className="sr-only"
           type="file"
           aria-label="Choose an image or file"
+          disabled={actionsDisabled}
           tabIndex={-1}
           onChange={(event) => {
             onFileDialogActiveChange?.(false)
@@ -1048,6 +1063,7 @@ export function AddItemComposer({
               <DropdownMenuGroup>
                 {canContinueInEditor ? (
                   <DropdownMenuItem
+                    disabled={actionsDisabled}
                     aria-keyshortcuts="Control+Shift+Enter Meta+Shift+Enter"
                     onClick={() => void save(true)}
                   >
@@ -1060,11 +1076,12 @@ export function AddItemComposer({
                     />
                   </DropdownMenuItem>
                 ) : null}
-                <DropdownMenuItem onClick={openFileDialog}>
+                <DropdownMenuItem disabled={actionsDisabled} onClick={openFileDialog}>
                   <IconPhotoPlus aria-hidden="true" />
                   Add file or image
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  disabled={actionsDisabled}
                   onClick={() => {
                     onOpenChange(false)
                     onStatus(
@@ -1078,7 +1095,11 @@ export function AddItemComposer({
                   {hasDraft ? 'Hide draft' : 'Close'}
                 </DropdownMenuItem>
                 {hasDraft ? (
-                  <DropdownMenuItem variant="destructive" onClick={() => void discard()}>
+                  <DropdownMenuItem
+                    disabled={actionsDisabled}
+                    variant="destructive"
+                    onClick={() => void discard()}
+                  >
                     <IconTrash aria-hidden="true" />
                     Discard draft
                   </DropdownMenuItem>
@@ -1088,7 +1109,7 @@ export function AddItemComposer({
           </DropdownMenu>
           <Button
             size="sm"
-            disabled={effectiveKind === 'empty' || captureBlocked}
+            disabled={actionsDisabled || effectiveKind === 'empty' || captureBlocked}
             aria-keyshortcuts="Control+Enter Meta+Enter"
             onClick={() => void save()}
           >

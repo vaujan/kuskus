@@ -18,6 +18,6 @@ Artwork clearance records the maintainer's explicit confirmation, rather than in
 
 ## Bookmark previews
 
-Publisher images and book covers were removed from the browser demo on 2026-10-25 because their redistribution permission was not recorded. Demo bookmarks retain their titles, descriptions, and source links and use the app's normal cards without preview images. Do not reintroduce copied previews without recorded redistribution terms and attribution.
+Publisher images and book covers were removed on 2026-10-25 because redistribution permission was not recorded. On 2026-10-31, the maintainer confirmed that the current bundled publisher previews and icons are free to use and authorized their inclusion. This records the maintainer's confirmation; no specific license text was supplied. Source pages, original asset URLs, and capture dates are retained in `src/renderer/src/demo/assets/bookmarks/sources.json`. Preserve this attribution and review permission for newly added assets.
 
 The removed images remain in earlier Git commits. Review their presence in published history before changing repository visibility; removing files from the current tree does not clear historical redistribution rights.

@@ -1,5 +1,6 @@
 import type { CollectionDto, LibraryDto, LibraryItemDto } from '../../src/shared/library-contract'
 import { SAMPLE_NOTE } from '../../src/renderer/src/features/items/note-story-fixtures'
+import { bookmarkAsset } from '../../src/renderer/src/demo/bookmark-assets'
 import {
   studentCollections,
   studentItems
@@ -46,8 +47,8 @@ const folders: Record<Exclude<DemoPersonaId, 'student'>, DemoFolder[]> = {
             'Revisit state ownership before moving assignment filters into a shared component.'
         },
         {
-          title: 'SQLite \u2014 referential integrity',
-          url: 'https://www.sqlite.org/foreignkeys.html',
+          title: 'SQLite Tutorial \u2014 referential integrity',
+          url: 'https://www.sqlitetutorial.net/sqlite-foreign-key/',
           description: 'Reference for course deletion and enabling foreign-key enforcement.'
         }
       ]
@@ -78,8 +79,8 @@ const folders: Record<Exclude<DemoPersonaId, 'student'>, DemoFolder[]> = {
           description: 'Keep beside the request wrapper while implementing useful failure states.'
         },
         {
-          title: 'Git \u2014 a branch I can experiment on',
-          url: 'https://git-scm.com/book/en/v2/Git-Branching-Branches-in-a-Nutshell',
+          title: 'MIT \u2014 version control with Git',
+          url: 'https://missing.csail.mit.edu/2026/version-control/',
           description: 'Practice a conflicting merge before trying it on the group repository.'
         }
       ]
@@ -360,8 +361,8 @@ export function personaLibrary(id: DemoPersonaId): LibraryDto {
                 description: entry.description ?? null,
                 contentKind: 'webpage',
                 metadataVersion: 1,
-                hasFavicon: true,
-                hasPreviewImage: true,
+                hasFavicon: Boolean(bookmarkAsset(entry.url, 'favicon')),
+                hasPreviewImage: Boolean(bookmarkAsset(entry.url, 'preview')),
                 metadataStatus: 'ready',
                 metadataError: null,
                 relativePath: `${collection.relativePath}/${entry.title}.url`

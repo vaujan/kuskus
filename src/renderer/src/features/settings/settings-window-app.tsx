@@ -67,6 +67,7 @@ import { useTranslucentBackground } from '@/hooks/use-translucent-background'
 import { cn } from '@/lib/utils'
 import { useSetting } from '@/settings/settings-context'
 import { APP_ZOOM_FACTORS } from '../../../../shared/window-contract'
+import { version } from '../../../../../package.json'
 
 const FONT_SIZES: readonly BaseFontSize[] = ['13', '14', '15', '16', '17', '18', '20']
 
@@ -254,6 +255,9 @@ export function SettingsWindowApp(): React.JSX.Element {
               <div className="mx-auto flex w-full max-w-3xl flex-col gap-7 px-8 pt-12 pb-8">
                 <div className="flex flex-col gap-1">
                   <h1 className="text-balance text-xl font-semibold">About Kuskus</h1>
+                  <p className="text-sm text-muted-foreground tabular-nums select-text">
+                    Version {version}
+                  </p>
                   <p className="text-pretty text-sm text-muted-foreground">
                     A private visual library for project references, stored on your computer.
                   </p>

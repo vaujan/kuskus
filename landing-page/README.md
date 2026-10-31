@@ -60,7 +60,7 @@ The student library contains 55 items from `../src/renderer/src/demo/student-lib
 
 `src/preview.tsx` mounts one React root in one persistent iframe. `src/demo-app.tsx` installs the demo API and handles content and appearance changes. Same-origin messages switch its library and update the existing settings provider; the iframe does not navigate. Only the active workspace renders, with library-specific state initialized when switching collections of demo content. Each persona has its own session key, so returning to a tab restores its folder and open item. The demo uses 90% zoom, a 208px sidebar, and a 320px item rail. Note editing and creation work temporarily in memory, with no disk writes or browser persistence. Other write actions remain unavailable.
 
-Bookmark cards use local copies of publisher social previews, book covers, and site artwork. Source URLs are recorded in `../src/renderer/src/demo/assets/bookmarks/sources.json`.
+Bookmark cards use bundled copies of the actual social preview images and icons advertised by their linked pages. Source pages, image URLs, and capture dates are recorded in `../src/renderer/src/demo/assets/bookmarks/sources.json`. Links without a usable image show the no-preview state. Visitors make no requests to publishers for these images. Run `node scripts/cache-demo-previews.cjs` from the repository root to refresh the snapshots, then review the assets and manifest before committing. Normal builds use the checked-in files without fetching remote pages.
 
 ## Platform logos
 
@@ -95,14 +95,14 @@ Builder credits must refer to [@buildfrombed](https://x.com/buildfrombed).
 
 ## Live feature cards
 
-All six workflow and writing cards embed actual renderer components through
-`how-card.html?kind=capture|write|return|vim|diagram|links&embed=1`, lazy-loaded by
+One feature section contains all six interactive cards, embedding actual renderer components through
+`how-card.html?kind=capture|write|return|edit|diagram|links&embed=1`, lazy-loaded by
 `src/live-card-frames.ts`. Text is selectable, search filters example notes, and
-capture uses an in-memory session. Both languages share these previews.
+capture uses an in-memory draft with saving, file import, and draft actions disabled. Portal menus scale with the embedded scene. The writing preview reuses the app mode button to cycle Live, Markdown, and Read, sharing temporary edits across all three modes and using the app ScrollArea. Both languages share these previews.
 
 Edit example content in `src/how-card.tsx` and framing in `src/how-card.css`.
 Each scene uses a 520 × 390 layout, scaled to its card while keeping native DOM
 content. Preview settings are isolated from the hero and app preferences. The
 background uses the landing page’s muted green palette, without gradients.
 
-The vault figure is a native HTML folder tree with expandable folders.
+Three icon cards highlight local/offline use, no account requirement, and free/open-source availability. Feature and ownership cards have no borders and show a muted background only on hover. App previews keep their own framing.

@@ -1,0 +1,256 @@
+[
+  {
+    "url": "https://cs50.harvard.edu/x/",
+    "capturedAt": "2026-10-31T10:49:59.548Z",
+    "preview": {
+      "file": "6a8d1c4d7d8ea538.jpg",
+      "source": "https://cs50.harvard.edu/x/2026/assets/sanders.jpg",
+      "mediaType": "image/jpeg"
+    },
+    "favicon": {
+      "file": "0f186bb4525d09e0.ico",
+      "source": "https://cs50.harvard.edu/x/favicon.ico?1793205165",
+      "mediaType": "image/x-icon"
+    }
+  },
+  {
+    "url": "https://developer.mozilla.org/en-US/docs/Learn_web_development",
+    "capturedAt": "2026-10-31T10:49:59.617Z",
+    "preview": {
+      "file": "d713074303b20cbd.png",
+      "source": "https://developer.mozilla.org/mdn-social-image.46ac2375.png",
+      "mediaType": "image/png"
+    },
+    "favicon": {
+      "file": "5a777406a4082a0a.png",
+      "source": "https://developer.mozilla.org/favicon.ico",
+      "mediaType": "image/png"
+    }
+  },
+  {
+    "url": "https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch",
+    "capturedAt": "2026-10-31T10:49:59.619Z",
+    "preview": {
+      "file": "d713074303b20cbd.png",
+      "source": "https://developer.mozilla.org/mdn-social-image.46ac2375.png",
+      "mediaType": "image/png"
+    },
+    "favicon": {
+      "file": "5a777406a4082a0a.png",
+      "source": "https://developer.mozilla.org/favicon.ico",
+      "mediaType": "image/png"
+    }
+  },
+  {
+    "url": "https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Grid_layout",
+    "capturedAt": "2026-10-31T10:49:59.620Z",
+    "preview": {
+      "file": "d713074303b20cbd.png",
+      "source": "https://developer.mozilla.org/mdn-social-image.46ac2375.png",
+      "mediaType": "image/png"
+    },
+    "favicon": {
+      "file": "5a777406a4082a0a.png",
+      "source": "https://developer.mozilla.org/favicon.ico",
+      "mediaType": "image/png"
+    }
+  },
+  {
+    "url": "https://docs.github.com/en/get-started/using-git/about-git",
+    "capturedAt": "2026-10-31T10:49:59.621Z",
+    "preview": {
+      "file": "b4d5f841cb4ae5f0.png",
+      "source": "https://docs.github.com/assets/cb-345/images/social-cards/get-started.png",
+      "mediaType": "image/png"
+    },
+    "favicon": {
+      "file": "bda87ade4bd3a6c8.png",
+      "source": "https://docs.github.com/assets/cb-345/images/site/favicon.png",
+      "mediaType": "image/png"
+    }
+  },
+  {
+    "url": "https://docs.python.org/3/library/collections.html",
+    "capturedAt": "2026-10-31T10:49:59.622Z",
+    "preview": {
+      "file": "f2a0486ea80ed004.png",
+      "source": "https://docs.python.org/3.15/_images/social_previews/summary_library_collections_835bdfa5.png",
+      "mediaType": "image/png"
+    },
+    "favicon": null
+  },
+  {
+    "url": "https://docs.python.org/3/tutorial/",
+    "capturedAt": "2026-10-31T10:49:59.624Z",
+    "preview": {
+      "file": "d0fa2ed8f96a16b7.png",
+      "source": "https://docs.python.org/3.15/_images/social_previews/summary_tutorial_index_4224eef5.png",
+      "mediaType": "image/png"
+    },
+    "favicon": null
+  },
+  {
+    "url": "https://javascript.info/",
+    "capturedAt": "2026-10-31T10:49:59.624Z",
+    "preview": {
+      "file": "43016fd5addf3b7a.png",
+      "source": "https://javascript.info/img/site_preview_en_1200x630.png",
+      "mediaType": "image/png"
+    },
+    "favicon": {
+      "file": "3370f033c78981a1.png",
+      "source": "https://javascript.info/img/favicon/favicon.png",
+      "mediaType": "image/png"
+    }
+  },
+  {
+    "url": "https://missing.csail.mit.edu/",
+    "capturedAt": "2026-10-31T10:49:59.625Z",
+    "preview": {
+      "file": "b6f519fb031c2076.png",
+      "source": "https://missing.csail.mit.edu/static/assets/thumbnails/default.png",
+      "mediaType": "image/png"
+    },
+    "favicon": {
+      "file": "0f479f0c5e732835.png",
+      "source": "https://missing.csail.mit.edu/static/assets/favicon-32x32.png",
+      "mediaType": "image/png"
+    }
+  },
+  {
+    "url": "https://missing.csail.mit.edu/2026/version-control/",
+    "capturedAt": "2026-10-31T10:49:59.627Z",
+    "preview": {
+      "file": "2ddbd9b6b703c308.png",
+      "source": "https://missing.csail.mit.edu/static/assets/thumbnails/2026/lec5.png",
+      "mediaType": "image/png"
+    },
+    "favicon": {
+      "file": "0f479f0c5e732835.png",
+      "source": "https://missing.csail.mit.edu/static/assets/favicon-32x32.png",
+      "mediaType": "image/png"
+    }
+  },
+  {
+    "url": "https://ocw.mit.edu/courses/6-042j-mathematics-for-computer-science-spring-2015/",
+    "capturedAt": "2026-10-31T10:49:59.627Z",
+    "preview": {
+      "file": "2463f840bfb329eb.jpg",
+      "source": "https://ocw.mit.edu/courses/6-042j-mathematics-for-computer-science-spring-2015/6-042js15.jpeg",
+      "mediaType": "image/jpeg"
+    },
+    "favicon": null
+  },
+  {
+    "url": "https://react.dev/learn",
+    "capturedAt": "2026-10-31T10:49:59.629Z",
+    "preview": {
+      "file": "217e43e43ec8b589.png",
+      "source": "https://react.dev/images/og/learn.png",
+      "mediaType": "image/png"
+    },
+    "favicon": {
+      "file": "b5c3ee3158773e36.png",
+      "source": "https://react.dev/favicon-32x32.png",
+      "mediaType": "image/png"
+    }
+  },
+  {
+    "url": "https://roadmap.sh/computer-science",
+    "capturedAt": "2026-10-31T10:49:59.630Z",
+    "preview": {
+      "file": "9dbcf1e101ed61a6.png",
+      "source": "https://roadmap.sh/og/roadmap/computer-science",
+      "mediaType": "image/png"
+    },
+    "favicon": {
+      "file": "378c13689aa0761f.png",
+      "source": "https://roadmap.sh/manifest/icon32.png",
+      "mediaType": "image/png"
+    }
+  },
+  {
+    "url": "https://roadmap.sh/datastructures-and-algorithms",
+    "capturedAt": "2026-10-31T10:49:59.634Z",
+    "preview": {
+      "file": "3e93c98afa121291.png",
+      "source": "https://roadmap.sh/og/roadmap/datastructures-and-algorithms",
+      "mediaType": "image/png"
+    },
+    "favicon": {
+      "file": "378c13689aa0761f.png",
+      "source": "https://roadmap.sh/manifest/icon32.png",
+      "mediaType": "image/png"
+    }
+  },
+  {
+    "url": "https://rust-lang.org/learn/",
+    "capturedAt": "2026-10-31T10:49:59.634Z",
+    "preview": {
+      "file": "088e62b44d8a9460.jpg",
+      "source": "https://www.rust-lang.org/static/images/rust-social-wide.jpg",
+      "mediaType": "image/jpeg"
+    },
+    "favicon": {
+      "file": "f33c808c8bda5197.png",
+      "source": "https://rust-lang.org/static/images/favicon-16x16.png",
+      "mediaType": "image/png"
+    }
+  },
+  {
+    "url": "https://web.dev/learn/accessibility",
+    "capturedAt": "2026-10-31T10:49:59.637Z",
+    "preview": {
+      "file": "d23294099eeafb7f.png",
+      "source": "https://web.dev/learn/accessibility/card.png",
+      "mediaType": "image/png"
+    },
+    "favicon": {
+      "file": "0c9716990760c753.png",
+      "source": "https://www.gstatic.com/devrel-devsite/prod/ve828226d17bf98b2ac333a1bbe96ed6401cc6183d543bad39ccac2722acbc6a7/web/images/favicon.png",
+      "mediaType": "image/png"
+    }
+  },
+  {
+    "url": "https://web.dev/learn/css",
+    "capturedAt": "2026-10-31T10:49:59.639Z",
+    "preview": {
+      "file": "31f96b749c0811b0.png",
+      "source": "https://web.dev/learn/css/card.png",
+      "mediaType": "image/png"
+    },
+    "favicon": {
+      "file": "0c9716990760c753.png",
+      "source": "https://www.gstatic.com/devrel-devsite/prod/ve828226d17bf98b2ac333a1bbe96ed6401cc6183d543bad39ccac2722acbc6a7/web/images/favicon.png",
+      "mediaType": "image/png"
+    }
+  },
+  {
+    "url": "https://www.postgresql.org/docs/current/tutorial.html",
+    "capturedAt": "2026-10-31T10:49:59.639Z",
+    "preview": {
+      "file": "ff92fb5d12a7fa6b.png",
+      "source": "https://www.postgresql.org/media/img/about/press/elephant.png",
+      "mediaType": "image/png"
+    },
+    "favicon": {
+      "file": "0c420c72da07c29f.ico",
+      "source": "https://www.postgresql.org/favicon.ico",
+      "mediaType": "image/x-icon"
+    }
+  },
+  {
+    "url": "https://www.sqlitetutorial.net/sqlite-foreign-key/",
+    "capturedAt": "2026-10-31T10:49:59.640Z",
+    "preview": {
+      "file": "e048110cd15c279a.png",
+      "source": "https://www.sqlitetutorial.net/wp-content/uploads/2015/12/SQLite-Foreign-Key-Example.png",
+      "mediaType": "image/png"
+    },
+    "favicon": {
+      "file": "b387aa6deb860135.png",
+      "source": "https://www.sqlitetutorial.net/wp-content/uploads/2016/05/favicon-150x150.png",
+      "mediaType": "image/png"
+    }
+  }
+]

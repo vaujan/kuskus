@@ -1,5 +1,8 @@
 import { useState } from 'react'
+import { ScrollArea } from '../../src/renderer/src/components/ui/scroll-area'
+import { NoteModeButton } from '../../src/renderer/src/features/items/note-mode-button'
 import { MarkdownEditor } from '../../src/renderer/src/features/items/markdown-editor'
+import { MarkdownPreview } from '../../src/renderer/src/features/items/markdown-preview'
 import { LibrarySidebar } from '../../src/renderer/src/features/shell/library-sidebar'
 import { SidebarProvider } from '../../src/renderer/src/features/shell/app-sidebar'
 import { createRoot } from 'react-dom/client'
@@ -26,7 +29,7 @@ const decision = `# Delivery costs before payment\n\n## What we heard\n\nIn Tues
 const implementationNote =
   '# Delivery estimate\n\nShow **delivery before payment**. Keep an unknown price as `null`, never zero.\n\n```ts\nconst shipping = quote?.amount ?? null\nconst total = shipping === null\n  ? null\n  : subtotal + shipping\n```\n\n- [x] Keep totals in minor currency units\n- [ ] Test missing postcodes and remote areas\n\n> Session 04: “I thought delivery was included.”\n\n## Test cases\n\n| Postcode | Delivery | Summary |\n| --- | --- | --- |\n| Known | £4.50 | Exact total |\n| Missing | Unknown | Request postcode |\n\nLink this implementation to [[Checkout interviews — session 04]] before Friday’s review.'
 const featureNotes = {
-  vim: '# Friday checkout test\n\n## Before the first session\n\n- [x] Reset the basket to the same three items\n- [ ] Check the postcode error message\n- [ ] Record whether delivery changes the decision\n\n## Questions to ask\n\nWhat do you expect the total to include?\nWhen would you want to see the delivery price?\n\nKeep the prompt neutral; do not mention shipping until the participant does.',
+  edit: '# Friday checkout test\n\n## Before the first session\n\n- [x] Reset the basket to the same three items\n- [ ] Check the postcode error message\n- [ ] Record whether delivery changes the decision\n\n## Questions to ask\n\nWhat do you expect the total to include?\nWhen would you want to see the delivery price?\n\nKeep the prompt neutral; do not mention shipping until the participant does.',
   diagram:
     '# Delivery quote flow\n\n```mermaid\nflowchart LR\n  A[Basket] --> B{Postcode?}\n  B -->|Yes| C[Get quote]\n  B -->|No| D[Ask for postcode]\n  C --> E[Show total]\n```\n\n**Conversion rate:** $r = \\frac{orders}{checkout\\ starts}$\n\n```ts\nconst total = subtotal + shipping\n```',
   links:
@@ -119,41 +122,40 @@ window.capture.clearSession = async () => {
   session.revision += 1
   return { ok: true, data: { ...session } }
 }
-window.capture.submit = async () => ({
-  ok: true,
-  data: {
-    id: 'preview-capture',
-    libraryId: session.libraryId,
-    kind: 'note',
-    submittedAt: new Date().toISOString()
-  }
-})
-window.capture.waitForSubmission = async () => ({
-  ok: true,
-  data: {
-    ...SAMPLE_NOTE,
-    id: 'preview-capture',
-    title: 'Checkout friction',
-    body: session.markdown
-  }
-})
 const noop = (): void => {}
 
-export function VimScene(): React.JSX.Element {
-  const [mode, setMode] = useState<string>('normal')
+export function WritingScene(): React.JSX.Element {
+  const [mode, setMode] = useState<'live' | 'markdown' | 'read'>('live')
+  const [value, setValue] = useState(featureNotes.edit)
   return (
-    <ItemCardSurface className="feature-editor feature-editor--vim">
-      <MarkdownEditor
-        value={featureNotes.vim}
-        active={false}
-        vimEnabled
-        onVimModeChange={(next) => setMode(next ?? 'normal')}
-        onChange={noop}
-      />
-      <div className="feature-vim-status">
-        {mode.toUpperCase()}
-        <span>Friday checkout test.md</span>
+    <ItemCardSurface className="feature-editor feature-editor--edit">
+      <div className="feature-editor-toolbar">
+        <NoteModeButton
+          mode={mode}
+          onClick={() =>
+            setMode((current) =>
+              current === 'live' ? 'markdown' : current === 'markdown' ? 'read' : 'live'
+            )
+          }
+        />
       </div>
+      <ScrollArea className="feature-editor-body">
+        {mode === 'read' ? (
+          <article className="kuskus-detail-document-frame py-[var(--typeset-detail-padding-block)]">
+            <MarkdownPreview value={value} presentation="detail" />
+          </article>
+        ) : mode === 'live' ? (
+          <LiveMarkdownEditor
+            value={value}
+            active={false}
+            editable
+            presentation="detail"
+            onChange={setValue}
+          />
+        ) : (
+          <MarkdownEditor value={value} active={false} onChange={setValue} />
+        )}
+      </ScrollArea>
     </ItemCardSurface>
   )
 }
@@ -227,8 +229,8 @@ createRoot(document.getElementById('root')!).render(
               </div>
             </SidebarProvider>
           </div>
-        ) : kind === 'vim' ? (
-          <VimScene />
+        ) : kind === 'edit' ? (
+          <WritingScene />
         ) : kind === 'diagram' || kind === 'links' ? (
           <ItemCardSurface className={`feature-editor feature-editor--${kind}`}>
             <LiveMarkdownEditor
@@ -245,6 +247,7 @@ createRoot(document.getElementById('root')!).render(
               <div className="quick-capture-composer">
                 <AddItemComposer
                   open
+                  actionsDisabled
                   focusRequest={0}
                   discardRequest={0}
                   libraryId={previewLibrary.id}
