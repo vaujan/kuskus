@@ -6,6 +6,11 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Fixed
+
+- Show locally rendered link preview cards and domain icons in the browser demo.
+- Show a loading state while fetching download options and clear it when releases are unavailable.
+
 ## [0.0.4] - 2026-10-31
 
 ### Added

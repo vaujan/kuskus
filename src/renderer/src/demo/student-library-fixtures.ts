@@ -355,8 +355,8 @@ export const studentItems: LibraryItemDto[] = entries.flatMap((group, folderInde
         description: entry.description ?? null,
         contentKind: 'webpage',
         metadataVersion: 1,
-        hasFavicon: false,
-        hasPreviewImage: false,
+        hasFavicon: true,
+        hasPreviewImage: true,
         metadataStatus: 'ready',
         metadataError: null,
         relativePath: `${folder.relativePath}/${entry.title}.url`

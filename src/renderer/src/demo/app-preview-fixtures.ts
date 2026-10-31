@@ -12,7 +12,8 @@ import type {
   LibraryItemDto,
   LibraryOverviewDto,
   NoteItemDto,
-  UrlItemDto
+  UrlItemDto,
+  UrlPreviewKind
 } from '../../../shared/library-contract'
 import type { LibraryDestination } from '../features/shell/library-sidebar'
 import type { CaptureApi } from '../../../shared/capture-contract'
@@ -21,6 +22,7 @@ import { NOTE_FORMATTING_MARKDOWN, SAMPLE_NOTE } from '../features/items/note-st
 import notebookImage from './assets/wireframe-notebook.webp?url'
 import paletteImage from './assets/material-palette.webp?url'
 import { studentCollections, studentItems } from './student-library-fixtures'
+import { demoUrlPreview } from './url-preview'
 
 const date = '2026-09-24T00:00:00.000Z'
 const inbox = { type: 'inbox' } as const
@@ -87,8 +89,8 @@ export const link: UrlItemDto = {
   siteName: 'Design Journal',
   contentKind: 'webpage',
   metadataVersion: 1,
-  hasFavicon: false,
-  hasPreviewImage: false,
+  hasFavicon: true,
+  hasPreviewImage: true,
   metadataStatus: 'ready',
   metadataError: null,
   location: inbox,
@@ -217,7 +219,11 @@ export function installPreview(
       }),
     getImageThumbnail: async (itemId: string) => imagePreviewFor(itemId),
     getImagePreview: async (itemId: string) => imagePreviewFor(itemId),
-    getUrlPreview: async () => unavailable(),
+    getUrlPreview: async (itemId: string, kind: UrlPreviewKind) => {
+      const item = value.items.find((entry) => entry.id === itemId)
+      if (item?.type !== 'url') return unavailable()
+      return ok(await demoUrlPreview(item, kind))
+    },
     onVaultChanged: () => unsubscribe
   }
   window.kuskus = new Proxy(readApi, {

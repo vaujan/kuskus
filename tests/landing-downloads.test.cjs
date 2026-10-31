@@ -14,6 +14,10 @@ async function render(response, lang = 'en') {
   const createElement = () => ({
     children: [],
     textContent: '',
+    attributes: new Map([['aria-busy', 'true']]),
+    removeAttribute(name) {
+      this.attributes.delete(name)
+    },
     append(child) {
       this.children.push(child)
     },
@@ -27,6 +31,11 @@ async function render(response, lang = 'en') {
   const document = {
     documentElement: { lang },
     createElement,
+    querySelectorAll() {
+      return ['windows', 'macos', 'linux'].map((platform) =>
+        this.querySelector(`[data-download-platform="${platform}"]`)
+      )
+    },
     querySelector(selector) {
       if (!elements.has(selector)) elements.set(selector, createElement())
       return elements.get(selector)
@@ -71,6 +80,12 @@ test('download page offers published preview installers and source from the same
   assert.equal(elements.get('[data-download-platform="macos"]').children.length, 2)
   assert.equal(elements.get('[data-download-platform="linux"]').children.length, 1)
   assert.match(elements.get('[data-download-status]').textContent, /Experimental preview/)
+  for (const platform of ['windows', 'macos', 'linux']) {
+    assert.equal(
+      elements.get(`[data-download-platform="${platform}"]`).attributes.has('aria-busy'),
+      false
+    )
+  }
   const source = elements.get('[data-release-files]').children[0]
   assert.equal(
     source.href,
@@ -81,6 +96,11 @@ test('download page offers published preview installers and source from the same
 test('download page distinguishes unpublished releases, missing platform assets, and network errors', async () => {
   let elements = await render({ ok: true, json: async () => [] }, 'id')
   assert.match(elements.get('[data-download-status]').textContent, /belum dipublikasikan/)
+  for (const platform of ['windows', 'macos', 'linux']) {
+    const container = elements.get(`[data-download-platform="${platform}"]`)
+    assert.match(container.textContent, /belum dipublikasikan/)
+    assert.equal(container.attributes.has('aria-busy'), false)
+  }
   elements = await render({
     ok: true,
     json: async () => [{ tag_name: 'v1', assets: [], draft: false, prerelease: false }]
@@ -90,5 +110,10 @@ test('download page distinguishes unpublished releases, missing platform assets,
   for (const response of [new Error('offline'), { ok: false, status: 403 }]) {
     elements = await render(response)
     assert.match(elements.get('[data-download-status]').textContent, /could not be loaded/)
+    for (const platform of ['windows', 'macos', 'linux']) {
+      const container = elements.get(`[data-download-platform="${platform}"]`)
+      assert.match(container.textContent, /could not be loaded/)
+      assert.equal(container.attributes.has('aria-busy'), false)
+    }
   }
 })

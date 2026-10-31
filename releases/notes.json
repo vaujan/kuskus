@@ -1,6 +1,11 @@
 {
   "unreleased": {
-    "changes": {}
+    "changes": {
+      "Fixed": [
+        "Show locally rendered link preview cards and domain icons in the browser demo.",
+        "Show a loading state while fetching download options and clear it when releases are unavailable."
+      ]
+    }
   },
   "releases": [
     {

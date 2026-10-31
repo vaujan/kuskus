@@ -360,8 +360,8 @@ export function personaLibrary(id: DemoPersonaId): LibraryDto {
                 description: entry.description ?? null,
                 contentKind: 'webpage',
                 metadataVersion: 1,
-                hasFavicon: false,
-                hasPreviewImage: false,
+                hasFavicon: true,
+                hasPreviewImage: true,
                 metadataStatus: 'ready',
                 metadataError: null,
                 relativePath: `${collection.relativePath}/${entry.title}.url`
