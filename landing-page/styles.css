@@ -247,7 +247,7 @@ h1 {
   border: 0;
 }
 .how-section {
-  padding-block: 44px 88px;
+  padding-block: 44px 80px;
 }
 .how-section .section-inner {
   display: grid;
@@ -274,7 +274,7 @@ h2 {
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px;
+  gap: 24px 20px;
   margin-top: 46px;
 }
 .benefits article {
@@ -293,67 +293,70 @@ h3 {
   font-weight: 550;
   letter-spacing: -0.02em;
 }
-.benefits p,
-.ownership-points p {
+.benefits p {
   margin: 0;
   font-size: 14px;
   line-height: 1.75;
   color: var(--muted);
 }
-.files-section {
+.ownership-section {
   padding-block: 56px;
-  background: transparent;
 }
-.files-layout {
+.ownership-principles {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 80px;
-}
-.ownership-points {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
   margin-top: 40px;
 }
-.files-layout > p {
-  max-width: 420px;
-  margin: 24px 0 0;
-  font-size: 16px;
-  line-height: 1.75;
-  color: var(--muted);
-}
-.feature-card {
-  display: flex;
-  flex-direction: column;
-  min-height: 248px;
+.ownership-card {
   padding: 26px;
-  border: 1px solid var(--rule);
-  border-radius: 8px;
-  background: #f1f2ee;
-  transition:
-    translate 180ms ease,
-    background-color 180ms ease,
-    box-shadow 180ms ease;
+  border-radius: 16px;
+  transition: background-color 160ms ease;
 }
-.feature-card:hover {
-  translate: 0 -4px;
-  background: #f7f8f5;
-  box-shadow: 0 10px 26px #2228200b;
-}
-.feature-card svg {
-  width: 26px;
-  height: 26px;
-  margin-bottom: 44px;
+.ownership-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 28px;
+  border-radius: 12px;
+  background: #e2e7da;
   color: var(--accent);
 }
-.feature-card h3 {
-  margin-bottom: 10px;
+.ownership-icon svg {
+  width: 24px;
+  height: 24px;
 }
-.feature-card p {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.65;
+.ownership-principles p {
+  margin: 14px 0 0;
   color: var(--muted);
+  font-size: 14px;
+  line-height: 1.75;
+}
+.ownership-principles a {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  margin-top: 12px;
+  font-size: 13px;
+}
+.ownership-footnote {
+  max-width: 780px;
+  margin: 28px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.8;
+}
+@media (max-width: 800px) {
+  .ownership-principles {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 28px;
+  }
+  .ownership-section {
+    padding-block: 40px;
+  }
 }
 .site-footer {
   overflow: hidden;
@@ -411,11 +414,7 @@ h3 {
   min-height: 44px;
   text-underline-offset: 3px;
 }
-@media (max-width: 1100px) and (min-width: 651px) {
-  .ownership-points {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
+
 a:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 5px;
@@ -437,7 +436,6 @@ a:focus-visible {
     column-gap: 36px;
     grid-template-columns: 1.4fr 1fr;
   }
-  .files-layout,
   .how-section .section-inner {
     column-gap: 36px;
   }
@@ -468,8 +466,7 @@ a:focus-visible {
     padding-block: 36px 48px;
   }
   .hero-copy,
-  .how-section .section-inner,
-  .files-layout {
+  .how-section .section-inner {
     grid-template-columns: 1fr;
     gap: 24px;
   }
@@ -503,18 +500,6 @@ a:focus-visible {
     grid-template-columns: 1fr;
     gap: 24px;
   }
-  .files-section {
-    padding-block: 44px;
-  }
-  .ownership-points {
-    grid-template-columns: 1fr;
-  }
-  .feature-card {
-    min-height: 0;
-  }
-  .feature-card svg {
-    margin-bottom: 28px;
-  }
   .footer-main {
     min-height: 330px;
   }
@@ -537,9 +522,6 @@ a:focus-visible {
   }
   .primary-action,
   .secondary-action {
-    transition: none;
-  }
-  .feature-card {
     transition: none;
   }
 }
@@ -747,7 +729,6 @@ a:focus-visible {
 }
 
 /* Product details share the landing page's quiet editorial layout. */
-.product-section,
 .questions-section {
   padding-block: 64px;
 }
@@ -763,59 +744,11 @@ a:focus-visible {
   font-size: 12px;
   line-height: 1.6;
 }
-.product-copy > p:not(.eyebrow) {
-  max-width: 470px;
-  margin: 24px 0;
-  font-size: 16px;
-  line-height: 1.75;
-  color: var(--muted);
-}
-.feature-list {
-  margin: 0;
-  padding-left: 20px;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.75;
-}
-.feature-list li + li {
-  margin-top: 10px;
-}
-.vault-example {
-  margin: 0;
-  padding: 32px;
-  border-radius: 12px;
-  background: #eeefe9;
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 5%);
-}
-.vault-example figcaption {
-  font-size: 14px;
-  font-weight: 550;
-}
-.vault-example p,
-.editor-features p,
 .questions-list p {
   margin: 12px 0 0;
   font-size: 14px;
   line-height: 1.75;
   color: var(--muted);
-}
-.editor-features {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px;
-  margin-top: 40px;
-}
-.editor-features article {
-  min-width: 0;
-}
-.editor-features h3 {
-  margin-top: 18px;
-}
-.ownership-points {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-.ownership-points .feature-card {
-  min-height: 0;
 }
 .questions-list details {
   border-top: 1px solid var(--rule);
@@ -844,23 +777,14 @@ a:focus-visible {
   .product-layout {
     gap: 36px;
   }
-  .editor-features {
-    gap: 24px;
-  }
 }
 @media (max-width: 650px) {
-  .product-section,
   .questions-section {
     padding-block: 40px;
   }
-  .product-layout,
-  .editor-features,
-  .ownership-points {
+  .product-layout {
     grid-template-columns: 1fr;
     gap: 24px;
-  }
-  .vault-example {
-    padding: 24px;
   }
   .site-header nav {
     flex-wrap: wrap;
@@ -871,8 +795,19 @@ a:focus-visible {
 .illustrated-card {
   padding: 16px 16px 28px;
   border-radius: 16px;
-  background: #f1f2ee;
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 6%);
+  transition: background-color 160ms ease;
+}
+@media (hover: hover) {
+  .illustrated-card:hover,
+  .ownership-card:hover {
+    background: #f1f2ee;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .illustrated-card,
+  .ownership-card {
+    transition: none;
+  }
 }
 .illustrated-card > h3,
 .illustrated-card > p,
@@ -1122,79 +1057,8 @@ a:focus-visible {
   width: 60%;
   margin-left: 24px;
 }
-.vault-files {
-  margin-block: 28px 20px;
-  padding: 16px;
-  background: #fafbf8;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px #00000005;
-}
-.vault-files svg {
-  width: 19px;
-  height: 19px;
-  flex-shrink: 0;
-  color: #78846a;
-}
-.vault-root,
-.vault-file {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 40px;
-  font-size: 12px;
-}
-.vault-root {
-  margin-bottom: 8px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--rule);
-}
-.vault-root > span:last-child,
-.vault-file > span:last-child {
-  margin-left: auto;
-  color: var(--muted);
-  font-size: 10px;
-}
-.vault-file-nested {
-  padding-left: 22px;
-}
-.vault-clients {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.vault-clients span {
-  padding: 7px 12px;
-  border-radius: 20px;
-  background: #dfe5d8;
-  color: #4e5c44;
-  font-size: 11px;
-}
-.vault-clients span:nth-child(2) {
-  background: #e3dfed;
-  color: #62547a;
-}
-.feature-icon {
-  display: grid;
-  place-items: center;
-  width: 46px;
-  height: 46px;
-  margin-bottom: 28px;
-  border-radius: 12px;
-  background: #e2e7da;
-}
-.feature-icon svg {
-  width: 24px;
-  height: 24px;
-  margin: 0;
-}
-.ownership-points .feature-card {
-  border: 0;
-  border-radius: 16px;
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 6%);
-}
 @media (min-width: 651px) and (max-width: 1000px) {
-  .benefits,
-  .editor-features {
+  .benefits {
     gap: 12px;
   }
   .illustrated-card {
@@ -1221,13 +1085,6 @@ a:focus-visible {
 @media (max-width: 650px) {
   .feature-visual {
     min-height: 210px;
-  }
-  .vault-example {
-    padding: 20px;
-  }
-  .vault-file > span:last-child,
-  .vault-root > span:last-child {
-    display: none;
   }
 }
 
@@ -1317,17 +1174,6 @@ a:focus-visible {
   object-fit: cover;
 }
 
-.vault-app-visual {
-  overflow: hidden;
-  border-radius: 8px;
-  margin-block: 24px;
-}
-.vault-app-visual img {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
 .live-workflow-visual {
   background: #e5e8df;
 }
@@ -1336,105 +1182,6 @@ a:focus-visible {
   width: 100%;
   height: 100%;
   border: 0;
-}
-.vault-folder-example {
-  margin: 0;
-  border: 1px solid #dce0d5;
-  border-radius: 14px;
-  background: #f4f5ef;
-  overflow: hidden;
-}
-.vault-folder-example figcaption {
-  padding: 26px 28px 20px;
-  font-size: 13px;
-  color: var(--muted);
-}
-.vault-folder-path {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  padding: 0 28px 22px;
-  border-bottom: 1px solid #dce0d5;
-  font-size: 20px;
-}
-.vault-folder-path > span:last-child {
-  color: #a3ac98;
-}
-.vault-folder-dot {
-  width: 15px;
-  height: 12px;
-  border: 1.5px solid #79856d;
-  border-radius: 2px;
-  background: #e2e7d9;
-}
-.vault-folder-tree {
-  padding: 20px 28px;
-  background: #fcfcf8;
-}
-.vault-folder-tree details + details {
-  margin-top: 20px;
-}
-.vault-folder-tree summary {
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 550;
-  color: #505947;
-}
-.vault-folder-tree summary > span {
-  float: right;
-  font-weight: 400;
-  font-size: 11px;
-  color: var(--muted);
-}
-.vault-folder-tree ul {
-  list-style: none;
-  margin: 12px 0 0 6px;
-  padding: 0 0 0 18px;
-  border-left: 1px solid #dce0d5;
-}
-.vault-folder-tree li {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  padding: 9px 0;
-  font-size: 12px;
-  overflow-wrap: anywhere;
-}
-.file-extension {
-  display: inline-block;
-  flex: 0 0 30px;
-  text-align: center;
-  border-radius: 4px;
-  background: #edf0e7;
-  color: #647157;
-  font: 10px monospace;
-  padding: 4px 0;
-}
-.vault-folder-footer {
-  border-top: 1px solid #dce0d5;
-  padding: 22px 28px;
-}
-.vault-folder-footer > strong {
-  font-size: 14px;
-  font-weight: 550;
-}
-.vault-folder-footer p {
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--muted);
-  margin: 8px 0 16px;
-}
-.vault-folder-tools {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.vault-folder-tools span {
-  border: 1px solid #d5dccb;
-  padding: 6px 12px;
-  font-size: 11px;
-  border-radius: 5px;
-  color: #59634f;
 }
 
 .platform-logos a {

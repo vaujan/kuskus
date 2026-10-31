@@ -53,7 +53,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
-import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
+import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyMedia } from '@/components/ui/empty'
 import {
   Sidebar as AppSidebar,
   SidebarContent,
@@ -956,8 +956,11 @@ export function LibrarySidebar({
             </SidebarGroupAction>
             <SidebarGroupContent>
               {folderTree.length === 0 && (
-                <Empty className="gap-3 px-2 py-4 group-data-[collapsible=icon]:hidden">
+                <Empty className="gap-3 border border-border/60 px-2 py-4 group-data-[collapsible=icon]:hidden">
                   <EmptyHeader className="gap-1">
+                    <EmptyMedia variant="icon">
+                      <IconFolder aria-hidden="true" />
+                    </EmptyMedia>
                     <EmptyTitle className="text-sm">No folders yet</EmptyTitle>
                     <EmptyDescription className="text-xs">
                       Group related notes, links, and files in a folder.
