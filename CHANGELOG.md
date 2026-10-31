@@ -33,6 +33,7 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 ### Fixed
 
+- Keep macOS native window controls clear of library, note, and settings actions at every app zoom level, and show Command shortcuts in the toolbar.
 - Preserve existing item IDs when newly discovered files share or reuse a filesystem identity during vault reconciliation.
 - Resolve pnpm commands on Windows with either executable or command-shim installations.
 - Download the Electron runtime during dependency installation so desktop development starts successfully on a fresh setup.

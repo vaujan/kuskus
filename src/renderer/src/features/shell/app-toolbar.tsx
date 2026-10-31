@@ -61,6 +61,9 @@ export function AppToolbar({
   onSortChange: (sort: ItemSort) => void
   onWindowClose?: () => void
 }): React.JSX.Element {
+  const isMac = window.electron.window.platform === 'darwin'
+  const commandKey = isMac ? 'Cmd' : 'Ctrl'
+  const ariaCommandKey = isMac ? 'Meta' : 'Control'
   const newItemRef = useRef<HTMLButtonElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const filterCount = typeFilters.length + Number(showReferencedAttachments)
@@ -143,7 +146,7 @@ export function AppToolbar({
                   <Button
                     size="sm"
                     data-lifted="true"
-                    aria-keyshortcuts="Control+N"
+                    aria-keyshortcuts={`${ariaCommandKey}+N`}
                     aria-label="Create new note"
                     onClick={onNewNote}
                   />
@@ -153,7 +156,7 @@ export function AppToolbar({
                 <span className="hidden @min-[48rem]/toolbar:inline">New note</span>
               </TooltipTrigger>
               <TooltipContent>
-                New note <ShortcutKbd shortcut="Ctrl+N" />
+                New note <ShortcutKbd shortcut={`${commandKey}+N`} />
               </TooltipContent>
             </Tooltip>
             <Tooltip>
@@ -166,7 +169,7 @@ export function AppToolbar({
                     data-lifted={newItemOpen || hasDraft}
                     data-new-item-button
                     aria-expanded={newItemOpen}
-                    aria-keyshortcuts="Control+Shift+N"
+                    aria-keyshortcuts={`${ariaCommandKey}+Shift+N`}
                     aria-label={hasDraft && !newItemOpen ? 'Continue Add item draft' : 'Add item'}
                     onClick={onNewItem}
                   />
@@ -177,7 +180,7 @@ export function AppToolbar({
               </TooltipTrigger>
               <TooltipContent>
                 {hasDraft && !newItemOpen ? 'Continue draft' : 'Add item'}{' '}
-                <ShortcutKbd shortcut="Ctrl+Shift+N" />
+                <ShortcutKbd shortcut={`${commandKey}+Shift+N`} />
               </TooltipContent>
             </Tooltip>
             {hasDraft ? (

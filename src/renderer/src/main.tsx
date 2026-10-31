@@ -27,6 +27,8 @@ document.documentElement.style.setProperty(
   `${resolveBackgroundOpacity(localStorage.getItem('kuskus-background-opacity'))}%`
 )
 
+document.documentElement.dataset.platform = window.electron.window.platform
+
 performance.mark('kuskus:renderer-entry')
 window.electron.window.onTextContextMenu((details) => {
   void import('./features/shell/text-context-menu').then(({ openTextContextMenu }) => {

@@ -231,8 +231,6 @@ test('settings keeps contextual view controls on the surfaces they affect', () =
   assert.match(panel, /<SidebarProvider/)
   assert.match(panel, /<SidebarMenuButton/)
   assert.match(panel, /md:left-\[208px\]/)
-  assert.match(panel, /isMac && 'pt-10'/)
-  assert.doesNotMatch(panel, /showCustomTitleBar && 'pt-10'/)
   assert.match(panel, /SettingsSection = 'appearance' \| 'editing'/)
   assert.doesNotMatch(panel, /IconBolt|>Capture</)
   assert.match(panel, /<ScrollArea/)
