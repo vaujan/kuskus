@@ -46,6 +46,13 @@ function addDownload(container: Element, label: string, url: string, primary = f
 
 async function loadDownloads(): Promise<void> {
   const status = document.querySelector<HTMLElement>('[data-download-status]')!
+  const platforms = document.querySelectorAll<HTMLElement>('[data-download-platform]')
+  function showUnavailable(message: string): void {
+    status.textContent = message
+    platforms.forEach((container) => {
+      container.textContent = message
+    })
+  }
   try {
     const response = await fetch(
       'https://api.github.com/repos/vaujan/kuskus/releases?per_page=10',
@@ -55,14 +62,14 @@ async function loadDownloads(): Promise<void> {
       }
     )
     if (response.status === 404) {
-      status.textContent = copy.unpublished
+      showUnavailable(copy.unpublished)
       return
     }
     if (!response.ok) throw new Error(`GitHub returned ${response.status}`)
     const releases: Release[] = await response.json()
     const release = releases.find((candidate) => !candidate.draft)
     if (!release) {
-      status.textContent = copy.unpublished
+      showUnavailable(copy.unpublished)
       return
     }
     const releaseUrl = `${repository}/releases/tag/${encodeURIComponent(release.tag_name)}`
@@ -110,7 +117,9 @@ async function loadDownloads(): Promise<void> {
       releaseUrl
     )
   } catch {
-    status.textContent = copy.error
+    showUnavailable(copy.error)
+  } finally {
+    platforms.forEach((container) => container.removeAttribute('aria-busy'))
   }
 }
 
