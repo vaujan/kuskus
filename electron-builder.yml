@@ -42,4 +42,8 @@ linux:
 appImage:
   artifactName: ${name}-${version}-${arch}.${ext}
 npmRebuild: false
-publish: null
+publish:
+  provider: github
+  owner: vaujan
+  repo: kuskus
+  releaseType: release

@@ -25,6 +25,7 @@ import { NoteWindowController } from './window/note-window'
 import { SettingsWindowController } from './window/settings-window'
 import { startPerformanceReporter } from './performance-reporter'
 import { trackPerformanceIpcTimings } from './performance-log'
+import { registerUpdates } from './updates'
 
 const demoUserDataPath = process.env.KUSKUS_DEMO_USER_DATA
 const onboardingUserDataPath = process.env.KUSKUS_ONBOARDING_USER_DATA
@@ -177,6 +178,11 @@ if (!hasSingleInstanceLock) {
     }
 
     const noteWindows = new NoteWindowController(libraryService)
+    registerUpdates(
+      () => mainWindow?.webContents,
+      () => noteWindows.closeAll(),
+      () => settingsWindow.open()
+    )
     const backend = captureShortcutBackend
     const unavailableShortcut = { accelerator: GLOBAL_CAPTURE_SHORTCUT_LABEL, registered: false }
     registerWindowIpc(

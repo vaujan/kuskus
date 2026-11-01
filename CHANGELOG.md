@@ -6,6 +6,20 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [0.0.6] - 2026-11-01
+
+### Added
+
+- Choose a folder icon while creating a folder or subfolder.
+- Add a Support Kuskus settings section and English/Indonesian website sections with payment availability and contribution links.
+- Add Windows in-app update checks, user-controlled downloads, and restart-to-update controls in the sidebar and Settings → About Kuskus.
+
+### Changed
+
+- Use keycap components for focus-header and note-view tooltips, and center compact creation actions in square icon buttons.
+- Refine skeuomorphic buttons and selects with solid raised surfaces, subtle edge highlights, and crisp keyboard focus outlines while preserving their existing rounded corners.
+- Simplify the sidebar's empty folder prompt by removing its icon and using a smaller Create folder button.
+
 ## [0.0.5] - 2026-10-31
 
 ### Added

@@ -144,7 +144,8 @@ export function AppToolbar({
               <TooltipTrigger
                 render={
                   <Button
-                    size="sm"
+                    size="icon-sm"
+                    className="@min-[48rem]/toolbar:w-auto @min-[48rem]/toolbar:gap-1 @min-[48rem]/toolbar:px-3 @min-[48rem]/toolbar:has-data-[icon=inline-start]:pl-2"
                     data-lifted="true"
                     aria-keyshortcuts={`${ariaCommandKey}+N`}
                     aria-label="Create new note"
@@ -164,7 +165,8 @@ export function AppToolbar({
                 render={
                   <Button
                     ref={newItemRef}
-                    size="sm"
+                    size="icon-sm"
+                    className="@min-[48rem]/toolbar:w-auto @min-[48rem]/toolbar:gap-1 @min-[48rem]/toolbar:px-3 @min-[48rem]/toolbar:has-data-[icon=inline-start]:pl-2"
                     variant="tonal"
                     data-lifted={newItemOpen || hasDraft}
                     data-new-item-button

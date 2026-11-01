@@ -637,25 +637,25 @@ function NoteModeControls({
   const options = [
     {
       value: 'read' as const,
-      label: 'Read (Ctrl+E)',
+      label: 'Read',
       icon: Eye,
       shortcut: 'Control+E'
     },
     {
       value: 'live' as const,
-      label: 'Live preview (Ctrl+E)',
+      label: 'Live preview',
       icon: EyeEdit,
       shortcut: 'Control+E'
     },
     {
       value: 'markdown' as const,
-      label: 'Markdown source (Ctrl+Alt+E)',
+      label: 'Markdown source',
       icon: Code,
       shortcut: 'Control+Alt+E'
     },
     {
       value: 'split' as const,
-      label: 'Split view (Ctrl+Shift+E)',
+      label: 'Split view',
       icon: Columns2,
       shortcut: 'Control+Shift+E'
     }
@@ -686,7 +686,7 @@ function NoteModeControls({
                 {options.map(({ value, label, icon: Icon, shortcut }) => (
                   <DropdownMenuRadioItem key={value} value={value} className="whitespace-nowrap">
                     <Icon aria-hidden="true" />
-                    {label.replace(/ \(.+\)$/, '')}
+                    {label}
                     <DropdownMenuShortcut>
                       {shortcut.replace('Control', 'Ctrl')}
                     </DropdownMenuShortcut>
@@ -696,7 +696,10 @@ function NoteModeControls({
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
-        <TooltipContent>{activeOption.label}</TooltipContent>
+        <TooltipContent>
+          {activeOption.label}{' '}
+          <ShortcutKbd shortcut={activeOption.shortcut.replace('Control', 'Ctrl')} />
+        </TooltipContent>
       </Tooltip>
     )
   }
@@ -721,7 +724,9 @@ function NoteModeControls({
           >
             <Icon aria-hidden="true" />
           </TooltipTrigger>
-          <TooltipContent>{label}</TooltipContent>
+          <TooltipContent>
+            {label} <ShortcutKbd shortcut={shortcut.replace('Control', 'Ctrl')} />
+          </TooltipContent>
         </Tooltip>
       ))}
     </ButtonGroup>
