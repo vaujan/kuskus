@@ -92,7 +92,7 @@ export function registerUpdates(
     const version = status.version
     publish({ phase: 'installing', version })
     try {
-      if (!(await prepareMain()) || !(await closeNotes())) {
+      if (!(await prepareMain()) || !(await closeNotes()) || !(await prepareMain())) {
         publish({
           phase: 'ready',
           version,

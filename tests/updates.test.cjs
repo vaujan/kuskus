@@ -111,7 +111,22 @@ test('updates check automatically but download and install only on request', asy
   await s.download()
   assert.equal(s.status().phase, 'ready')
   await s.install()
-  assert.deepEqual(s.calls, ['check', 'download', 'save', 'notes', 'install'])
+  assert.deepEqual(s.calls, ['check', 'download', 'save', 'notes', 'save', 'install'])
+})
+
+test('edits made while separate notes close must save before restart', async () => {
+  const s = setup()
+  await s.check()
+  await s.download()
+  let saves = 0
+  s.sender.send = () => {
+    saves += 1
+    s.listeners.get('updates:prepared')({ sender: s.sender }, saves === 1)
+  }
+  await s.install()
+  assert.equal(saves, 2)
+  assert.equal(s.calls.includes('install'), false)
+  assert.equal(s.status().phase, 'ready')
 })
 
 test('development and unsupported platforms never check or install', async () => {
