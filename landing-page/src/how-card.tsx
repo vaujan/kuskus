@@ -14,79 +14,36 @@ import { AddItemComposer } from '../../src/renderer/src/features/capture/add-ite
 import { TooltipProvider } from '../../src/renderer/src/components/ui/tooltip'
 import { SettingsPreviewProvider } from '../../src/renderer/src/settings/settings-context'
 import { SAMPLE_NOTE } from '../../src/renderer/src/features/items/note-story-fixtures'
-import { installPreview, library } from '../../src/renderer/src/demo/app-preview-fixtures'
+import { installPreview } from '../../src/renderer/src/demo/app-preview-fixtures'
 import {
   applyTheme,
   applyControlStyle,
   DEFAULT_TYPOGRAPHY
 } from '../../src/renderer/src/hooks/theme'
+import { personaLibrary } from './persona-libraries'
 import './preview.css'
 import './how-card.css'
 
-// Component scenes shared by selectable landing previews and visual captures.
-const capture = `# Checkout friction\n\n2 of 5 participants checked the basket for delivery costs. Test a shipping estimate beside the subtotal in Friday’s prototype.`
-const decision = `# Delivery costs before payment\n\n## What we heard\n\nIn Tuesday’s checkout sessions, **2 of 5 participants** returned to the basket to check delivery costs. Both expected shipping to be included in the subtotal.\n\n> “I’d rather know the full amount before I put my card in.”\n\n## Decision for the next prototype\n\nShow the delivery estimate beside the subtotal. If the postcode is missing, say why we need it rather than showing a zero.\n\n- [x] Compare the five interview recordings\n- [ ] Test the revised summary with three participants\n- [ ] Check long postcodes and unavailable delivery areas\n\n## Open question\n\nDoes showing a range reduce uncertainty, or does it look like the price will change later? Keep the exact-price and range variants separate in Friday’s test.\n\nSource: checkout interviews, 14 October · sessions 02 and 04.`
-const implementationNote =
-  '# Delivery estimate\n\nShow **delivery before payment**. Keep an unknown price as `null`, never zero.\n\n```ts\nconst shipping = quote?.amount ?? null\nconst total = shipping === null\n  ? null\n  : subtotal + shipping\n```\n\n- [x] Keep totals in minor currency units\n- [ ] Test missing postcodes and remote areas\n\n> Session 04: “I thought delivery was included.”\n\n## Test cases\n\n| Postcode | Delivery | Summary |\n| --- | --- | --- |\n| Known | £4.50 | Exact total |\n| Missing | Unknown | Request postcode |\n\nLink this implementation to [[Checkout interviews — session 04]] before Friday’s review.'
+// Use the same project and notes as the Build demo.
+const previewLibrary = personaLibrary('developer')
+const buildNotes = previewLibrary.items.filter((item) => item.type === 'note')
+const capture = buildNotes.find((note) => note.title === 'The date moved back a day')!.body
+const implementationNote = buildNotes.find((note) => note.title === 'Fetch failure checklist')!.body
 const featureNotes = {
-  edit: '# Friday checkout test\n\n## Before the first session\n\n- [x] Reset the basket to the same three items\n- [ ] Check the postcode error message\n- [ ] Record whether delivery changes the decision\n\n## Questions to ask\n\nWhat do you expect the total to include?\nWhen would you want to see the delivery price?\n\nKeep the prompt neutral; do not mention shipping until the participant does.',
+  edit: buildNotes.find((note) => note.title === 'Release checklist')!.body,
   diagram:
-    '# Delivery quote flow\n\n```mermaid\nflowchart LR\n  A[Basket] --> B{Postcode?}\n  B -->|Yes| C[Get quote]\n  B -->|No| D[Ask for postcode]\n  C --> E[Show total]\n```\n\n**Conversion rate:** $r = \\frac{orders}{checkout\\ starts}$\n\n```ts\nconst total = subtotal + shipping\n```',
+    '# Assignment save flow\n\n' +
+    '```mermaid\nflowchart LR\n  A[Assignment form] --> B{Valid course?}\n  B -->|Yes| C[Save to SQLite]\n  B -->|No| D[Show field error]\n  C --> E[Refresh upcoming view]\n```\n\n' +
+    '**Completion rate:** $r = \\frac{completed}{total}$\n\n' +
+    '```ts\nconst upcoming = assignments.filter(task => !task.completed)\n```',
   links:
-    '# Friday test plan\n\nCompare the revised summary with [[Delivery costs before payment]]. Use the same basket in every session.\n\n## Interview evidence\n\nSee [[Checkout interviews — session 04]] for the participant who expected shipping to be included.\n\n- [x] Collect consent forms\n- [ ] Test the exact-price prototype\n- [ ] Note the first question each participant asks\n\n## After the sessions\n\nUpdate [[Delivery costs before payment]] with the observed hesitation points and the final decision.'
+    '# Next build session\n\nStart with [[Before I open another tab]] to keep the course planner focused.\n\n## Debugging notes\n\nFix [[The date moved back a day]] before adding reminders. Keep calendar dates intact through storage.\n\n- [x] Finish assignment validation\n- [ ] Test month boundaries\n- [ ] Run the [[Release checklist]]\n\n## After the fix\n\nUpdate [[Monday build log]] with the result and the next small step.'
 }
 const results = [
-  { title: 'Delivery costs before payment', body: decision },
-  {
-    title: 'Checkout interviews — session 04',
-    body: 'Participant returned to the basket before entering a card number. Expected delivery to be included.\n\n## Follow-up\n\nAsk what “estimated total” means to them before showing the revised order summary.'
-  },
-  {
-    title: 'Friday usability test — delivery estimate',
-    body: 'Compare an exact delivery price with a price range. Keep the same basket and postcode across both prototypes.\n\n- [ ] Recruit three participants\n- [ ] Record first-click and hesitation points'
-  }
-]
-const previewLibrary = library(
-  'workflow',
-  results.map((note, i) => ({
-    ...SAMPLE_NOTE,
-    ...note,
-    id: `vault-${i}`,
-    location: { type: 'collection' as const, collectionId: 'checkout' }
-  })),
-  {
-    name: 'Product research',
-    collections: [
-      {
-        schemaVersion: 2,
-        id: 'checkout',
-        name: 'Checkout research',
-        icon: 'folder',
-        createdAt: SAMPLE_NOTE.createdAt,
-        relativePath: 'Checkout research',
-        parentId: null
-      },
-      {
-        schemaVersion: 2,
-        id: 'interviews',
-        name: 'Interview notes',
-        icon: 'folder',
-        createdAt: SAMPLE_NOTE.createdAt,
-        relativePath: 'Checkout research/Interview notes',
-        parentId: 'checkout'
-      },
-      {
-        schemaVersion: 2,
-        id: 'prototypes',
-        name: 'Prototype reviews',
-        icon: 'folder',
-        createdAt: SAMPLE_NOTE.createdAt,
-        relativePath: 'Prototype reviews',
-        parentId: null
-      }
-    ]
-  }
-)
+  'Before I open another tab',
+  'API contract — assignments',
+  'Testing the upcoming view'
+].map((title) => buildNotes.find((note) => note.title === title)!)
 installPreview(previewLibrary)
 const kind = new URLSearchParams(location.search).get('kind') ?? 'write'
 const theme = 'vscode'
@@ -128,7 +85,7 @@ export function WritingScene(): React.JSX.Element {
   const [mode, setMode] = useState<'live' | 'markdown' | 'read'>('live')
   const [value, setValue] = useState(featureNotes.edit)
   return (
-    <ItemCardSurface className="feature-editor feature-editor--edit">
+    <div className="feature-writing-scene">
       <div className="feature-editor-toolbar">
         <NoteModeButton
           mode={mode}
@@ -139,29 +96,31 @@ export function WritingScene(): React.JSX.Element {
           }
         />
       </div>
-      <ScrollArea className="feature-editor-body">
-        {mode === 'read' ? (
-          <article className="kuskus-detail-document-frame py-[var(--typeset-detail-padding-block)]">
-            <MarkdownPreview value={value} presentation="detail" />
-          </article>
-        ) : mode === 'live' ? (
-          <LiveMarkdownEditor
-            value={value}
-            active={false}
-            editable
-            presentation="detail"
-            onChange={setValue}
-          />
-        ) : (
-          <MarkdownEditor value={value} active={false} onChange={setValue} />
-        )}
-      </ScrollArea>
-    </ItemCardSurface>
+      <ItemCardSurface className="feature-editor feature-editor--edit">
+        <ScrollArea className="feature-editor-body">
+          {mode === 'read' ? (
+            <article className="kuskus-detail-document-frame py-[var(--typeset-detail-padding-block)]">
+              <MarkdownPreview value={value} presentation="detail" />
+            </article>
+          ) : mode === 'live' ? (
+            <LiveMarkdownEditor
+              value={value}
+              active={false}
+              editable
+              presentation="detail"
+              onChange={setValue}
+            />
+          ) : (
+            <MarkdownEditor value={value} active={false} onChange={setValue} />
+          )}
+        </ScrollArea>
+      </ItemCardSurface>
+    </div>
   )
 }
 
 export function SearchScene(): React.JSX.Element {
-  const [query, setQuery] = useState('delivery')
+  const [query, setQuery] = useState('assignment')
   return (
     <div className="workflow-search">
       <LibrarySearchInput
@@ -169,7 +128,7 @@ export function SearchScene(): React.JSX.Element {
         value={query}
         onValueChange={setQuery}
         pending={false}
-        scopeLabel="Checkout research"
+        scopeLabel="Course planner"
       />
       <div className="workflow-results">
         {results
@@ -203,7 +162,7 @@ createRoot(document.getElementById('root')!).render(
               <LibrarySidebar
                 beforeDevReload={async () => true}
                 library={previewLibrary}
-                destination={{ type: 'collection', collectionId: 'checkout' }}
+                destination={{ type: 'collection', collectionId: 'developer-folder-0' }}
                 onDestinationChange={noop}
                 onLibraryChange={noop}
                 onMoveItems={noop}

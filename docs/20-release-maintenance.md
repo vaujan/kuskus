@@ -68,6 +68,31 @@ native UI works. CI's full-history Gitleaks job remains a separate required chec
 
 ## Final release gates
 
+### Windows in-app updates
+
+Installed Windows builds check the public `vaujan/kuskus` GitHub Releases feed after
+30 seconds and every four hours. Settings → About Kuskus also offers a manual check.
+When an update is available, the library sidebar offers download, progress, retry,
+and restart controls so the entire update can be completed from the workspace.
+Downloads and installation require a user action; quitting normally never installs
+an update. Downloads use electron-updater's differential NSIS support when possible.
+Development builds and experimental macOS/Linux builds do not check for updates.
+Only stable releases are offered; unsigned experimental prereleases are excluded.
+
+`pnpm release` builds signed x64 and arm64 Windows installers, then verifies and
+collects both installers, their `.blockmap` files, `latest.yml`, and SHA-256 checksums
+in `release-artifacts/`. The directory must not already exist. Upload all files to
+a draft stable GitHub release with a tag matching the packaged version, then publish
+only after all assets are present and native checks pass. Keep previous releases'
+blockmaps available for differential downloads. No GitHub token belongs in the app.
+The experimental preview workflow intentionally publishes no updater metadata.
+
+Before enabling a public release, test two successive signed installed versions on
+Windows: check, download progress, interrupted/offline retry, signature rejection,
+restart, and preservation of library content and settings. Verify pending edits in
+the main editor and separate note windows save before restart; a failed save must
+block restart. Users of older builds must install an updater-enabled build once.
+
 Prepare and commit the versioned candidate, then require green Linux/Windows and secret-scan CI.
 `pnpm release` additionally checks a clean committed tree and prepared notes, runs the source
 checks, full dependency audit, and Storybook build, builds signed Windows installers, and inspects the

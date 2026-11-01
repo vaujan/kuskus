@@ -1,6 +1,6 @@
 {
   "name": "kuskus",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "license": "GPL-3.0-only",
   "description": "A private visual library for project references, stored on your computer",
   "main": "./out/main/index.js",
@@ -74,6 +74,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "electron-updater": "^6.8.11",
     "katex": "0.18.10",
     "mermaid": "^11.17.2",
     "node-diff3": "^3.2.1",

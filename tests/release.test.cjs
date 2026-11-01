@@ -42,7 +42,8 @@ test('release validates before requiring signed Windows packaging and never muta
       ['audit'],
       ['build:storybook'],
       ['exec', 'electron-builder', '--win', '--publish', 'never', '--config.forceCodeSigning=true'],
-      ['package:verify']
+      ['package:verify'],
+      ['scripts/collect-update-artifacts.cjs']
     ]
   )
 })

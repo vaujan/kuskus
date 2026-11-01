@@ -1,3 +1,8 @@
+import { useState } from 'react'
+
+import type { CollectionIconKey } from '../../../../shared/library-contract'
+import { CollectionIcon } from './collection-icons'
+import { FolderIconPickerDialog } from './folder-icon-picker-dialog'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -33,8 +38,16 @@ export function FolderNameDialog({
   busy: boolean
   onOpenChange: (open: boolean) => void
   onNameChange: (name: string) => void
-  onSubmit: (name: string) => void
+  onSubmit: (name: string, icon: CollectionIconKey) => void
 }): React.JSX.Element {
+  const [icon, setIcon] = useState<CollectionIconKey>('folder')
+  const [iconPickerOpen, setIconPickerOpen] = useState(false)
+  const [previousOpen, setPreviousOpen] = useState(open)
+  if (open !== previousOpen) {
+    setPreviousOpen(open)
+    setIcon('folder')
+    setIconPickerOpen(false)
+  }
   const isCreate = mode?.type === 'create'
   const isSubfolder = isCreate && mode.parentName !== undefined
   const trimmedName = name.trim()
@@ -52,7 +65,7 @@ export function FolderNameDialog({
             className="grid gap-6"
             onSubmit={(event) => {
               event.preventDefault()
-              if (trimmedName && !busy) onSubmit(name)
+              if (trimmedName && !busy) onSubmit(name, icon)
             }}
           >
             <DialogHeader>
@@ -61,28 +74,43 @@ export function FolderNameDialog({
               </DialogTitle>
               <DialogDescription>
                 {isSubfolder
-                  ? `Choose a name for a folder inside ${mode.parentName}.`
+                  ? `Choose a name and icon for a folder inside ${mode.parentName}.`
                   : isCreate
-                    ? 'Choose a name for this folder.'
+                    ? 'Choose a name and icon for this folder.'
                     : 'Enter a new name for this folder.'}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-2">
               <Label htmlFor="folder-name">Folder name</Label>
-              <Input
-                id="folder-name"
-                className="h-10"
-                autoFocus
-                autoComplete="off"
-                maxLength={80}
-                placeholder={isCreate ? 'e.g. Design references' : undefined}
-                value={name}
-                disabled={busy}
-                onFocus={(event) => {
-                  if (mode.type === 'rename') event.currentTarget.select()
-                }}
-                onChange={(event) => onNameChange(event.target.value)}
-              />
+              <div className="flex items-center gap-2">
+                {isCreate && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-lg"
+                    aria-label="Choose folder icon"
+                    title="Choose folder icon"
+                    disabled={busy}
+                    onClick={() => setIconPickerOpen(true)}
+                  >
+                    <CollectionIcon icon={icon} aria-hidden="true" />
+                  </Button>
+                )}
+                <Input
+                  id="folder-name"
+                  className="h-10"
+                  autoFocus
+                  autoComplete="off"
+                  maxLength={80}
+                  placeholder={isCreate ? 'e.g. Design references' : undefined}
+                  value={name}
+                  disabled={busy}
+                  onFocus={(event) => {
+                    if (mode.type === 'rename') event.currentTarget.select()
+                  }}
+                  onChange={(event) => onNameChange(event.target.value)}
+                />
+              </div>
             </div>
             <DialogFooter>
               <Button
@@ -107,6 +135,18 @@ export function FolderNameDialog({
               </Button>
             </DialogFooter>
           </form>
+        )}
+        {isCreate && (
+          <FolderIconPickerDialog
+            open={iconPickerOpen}
+            value={icon}
+            disabled={busy}
+            onOpenChange={setIconPickerOpen}
+            onSelect={(nextIcon) => {
+              setIcon(nextIcon)
+              setIconPickerOpen(false)
+            }}
+          />
         )}
       </DialogContent>
     </Dialog>

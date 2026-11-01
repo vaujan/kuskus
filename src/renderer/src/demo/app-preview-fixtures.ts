@@ -289,7 +289,20 @@ export function installPreview(
     onNoteWindowCloseRequested: () => unsubscribe,
     resolveNoteWindowClose: () => {}
   }
-  window.electron = { window: windowApi }
+  window.electron = {
+    window: windowApi,
+    updates: {
+      getStatus: async () => ({
+        phase: 'unavailable',
+        message: 'Updates are disabled in previews.'
+      }),
+      check: async () => {},
+      download: async () => {},
+      install: async () => {},
+      onStatus: () => () => {},
+      onPrepare: () => () => {}
+    }
+  }
 
   const captureApi = {
     getQueue: async () => ok({ pendingCount: 0, failures: [] }),

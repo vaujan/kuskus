@@ -68,6 +68,9 @@ export function FocusListHeader({
   density: FocusRailDensity
   onDensityChange: (density: FocusRailDensity) => void
 }): React.JSX.Element {
+  const isMac = window.electron.window.platform === 'darwin'
+  const commandKey = isMac ? 'Cmd' : 'Ctrl'
+  const ariaCommandKey = isMac ? 'Meta' : 'Control'
   const newItemRef = useRef<HTMLButtonElement>(null)
   const searchButtonRef = useRef<HTMLButtonElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -119,7 +122,9 @@ export function FocusListHeader({
             >
               <IconSearch data-icon="inline-start" aria-hidden="true" />
             </TooltipTrigger>
-            <TooltipContent>Search library (Ctrl+Shift+F)</TooltipContent>
+            <TooltipContent>
+              Search library <ShortcutKbd shortcut={`${commandKey}+Shift+F`} />
+            </TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -180,7 +185,7 @@ export function FocusListHeader({
                 <Button
                   size="icon-sm"
                   variant="ghost"
-                  aria-keyshortcuts="Control+N"
+                  aria-keyshortcuts={`${ariaCommandKey}+N`}
                   aria-label="Create new note"
                   onClick={onNewNote}
                 />
@@ -188,7 +193,9 @@ export function FocusListHeader({
             >
               <IconNote data-icon="inline-start" aria-hidden="true" />
             </TooltipTrigger>
-            <TooltipContent>New note (Ctrl+N)</TooltipContent>
+            <TooltipContent>
+              New note <ShortcutKbd shortcut={`${commandKey}+N`} />
+            </TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -200,7 +207,7 @@ export function FocusListHeader({
                   variant={composerOpen || hasDraft ? 'secondary' : 'ghost'}
                   data-new-item-button
                   aria-expanded={composerOpen}
-                  aria-keyshortcuts="Control+Shift+N"
+                  aria-keyshortcuts={`${ariaCommandKey}+Shift+N`}
                   aria-label={hasDraft && !composerOpen ? 'Continue Add item draft' : 'Add item'}
                   onClick={onNewItem}
                 />
@@ -210,7 +217,7 @@ export function FocusListHeader({
             </TooltipTrigger>
             <TooltipContent>
               {hasDraft && !composerOpen ? 'Continue draft' : 'Add item'}{' '}
-              <ShortcutKbd shortcut="Ctrl+Shift+N" />
+              <ShortcutKbd shortcut={`${commandKey}+Shift+N`} />
             </TooltipContent>
           </Tooltip>
         </div>
