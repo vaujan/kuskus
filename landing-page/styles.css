@@ -1216,3 +1216,63 @@ a:focus-visible {
   flex-direction: column;
   align-items: stretch;
 }
+
+.support-section {
+  padding-block: 64px;
+  scroll-margin-top: 24px;
+}
+.support-eyebrow {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.support-section h2 {
+  text-wrap: balance;
+}
+.support-description {
+  max-width: 620px;
+  margin: 20px 0 32px;
+  color: var(--muted);
+  line-height: 1.75;
+  text-wrap: pretty;
+}
+.support-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.support-option {
+  padding: 28px;
+  border-radius: 16px;
+  background: #eeeee8;
+}
+.support-option h3 {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 500;
+}
+.support-option p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.75;
+  text-wrap: pretty;
+}
+.support-status {
+  display: inline-block;
+  margin-bottom: 16px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--rule);
+  font-size: 12px;
+}
+@media (max-width: 650px) {
+  .support-section {
+    padding-block: 40px;
+  }
+  .support-options {
+    grid-template-columns: 1fr;
+  }
+  .support-option {
+    padding: 24px;
+  }
+}

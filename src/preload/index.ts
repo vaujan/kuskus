@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import { UPDATE_CHANNELS, type UpdateApi, type UpdateStatus } from '../shared/update-contract'
 import {
   CAPTURE_CHANNELS,
   type CaptureApi,
@@ -267,6 +268,30 @@ const captureApi: CaptureApi = {
   }
 }
 
-contextBridge.exposeInMainWorld('electron', { window: windowApi })
+const updateApi: UpdateApi = {
+  getStatus: () => ipcRenderer.invoke(UPDATE_CHANNELS.status),
+  check: () => ipcRenderer.invoke(UPDATE_CHANNELS.check),
+  download: () => ipcRenderer.invoke(UPDATE_CHANNELS.download),
+  install: () => ipcRenderer.invoke(UPDATE_CHANNELS.install),
+  onStatus: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, status: UpdateStatus): void =>
+      callback(status)
+    ipcRenderer.on(UPDATE_CHANNELS.changed, listener)
+    return () => ipcRenderer.removeListener(UPDATE_CHANNELS.changed, listener)
+  },
+  onPrepare: (callback) => {
+    const listener = (): void => {
+      void Promise.resolve()
+        .then(callback)
+        .then(
+          (approved) => ipcRenderer.send(UPDATE_CHANNELS.prepared, approved),
+          () => ipcRenderer.send(UPDATE_CHANNELS.prepared, false)
+        )
+    }
+    ipcRenderer.on(UPDATE_CHANNELS.prepare, listener)
+    return () => ipcRenderer.removeListener(UPDATE_CHANNELS.prepare, listener)
+  }
+}
+contextBridge.exposeInMainWorld('electron', { window: windowApi, updates: updateApi })
 contextBridge.exposeInMainWorld('kuskus', libraryApi)
 contextBridge.exposeInMainWorld('capture', captureApi)

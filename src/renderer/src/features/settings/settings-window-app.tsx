@@ -5,6 +5,7 @@ import {
 import { useEffect, useState } from 'react'
 import {
   IconFlask,
+  IconHeart,
   IconInfoCircle,
   IconKeyboard,
   IconPalette,
@@ -37,6 +38,7 @@ import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { FontPicker } from '@/features/settings/font-picker'
 import { SpellingLanguages } from '@/features/settings/spelling-languages'
+import { AppUpdates } from '@/features/settings/app-updates'
 import {
   Sidebar,
   SidebarContent,
@@ -71,7 +73,7 @@ import { version } from '../../../../../package.json'
 
 const FONT_SIZES: readonly BaseFontSize[] = ['13', '14', '15', '16', '17', '18', '20']
 
-type SettingsSection = 'appearance' | 'editing' | 'shortcuts' | 'about'
+type SettingsSection = 'appearance' | 'editing' | 'shortcuts' | 'support' | 'about'
 
 function FontSizeSelect({
   value,
@@ -234,6 +236,16 @@ export function SettingsWindowApp(): React.JSX.Element {
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton
+                      aria-current={section === 'support' ? 'page' : undefined}
+                      isActive={section === 'support'}
+                      onClick={() => setSection('support')}
+                    >
+                      <IconHeart aria-hidden="true" />
+                      <span>Support Kuskus</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
                       aria-current={section === 'about' ? 'page' : undefined}
                       isActive={section === 'about'}
                       onClick={() => setSection('about')}
@@ -251,7 +263,51 @@ export function SettingsWindowApp(): React.JSX.Element {
         <SidebarInset className="min-h-0 overflow-hidden bg-transparent">
           <SidebarTrigger className="absolute top-1 left-1 z-40 md:hidden" />
           <ScrollArea className="scroll-fade-y size-full [&_[data-slot=scroll-area-viewport]]:focus-visible:ring-0 [&_[data-slot=scroll-area-viewport]]:focus-visible:outline-none">
-            {section === 'about' ? (
+            {section === 'support' ? (
+              <div className="mx-auto flex w-full max-w-3xl flex-col gap-7 px-8 pt-12 pb-8">
+                <div className="flex flex-col gap-1">
+                  <h1 className="text-balance text-xl font-semibold">Support Kuskus</h1>
+                  <p className="text-pretty text-sm text-muted-foreground">
+                    Help an independent, free and open-source app keep growing.
+                  </p>
+                </div>
+                <div className="flex flex-col items-start gap-3 rounded-xl bg-muted/50 p-5">
+                  <Badge variant="secondary">Coming soon</Badge>
+                  <h2 className="text-base font-medium">Optional financial support</h2>
+                  <p className="text-pretty text-sm text-muted-foreground">
+                    A way to support Kuskus financially is being set up. Payments are not available
+                    yet. Kuskus remains free to use, with no account required.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-3">
+                  <h2 className="text-base font-medium">Other ways to help</h2>
+                  <p className="text-pretty text-sm text-muted-foreground">
+                    Report a bug, share Kuskus with a friend, or contribute to the project. Every
+                    contribution helps improve the app.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        void openExternalUrlWithFeedback(
+                          'https://github.com/vaujan/kuskus/blob/main/CONTRIBUTING.md'
+                        )
+                      }
+                    >
+                      Contribute on GitHub
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() =>
+                        void openExternalUrlWithFeedback('https://github.com/vaujan/kuskus/issues')
+                      }
+                    >
+                      Report a bug
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : section === 'about' ? (
               <div className="mx-auto flex w-full max-w-3xl flex-col gap-7 px-8 pt-12 pb-8">
                 <div className="flex flex-col gap-1">
                   <h1 className="text-balance text-xl font-semibold">About Kuskus</h1>
@@ -262,6 +318,7 @@ export function SettingsWindowApp(): React.JSX.Element {
                     A private visual library for project references, stored on your computer.
                   </p>
                 </div>
+                <AppUpdates />
                 <div className="flex flex-col gap-3">
                   <h2 className="text-base font-medium">Help Kuskus keep growing</h2>
                   <p className="text-pretty text-sm text-muted-foreground">

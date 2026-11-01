@@ -17,6 +17,7 @@ import {
 import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 
 import { DevMenu } from './dev-menu'
+import { SidebarUpdates } from './sidebar-updates'
 import { Button } from '@/components/ui/button'
 import {
   AlertDialog,
@@ -53,7 +54,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
-import { Empty, EmptyHeader, EmptyTitle, EmptyDescription, EmptyMedia } from '@/components/ui/empty'
+import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from '@/components/ui/empty'
 import {
   Sidebar as AppSidebar,
   SidebarContent,
@@ -651,9 +652,14 @@ export function LibrarySidebar({
     setFolderCollapsed(folderId, willCollapse)
   }
 
-  const createFolder = async (name: string, parentId: string | null): Promise<void> => {
+  const createFolder = async (
+    name: string,
+    parentId: string | null,
+    icon: CollectionIconKey
+  ): Promise<void> => {
     const result = await window.kuskus.createCollection({
       name,
+      icon,
       parentId
     })
     if (!result.ok) return onError(result.error)
@@ -672,12 +678,12 @@ export function LibrarySidebar({
     setFolderName('')
     setFolderDialog(null)
   }
-  const submitFolderName = async (name: string): Promise<void> => {
+  const submitFolderName = async (name: string, icon: CollectionIconKey): Promise<void> => {
     if (!folderDialog || folderOperationBusy) return
     setFolderOperationBusy(true)
     try {
       if (folderDialog.type === 'create') {
-        await createFolder(name, folderDialog.parentId)
+        await createFolder(name, folderDialog.parentId, icon)
       } else {
         await renameFolder(folderDialog.id, name)
       }
@@ -958,9 +964,6 @@ export function LibrarySidebar({
               {folderTree.length === 0 && (
                 <Empty className="gap-3 border border-border/60 px-2 py-4 group-data-[collapsible=icon]:hidden">
                   <EmptyHeader className="gap-1">
-                    <EmptyMedia variant="icon">
-                      <IconFolder aria-hidden="true" />
-                    </EmptyMedia>
                     <EmptyTitle className="text-sm">No folders yet</EmptyTitle>
                     <EmptyDescription className="text-xs">
                       Group related notes, links, and files in a folder.
@@ -968,7 +971,7 @@ export function LibrarySidebar({
                   </EmptyHeader>
                   <Button
                     variant="outline"
-                    size="sm"
+                    size="xs"
                     onClick={() => {
                       setFolderName('')
                       setFolderDialog({ type: 'create', parentId: null })
@@ -1039,6 +1042,7 @@ export function LibrarySidebar({
           </SidebarGroup>
         </SidebarContent>
         <SidebarFooter className="[-webkit-app-region:no-drag]">
+          <SidebarUpdates />
           {import.meta.env.DEV ? (
             <DevMenu
               resetBlocked={librarySwitchBlocked || libraryOperationBusy}
@@ -1142,7 +1146,7 @@ export function LibrarySidebar({
           if (!open) closeFolderDialog()
         }}
         onNameChange={setFolderName}
-        onSubmit={(name) => void submitFolderName(name)}
+        onSubmit={(name, icon) => void submitFolderName(name, icon)}
       />
       {iconPickerFolder && (
         <FolderIconPickerDialog

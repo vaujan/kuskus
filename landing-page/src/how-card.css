@@ -8,6 +8,7 @@ body {
   height: 390px;
   overflow: clip;
   background: #e5e8df;
+  --code-background: #e5e5e5;
 }
 .workflow-note {
   position: absolute;
@@ -36,6 +37,17 @@ body {
   left: 16px;
   top: 16px;
   width: 288px;
+}
+/* Keep the capture actions above the next card while long drafts scroll. */
+.workflow-capture .cm-editor {
+  height: 180px;
+}
+.workflow-capture .cm-editor .cm-scroller {
+  overflow-y: scroll;
+  scrollbar-width: auto;
+}
+.workflow-capture .cm-editor .cm-scroller::-webkit-scrollbar {
+  display: block;
 }
 .workflow-neighbor {
   position: absolute;
@@ -110,7 +122,19 @@ body {
   height: 720px;
   padding: 8px;
 }
+.feature-writing-scene {
+  position: absolute;
+  left: 28px;
+  top: 12px;
+  width: 464px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 .feature-editor--edit {
+  position: relative;
+  left: auto;
+  top: auto;
   width: 464px;
   height: 340px;
   display: flex;
@@ -130,8 +154,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding: 4px 6px 10px;
-  border-bottom: 1px solid var(--border);
+  padding: 0 6px;
 }
 .feature-editor--diagram {
   width: 510px;

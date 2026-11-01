@@ -295,6 +295,13 @@ export function Workspace({
   const captureOwner = useRef<CaptureSurface | null>(null)
   const mainComposerOwnershipRequested = useRef(false)
   const focusDetailRef = useRef<ItemDetailHandle>(null)
+  useEffect(
+    () =>
+      window.electron.updates.onPrepare(
+        () => focusDetailRef.current?.flush() ?? Promise.resolve(true)
+      ),
+    []
+  )
   const newNoteReturnRef = useRef<{
     composerOpen: boolean
     focusWorkspaceOpen: boolean

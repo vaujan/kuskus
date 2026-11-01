@@ -14,6 +14,11 @@ function App(): React.JSX.Element {
   const zoom = useAppZoom()
 
   useEffect(() => {
+    if (!state || state.status === 'ready') return
+    return window.electron.updates.onPrepare(() => Promise.resolve(true))
+  }, [state])
+
+  useEffect(() => {
     let mounted = true
     void window.kuskus.getOverview().then((result) => {
       if (mounted) {
