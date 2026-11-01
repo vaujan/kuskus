@@ -94,7 +94,10 @@ test('overview toolbar separates retrieval from primary and tonal creation', () 
   assert.match(toolbar, /max-w-\[28rem\]/)
   assert.equal((toolbar.match(/@min-\[48rem\]\/toolbar:inline/g) ?? []).length, 2)
   assert.match(toolbar, /size=\{filterCount > 0 \? 'sm' : 'icon-sm'\}[\s\S]{0,220}Sort and filter/)
-  assert.match(toolbar, /size="sm"[\s\S]{0,160}Create new note/)
+  assert.match(
+    toolbar,
+    /size="icon-sm"\s+className="@min-\[48rem\]\/toolbar:w-auto[^"]*"[\s\S]{0,160}Create new note/
+  )
   assert.match(button, /tonal: 'bg-primary\/15 text-primary hover:bg-primary\/20/)
   assert.match(toolbar, /variant="tonal"[\s\S]{0,220}data-new-item-button/)
   assert.match(toolbar, /const ariaCommandKey = isMac \? 'Meta' : 'Control'/)
