@@ -6,6 +6,12 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [0.0.7] - 2026-11-02
+
+### Changed
+
+- Show the sidebar update button only when an update is downloaded and ready to restart.
+
 ## [0.0.6] - 2026-11-01
 
 ### Added

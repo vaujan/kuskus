@@ -4,6 +4,17 @@
   },
   "releases": [
     {
+      "version": "0.0.7",
+      "date": "2026-11-02",
+      "notes": {
+        "changes": {
+          "Changed": [
+            "Show the sidebar update button only when an update is downloaded and ready to restart."
+          ]
+        }
+      }
+    },
+    {
       "version": "0.0.6",
       "date": "2026-11-01",
       "notes": {
