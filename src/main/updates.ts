@@ -40,11 +40,21 @@ export function registerUpdates(
     publish({ phase: 'downloading', version: status.version, percent: progress.percent })
   )
   autoUpdater.on('update-downloaded', (info) => publish({ phase: 'ready', version: info.version }))
-  const failed = (): void =>
+  const failed = (error: unknown): void => {
+    const code =
+      error !== null && typeof error === 'object' && 'code' in error ? error.code : undefined
+    const message =
+      code === 'ERR_UPDATER_LATEST_VERSION_NOT_FOUND' ||
+      code === 'ERR_UPDATER_NO_PUBLISHED_VERSIONS'
+        ? 'Could not check for a stable release. Experimental previews must be installed manually from GitHub Releases.'
+        : code === 'ERR_UPDATER_CHANNEL_FILE_NOT_FOUND'
+          ? 'The release is missing update information. Install it manually from GitHub Releases.'
+          : 'Could not update Kuskus. Please try again later.'
     publish({
       phase: 'error',
-      message: 'Could not update Kuskus. Check your connection and try again.'
+      message
     })
+  }
   autoUpdater.on('error', failed)
 
   const check = async (): Promise<void> => {
@@ -52,8 +62,8 @@ export function registerUpdates(
     publish({ phase: 'checking' })
     try {
       await autoUpdater.checkForUpdates()
-    } catch {
-      failed()
+    } catch (error) {
+      failed(error)
     }
   }
 
@@ -83,8 +93,8 @@ export function registerUpdates(
     publish({ phase: 'downloading', version: status.version, percent: 0 })
     try {
       await autoUpdater.downloadUpdate()
-    } catch {
-      failed()
+    } catch (error) {
+      failed(error)
     }
   })
   trustedIpcMain.handle(UPDATE_CHANNELS.install, async () => {
