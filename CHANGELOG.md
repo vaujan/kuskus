@@ -6,6 +6,12 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [0.0.8] - 2026-11-02
+
+### Fixed
+
+- Explain missing stable releases and updater metadata without incorrectly blaming the internet connection.
+
 ## [0.0.7] - 2026-11-02
 
 ### Changed

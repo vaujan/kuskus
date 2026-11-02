@@ -160,9 +160,32 @@ test('network errors can be retried without leaving the updater busy', async () 
   }
   await s.check()
   assert.equal(s.status().phase, 'error')
+  assert.equal(s.status().message, 'Could not update Kuskus. Please try again later.')
   s.updater.checkForUpdates = async () => s.updater.emit('update-not-available')
   await s.check()
   assert.equal(s.status().phase, 'current')
+})
+
+test('release feed failures explain manual preview installation for events and rejected checks', async () => {
+  for (const code of [
+    'ERR_UPDATER_LATEST_VERSION_NOT_FOUND',
+    'ERR_UPDATER_NO_PUBLISHED_VERSIONS',
+    'ERR_UPDATER_CHANNEL_FILE_NOT_FOUND'
+  ]) {
+    const s = setup()
+    const error = Object.assign(new Error('release unavailable'), { code })
+    s.updater.checkForUpdates = async () => {
+      s.updater.emit('error', error)
+      throw error
+    }
+    await s.check()
+    assert.equal(s.status().phase, 'error')
+    assert.match(s.status().message, /manually from GitHub Releases/)
+    assert.doesNotMatch(s.status().message, /connection/)
+    s.updater.checkForUpdates = async () => s.updater.emit('update-not-available')
+    await s.check()
+    assert.equal(s.status().phase, 'current')
+  }
 })
 
 test('a missing save response blocks restart and unrelated windows cannot approve it', async () => {
