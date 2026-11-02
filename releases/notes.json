@@ -4,6 +4,17 @@
   },
   "releases": [
     {
+      "version": "0.0.9",
+      "date": "2026-11-02",
+      "notes": {
+        "changes": {
+          "Changed": [
+            "Download updates from the sidebar, follow download progress, and restart to install when ready."
+          ]
+        }
+      }
+    },
+    {
       "version": "0.0.8",
       "date": "2026-11-02",
       "notes": {
