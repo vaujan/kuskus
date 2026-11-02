@@ -4,6 +4,17 @@
   },
   "releases": [
     {
+      "version": "0.0.8",
+      "date": "2026-11-02",
+      "notes": {
+        "changes": {
+          "Fixed": [
+            "Explain missing stable releases and updater metadata without incorrectly blaming the internet connection."
+          ]
+        }
+      }
+    },
+    {
       "version": "0.0.7",
       "date": "2026-11-02",
       "notes": {
