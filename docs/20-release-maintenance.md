@@ -72,8 +72,9 @@ native UI works. CI's full-history Gitleaks job remains a separate required chec
 
 Installed Windows builds check the public `vaujan/kuskus` GitHub Releases feed after
 30 seconds and every four hours. Settings → About Kuskus also offers a manual check.
-The library sidebar shows a restart button only once an update is downloaded and
-ready to install. Settings → About Kuskus provides checks, downloads, progress, and retry controls.
+The library sidebar offers a download button when an update is available, shows
+download progress, and offers a restart button when it is ready to install. Update
+errors offer a retry action. Settings → About Kuskus also provides update controls.
 Downloads and installation require a user action; quitting normally never installs
 an update. Downloads use electron-updater's differential NSIS support when possible.
 Development builds and experimental macOS/Linux builds do not check for updates.

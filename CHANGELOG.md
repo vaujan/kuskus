@@ -6,6 +6,12 @@ All notable changes to Kuskus are documented here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+## [0.0.9] - 2026-11-02
+
+### Changed
+
+- Download updates from the sidebar, follow download progress, and restart to install when ready.
+
 ## [0.0.8] - 2026-11-02
 
 ### Fixed
