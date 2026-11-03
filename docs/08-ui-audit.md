@@ -1,4 +1,4 @@
-# Kuskus UI Audit
+# Kusu UI Audit
 
 Status: Implementation-ready audit
 Audited: 2026-07-15

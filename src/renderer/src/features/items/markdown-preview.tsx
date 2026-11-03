@@ -108,8 +108,8 @@ function MarkdownReadTable({
   }, [])
 
   return (
-    <div ref={scrollRef} className="typeset-scroll kuskus-markdown-table-scroll">
-      <table {...props} className={cn('kuskus-markdown-table', className)}>
+    <div ref={scrollRef} className="typeset-scroll kusu-markdown-table-scroll">
+      <table {...props} className={cn('kusu-markdown-table', className)}>
         {children}
       </table>
     </div>
@@ -145,7 +145,7 @@ function MarkdownImage({
   return (
     <button
       type="button"
-      className="not-typeset kuskus-markdown-image-button"
+      className="not-typeset kusu-markdown-image-button"
       data-not-typeset
       data-zoomed={zoomed}
       disabled={!interactive}
@@ -164,9 +164,9 @@ function MarkdownImage({
         height={height}
         loading={remote ? 'lazy' : undefined}
         referrerPolicy={remote ? 'no-referrer' : undefined}
-        className="kuskus-markdown-image"
+        className="kusu-markdown-image"
       />
-      {alt ? <span className="kuskus-markdown-image-caption">{alt}</span> : null}
+      {alt ? <span className="kusu-markdown-image-caption">{alt}</span> : null}
     </button>
   )
 }
@@ -275,7 +275,7 @@ export const MarkdownPreview = memo(function MarkdownPreview({
 
   useLayoutEffect(() => {
     if (presentation !== 'detail') return
-    const root = previewRef.current?.querySelector<HTMLElement>('.kuskus-typeset')
+    const root = previewRef.current?.querySelector<HTMLElement>('.kusu-typeset')
     if (!root) return
     const sections: { level: number; folded: boolean }[] = []
     for (const element of Array.from(root.children) as HTMLElement[]) {
@@ -337,14 +337,14 @@ export const MarkdownPreview = memo(function MarkdownPreview({
       return (
         <Tag
           {...props}
-          className={cn(props.className, foldable && 'kuskus-foldable-heading')}
+          className={cn(props.className, foldable && 'kusu-foldable-heading')}
           data-heading-level={Number(Tag[1])}
           data-heading-line={line}
         >
           {foldable ? (
             <button
               type="button"
-              className="kuskus-list-fold-button kuskus-heading-fold-button not-typeset"
+              className="kusu-list-fold-button kusu-heading-fold-button not-typeset"
               data-not-typeset
               data-fold-kind="heading"
               data-fold-line={line}
@@ -383,33 +383,30 @@ export const MarkdownPreview = memo(function MarkdownPreview({
     ol: ({ className, start = 1, style, ...props }) => (
       <ol
         {...props}
-        className={cn('kuskus-rendered-list kuskus-rendered-list--ordered', className)}
+        className={cn('kusu-rendered-list kusu-rendered-list--ordered', className)}
         start={start}
         style={
           {
             ...style,
-            '--kuskus-list-start': start
+            '--kusu-list-start': start
           } as React.CSSProperties
         }
       />
     ),
     ul: ({ className, ...props }) => (
-      <ul
-        {...props}
-        className={cn('kuskus-rendered-list kuskus-rendered-list--bullet', className)}
-      />
+      <ul {...props} className={cn('kusu-rendered-list kusu-rendered-list--bullet', className)} />
     ),
     input: ({ checked }) => (
       <input
         type="checkbox"
-        className="kuskus-task-checkbox"
+        className="kusu-task-checkbox"
         checked={Boolean(checked)}
         disabled={!onChange}
         aria-label={checked ? 'Completed task' : 'Open task'}
         onClick={(event) => event.stopPropagation()}
         onChange={(event) => {
           const root = event.currentTarget.closest('.typeset')
-          const checkboxes = [...(root?.querySelectorAll('.kuskus-task-checkbox') ?? [])]
+          const checkboxes = [...(root?.querySelectorAll('.kusu-task-checkbox') ?? [])]
           onChange?.(
             setMarkdownTaskChecked(value, checkboxes.indexOf(event.currentTarget), !checked)
           )
@@ -429,7 +426,7 @@ export const MarkdownPreview = memo(function MarkdownPreview({
       const foldButton = hasChildren ? (
         <button
           type="button"
-          className="kuskus-list-fold-button not-typeset"
+          className="kusu-list-fold-button not-typeset"
           data-not-typeset
           data-fold-kind="list"
           data-fold-line={line}
@@ -459,7 +456,7 @@ export const MarkdownPreview = memo(function MarkdownPreview({
         return (
           <li className={className} data-list-folded={folded || undefined} {...props}>
             {foldButton}
-            <div className="kuskus-list-content">{children}</div>
+            <div className="kusu-list-content">{children}</div>
           </li>
         )
       }
@@ -477,11 +474,11 @@ export const MarkdownPreview = memo(function MarkdownPreview({
       return (
         <li className={className} data-list-folded={folded || undefined} {...props}>
           {foldButton}
-          <span className="kuskus-task-marker">{checkbox}</span>
+          <span className="kusu-task-marker">{checkbox}</span>
           <div
             className={cn(
-              'kuskus-list-content kuskus-rich-task-content',
-              checked && 'kuskus-task-checked'
+              'kusu-list-content kusu-rich-task-content',
+              checked && 'kusu-task-checked'
             )}
           >
             {rest}
@@ -490,8 +487,8 @@ export const MarkdownPreview = memo(function MarkdownPreview({
       )
     },
     a: ({ href, children, ...props }) => {
-      if (href?.startsWith('kuskus-note:')) {
-        const target = decodeMarkdownLinkTarget(href.slice('kuskus-note:'.length))
+      if (href?.startsWith('kusu-note:')) {
+        const target = decodeMarkdownLinkTarget(href.slice('kusu-note:'.length))
         return (
           <a
             {...props}
@@ -575,9 +572,9 @@ export const MarkdownPreview = memo(function MarkdownPreview({
       if (className?.split(/\s+/).includes('katex-display')) {
         const source = katexSource(children) ?? ''
         return (
-          <div className="kuskus-code-block not-typeset" data-not-typeset>
+          <div className="kusu-code-block not-typeset" data-not-typeset>
             <MarkdownCodeCardHeader code={source} label="Math" />
-            <div className="kuskus-math-block-body">
+            <div className="kusu-math-block-body">
               <span {...props} className={className}>
                 {children}
               </span>
@@ -604,15 +601,15 @@ export const MarkdownPreview = memo(function MarkdownPreview({
         'relative',
         presentation === 'card' && 'max-h-80 overflow-hidden',
         presentation === 'compact' && 'max-h-[13.25rem] overflow-hidden',
-        presentation !== 'detail' && isClipped && 'kuskus-card-content-fade'
+        presentation !== 'detail' && isClipped && 'kusu-card-content-fade'
       )}
     >
-      <div className="typeset kuskus-typeset" data-typeset-presentation={presentation}>
+      <div className="typeset kusu-typeset" data-typeset-presentation={presentation}>
         <ReactMarkdown
           remarkPlugins={REMARK_PLUGINS}
           rehypePlugins={REHYPE_PLUGINS}
           components={components}
-          urlTransform={(url) => (url.startsWith('kuskus-note:') ? url : defaultUrlTransform(url))}
+          urlTransform={(url) => (url.startsWith('kusu-note:') ? url : defaultUrlTransform(url))}
         >
           {preparedMarkdown}
         </ReactMarkdown>

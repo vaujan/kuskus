@@ -614,11 +614,11 @@
   align-items: stretch;
 }
 
-.cm-atomic-table-layout[data-editable] > .kuskus-markdown-table {
+.cm-atomic-table-layout[data-editable] > .kusu-markdown-table {
   grid-area: 1 / 1;
 }
 
-.cm-atomic-table .kuskus-markdown-table {
+.cm-atomic-table .kusu-markdown-table {
   table-layout: auto;
   overflow: visible;
 }

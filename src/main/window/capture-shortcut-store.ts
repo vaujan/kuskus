@@ -6,7 +6,7 @@ interface CaptureShortcutSettings {
 
 /**
  * Persists the global capture shortcut accelerator in its own settings file.
- * Kept separate from kuskus-settings.json (which the library service owns) so
+ * Kept separate from kusu-settings.json (which the library service owns) so
  * neither store can clobber the other's fields.
  */
 export class CaptureShortcutStore {

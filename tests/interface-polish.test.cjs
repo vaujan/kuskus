@@ -42,7 +42,7 @@ test('main workspace uses borderless navigation and illustrated empty states', (
   assert.match(loading, /src=\{bubuntuLine\}/)
   assert.match(loading, /src=\{bubuntuLine\}[\s\S]{0,100}draggable=\{false\}/)
   assert.match(loading, /role="progressbar"/)
-  assert.doesNotMatch(loading, /<Spinner|Opening Kuskus…/)
+  assert.doesNotMatch(loading, /<Spinner|Opening Kusu…/)
   assert.match(workspace, /Create new note <ShortcutKbd shortcut="Ctrl\+N" \/>/)
   assert.match(workspace, /Return to overview/)
   assert.match(workspace, /Return to overview <ShortcutKbd shortcut="Esc" \/>/)
@@ -144,7 +144,7 @@ test('notifications are iconless and expose dev-only visual previews', () => {
   assert.match(notify, /<Button className="ml-auto shrink-0" size="sm" variant="secondary"/)
   assert.doesNotMatch(notify, /action: \{ label:/)
   assert.match(devTools, /dev-notification-preview/)
-  assert.match(preview, /kuskusDev/)
+  assert.match(preview, /kusuDev/)
   assert.match(preview, /event\.altKey.*event\.shiftKey/)
 })
 
@@ -221,14 +221,14 @@ test('editors clip horizontal overflow while table widgets scroll independently'
 
   assert.match(source, /'\.cm-scroller': \{[\s\S]{0,120}overflowX: 'hidden'/)
   assert.match(source, /tables\(\{ presentation: 'source' \}\)/)
-  assert.match(styles, /\.kuskus-markdown-table-scroll \{[\s\S]*?overflow-x: auto;/)
+  assert.match(styles, /\.kusu-markdown-table-scroll \{[\s\S]*?overflow-x: auto;/)
   assert.match(live, /'\.cm-scroller': \{[\s\S]{0,120}overflowX: 'hidden'/)
 })
 
 test('rail and masonry note previews clip wide code without a horizontal scrollbar', () => {
   const markdown = readFileSync(require.resolve('../src/renderer/src/assets/markdown.css'), 'utf8')
 
-  assert.match(markdown, /\.kuskus-note-card-markdown pre \{\s*overflow-x: hidden;/)
+  assert.match(markdown, /\.kusu-note-card-markdown pre \{\s*overflow-x: hidden;/)
 })
 
 test('note image clicks stay in-app and Vim carets use the primary color', () => {

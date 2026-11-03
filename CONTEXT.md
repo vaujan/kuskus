@@ -1,6 +1,6 @@
 # Domain model
 
-Shared vocabulary for the Kuskus codebase. Terms here give names to seams and concepts the editor and
+Shared vocabulary for the Kusu codebase. Terms here give names to seams and concepts the editor and
 workspace modules are built around. When modelling a new module, name it after a concept below rather
 than inventing a parallel word. Add terms here when a deepened module introduces a concept that does
 not yet have a name.
@@ -15,13 +15,13 @@ not yet have a name.
   **image**, **url** (`.url` Internet Shortcut), **file**. Items have a stable UUID that survives
   filename/folder changes.
 - **Note** — a Markdown file that is the item body, title derived from the first readable line.
-  Attachments are sibling image files referenced by relative Markdown embeds. No Kuskus-owned
+  Attachments are sibling image files referenced by relative Markdown embeds. No Kusu-owned
   frontmatter; valid user frontmatter is preserved byte-for-byte outside the rich document.
 - **Note mode** — the renderer-local editing presentation of a note: `read`, `live`, `markdown`, or
   `split`. Read shows a rendered document; live is the writable CodeMirror surface with live-preview
   decorations; markdown and split use the exact CodeMirror source editor.
 - **Live editor** — the CM6 decoration surface for Live mode (atomic-style inline preview composed
-  with the Kuskus math/wikilink/image layers). One editor instance serves both live and source modes;
+  with the Kusu math/wikilink/image layers). One editor instance serves both live and source modes;
   the live compartment adds only preview decorations, so selection, undo, find, cursor offsets, and
   Vim are identical surfaces rather than separate engines.
 - **Source editor** — the CodeMirror 6 surface for exact Markdown and Split source.

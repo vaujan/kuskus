@@ -55,7 +55,7 @@ async function render(response, lang = 'en') {
 }
 
 test('download page offers published preview installers and source from the same tag', async () => {
-  const root = 'https://github.com/vaujan/kuskus/releases/download/v0.0.3-preview.1/'
+  const root = 'https://github.com/vaujan/kusu/releases/download/v0.0.3-preview.1/'
   const filenames = [
     'kuskus-0.0.3-x64-setup.exe',
     'kuskus-0.0.3-arm64.dmg',
@@ -87,10 +87,7 @@ test('download page offers published preview installers and source from the same
     )
   }
   const source = elements.get('[data-release-files]').children[0]
-  assert.equal(
-    source.href,
-    'https://github.com/vaujan/kuskus/archive/refs/tags/v0.0.3-preview.1.zip'
-  )
+  assert.equal(source.href, 'https://github.com/vaujan/kusu/archive/refs/tags/v0.0.3-preview.1.zip')
 })
 
 test('download page distinguishes unpublished releases, missing platform assets, and network errors', async () => {

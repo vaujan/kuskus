@@ -7,7 +7,7 @@ approaches remain in `05-technical-decisions.md`.
 
 ## Runtime boundaries
 
-Kuskus is one Electron application with three code environments:
+Kusu is one Electron application with three code environments:
 
 - `src/main/`: trusted native process; owns filesystem, windows, network access, and persistence.
 - `src/preload/`: narrow typed adapter between Electron IPC and renderer APIs.

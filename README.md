@@ -1,18 +1,18 @@
-# Kuskus
+# Kusu
 
-Kuskus keeps your project references in one place: Markdown notes, images, files, and bookmarks. Your library lives in a folder on your computer, with ordinary files you can open outside the app.
+Kusu keeps your project references in one place: Markdown notes, images, files, and bookmarks. Your library lives in a folder on your computer, with ordinary files you can open outside the app.
 
-Kuskus is still taking shape, and contributions are welcome.
+Kusu is still taking shape, and contributions are welcome.
 
-[![Kuskus with Stacks & queues open in one window, split diagonally between light and One Dark themes on a rounded pastel gradient background](docs/images/demo.png)](https://kuskus-tau.vercel.app)
+[![Kusu with Stacks & queues open in one window, split diagonally between light and One Dark themes on a rounded pastel gradient background](docs/images/demo.png)](https://trykusu.vercel.app)
 
 ## Try it
 
-You can explore the [browser demo](https://kuskus-tau.vercel.app). It uses sample content; edits are temporary and don’t write to your computer.
+You can explore the [browser demo](https://trykusu.vercel.app). It uses sample content; edits are temporary and don’t write to your computer.
 
 The desktop app is an early preview. Windows is the first installer target; macOS and Linux builds are experimental. Signing and native Windows testing are still outstanding. Check the [release checklist](docs/14-open-source-release-checklist.md) before distributing builds. Updates are manual.
 
-If you run the app from source, start with a test library. Close Kuskus and back up your whole vault, including its hidden `.kuskus` folder, before trying a new version. Interrupted moves and renames use a persisted recovery journal. Power-loss durability and native release verification remain separate gates; see the [beta plan](docs/18-beta-release-plan.md).
+If you run the app from source, start with a test library. Close Kusu and back up your whole vault, including its hidden `.kuskus` folder, before trying a new version. Interrupted moves and renames use a persisted recovery journal. Power-loss durability and native release verification remain separate gates; see the [beta plan](docs/18-beta-release-plan.md).
 
 ## What you can do
 
@@ -23,7 +23,7 @@ If you run the app from source, start with a test library. Close Kuskus and back
 - Read PDFs offline, including text selection and search
 - Move items to Trash and restore them later
 
-Existing Markdown folders work without converting their notes. Kuskus stores its index and app metadata in `.kuskus`. Scanned PDFs need a text layer for search; OCR and PDF editing aren’t included.
+Existing Markdown folders work without converting their notes. Kusu stores its index and app metadata in `.kuskus`. Scanned PDFs need a text layer for search; OCR and PDF editing aren’t included.
 
 ## Your files and network requests
 
@@ -61,7 +61,7 @@ Run `pnpm build`, then `pnpm start` to open the compiled app. Build output goes 
 
 For local packages, use `pnpm build:win`, `pnpm build:mac`, or `pnpm build:linux`. These commands don’t publish. `pnpm release` verifies the candidate and builds signed Windows installers, which requires signing credentials. Follow the [release process](docs/15-release-process.md) before distributing them.
 
-## Help build Kuskus
+## Help build Kusu
 
 Bug reports, small fixes, and accounts of how you use the app are welcome. For feature requests, describe the task you’re trying to finish and what gets in your way.
 
@@ -73,4 +73,4 @@ For more context, read the [product brief](docs/00-product-brief.md), [architect
 
 ## License
 
-Kuskus is licensed under [GNU GPL version 3 only](LICENSE) (`GPL-3.0-only`). Third-party code and assets keep their own licenses and notices; see the [asset inventory](docs/16-third-party-assets.md).
+Kusu is licensed under [GNU GPL version 3 only](LICENSE) (`GPL-3.0-only`). Third-party code and assets keep their own licenses and notices; see the [asset inventory](docs/16-third-party-assets.md).

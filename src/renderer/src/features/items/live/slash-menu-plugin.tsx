@@ -29,7 +29,7 @@ class SlashMenu {
   constructor(view: EditorView) {
     this.view = view
     this.root = createRoot(this.menu)
-    this.menu.className = 'cm-kuskus-slash-menu'
+    this.menu.className = 'cm-kusu-slash-menu'
     this.menu.setAttribute('role', 'listbox')
     this.menu.setAttribute('aria-label', 'Formatting commands')
     this.menu.hidden = true

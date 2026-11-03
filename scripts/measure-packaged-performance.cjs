@@ -14,13 +14,10 @@ function option(name, fallback) {
 async function executablePath() {
   const candidates =
     process.platform === 'win32'
-      ? ['dist/win-unpacked/kuskus.exe']
+      ? ['dist/win-unpacked/kusu.exe']
       : process.platform === 'darwin'
-        ? [
-            'dist/mac/Kuskus.app/Contents/MacOS/Kuskus',
-            'dist/mac-arm64/Kuskus.app/Contents/MacOS/Kuskus'
-          ]
-        : ['dist/linux-unpacked/kuskus']
+        ? ['dist/mac/Kusu.app/Contents/MacOS/Kusu', 'dist/mac-arm64/Kusu.app/Contents/MacOS/Kusu']
+        : ['dist/linux-unpacked/kusu']
   const match = candidates.map((candidate) => resolve(candidate)).find(existsSync)
   if (!match) throw new Error('Packaged app not found. Run pnpm build:unpack first.')
   return match
@@ -46,7 +43,7 @@ async function createFixture(root, itemCount) {
   await Promise.all(workers)
   await mkdir(userData, { recursive: true })
   await writeFile(
-    join(userData, 'kuskus-settings.json'),
+    join(userData, 'kusu-settings.json'),
     `${JSON.stringify({ schemaVersion: 1, lastLibraryPath: vault }, null, 2)}\n`
   )
   return userData
@@ -93,7 +90,7 @@ async function main() {
     Number(option('duration-ms', typing ? '90000' : '30000')) || 30_000
   )
   const output = resolve(option('output', '.performance/packaged.ndjson'))
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-packaged-performance-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-packaged-performance-'))
   await mkdir(dirname(output), { recursive: true })
   await writeFile(output, '')
   try {
@@ -103,11 +100,11 @@ async function main() {
       await runApp(
         executable,
         {
-          KUSKUS_PERFORMANCE_OUTPUT: output,
-          KUSKUS_PERFORMANCE_USER_DATA: userData,
-          KUSKUS_PERFORMANCE_RUN: String(run),
-          KUSKUS_PERFORMANCE_DURATION_MS: String(duration),
-          ...(typing ? { KUSKUS_PERFORMANCE_TYPING: '1' } : {})
+          KUSU_PERFORMANCE_OUTPUT: output,
+          KUSU_PERFORMANCE_USER_DATA: userData,
+          KUSU_PERFORMANCE_RUN: String(run),
+          KUSU_PERFORMANCE_DURATION_MS: String(duration),
+          ...(typing ? { KUSU_PERFORMANCE_TYPING: '1' } : {})
         },
         duration
       )

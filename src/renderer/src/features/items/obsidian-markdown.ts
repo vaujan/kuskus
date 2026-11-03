@@ -72,7 +72,7 @@ export function prepareObsidianMarkdown(value: string, attachments: NoteAttachme
         return `![${rawLabel?.trim() || attachment.filename}](<${encodeMarkdownImageTarget(attachment.relativePath)}>)`
       }
       const label = rawLabel?.trim() || target
-      return `[Embedded note: ${label}](kuskus-note:${encodeURIComponent(target)})`
+      return `[Embedded note: ${label}](kusu-note:${encodeURIComponent(target)})`
     }
   )
   const withLinks = withEmbeds.replace(
@@ -80,7 +80,7 @@ export function prepareObsidianMarkdown(value: string, attachments: NoteAttachme
     (_match, rawTarget: string, rawLabel?: string) => {
       const target = rawTarget.trim()
       const label = rawLabel?.trim() || target
-      return `[${label}](kuskus-note:${encodeURIComponent(target)})`
+      return `[${label}](kusu-note:${encodeURIComponent(target)})`
     }
   )
   return rewriteMarkdownImageDestinations(withLinks, (reference) => {

@@ -3,14 +3,14 @@ import { dirname } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { ipcMain, type IpcMain, type IpcMainInvokeEvent } from 'electron'
 
-const outputPath = process.env.KUSKUS_PERFORMANCE_OUTPUT
+const outputPath = process.env.KUSU_PERFORMANCE_OUTPUT
 
 export function performanceLoggingEnabled(): boolean {
   return outputPath !== undefined && outputPath !== ''
 }
 
 export function trackPerformanceIpcTimings(): void {
-  if (process.env.KUSKUS_PERFORMANCE_TYPING !== '1' || !performanceLoggingEnabled()) return
+  if (process.env.KUSU_PERFORMANCE_TYPING !== '1' || !performanceLoggingEnabled()) return
   const originalHandle = ipcMain.handle.bind(ipcMain)
   ipcMain.handle = ((
     channel: string,
@@ -39,7 +39,7 @@ export function writePerformanceEvent(event: string, data: unknown): void {
     await mkdir(dirname(target), { recursive: true })
     await appendFile(
       target,
-      `${JSON.stringify({ run: process.env.KUSKUS_PERFORMANCE_RUN ?? 'run', event, at: Date.now(), data })}\n`
+      `${JSON.stringify({ run: process.env.KUSU_PERFORMANCE_RUN ?? 'run', event, at: Date.now(), data })}\n`
     )
   })
 }

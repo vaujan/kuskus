@@ -1,6 +1,6 @@
 # Versioning and release notes
 
-Kuskus uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and curated notes based on
+Kusu uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html) and curated notes based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions identify distributed desktop
 builds. A beta label communicates release maturity; it does not relax data-safety requirements.
 
@@ -16,7 +16,7 @@ builds. A beta label communicates release maturity; it does not relax data-safet
 | Website deployment     | Git commit and hosting deployment   | Independent of desktop versions                       |
 | Vault schema version   | Storage contracts                   | Independent of product releases                       |
 
-The private website package's version is package metadata, not a second Kuskus product version.
+The private website package's version is package metadata, not a second Kusu product version.
 Keep the existing `0.0.x` history intact. The next intended desktop milestone is `0.1.0-beta.1`;
 adding this policy does not prepare or publish that release.
 

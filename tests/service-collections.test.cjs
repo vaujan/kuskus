@@ -20,7 +20,7 @@ function arrayBuffer(buffer) {
 }
 
 test('creates nested folders from validated parents without escaping the vault', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-nested-folder-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-nested-folder-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   const created = await service.createIn(root, 'Nested folders')
@@ -67,7 +67,7 @@ test('creates nested folders from validated parents without escaping the vault',
 })
 
 test('moves nested folders without changing identity and rejects ancestry cycles', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-folder-move-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-folder-move-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const settingsPath = join(root, 'settings.json')
   const service = new LibraryService(settingsPath)
@@ -121,7 +121,7 @@ test('moves nested folders without changing identity and rejects ancestry cycles
 })
 
 test('persists curated collection icons and safely normalizes legacy metadata', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-collection-icon-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-collection-icon-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const settingsPath = join(root, 'settings.json')
   const service = new LibraryService(settingsPath)
@@ -184,7 +184,7 @@ test('persists curated collection icons and safely normalizes legacy metadata', 
 })
 
 test('moves, archives, trashes, restores, renames, and permanently deletes items safely', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-lifecycle-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-lifecycle-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   const created = await service.createIn(root, 'Lifecycle Library')
@@ -268,7 +268,7 @@ test('moves, archives, trashes, restores, renames, and permanently deletes items
 })
 
 test('removing a non-empty folder moves active items to Inbox and archived fallback returns to Inbox', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-folder-removal-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-folder-removal-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   await service.createIn(root, 'Folder Removal Library')
@@ -300,7 +300,7 @@ test('removing a non-empty folder moves active items to Inbox and archived fallb
 })
 
 test('removes nested folders but refuses unmanaged files before moving any items', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-folder-removal-guard-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-folder-removal-guard-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   const created = await service.createIn(root, 'Folder Removal Guard Library')

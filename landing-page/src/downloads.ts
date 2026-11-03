@@ -1,4 +1,4 @@
-const repository = 'https://github.com/vaujan/kuskus'
+const repository = 'https://github.com/vaujan/kusu'
 const indonesian = document.documentElement.lang === 'id'
 const copy = indonesian
   ? {
@@ -54,13 +54,10 @@ async function loadDownloads(): Promise<void> {
     })
   }
   try {
-    const response = await fetch(
-      'https://api.github.com/repos/vaujan/kuskus/releases?per_page=10',
-      {
-        headers: { Accept: 'application/vnd.github+json' },
-        signal: AbortSignal.timeout(10000)
-      }
-    )
+    const response = await fetch('https://api.github.com/repos/vaujan/kusu/releases?per_page=10', {
+      headers: { Accept: 'application/vnd.github+json' },
+      signal: AbortSignal.timeout(10000)
+    })
     if (response.status === 404) {
       showUnavailable(copy.unpublished)
       return

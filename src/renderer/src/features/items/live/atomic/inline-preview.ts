@@ -249,7 +249,7 @@ function linkDestinationUrl(link: SyntaxNode, doc: Text): SyntaxNode | null {
   return link.getChildren('URL').find((url) => url.from >= labelClose.to) ?? null
 }
 
-// Kuskus fork: bullets follow the Read renderer's list-style-type
+// Kusu fork: bullets follow the Read renderer's list-style-type
 // ladder — disc at depth 0, circle at depth 1, square at depth 2+.
 const BULLET_GLYPHS = ['•', '◦', '▪']
 
@@ -268,7 +268,7 @@ class BulletWidget extends WidgetType {
     // checkboxes, and ordered-list numbers. `.cm-atomic-bullet`
     // layers on bullet-specific color / weight.
     const span = document.createElement('span')
-    span.className = 'kuskus-list-marker cm-atomic-list-marker cm-atomic-bullet'
+    span.className = 'kusu-list-marker cm-atomic-list-marker cm-atomic-bullet'
     span.textContent = BULLET_GLYPHS[Math.min(this.depth, BULLET_GLYPHS.length - 1)]
     return span
   }
@@ -289,7 +289,7 @@ class OrderedListWidget extends WidgetType {
 
   toDOM(): HTMLElement {
     const span = document.createElement('span')
-    span.className = 'kuskus-list-marker cm-atomic-list-marker cm-atomic-ordered-marker'
+    span.className = 'kusu-list-marker cm-atomic-list-marker cm-atomic-ordered-marker'
     span.textContent = this.marker
     return span
   }
@@ -319,11 +319,11 @@ class TaskCheckboxWidget extends WidgetType {
     // input itself so selectors like `input.cm-atomic-task-checkbox`
     // keep working.
     const wrapper = document.createElement('span')
-    wrapper.className = 'kuskus-task-marker cm-atomic-task-marker'
+    wrapper.className = 'kusu-task-marker cm-atomic-task-marker'
     const input = document.createElement('input')
     input.type = 'checkbox'
     input.checked = this.checked
-    input.className = 'kuskus-task-checkbox cm-atomic-task-checkbox'
+    input.className = 'kusu-task-checkbox cm-atomic-task-checkbox'
     input.setAttribute('aria-label', this.checked ? 'Completed task' : 'Open task')
     input.setAttribute('contenteditable', 'false')
     input.addEventListener('mousedown', (e) => {
@@ -388,7 +388,7 @@ function pushReplace(
   }
 }
 
-// Kuskus fork: matches the Read renderer's typeset list geometry.
+// Kusu fork: matches the Read renderer's typeset list geometry.
 // Read mode: ul/ol padding-inline-start 1.5em + li padding-inline-start
 // 0.4em → content starts at 1.9em and advances 1.9em per nested item.
 // Atomic default was 0.8/1.2/0.6 (2.0em + 0.6em/depth), which read as
@@ -735,7 +735,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
             (!taskComplete || caretInsideRange(state, doc.line(line.number).from, taskFrom + 4))
           if (taskRevealed) {
             ranges.push(
-              Decoration.mark({ class: 'kuskus-list-marker cm-atomic-list-marker' }).range(
+              Decoration.mark({ class: 'kusu-list-marker cm-atomic-list-marker' }).range(
                 node.from,
                 node.to
               )
@@ -751,7 +751,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
               lineActive && (!hasTrailingSpace || caretInsideRange(state, node.from, markEnd))
             if (bulletRevealed) {
               ranges.push(
-                Decoration.mark({ class: 'kuskus-list-marker cm-atomic-list-marker' }).range(
+                Decoration.mark({ class: 'kusu-list-marker cm-atomic-list-marker' }).range(
                   node.from,
                   node.to
                 )
@@ -777,7 +777,7 @@ function buildInlineDecorations(view: EditorView): DecorationSet {
               lineActive && (!hasTrailingSpace || caretInsideRange(state, node.from, markEnd))
             if (orderedRevealed) {
               ranges.push(
-                Decoration.mark({ class: 'kuskus-list-marker cm-atomic-list-marker' }).range(
+                Decoration.mark({ class: 'kusu-list-marker cm-atomic-list-marker' }).range(
                   node.from,
                   node.to
                 )

@@ -112,7 +112,7 @@ function renderChangelog(history) {
     '',
     '<!-- Generated from releases/notes.json. Run pnpm changelog:generate; do not edit directly. -->',
     '',
-    'All notable changes to Kuskus are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).',
+    'All notable changes to Kusu are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).',
     '',
     '## [Unreleased]',
     '',

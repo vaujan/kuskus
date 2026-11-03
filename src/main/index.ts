@@ -27,11 +27,11 @@ import { startPerformanceReporter } from './performance-reporter'
 import { trackPerformanceIpcTimings } from './performance-log'
 import { registerUpdates } from './updates'
 
-const demoUserDataPath = process.env.KUSKUS_DEMO_USER_DATA
-const onboardingUserDataPath = process.env.KUSKUS_ONBOARDING_USER_DATA
-const performanceUserDataPath = process.env.KUSKUS_PERFORMANCE_USER_DATA
-performance.mark('kuskus:main-entry')
-if (performanceUserDataPath && process.env.KUSKUS_PERFORMANCE_OUTPUT) {
+const demoUserDataPath = process.env.KUSU_DEMO_USER_DATA
+const onboardingUserDataPath = process.env.KUSU_ONBOARDING_USER_DATA
+const performanceUserDataPath = process.env.KUSU_PERFORMANCE_USER_DATA
+performance.mark('kusu:main-entry')
+if (performanceUserDataPath && process.env.KUSU_PERFORMANCE_OUTPUT) {
   app.setPath('userData', resolve(performanceUserDataPath))
 } else if (onboardingUserDataPath && !app.isPackaged) {
   app.setPath('userData', resolve(onboardingUserDataPath))
@@ -131,19 +131,19 @@ if (!hasSingleInstanceLock) {
   })
 
   void app.whenReady().then(async () => {
-    electronApp.setAppUserModelId(app.isPackaged ? 'app.kuskus.desktop' : 'app.kuskus.desktop.dev')
+    electronApp.setAppUserModelId(app.isPackaged ? 'app.kusu.desktop' : 'app.kusu.desktop.dev')
     installApplicationMenu()
 
-    libraryService = new LibraryService(join(app.getPath('userData'), 'kuskus-settings.json'))
+    libraryService = new LibraryService(join(app.getPath('userData'), 'kusu-settings.json'))
     await libraryService.initialize()
-    performance.mark('kuskus:library-service-initialized')
+    performance.mark('kusu:library-service-initialized')
     performance.measure(
-      'kuskus:main-entry-to-library-service',
-      'kuskus:main-entry',
-      'kuskus:library-service-initialized'
+      'kusu:main-entry-to-library-service',
+      'kusu:main-entry',
+      'kusu:library-service-initialized'
     )
     const captureSessions = new CaptureSessionService(
-      join(app.getPath('userData'), 'kuskus-capture-sessions.json')
+      join(app.getPath('userData'), 'kusu-capture-sessions.json')
     )
     await captureSessions.initialize()
     if (process.platform === 'win32') {

@@ -12,7 +12,7 @@ Prepared 2026-10-22 (Asia/Jayapura). Launch the source repository and browser de
 - `pnpm audit --prod`: no known vulnerabilities.
 - Fresh Linux x64 archive inspection and native launch with 100 synthetic notes passed. First card appeared in approximately 1.48 seconds in this single run. This is a smoke check, not a cross-platform performance or data-safety certification.
 - Gitleaks 8.30.1: no findings in 243 locally reachable commits or the directory scan; directory files over 5 MB were excluded.
-- Existing remote default-branch CI passed on Linux and Windows, including full-history Gitleaks: [run 39409885178](https://github.com/vaujan/kuskus/actions/runs/39409885178). Launch changes need a separate green run.
+- Existing remote default-branch CI passed on Linux and Windows, including full-history Gitleaks: [run 39409885178](https://github.com/vaujan/kusu/actions/runs/39409885178). Launch changes need a separate green run.
 
 ## Final source-publication steps
 

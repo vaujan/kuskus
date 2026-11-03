@@ -36,17 +36,17 @@ class NewNotePersistence {
 
   discardStagedAttachments(): void {
     for (const attachmentId of this.stagedAttachmentIds) {
-      void window.kuskus.removeCaptureDraftImage(attachmentId)
+      void window.kusu.removeCaptureDraftImage(attachmentId)
     }
     this.stagedAttachmentIds = []
   }
 
   save = async (input: UpdateNoteInput): Promise<UpdateNoteResult> => {
     if (this.item) {
-      return window.kuskus.updateNote({ ...input, itemId: this.item.id })
+      return window.kusu.updateNote({ ...input, itemId: this.item.id })
     }
 
-    const created = await window.kuskus.createNote({
+    const created = await window.kusu.createNote({
       markdown: input.markdown,
       attachmentIds: [...this.stagedAttachmentIds]
     })
@@ -67,7 +67,7 @@ class NewNotePersistence {
 
   pasteImage = async (file: File, insertAtSelection: (src: string) => void): Promise<void> => {
     if (this.item) {
-      const result = await window.kuskus.importNoteImage({
+      const result = await window.kusu.importNoteImage({
         itemId: this.item.id,
         bytes: await file.arrayBuffer(),
         mediaType: file.type,
@@ -79,7 +79,7 @@ class NewNotePersistence {
       return
     }
 
-    const result = await window.kuskus.stageCaptureDraftImage({
+    const result = await window.kusu.stageCaptureDraftImage({
       bytes: await file.arrayBuffer(),
       mediaType: file.type,
       sourceFilename: file.name || null,

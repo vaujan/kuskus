@@ -165,28 +165,28 @@ const editorTheme = EditorView.theme({
     fontFamily: 'var(--font-sans)'
   },
   '.cm-markdown-header:not(:empty)': { paddingBottom: '1.5rem' },
-  '.cm-kuskus-task-marker': {
+  '.cm-kusu-task-marker': {
     cursor: 'pointer',
     color: 'var(--primary)',
     fontWeight: '500'
   },
-  '.cm-kuskus-list-level-0': {
+  '.cm-kusu-list-level-0': {
     color: 'color-mix(in oklch, var(--primary) 78%, var(--foreground))'
   },
-  '.cm-kuskus-list-level-1': {
+  '.cm-kusu-list-level-1': {
     color: 'color-mix(in oklch, var(--primary) 58%, var(--foreground))'
   },
-  '.cm-kuskus-list-level-2': {
+  '.cm-kusu-list-level-2': {
     color: 'color-mix(in oklch, var(--primary) 42%, var(--foreground))'
   },
-  '.cm-kuskus-list-level-3': {
+  '.cm-kusu-list-level-3': {
     color: 'color-mix(in oklch, var(--primary) 30%, var(--foreground))'
   },
   // Text selection follows the primary theme instead of the neutral default.
   '&::selection, & ::selection': {
     backgroundColor: 'color-mix(in oklch, var(--primary) 25%, transparent)'
   },
-  '&.cm-kuskus-detail-editor.cm-focused .cm-activeLine': {
+  '&.cm-kusu-detail-editor.cm-focused .cm-activeLine': {
     backgroundColor: 'color-mix(in oklab, var(--foreground) 7%, transparent)',
     borderRadius: '0.25rem'
   }
@@ -197,11 +197,11 @@ const editorTheme = EditorView.theme({
 // modes. Both libraries hide native selection via `Prec.highest` themes that
 // are mounted AFTER ours (order is reversed), so these rules must beat them
 // with a higher-specificity selector, not with ordering. The `&` keeps the
-// scope class on the same editor element as `cm-kuskus-detail-editor`, since
+// scope class on the same editor element as `cm-kusu-detail-editor`, since
 // a descendant combinator would never match when both land on `view.dom`.
 const vimModeTheme = Prec.highest(
   EditorView.theme({
-    '&.cm-kuskus-detail-editor .cm-vimMode .cm-line::selection, &.cm-kuskus-detail-editor .cm-vimMode .cm-line ::selection':
+    '&.cm-kusu-detail-editor .cm-vimMode .cm-line::selection, &.cm-kusu-detail-editor .cm-vimMode .cm-line ::selection':
       {
         backgroundColor: 'color-mix(in oklch, var(--primary) 25%, transparent) !important'
       },
@@ -315,7 +315,7 @@ function taskMarkerDecorations(view: EditorView): DecorationSet {
           from: marker.from,
           to: marker.to,
           decoration: Decoration.mark({
-            class: 'cm-kuskus-list-mark cm-kuskus-list-level-' + Math.min(depth, 3)
+            class: 'cm-kusu-list-mark cm-kusu-list-level-' + Math.min(depth, 3)
           })
         })
         const line = view.state.doc.lineAt(marker.from)
@@ -329,7 +329,7 @@ function taskMarkerDecorations(view: EditorView): DecorationSet {
           from: node.from,
           to: node.to,
           decoration: Decoration.mark({
-            class: 'cm-kuskus-task-marker cm-kuskus-list-level-' + Math.min(depth, 3)
+            class: 'cm-kusu-task-marker cm-kusu-list-level-' + Math.min(depth, 3)
           })
         })
       }
@@ -342,7 +342,7 @@ function taskMarkerDecorations(view: EditorView): DecorationSet {
       to: from,
       decoration: Decoration.line({
         attributes: {
-          class: 'cm-kuskus-list-line',
+          class: 'cm-kusu-list-line',
           style: `padding-inline-start: calc(var(--typeset-detail-gutter) + ${width}ch); text-indent: -${width}ch`
         }
       })
@@ -514,7 +514,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
           initialShowLineNumbersRef.current ? [lineNumbers(), highlightActiveLineGutter()] : []
         ),
         highlightSelectionMatches(),
-        EditorView.editorAttributes.of({ class: 'cm-kuskus-detail-editor' }),
+        EditorView.editorAttributes.of({ class: 'cm-kusu-detail-editor' }),
         // Keep the cursor roughly four lines above the pane bottom while
         // typing instead of letting it settle at the last line.
         EditorView.scrollMargins.of(() => ({ bottom: 112 })),

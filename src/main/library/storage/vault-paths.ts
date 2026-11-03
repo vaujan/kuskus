@@ -1,10 +1,10 @@
 import { lstatSync } from 'node:fs'
 import { join, relative, resolve, sep } from 'node:path'
 
-const KUSKUS_DIRECTORY = '.kuskus'
+const KUSU_DIRECTORY = '.kuskus'
 
-export function kuskusPath(libraryPath: string, ...parts: string[]): string {
-  return resolveInsideVault(libraryPath, join(KUSKUS_DIRECTORY, ...parts))
+export function kusuPath(libraryPath: string, ...parts: string[]): string {
+  return resolveInsideVault(libraryPath, join(KUSU_DIRECTORY, ...parts))
 }
 
 export function resolveInsideVault(libraryPath: string, relativePath: string): string {

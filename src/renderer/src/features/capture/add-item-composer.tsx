@@ -142,7 +142,7 @@ function DraftImage({ attachment }: { attachment: CaptureDraftImageDto }): React
     if (attachment.missingContent) return
     let active = true
     let objectUrl: string | null = null
-    void window.kuskus.getCaptureDraftImagePreview(attachment.id).then((result) => {
+    void window.kusu.getCaptureDraftImagePreview(attachment.id).then((result) => {
       if (!active || !result.ok) return
       objectUrl = URL.createObjectURL(
         new Blob([result.data.bytes], { type: result.data.mediaType })
@@ -177,7 +177,7 @@ function useCaptureDraftPreviews(attachments: CaptureDraftImageDto[]): Record<st
     const objectUrls: string[] = []
     void Promise.all(
       available.map(async (attachment) => {
-        const result = await window.kuskus.getCaptureDraftImagePreview(attachment.id)
+        const result = await window.kusu.getCaptureDraftImagePreview(attachment.id)
         if (!result.ok) return null
         const url = URL.createObjectURL(
           new Blob([result.data.bytes], { type: result.data.mediaType })
@@ -326,8 +326,8 @@ export function AddItemComposer({
   useEffect(() => {
     let active = true
     void Promise.all([
-      window.kuskus.listCaptureDraftImages(),
-      window.kuskus.getCaptureDraftFile()
+      window.kusu.listCaptureDraftImages(),
+      window.kusu.getCaptureDraftFile()
     ]).then(([images, file]) => {
       if (!active) return
       if (images.ok) setAttachments(images.data)
@@ -438,7 +438,7 @@ export function AddItemComposer({
       setError('')
       setFailedStage(null)
       try {
-        const result = await window.kuskus.stageCaptureDraftImage({
+        const result = await window.kusu.stageCaptureDraftImage({
           bytes: await file.arrayBuffer(),
           mediaType: file.type,
           sourceFilename: file.name || null,
@@ -505,7 +505,7 @@ export function AddItemComposer({
       }
       setRenamingAttachment(true)
       renamingAttachmentRef.current = true
-      const result = await window.kuskus.renameCaptureDraftImage({
+      const result = await window.kusu.renameCaptureDraftImage({
         attachmentId: attachment.id,
         name: requested
       })
@@ -558,7 +558,7 @@ export function AddItemComposer({
           window.requestAnimationFrame(() => editorRef.current?.focus())
           return
         }
-        const result = await window.kuskus.stageCaptureDraftFile({
+        const result = await window.kusu.stageCaptureDraftFile({
           bytes: await file.arrayBuffer(),
           sourceFilename: file.name,
           mediaType: file.type || 'application/octet-stream'
@@ -652,7 +652,7 @@ export function AddItemComposer({
     }
     try {
       const revision = await flushCaptureSession()
-      performance.mark('kuskus:capture-submit-start')
+      performance.mark('kusu:capture-submit-start')
       const submitted = await window.capture.submit({
         libraryId,
         expectedRevision: revision,
@@ -666,11 +666,11 @@ export function AddItemComposer({
         setError(submitted.error)
         return
       }
-      performance.mark('kuskus:capture-accepted')
+      performance.mark('kusu:capture-accepted')
       performance.measure(
-        'kuskus:capture-durable-acceptance',
-        'kuskus:capture-submit-start',
-        'kuskus:capture-accepted'
+        'kusu:capture-durable-acceptance',
+        'kusu:capture-submit-start',
+        'kusu:capture-accepted'
       )
 
       setAttachments([])
@@ -718,7 +718,7 @@ export function AddItemComposer({
 
   const discard = useCallback(async (): Promise<void> => {
     if (hasTransientWork) return
-    const result = await window.kuskus.discardCaptureDraft()
+    const result = await window.kusu.discardCaptureDraft()
     if (!result.ok) {
       setError(result.error)
       onOpenChange(true)
@@ -741,7 +741,7 @@ export function AddItemComposer({
   }, [discard, discardRequest])
 
   const removeAttachment = async (attachment: CaptureDraftImageDto): Promise<void> => {
-    const result = await window.kuskus.removeCaptureDraftImage(attachment.id)
+    const result = await window.kusu.removeCaptureDraftImage(attachment.id)
     if (!result.ok) {
       setError(result.error)
       return
@@ -917,7 +917,7 @@ export function AddItemComposer({
               aria-label={`Remove ${fileCandidate.filename}`}
               disabled={captureBlocked}
               onClick={() => {
-                void window.kuskus.removeCaptureDraftFile().then((result) => {
+                void window.kusu.removeCaptureDraftFile().then((result) => {
                   if (result.ok) {
                     setFileCandidate(null)
                     void touchAssets()

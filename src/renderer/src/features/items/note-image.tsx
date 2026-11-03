@@ -48,7 +48,7 @@ export function NoteImage({
           ? `Image missing: ${resolved.label}`
           : resolved.label || 'Invalid image'
     return (
-      <span className="not-typeset kuskus-rich-image-state" data-not-typeset>
+      <span className="not-typeset kusu-rich-image-state" data-not-typeset>
         {label}
       </span>
     )
@@ -60,8 +60,8 @@ export function NoteImage({
       type="button"
       className={
         className
-          ? `not-typeset kuskus-markdown-image-button ${className}`
-          : 'not-typeset kuskus-markdown-image-button'
+          ? `not-typeset kusu-markdown-image-button ${className}`
+          : 'not-typeset kusu-markdown-image-button'
       }
       data-not-typeset
       data-zoomed={zoomed}
@@ -80,9 +80,9 @@ export function NoteImage({
         height={resolved.height}
         loading={remote ? 'lazy' : undefined}
         referrerPolicy={remote ? 'no-referrer' : undefined}
-        className="kuskus-markdown-image"
+        className="kusu-markdown-image"
       />
-      {caption ? <span className="kuskus-markdown-image-caption">{caption}</span> : null}
+      {caption ? <span className="kusu-markdown-image-caption">{caption}</span> : null}
     </button>
   )
 }

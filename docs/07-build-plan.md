@@ -5,7 +5,7 @@ Last updated: 2026-08-07
 
 ## Delivery approach
 
-Build Kuskus as a sequence of complete vertical slices. Each milestone must connect the visible interface to real local files and end in behavior suitable for dogfooding. Avoid building a polished mock interface whose data model will be replaced later.
+Build Kusu as a sequence of complete vertical slices. Each milestone must connect the visible interface to real local files and end in behavior suitable for dogfooding. Avoid building a polished mock interface whose data model will be replaced later.
 
 ## Milestone 1: Local Markdown note
 
@@ -14,11 +14,11 @@ Goal: prove the complete local-first architecture with the smallest content type
 Deliverables:
 
 - Create a library in a user-selected parent folder.
-- Open an existing valid Kuskus library.
+- Open an existing valid Kusu library.
 - Reopen the last valid library on launch.
 - Display Inbox with a toolbar-summoned inline New Item card.
 - Open or refocus that card with in-app `Ctrl+N` while workspace shortcuts are active.
-- On Windows, register fixed `Ctrl+Shift+Space` while the single Kuskus process is running and route it to a
+- On Windows, register fixed `Ctrl+Shift+Space` while the single Kusu process is running and route it to a
   singleton bottom-right Inbox composer sharing its recoverable session with the inline surface.
 - Accept Markdown without a permanent capture tile or modal.
 - Commit with Save or `Ctrl+Enter`.
@@ -39,7 +39,7 @@ Deliverables:
   filename-backed rename, and ID-only native operations.
 - Verification covers initialization, migration, lifecycle operations, conflicts, malformed input,
   path validation, persistence, restart, lint, types, tests, and production build.
-- Removed visible Kuskus YAML from new notes, added `.url` Internet Shortcuts, filesystem-identity
+- Removed visible Kusu YAML from new notes, added `.url` Internet Shortcuts, filesystem-identity
   reconciliation, unique-fingerprint fallback, and recoverable automatic cleanup of legacy metadata.
 - Read saved notes back into the interface after reload or restart.
 - Morph the draft into the newly saved first card.

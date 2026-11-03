@@ -7,7 +7,7 @@ require('./helpers/install-ts-require.cjs')()
 const { LibraryService } = require('../src/main/library/library-service.ts')
 
 test('reset onboarding forgets the active library across launches and preserves its notes', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-dev-reset-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-dev-reset-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const settingsPath = join(root, 'settings.json')
   const service = new LibraryService(settingsPath)

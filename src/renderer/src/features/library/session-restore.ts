@@ -3,7 +3,7 @@ import type { LibraryDestination } from '@/features/shell/library-sidebar'
 import type { ItemTypeFilter } from '@/features/items/item-view'
 import type { NoteMode } from '@/features/items/note-view-mode'
 
-const SESSION_STORAGE_KEY_PREFIX = 'kuskus-session:v1'
+const SESSION_STORAGE_KEY_PREFIX = 'kusu-session:v1'
 
 const ITEM_TYPE_FILTERS: readonly ItemTypeFilter[] = ['note', 'image', 'url', 'file']
 const NOTE_MODES: readonly NoteMode[] = ['read', 'live', 'markdown', 'split']

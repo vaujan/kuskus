@@ -5,19 +5,19 @@ const { tmpdir } = require('node:os')
 const test = require('node:test')
 require('./helpers/install-ts-require.cjs')()
 
-const { kuskusPath, resolveInsideVault } = require('../src/main/library/storage/vault-paths.ts')
+const { kusuPath, resolveInsideVault } = require('../src/main/library/storage/vault-paths.ts')
 
 test('resolves only paths contained by the selected vault', () => {
   const vault = resolve('C:/Vault')
 
   assert.equal(resolveInsideVault(vault, 'Notes/one.md'), resolve(vault, 'Notes/one.md'))
-  assert.equal(kuskusPath(vault, 'trash', 'item'), resolve(vault, '.kuskus/trash/item'))
+  assert.equal(kusuPath(vault, 'trash', 'item'), resolve(vault, '.kuskus/trash/item'))
   assert.throws(() => resolveInsideVault(vault, '../Vault-copy/note.md'), /outside/)
   assert.throws(() => resolveInsideVault(vault, resolve(vault, '..', 'Other')), /outside/)
 })
 
 test('rejects linked files, directories, dangling links, and metadata junctions', (context) => {
-  const root = mkdtempSync(resolve(tmpdir(), 'kuskus-path-security-'))
+  const root = mkdtempSync(resolve(tmpdir(), 'kusu-path-security-'))
   context.after(() => rmSync(root, { recursive: true, force: true }))
   const vault = resolve(root, 'vault')
   const outside = resolve(root, 'outside')
@@ -29,6 +29,6 @@ test('rejects linked files, directories, dangling links, and metadata junctions'
   for (const target of ['linked', 'linked/new/note.md', 'dangling/new.md']) {
     assert.throws(() => resolveInsideVault(vault, target), /symbolic link or junction/)
   }
-  assert.throws(() => kuskusPath(vault, 'library.json'), /symbolic link or junction/)
+  assert.throws(() => kusuPath(vault, 'library.json'), /symbolic link or junction/)
   assert.equal(resolveInsideVault(vault, 'new/note.md'), resolve(vault, 'new/note.md'))
 })

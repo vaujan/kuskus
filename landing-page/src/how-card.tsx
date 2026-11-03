@@ -60,8 +60,8 @@ const session = {
 window.capture.getSession = async () => ({ ok: true, data: session })
 window.capture.setBusy = async () => ({ ok: true, data: session })
 window.capture.claimSurface = async () => ({ ok: true, data: session })
-window.kuskus.listCaptureDraftImages = async () => ({ ok: true, data: [] })
-window.kuskus.getCaptureDraftFile = async () => ({ ok: true, data: null })
+window.kusu.listCaptureDraftImages = async () => ({ ok: true, data: [] })
+window.kusu.getCaptureDraftFile = async () => ({ ok: true, data: null })
 if (new URLSearchParams(location.search).has('embed')) {
   document.documentElement.dataset.embeddedScene = 'true'
   const resize = (): void =>
@@ -99,7 +99,7 @@ export function WritingScene(): React.JSX.Element {
       <ItemCardSurface className="feature-editor feature-editor--edit">
         <ScrollArea className="feature-editor-body">
           {mode === 'read' ? (
-            <article className="kuskus-detail-document-frame py-[var(--typeset-detail-padding-block)]">
+            <article className="kusu-detail-document-frame py-[var(--typeset-detail-padding-block)]">
               <MarkdownPreview value={value} presentation="detail" />
             </article>
           ) : mode === 'live' ? (

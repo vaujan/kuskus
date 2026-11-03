@@ -7,7 +7,7 @@ require('./helpers/install-ts-require.cjs')()
 const { LibraryService } = require('../src/main/library/library-service.ts')
 
 test('rejects obsolete library metadata without initializing or modifying it', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-obsolete-format-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-obsolete-format-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const vault = join(root, 'Old vault')
   await mkdir(vault)
@@ -24,14 +24,14 @@ test('rejects obsolete library metadata without initializing or modifying it', a
   await assert.rejects(access(join(vault, '.kuskus')))
 })
 
-test('opening current notes preserves user properties, including obsolete Kuskus keys', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-no-conversion-'))
+test('opening current notes preserves user properties, including obsolete Kusu keys', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kusu-no-conversion-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   const state = await service.createIn(root, 'Vault')
   const note = await service.createNote({ markdown: '# Note', attachmentIds: [] })
   const path = join(state.library.path, note.relativePath)
-  const source = '---\nkuskus-id: old-value\ntags: [keep]\n---\n# Note\n'
+  const source = '---\nkusu-id: old-value\ntags: [keep]\n---\n# Note\n'
   await writeFile(path, source)
   await service.reconcileState()
   assert.equal(await readFile(path, 'utf8'), source)
@@ -39,7 +39,7 @@ test('opening current notes preserves user properties, including obsolete Kuskus
 })
 
 test('an unrelated root library.json does not prevent ordinary folder initialization', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-library-json-file-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-library-json-file-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const vault = join(root, 'Notes')
   await mkdir(vault)
@@ -53,7 +53,7 @@ test('an unrelated root library.json does not prevent ordinary folder initializa
 })
 
 test('current vault metadata takes precedence over any root library.json', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-current-vault-metadata-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-current-vault-metadata-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   const state = await service.createIn(root, 'Vault')

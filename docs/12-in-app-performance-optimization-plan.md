@@ -4,7 +4,7 @@ Status: Implemented; packaged benchmark command added
 
 ## Objective
 
-Make Kuskus remain responsive during ordinary use with large vaults. Optimize measured interaction
+Make Kusu remain responsive during ordinary use with large vaults. Optimize measured interaction
 latency and frame stability first; treat bundle size and code shape only as supporting signals.
 
 This plan starts after the image, preview-cache, idle-window, and editor-loading work in

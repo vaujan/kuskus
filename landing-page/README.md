@@ -1,6 +1,6 @@
-# Kuskus landing page
+# Kusu landing page
 
-This is a separate website project. Its build bundles the real Kuskus renderer with an illustrative local demo library, so the hero remains interactive after deployment. The built site does not need Electron or Storybook at runtime.
+This is a separate website project. Its build bundles the real Kusu renderer with an illustrative local demo library, so the hero remains interactive after deployment. The built site does not need Electron or Storybook at runtime.
 
 ## Run locally
 
@@ -22,8 +22,8 @@ Deploy the generated `dist/` directory to any static host. Building from source 
 
 ## Public deployment on Vercel
 
-Production: [kuskus-tau.vercel.app](https://kuskus-tau.vercel.app). The `kuskus` project is linked
-to `vaujan/kuskus` in the `ahmad-fauzans-projects-9878f23f` Vercel scope, with `main` as the
+Production: [trykusu.vercel.app](https://trykusu.vercel.app). The `kusu` project is linked
+to `vaujan/kusu` in the `ahmad-fauzans-projects-9878f23f` Vercel scope, with `main` as the
 production branch. The first production upload reached Ready on 2026-10-23 (Asia/Jayapura).
 Vercel Authentication protects preview deployments only; production is public.
 

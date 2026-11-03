@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { lstat, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, relative, resolve } from 'node:path'
-import { kuskusPath, resolveInsideVault } from './vault-paths'
+import { kusuPath, resolveInsideVault } from './vault-paths'
 
 type Undo =
   | { kind: 'rename'; from: string; to: string }
@@ -24,9 +24,9 @@ async function exists(path: string): Promise<boolean> {
 
 async function replaceText(libraryPath: string, path: string, content: string): Promise<void> {
   await mkdir(dirname(path), { recursive: true })
-  const directory = kuskusPath(libraryPath, 'transactions')
+  const directory = kusuPath(libraryPath, 'transactions')
   await mkdir(directory, { recursive: true })
-  const temporary = kuskusPath(libraryPath, 'transactions', `${randomUUID()}.write`)
+  const temporary = kusuPath(libraryPath, 'transactions', `${randomUUID()}.write`)
   try {
     await writeFile(temporary, content, { encoding: 'utf8', flag: 'wx', flush: true })
     await rename(temporary, path)
@@ -159,15 +159,15 @@ export class VaultTransaction {
 }
 
 async function recover(libraryPath: string): Promise<void> {
-  const directory = kuskusPath(libraryPath, 'transactions')
+  const directory = kusuPath(libraryPath, 'transactions')
   await mkdir(directory, { recursive: true })
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     if (entry.isFile() && /^[\da-f-]+\.write$/.test(entry.name)) {
-      await rm(kuskusPath(libraryPath, 'transactions', entry.name))
+      await rm(kusuPath(libraryPath, 'transactions', entry.name))
       continue
     }
     if (!entry.isFile() || !/^[\da-f-]+\.json$/.test(entry.name)) continue
-    const path = kuskusPath(libraryPath, 'transactions', entry.name)
+    const path = kusuPath(libraryPath, 'transactions', entry.name)
     await new VaultTransaction(libraryPath, path).recover()
     await rm(path)
   }
@@ -183,7 +183,7 @@ export async function runVaultTransaction<T>(
 ): Promise<T> {
   return serialize(libraryPath, async () => {
     await recover(libraryPath)
-    const path = kuskusPath(libraryPath, 'transactions', `${randomUUID()}.json`)
+    const path = kusuPath(libraryPath, 'transactions', `${randomUUID()}.json`)
     const transaction = new VaultTransaction(libraryPath, path)
     try {
       const result = await task(transaction)

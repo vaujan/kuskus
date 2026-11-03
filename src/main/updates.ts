@@ -29,8 +29,8 @@ export function registerUpdates(
     publish({ phase: 'available', version: info.version })
     if (Notification.isSupported()) {
       const notification = new Notification({
-        title: 'Kuskus update available',
-        body: `Version ${info.version} is available. Open Settings → About Kuskus to download it.`
+        title: 'Kusu update available',
+        body: `Version ${info.version} is available. Open Settings → About Kusu to download it.`
       })
       notification.on('click', openSettings)
       notification.show()
@@ -49,7 +49,7 @@ export function registerUpdates(
         ? 'Could not check for a stable release. Experimental previews must be installed manually from GitHub Releases.'
         : code === 'ERR_UPDATER_CHANNEL_FILE_NOT_FOUND'
           ? 'The release is missing update information. Install it manually from GitHub Releases.'
-          : 'Could not update Kuskus. Please try again later.'
+          : 'Could not update Kusu. Please try again later.'
     publish({
       phase: 'error',
       message

@@ -2,7 +2,7 @@ export type ColorMode = 'dark' | 'light' | 'system'
 export type ControlStyle = 'flat' | 'skeuomorphic'
 
 export type ColorTheme =
-  | 'kuskus'
+  | 'kusu'
   | 'graphite'
   | 'obsidian'
   | 'github'
@@ -21,7 +21,7 @@ export type ColorTheme =
   | 'nord'
 
 export const COLOR_THEMES: ReadonlyArray<{ value: ColorTheme; label: string }> = [
-  { value: 'kuskus', label: 'Kuskus' },
+  { value: 'kusu', label: 'Kusu' },
   { value: 'graphite', label: 'Graphite' },
   { value: 'obsidian', label: 'Obsidian' },
   { value: 'github', label: 'GitHub' },
@@ -91,7 +91,7 @@ export function applyControlStyle(
 }
 
 export function resolveColorTheme(value: string | null): ColorTheme {
-  return value === 'kuskus' ||
+  return value === 'kusu' ||
     value === 'graphite' ||
     value === 'obsidian' ||
     value === 'github' ||

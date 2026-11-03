@@ -49,5 +49,5 @@ export const demoPersonas = [
 
 export type DemoPersonaId = (typeof demoPersonas)[number]['id']
 
-export const DEMO_SELECT_MESSAGE = 'kuskus-demo:select'
-export const DEMO_READY_MESSAGE = 'kuskus-demo:ready'
+export const DEMO_SELECT_MESSAGE = 'kusu-demo:select'
+export const DEMO_READY_MESSAGE = 'kusu-demo:ready'

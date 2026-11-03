@@ -3,7 +3,7 @@ import { app, BrowserWindow, clipboard, ClipboardItem, dialog, nativeImage, shel
 import { stat } from 'node:fs/promises'
 
 import {
-  KUSKUS_CHANNELS,
+  KUSU_CHANNELS,
   type CollectionIconKey,
   type CreateNoteInput,
   type CreateCollectionInput,
@@ -29,24 +29,24 @@ export function registerLibraryIpc(
 ): void {
   libraryService.onVaultChanged(() => {
     for (const window of BrowserWindow.getAllWindows()) {
-      window.webContents.send(KUSKUS_CHANNELS.vaultChanged)
+      window.webContents.send(KUSU_CHANNELS.vaultChanged)
     }
   })
-  ipcMain.handle(KUSKUS_CHANNELS.getLibraryState, async () => {
+  ipcMain.handle(KUSU_CHANNELS.getLibraryState, async () => {
     try {
       return { ok: true, data: await libraryService.getState(true) }
     } catch (error) {
       return errorResult(error)
     }
   })
-  ipcMain.handle(KUSKUS_CHANNELS.getLibraryOverview, async () => {
+  ipcMain.handle(KUSU_CHANNELS.getLibraryOverview, async () => {
     try {
       return { ok: true, data: await libraryService.getOverviewState() }
     } catch (error) {
       return errorResult(error)
     }
   })
-  ipcMain.handle(KUSKUS_CHANNELS.getItemDetail, async (_event, itemId: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.getItemDetail, async (_event, itemId: unknown) => {
     if (typeof itemId !== 'string') {
       return errorResult(new Error('The item identifier is invalid.'), 'invalid-input')
     }
@@ -56,7 +56,7 @@ export function registerLibraryIpc(
       return errorResult(error, 'not-found')
     }
   })
-  ipcMain.handle(KUSKUS_CHANNELS.queryItems, async (_event, input: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.queryItems, async (_event, input: unknown) => {
     try {
       return {
         ok: true,
@@ -66,14 +66,14 @@ export function registerLibraryIpc(
       return errorResult(error, 'invalid-input')
     }
   })
-  ipcMain.handle(KUSKUS_CHANNELS.reconcileLibrary, async () => {
+  ipcMain.handle(KUSU_CHANNELS.reconcileLibrary, async () => {
     try {
       return { ok: true, data: await libraryService.reconcileState() }
     } catch (error) {
       return errorResult(error)
     }
   })
-  ipcMain.handle(KUSKUS_CHANNELS.reconcileLibraryOverview, async () => {
+  ipcMain.handle(KUSU_CHANNELS.reconcileLibraryOverview, async () => {
     try {
       return { ok: true, data: await libraryService.reconcileOverviewState() }
     } catch (error) {
@@ -81,17 +81,17 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.createLibrary, async (event, requestedName: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.createLibrary, async (event, requestedName: unknown) => {
     if (typeof requestedName !== 'string') {
       return errorResult(new Error('Enter a valid library name.'), 'invalid-input')
     }
 
     const owner = BrowserWindow.fromWebContents(event.sender)
     const options: Electron.OpenDialogOptions = {
-      title: 'Choose where to create your Kuskus library',
+      title: 'Choose where to create your Kusu library',
       buttonLabel: 'Choose folder',
-      ...(process.env.KUSKUS_ONBOARDING_LIBRARIES_PATH && !app.isPackaged
-        ? { defaultPath: process.env.KUSKUS_ONBOARDING_LIBRARIES_PATH }
+      ...(process.env.KUSU_ONBOARDING_LIBRARIES_PATH && !app.isPackaged
+        ? { defaultPath: process.env.KUSU_ONBOARDING_LIBRARIES_PATH }
         : {}),
       properties: ['openDirectory', 'createDirectory']
     }
@@ -119,10 +119,10 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.openLibrary, async (event) => {
+  ipcMain.handle(KUSU_CHANNELS.openLibrary, async (event) => {
     const owner = BrowserWindow.fromWebContents(event.sender)
     const options: Electron.OpenDialogOptions = {
-      title: 'Open a Kuskus library',
+      title: 'Open a Kusu library',
       buttonLabel: 'Open library',
       properties: ['openDirectory']
     }
@@ -147,7 +147,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.initializeVault, async () => {
+  ipcMain.handle(KUSU_CHANNELS.initializeVault, async () => {
     try {
       return { ok: true, data: await libraryService.initializePendingVault() }
     } catch (error) {
@@ -155,7 +155,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.createNote, async (_event, input: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.createNote, async (_event, input: unknown) => {
     if (
       !input ||
       typeof input !== 'object' ||
@@ -171,7 +171,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.duplicateNote, async (_event, itemId: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.duplicateNote, async (_event, itemId: unknown) => {
     if (typeof itemId !== 'string') {
       return errorResult(new Error('The note identifier is invalid.'), 'invalid-input')
     }
@@ -182,7 +182,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.updateNote, async (_event, input: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.updateNote, async (_event, input: unknown) => {
     if (
       !input ||
       typeof input !== 'object' ||
@@ -207,7 +207,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.importNoteImage, async (_event, input: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.importNoteImage, async (_event, input: unknown) => {
     if (
       !input ||
       typeof input !== 'object' ||
@@ -222,7 +222,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.listCaptureDraftImages, async () => {
+  ipcMain.handle(KUSU_CHANNELS.listCaptureDraftImages, async () => {
     try {
       return { ok: true, data: await libraryService.listCaptureDraftImages() }
     } catch (error) {
@@ -230,7 +230,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.stageCaptureDraftImage, async (_event, input: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.stageCaptureDraftImage, async (_event, input: unknown) => {
     try {
       return {
         ok: true,
@@ -241,7 +241,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.renameCaptureDraftImage, async (_event, input: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.renameCaptureDraftImage, async (_event, input: unknown) => {
     try {
       return {
         ok: true,
@@ -252,7 +252,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.removeCaptureDraftImage, async (_event, id: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.removeCaptureDraftImage, async (_event, id: unknown) => {
     if (typeof id !== 'string') {
       return errorResult(new Error('The attachment identifier is invalid.'), 'invalid-input')
     }
@@ -264,7 +264,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.discardCaptureDraft, async () => {
+  ipcMain.handle(KUSU_CHANNELS.discardCaptureDraft, async () => {
     try {
       await libraryService.discardCaptureDraft()
       return { ok: true, data: null }
@@ -273,7 +273,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.getCaptureDraftImagePreview, async (_event, id: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.getCaptureDraftImagePreview, async (_event, id: unknown) => {
     if (typeof id !== 'string') {
       return errorResult(new Error('The attachment identifier is invalid.'), 'invalid-input')
     }
@@ -284,7 +284,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.commitCaptureDraftImage, async (_event, id: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.commitCaptureDraftImage, async (_event, id: unknown) => {
     if (typeof id !== 'string') {
       return errorResult(new Error('The attachment identifier is invalid.'), 'invalid-input')
     }
@@ -295,7 +295,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.getCaptureDraftFile, async () => {
+  ipcMain.handle(KUSU_CHANNELS.getCaptureDraftFile, async () => {
     try {
       return { ok: true, data: await libraryService.getCaptureDraftFile() }
     } catch (error) {
@@ -303,7 +303,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.stageCaptureDraftFile, async (_event, input: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.stageCaptureDraftFile, async (_event, input: unknown) => {
     try {
       return {
         ok: true,
@@ -314,7 +314,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.removeCaptureDraftFile, async () => {
+  ipcMain.handle(KUSU_CHANNELS.removeCaptureDraftFile, async () => {
     try {
       await libraryService.removeCaptureDraftFile()
       return { ok: true, data: null }
@@ -323,7 +323,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.commitCaptureDraftFile, async (_event, id: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.commitCaptureDraftFile, async (_event, id: unknown) => {
     if (typeof id !== 'string') {
       return errorResult(new Error('The staged file identifier is invalid.'), 'invalid-input')
     }
@@ -335,7 +335,7 @@ export function registerLibraryIpc(
   })
 
   ipcMain.handle(
-    KUSKUS_CHANNELS.getNoteAttachmentPreview,
+    KUSU_CHANNELS.getNoteAttachmentPreview,
     async (_event, itemId: unknown, attachmentId: unknown) => {
       if (typeof itemId !== 'string' || typeof attachmentId !== 'string') {
         return errorResult(new Error('The item identifier is invalid.'), 'invalid-input')
@@ -351,7 +351,7 @@ export function registerLibraryIpc(
     }
   )
 
-  ipcMain.handle(KUSKUS_CHANNELS.createUrl, async (_event, url: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.createUrl, async (_event, url: unknown) => {
     if (typeof url !== 'string')
       return errorResult(new Error('The link is invalid.'), 'invalid-input')
     try {
@@ -361,7 +361,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.enrichUrl, async (_event, itemId: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.enrichUrl, async (_event, itemId: unknown) => {
     if (typeof itemId !== 'string')
       return errorResult(new Error('The item identifier is invalid.'), 'invalid-input')
     try {
@@ -371,7 +371,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.getUrlPreview, async (_event, itemId: unknown, kind: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.getUrlPreview, async (_event, itemId: unknown, kind: unknown) => {
     if (
       typeof itemId !== 'string' ||
       typeof kind !== 'string' ||
@@ -389,7 +389,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.createCollection, async (_event, input: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.createCollection, async (_event, input: unknown) => {
     if (
       !input ||
       typeof input !== 'object' ||
@@ -412,7 +412,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.renameCollection, async (_event, id: unknown, name: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.renameCollection, async (_event, id: unknown, name: unknown) => {
     if (typeof id !== 'string' || typeof name !== 'string')
       return errorResult(new Error('Enter a valid folder name.'), 'invalid-input')
     try {
@@ -422,7 +422,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.moveCollection, async (_event, input: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.moveCollection, async (_event, input: unknown) => {
     if (
       !input ||
       typeof input !== 'object' ||
@@ -442,7 +442,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.setCollectionIcon, async (_event, id: unknown, icon: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.setCollectionIcon, async (_event, id: unknown, icon: unknown) => {
     if (typeof id !== 'string' || typeof icon !== 'string') {
       return errorResult(new Error('Choose a valid folder icon.'), 'invalid-input')
     }
@@ -456,7 +456,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.deleteCollection, async (_event, id: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.deleteCollection, async (_event, id: unknown) => {
     if (typeof id !== 'string')
       return errorResult(new Error('The folder identifier is invalid.'), 'invalid-input')
     try {
@@ -466,7 +466,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.renameItem, async (_event, input: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.renameItem, async (_event, input: unknown) => {
     try {
       return { ok: true, data: await libraryService.renameItem(input as RenameItemInput) }
     } catch (error) {
@@ -474,7 +474,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.moveItems, async (_event, input: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.moveItems, async (_event, input: unknown) => {
     try {
       return { ok: true, data: await libraryService.moveItems(input as MoveItemsInput) }
     } catch (error) {
@@ -482,7 +482,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.setItemsPinned, async (_event, input: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.setItemsPinned, async (_event, input: unknown) => {
     try {
       return { ok: true, data: await libraryService.setItemsPinned(input as SetItemsPinnedInput) }
     } catch (error) {
@@ -502,16 +502,16 @@ export function registerLibraryIpc(
       }
     })
   }
-  registerItemMutation(KUSKUS_CHANNELS.archiveItems, (input) => libraryService.archiveItems(input))
-  registerItemMutation(KUSKUS_CHANNELS.unarchiveItems, (input) =>
+  registerItemMutation(KUSU_CHANNELS.archiveItems, (input) => libraryService.archiveItems(input))
+  registerItemMutation(KUSU_CHANNELS.unarchiveItems, (input) =>
     libraryService.unarchiveItems(input)
   )
-  registerItemMutation(KUSKUS_CHANNELS.trashItems, (input) => libraryService.trashItems(input))
-  registerItemMutation(KUSKUS_CHANNELS.restoreItems, (input) => libraryService.restoreItems(input))
-  registerItemMutation(KUSKUS_CHANNELS.permanentlyDeleteItems, (input) =>
+  registerItemMutation(KUSU_CHANNELS.trashItems, (input) => libraryService.trashItems(input))
+  registerItemMutation(KUSU_CHANNELS.restoreItems, (input) => libraryService.restoreItems(input))
+  registerItemMutation(KUSU_CHANNELS.permanentlyDeleteItems, (input) =>
     libraryService.permanentlyDeleteItems(input)
   )
-  ipcMain.handle(KUSKUS_CHANNELS.inspectItemDeletion, async (_event, input: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.inspectItemDeletion, async (_event, input: unknown) => {
     try {
       return {
         ok: true,
@@ -537,16 +537,14 @@ export function registerLibraryIpc(
       }
     })
   }
-  registerPreview(KUSKUS_CHANNELS.getImageThumbnail, (itemId) =>
+  registerPreview(KUSU_CHANNELS.getImageThumbnail, (itemId) =>
     libraryService.getImageThumbnail(itemId)
   )
-  registerPreview(KUSKUS_CHANNELS.getImagePreview, (itemId) =>
-    libraryService.getImagePreview(itemId)
-  )
+  registerPreview(KUSU_CHANNELS.getImagePreview, (itemId) => libraryService.getImagePreview(itemId))
 
-  registerPreview(KUSKUS_CHANNELS.getPdfPreview, (itemId) => libraryService.getPdfPreview(itemId))
+  registerPreview(KUSU_CHANNELS.getPdfPreview, (itemId) => libraryService.getPdfPreview(itemId))
 
-  ipcMain.handle(KUSKUS_CHANNELS.copyImage, async (_event, itemId: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.copyImage, async (_event, itemId: unknown) => {
     if (typeof itemId !== 'string') {
       return errorResult(new Error('The image identifier is invalid.'), 'invalid-input')
     }
@@ -563,7 +561,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.importFile, async (_event, input: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.importFile, async (_event, input: unknown) => {
     try {
       return { ok: true, data: await libraryService.importFile(input as FileImportInput) }
     } catch (error) {
@@ -571,7 +569,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.copyLibraryPath, async () => {
+  ipcMain.handle(KUSU_CHANNELS.copyLibraryPath, async () => {
     try {
       const state = await libraryService.getState()
       if (state.status !== 'ready') throw new Error('Open a library before copying its path.')
@@ -582,7 +580,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.copyItemPath, async (_event, itemId: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.copyItemPath, async (_event, itemId: unknown) => {
     if (typeof itemId !== 'string') {
       return errorResult(new Error('The item identifier is invalid.'), 'invalid-input')
     }
@@ -594,7 +592,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.openItemInDefaultApp, async (_event, itemId: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.openItemInDefaultApp, async (_event, itemId: unknown) => {
     if (typeof itemId !== 'string') {
       return errorResult(new Error('The item identifier is invalid.'), 'invalid-input')
     }
@@ -613,7 +611,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.showItemInExplorer, async (_event, itemId: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.showItemInExplorer, async (_event, itemId: unknown) => {
     if (typeof itemId !== 'string') {
       return errorResult(new Error('The item identifier is invalid.'), 'invalid-input')
     }
@@ -625,7 +623,7 @@ export function registerLibraryIpc(
     }
   })
 
-  ipcMain.handle(KUSKUS_CHANNELS.openExternalUrl, async (_event, url: unknown) => {
+  ipcMain.handle(KUSU_CHANNELS.openExternalUrl, async (_event, url: unknown) => {
     if (typeof url !== 'string')
       return errorResult(new Error('The link is invalid.'), 'invalid-input')
     try {

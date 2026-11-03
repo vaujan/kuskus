@@ -33,30 +33,27 @@ test('live list markers use read-mode geometry and rendered ordered numerals', (
   assert.match(previewSource, /var\(--typeset-list-nesting\)/)
   assert.match(previewSource, /widget: new OrderedListWidget\(markText\)/)
   assert.match(presentationStyles, /--typeset-list-marker-column: 1\.5em/)
-  assert.match(readPreviewSource, /kuskus-rendered-list--ordered/)
-  assert.match(readPreviewSource, /kuskus-rendered-list--bullet/)
-  assert.match(readPreviewSource, /kuskus-task-marker/)
-  assert.match(readPreviewSource, /className="kuskus-list-content"/)
-  assert.match(readPreviewSource, /kuskus-list-content kuskus-rich-task-content/)
-  assert.match(previewSource, /kuskus-task-marker/)
-  assert.match(previewSource, /kuskus-task-checkbox/)
-  assert.doesNotMatch(
-    presentationStyles,
-    /> li > :not\(\.kuskus-list-marker, \.kuskus-task-marker\)/
-  )
-  assert.match(presentationStyles, /\.kuskus-task-marker \{[\s\S]*?height: 1lh;/)
-  assert.match(presentationStyles, /\.kuskus-task-marker \{[\s\S]*?align-items: center;/)
-  assert.match(presentationStyles, /\.kuskus-task-checkbox \{[\s\S]*?margin: 0;/)
+  assert.match(readPreviewSource, /kusu-rendered-list--ordered/)
+  assert.match(readPreviewSource, /kusu-rendered-list--bullet/)
+  assert.match(readPreviewSource, /kusu-task-marker/)
+  assert.match(readPreviewSource, /className="kusu-list-content"/)
+  assert.match(readPreviewSource, /kusu-list-content kusu-rich-task-content/)
+  assert.match(previewSource, /kusu-task-marker/)
+  assert.match(previewSource, /kusu-task-checkbox/)
+  assert.doesNotMatch(presentationStyles, /> li > :not\(\.kusu-list-marker, \.kusu-task-marker\)/)
+  assert.match(presentationStyles, /\.kusu-task-marker \{[\s\S]*?height: 1lh;/)
+  assert.match(presentationStyles, /\.kusu-task-marker \{[\s\S]*?align-items: center;/)
+  assert.match(presentationStyles, /\.kusu-task-checkbox \{[\s\S]*?margin: 0;/)
   assert.doesNotMatch(presentationStyles, /task-optical-offset/)
   assert.match(
     liveStyles,
-    /\.cm-kuskus-live \.cm-atomic-task-checkbox \{\s*transform: translateY\(0\.\d+em\);\s*\}/
+    /\.cm-kusu-live \.cm-atomic-task-checkbox \{\s*transform: translateY\(0\.\d+em\);\s*\}/
   )
   assert.match(
     presentationStyles,
-    /\.kuskus-rendered-list > li::before,[\s\S]*?\.kuskus-list-marker[\s\S]*?font-variant-numeric: proportional-nums/
+    /\.kusu-rendered-list > li::before,[\s\S]*?\.kusu-list-marker[\s\S]*?font-variant-numeric: proportional-nums/
   )
-  assert.match(presentationStyles, /\.kuskus-list-marker \{\s*display: inline-block;\s*\}/)
+  assert.match(presentationStyles, /\.kusu-list-marker \{\s*display: inline-block;\s*\}/)
 })
 
 test('bullet glyph depth only counts nested bullet lists', () => {
@@ -68,11 +65,11 @@ test('bullet glyph depth only counts nested bullet lists', () => {
 test('read detail renders structural guides for nested lists only', () => {
   assert.match(
     presentationStyles,
-    /\[data-typeset-presentation='detail'\][\s\S]*?\.kuskus-list-content[\s\S]*?> \.kuskus-rendered-list::before/
+    /\[data-typeset-presentation='detail'\][\s\S]*?\.kusu-list-content[\s\S]*?> \.kusu-rendered-list::before/
   )
   assert.doesNotMatch(
     presentationStyles,
-    /\[data-typeset-presentation='(?:card|compact|snippet|snippet-compact)'\][\s\S]*?> \.kuskus-rendered-list::before/
+    /\[data-typeset-presentation='(?:card|compact|snippet|snippet-compact)'\][\s\S]*?> \.kusu-rendered-list::before/
   )
 })
 
@@ -85,13 +82,13 @@ test('read and live detail modes fold nested lists without changing the text rai
   )
   assert.match(
     presentationStyles,
-    /li\[data-list-folded\] > \.kuskus-list-content > \.kuskus-rendered-list/
+    /li\[data-list-folded\] > \.kusu-list-content > \.kusu-rendered-list/
   )
-  assert.match(presentationStyles, /\.kuskus-list-fold-button \{[\s\S]*?position: absolute;/)
-  assert.match(liveStyles, /\.cm-kuskus-list-fold-placeholder \{\s*display: none;/)
+  assert.match(presentationStyles, /\.kusu-list-fold-button \{[\s\S]*?position: absolute;/)
+  assert.match(liveStyles, /\.cm-kusu-list-fold-placeholder \{\s*display: none;/)
   assert.match(listFoldingSource, /if \(child\.name === 'Task'\) task = true/)
-  assert.match(presentationStyles, /li\.task-list-item > \.kuskus-list-fold-button/)
-  assert.match(liveStyles, /\.cm-kuskus-list-fold-button--task/)
+  assert.match(presentationStyles, /li\.task-list-item > \.kusu-list-fold-button/)
+  assert.match(liveStyles, /\.cm-kusu-list-fold-button--task/)
 })
 
 test('live list guides use parsed list depth without changing editor indentation', () => {
@@ -107,10 +104,7 @@ test('live list guides use parsed list depth without changing editor indentation
   assert.match(previewSource, /var\(--typeset-list-guide\)/)
   assert.match(previewSource, /var\(--typeset-list-marker-axis\)/)
   assert.match(previewSource, /contentOffset < 0 \? ownedLine\.from/)
-  assert.match(
-    presentationStyles,
-    /\.kuskus-list-content > :first-child \{\s*margin-block-start: 0;/
-  )
+  assert.match(presentationStyles, /\.kusu-list-content > :first-child \{\s*margin-block-start: 0;/)
   assert.match(presentationStyles, /--typeset-list-guide:/)
   assert.match(presentationStyles, /--typeset-list-marker-axis:/)
   assert.match(previewSource, /const guidePosition = taskLine/)
@@ -127,15 +121,15 @@ test('live list guides use parsed list depth without changing editor indentation
 test('read list markers stay single-line and task rows never regain bullet glyphs', () => {
   assert.match(
     presentationStyles,
-    /\.kuskus-rendered-list > li::before,[\s\S]*?\.kuskus-list-marker[\s\S]*?white-space: nowrap;/
+    /\.kusu-rendered-list > li::before,[\s\S]*?\.kusu-list-marker[\s\S]*?white-space: nowrap;/
   )
   assert.match(
     presentationStyles,
-    /\.kuskus-rendered-list--bullet > li:not\(\.task-list-item\)::before/
+    /\.kusu-rendered-list--bullet > li:not\(\.task-list-item\)::before/
   )
   assert.match(
     presentationStyles,
-    /\.kuskus-rendered-list--bullet[\s\S]*?> li:not\(\.task-list-item\)::before \{\s*content: '▪';/
+    /\.kusu-rendered-list--bullet[\s\S]*?> li:not\(\.task-list-item\)::before \{\s*content: '▪';/
   )
 })
 

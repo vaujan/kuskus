@@ -5,11 +5,11 @@ Last updated: 2026-08-02
 
 ## Core guarantees
 
-1. A Kuskus library is an ordinary local folder that can also be opened as an Obsidian vault.
+1. A Kusu library is an ordinary local folder that can also be opened as an Obsidian vault.
 2. User-visible files and directories are authoritative. Hidden records, indexes, previews, and caches must never be the only readable copy of user content or organization.
 3. Imported content is copied into the vault; the external source is never modified or deleted.
 4. Item IDs survive filename and folder changes. The renderer addresses native operations by ID, never by an arbitrary path.
-5. Unsupported or malformed data is preserved for repair. Kuskus does not silently reinterpret a newer schema, invalid YAML, duplicate identity, or an ambiguous binary match.
+5. Unsupported or malformed data is preserved for repair. Kusu does not silently reinterpret a newer schema, invalid YAML, duplicate identity, or an ambiguous binary match.
 
 ## Schema-v2 layout
 
@@ -36,7 +36,7 @@ Loose root files are Inbox. Ordinary folders are nested collections. The configu
 
 ## Markdown and bookmarks
 
-Notes retain their readable filenames and contain no Kuskus-owned frontmatter. Existing YAML,
+Notes retain their readable filenames and contain no Kusu-owned frontmatter. Existing YAML,
 comments, ordering, aliases, and user properties remain user-authored content. Editing note text never
 derives or changes the filename.
 
@@ -49,7 +49,7 @@ Obsidian wikilinks, aliases, headings, note embeds, and image embeds remain supp
 New note attachments are independent files in the note's folder and use URL-encoded relative
 Markdown links such as `![Sketch](./Sketch.png)`. Each receives its staged attachment UUID as its
 stable item ID and an ordinary image record. Existing relative embeds, Obsidian wikilinks, root
-images, shared or nested attachment folders, and legacy Kuskus `<note-name>.assets/` layouts are
+images, shared or nested attachment folders, and legacy Kusu `<note-name>.assets/` layouts are
 indexed without automatic reorganization. Referenced image and file records remain indexed but
 their standalone cards are hidden by default; the per-device Filter preference can show them.
 Scanning and presentation share a balanced Markdown-image parser, so URL-encoded or angle-bracketed
@@ -61,7 +61,7 @@ All new attachment placement goes through one main-process resolver. Its validat
 vault, final note path, candidate filename, and a placement policy. The absent policy resolves to
 `same-folder`, which is the only implemented policy. The boundary can later support `vault-root`,
 `specific-folder`, or `note-subfolder` without changing renderer capture requests or note schemas;
-no setting field or attachment-location UI is part of this contract version. Kuskus never reads or
+no setting field or attachment-location UI is part of this contract version. Kusu never reads or
 modifies `.obsidian` to determine placement.
 
 ## Binary and collection identity
@@ -73,7 +73,7 @@ filesystem identity, last known relative path, reference state, and recovery loc
 A file is reconciled by exact path, then unique filesystem identity, then unique content fingerprint.
 Ambiguous duplicate fingerprints create new identities rather than stealing an existing record.
 
-Folder names and nesting are authoritative collection organization. `.kuskus/collections/<id>.json` keeps only stable identity and Kuskus presentation metadata such as an icon. Creating, renaming, moving, or deleting a collection performs the corresponding validated folder operation. Moving refuses ancestry cycles, preserves collection IDs, and updates descendant collection and item paths with rollback on an in-process failure.
+Folder names and nesting are authoritative collection organization. `.kuskus/collections/<id>.json` keeps only stable identity and Kusu presentation metadata such as an icon. Creating, renaming, moving, or deleting a collection performs the corresponding validated folder operation. Moving refuses ancestry cycles, preserves collection IDs, and updates descendant collection and item paths with rollback on an in-process failure.
 
 ## Scanning, safety, and conflicts
 
@@ -121,9 +121,9 @@ rewriting Markdown. `.obsidian` is never read as content or modified.
 
 ## Visible-metadata cleanup
 
-The first compatible launch detects legacy Kuskus YAML. Before changing any safe candidate it keeps
+The first compatible launch detects legacy Kusu YAML. Before changing any safe candidate it keeps
 a checksummed, path-preserving recovery copy under `.kuskus/migrations/`. It removes only
-Kuskus-owned identity properties and preserves user YAML text. Blank generated bookmark Markdown is
+Kusu-owned identity properties and preserves user YAML text. Blank generated bookmark Markdown is
 converted to `.url`. A bookmark containing user properties or body text remains unchanged and is
 reported as a repair conflict. Staged cleanup is verified as one transaction and rolls back from the
 retained recovery copy on failure.

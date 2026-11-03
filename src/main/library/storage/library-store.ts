@@ -54,10 +54,10 @@ import {
   runVaultTransaction,
   type VaultTransaction
 } from './vault-transaction'
-import { kuskusPath, resolveInsideVault } from './vault-paths'
+import { kusuPath, resolveInsideVault } from './vault-paths'
 import * as captureStore from './capture-store'
 
-const KUSKUS_DIRECTORY = '.kuskus'
+const KUSU_DIRECTORY = '.kuskus'
 const LIBRARY_FILENAME = 'library.json'
 const RECORDS_DIRECTORY = 'records'
 const COLLECTION_RECORDS_DIRECTORY = 'collections'
@@ -268,7 +268,7 @@ export class LibraryStore {
     try {
       const library = await this.readPersistedLibrary(libraryPath)
       const cached = await readJson<unknown>(
-        kuskusPath(libraryPath, INDEX_DIRECTORY, LIBRARY_INDEX_FILENAME)
+        kusuPath(libraryPath, INDEX_DIRECTORY, LIBRARY_INDEX_FILENAME)
       )
       if (!cached || typeof cached !== 'object') return null
       const value = cached as Partial<LibraryIndexCache>
@@ -291,7 +291,7 @@ export class LibraryStore {
   }
 
   private async writeCachedLibraryDto(libraryPath: string, library: LibraryDto): Promise<void> {
-    await writeJsonAtomic(kuskusPath(libraryPath, INDEX_DIRECTORY, LIBRARY_INDEX_FILENAME), {
+    await writeJsonAtomic(kusuPath(libraryPath, INDEX_DIRECTORY, LIBRARY_INDEX_FILENAME), {
       schemaVersion: 1,
       libraryId: library.id,
       writtenAt: new Date().toISOString(),
@@ -349,7 +349,7 @@ export class LibraryStore {
     }
     await this.ensureLibraryDirectories(libraryPath)
     await mkdir(resolveInsideVault(libraryPath, DEFAULT_ARCHIVE_DIRECTORY), { recursive: true })
-    await writeJsonAtomic(kuskusPath(libraryPath, LIBRARY_FILENAME), {
+    await writeJsonAtomic(kusuPath(libraryPath, LIBRARY_FILENAME), {
       ...library,
       schemaVersion: 2
     })
@@ -371,7 +371,7 @@ export class LibraryStore {
       createdAt,
       pinnedItemIds: []
     }
-    await writeJsonAtomic(kuskusPath(libraryPath, LIBRARY_FILENAME), {
+    await writeJsonAtomic(kusuPath(libraryPath, LIBRARY_FILENAME), {
       ...library,
       archiveDirectory: archiveName
     })
@@ -383,23 +383,23 @@ export class LibraryStore {
     await recoverVaultTransactions(libraryPath)
     const targetStat = await stat(libraryPath)
     if (!targetStat.isDirectory()) throw new Error('The library path is not a folder.')
-    const v2Path = kuskusPath(libraryPath, LIBRARY_FILENAME)
+    const v2Path = kusuPath(libraryPath, LIBRARY_FILENAME)
     if (await this.pathExists(v2Path)) {
       const library = await readJson<unknown>(v2Path)
       if (!isPersistedLibrary(library) || library.schemaVersion !== 2) {
-        throw new Error('This vault uses an unsupported Kuskus storage version.')
+        throw new Error('This vault uses an unsupported Kusu storage version.')
       }
       return {
         ...library,
         pinnedItemIds: Array.isArray(library.pinnedItemIds) ? library.pinnedItemIds : []
       }
     }
-    throw new Error('This folder is not an initialized Kuskus vault.')
+    throw new Error('This folder is not an initialized Kusu vault.')
   }
 
   async setItemsPinned(libraryPath: string, pinnedItemIds: readonly string[]): Promise<void> {
     const library = await this.readPersistedLibrary(libraryPath)
-    await writeJsonAtomic(kuskusPath(libraryPath, LIBRARY_FILENAME), {
+    await writeJsonAtomic(kusuPath(libraryPath, LIBRARY_FILENAME), {
       ...library,
       schemaVersion: 2,
       pinnedItemIds
@@ -407,13 +407,13 @@ export class LibraryStore {
   }
 
   async isUninitializedVault(libraryPath: string): Promise<boolean> {
-    if (await this.pathExists(kuskusPath(libraryPath, LIBRARY_FILENAME))) return false
+    if (await this.pathExists(kusuPath(libraryPath, LIBRARY_FILENAME))) return false
     const rootMetadata = await readJson<unknown>(join(libraryPath, LIBRARY_FILENAME)).catch(
       () => null
     )
     if (isPersistedLibrary(rootMetadata)) {
       throw new Error(
-        'Root library.json metadata is unsupported. Open a vault-native Kuskus library.'
+        'Root library.json metadata is unsupported. Open a vault-native Kusu library.'
       )
     }
     try {
@@ -456,24 +456,24 @@ export class LibraryStore {
 
   async ensureLibraryDirectories(libraryPath: string): Promise<void> {
     await Promise.all([
-      mkdir(kuskusPath(libraryPath, RECORDS_DIRECTORY), { recursive: true }),
-      mkdir(kuskusPath(libraryPath, COLLECTION_RECORDS_DIRECTORY), { recursive: true }),
-      mkdir(kuskusPath(libraryPath, TRASH_DIRECTORY), { recursive: true }),
-      mkdir(kuskusPath(libraryPath, 'temp'), { recursive: true }),
-      mkdir(kuskusPath(libraryPath, URL_PREVIEW_DIRECTORY), { recursive: true })
+      mkdir(kusuPath(libraryPath, RECORDS_DIRECTORY), { recursive: true }),
+      mkdir(kusuPath(libraryPath, COLLECTION_RECORDS_DIRECTORY), { recursive: true }),
+      mkdir(kusuPath(libraryPath, TRASH_DIRECTORY), { recursive: true }),
+      mkdir(kusuPath(libraryPath, 'temp'), { recursive: true }),
+      mkdir(kusuPath(libraryPath, URL_PREVIEW_DIRECTORY), { recursive: true })
     ])
   }
 
   private itemRecordPath(libraryPath: string, id: string): string {
-    return kuskusPath(libraryPath, RECORDS_DIRECTORY, `${id}.json`)
+    return kusuPath(libraryPath, RECORDS_DIRECTORY, `${id}.json`)
   }
 
   private collectionRecordPath(libraryPath: string, id: string): string {
-    return kuskusPath(libraryPath, COLLECTION_RECORDS_DIRECTORY, `${id}.json`)
+    return kusuPath(libraryPath, COLLECTION_RECORDS_DIRECTORY, `${id}.json`)
   }
 
   private async readItemRecords(libraryPath: string): Promise<VaultItemRecord[]> {
-    const directory = kuskusPath(libraryPath, RECORDS_DIRECTORY)
+    const directory = kusuPath(libraryPath, RECORDS_DIRECTORY)
     await mkdir(directory, { recursive: true })
     const entries = (await readdir(directory, { withFileTypes: true })).filter(
       (entry) => entry.isFile() && entry.name.endsWith('.json')
@@ -500,7 +500,7 @@ export class LibraryStore {
   }
 
   private async readCollectionRecords(libraryPath: string): Promise<VaultCollectionRecord[]> {
-    const directory = kuskusPath(libraryPath, COLLECTION_RECORDS_DIRECTORY)
+    const directory = kusuPath(libraryPath, COLLECTION_RECORDS_DIRECTORY)
     await mkdir(directory, { recursive: true })
     const entries = (await readdir(directory, { withFileTypes: true })).filter(
       (entry) => entry.isFile() && entry.name.endsWith('.json')
@@ -752,7 +752,7 @@ export class LibraryStore {
     collections: VaultCollectionRecord[],
     metadata: PersistedItem
   ): ItemLocation {
-    if (relativePath.startsWith(`${KUSKUS_DIRECTORY}/${TRASH_DIRECTORY}/`)) {
+    if (relativePath.startsWith(`${KUSU_DIRECTORY}/${TRASH_DIRECTORY}/`)) {
       return {
         type: 'trash',
         trashedFrom: metadata.trashedFrom ?? 'inbox',
@@ -975,7 +975,7 @@ export class LibraryStore {
     const key = resolve(libraryPath)
     const active = this.scanPromises.get(key)
     if (active) return active
-    if (process.env.KUSKUS_PERFORMANCE_TYPING === '1') this.performanceVaultScans += 1
+    if (process.env.KUSU_PERFORMANCE_TYPING === '1') this.performanceVaultScans += 1
     const scan = this.performScanVault(libraryPath)
       .then((snapshot) => {
         this.scanSnapshots.set(key, snapshot)
@@ -1320,7 +1320,7 @@ export class LibraryStore {
     const exactActiveRecord = attachmentRecords.find(
       (entry) =>
         targetExists &&
-        !entry.relativePath.startsWith(`${KUSKUS_DIRECTORY}/`) &&
+        !entry.relativePath.startsWith(`${KUSU_DIRECTORY}/`) &&
         entry.relativePath.toLowerCase() === targetRelativePath
     )
     if (exactActiveRecord) return exactActiveRecord
@@ -1551,7 +1551,7 @@ export class LibraryStore {
     }
     if (remaining.length > 0) {
       throw new Error(
-        'This folder contains files Kuskus does not manage. Move them in Explorer, then try again.'
+        'This folder contains files Kusu does not manage. Move them in Explorer, then try again.'
       )
     }
   }
@@ -1718,7 +1718,7 @@ export class LibraryStore {
         'General files are indexed from the vault but are not captured through this operation.'
       )
     }
-    const recoveryMarker = kuskusPath(libraryPath, 'temp', `${metadata.id}.capture-recovery.json`)
+    const recoveryMarker = kusuPath(libraryPath, 'temp', `${metadata.id}.capture-recovery.json`)
     let destination: string
     let recoveredAttachmentPaths: Array<{ id: string; relativePath: string }> = []
     try {
@@ -1795,7 +1795,7 @@ export class LibraryStore {
         attachmentPaths: recoveredAttachmentPaths
       })
     }
-    const temporary = kuskusPath(libraryPath, 'temp', `${metadata.id}.capture`)
+    const temporary = kusuPath(libraryPath, 'temp', `${metadata.id}.capture`)
     const stagedContent = join(temporary, basename(destination))
     const destinationAlreadyFinalized = await this.pathExists(destination)
     if (!destinationAlreadyFinalized) {
@@ -1894,7 +1894,7 @@ export class LibraryStore {
     await this.readPersistedLibrary(libraryPath)
     const extension = extname(input.filename)
     const safeFilename = `${safeStem(basename(input.filename, extension), 'Imported file')}${extension}`
-    const recoveryMarker = kuskusPath(libraryPath, 'temp', `${input.id}.file-import-recovery.json`)
+    const recoveryMarker = kusuPath(libraryPath, 'temp', `${input.id}.file-import-recovery.json`)
     let destination: string
     try {
       const marker = await readJson<unknown>(recoveryMarker)
@@ -1915,7 +1915,7 @@ export class LibraryStore {
         relativePath: slash(relative(libraryPath, destination))
       })
     }
-    const temporary = kuskusPath(libraryPath, 'temp', `${input.id}.file-import`)
+    const temporary = kusuPath(libraryPath, 'temp', `${input.id}.file-import`)
     if (!(await this.pathExists(destination))) {
       await writeFile(temporary, input.bytes)
       await rename(temporary, destination)
@@ -2141,7 +2141,7 @@ export class LibraryStore {
   ): Promise<void> {
     const resolved = await this.resolveItem(libraryPath, metadata.id)
     if (resolved.metadata.type !== 'note') throw new Error('The saved item is not a note.')
-    await replaceNoteContent(resolved.path, kuskusPath(libraryPath, 'temp'), markdown)
+    await replaceNoteContent(resolved.path, kusuPath(libraryPath, 'temp'), markdown)
     await this.updateItem(libraryPath, { ...metadata, relativePath: resolved.relativePath })
   }
 
@@ -2187,7 +2187,7 @@ export class LibraryStore {
   }
 
   private urlPreviewDirectory(libraryPath: string, itemId: string): string {
-    return kuskusPath(libraryPath, URL_PREVIEW_DIRECTORY, itemId)
+    return kusuPath(libraryPath, URL_PREVIEW_DIRECTORY, itemId)
   }
 
   async readImageThumbnailCache(
@@ -2277,7 +2277,7 @@ export class LibraryStore {
     if (location.type === 'inbox') return libraryPath
     if (location.type === 'archive')
       return resolveInsideVault(libraryPath, DEFAULT_ARCHIVE_DIRECTORY)
-    if (location.type === 'trash') return kuskusPath(libraryPath, TRASH_DIRECTORY, itemId)
+    if (location.type === 'trash') return kusuPath(libraryPath, TRASH_DIRECTORY, itemId)
     const collection = (await this.currentCollectionRecords(libraryPath)).find(
       (entry) => entry.id === location.collectionId
     )
@@ -2302,7 +2302,7 @@ export class LibraryStore {
     transaction: VaultTransaction
   ): Promise<void> {
     if (requests.length === 0) return
-    const stagingDirectory = kuskusPath(libraryPath, 'temp', `${randomUUID()}.item-move`)
+    const stagingDirectory = kusuPath(libraryPath, 'temp', `${randomUUID()}.item-move`)
     await mkdir(stagingDirectory, { recursive: true })
     const staged: Array<{
       request: ItemMoveRequest
@@ -2451,7 +2451,7 @@ export class LibraryStore {
       const item = await this.resolveItem(libraryPath, itemId)
       if (item.location.type !== 'trash')
         throw new Error('Only items in Trash can be deleted forever.')
-      const trashRoot = kuskusPath(libraryPath, TRASH_DIRECTORY, itemId)
+      const trashRoot = kusuPath(libraryPath, TRASH_DIRECTORY, itemId)
       await rm(trashRoot, { recursive: true, force: true })
       await rm(this.itemRecordPath(libraryPath, itemId), { force: true })
       const snapshot = this.scanSnapshots.get(resolve(libraryPath))

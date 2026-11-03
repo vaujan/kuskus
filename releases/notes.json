@@ -1,6 +1,11 @@
 {
   "unreleased": {
-    "changes": {}
+    "changes": {
+      "Changed": [
+        "Rename the app to Kusu. Existing vaults can be reopened from setup. App preferences and capture drafts use a new profile.",
+        "Show a toast when a manual update check finds no update."
+      ]
+    }
   },
   "releases": [
     {
@@ -59,7 +64,9 @@
       "date": "2026-10-31",
       "notes": {
         "changes": {
-          "Added": ["Show the installed app version in Settings → About Kuskus."],
+          "Added": [
+            "Show the installed app version in Settings → About Kuskus."
+          ],
           "Fixed": [
             "Bundle actual publisher preview images for every landing-page sample link so the demo consistently demonstrates link previews.",
             "Show a loading state while fetching download options and clear it when releases are unavailable.",
@@ -201,7 +208,9 @@
       "date": "2026-08-13",
       "notes": {
         "changes": {
-          "Added": ["Hello, world!"]
+          "Added": [
+            "Hello, world!"
+          ]
         }
       }
     }

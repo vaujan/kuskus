@@ -7,7 +7,7 @@ const test = require('node:test')
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 async function generate(context, includeLicense = true) {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-notices-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-notices-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const packagePath = join(root, 'node_modules', 'example')
   const atomicPath = join(root, 'src/renderer/src/features/items/live/atomic')

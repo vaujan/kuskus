@@ -160,7 +160,7 @@ test('network errors can be retried without leaving the updater busy', async () 
   }
   await s.check()
   assert.equal(s.status().phase, 'error')
-  assert.equal(s.status().message, 'Could not update Kuskus. Please try again later.')
+  assert.equal(s.status().message, 'Could not update Kusu. Please try again later.')
   s.updater.checkForUpdates = async () => s.updater.emit('update-not-available')
   await s.check()
   assert.equal(s.status().phase, 'current')

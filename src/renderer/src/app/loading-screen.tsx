@@ -12,7 +12,7 @@ export function LoadingScreen(): React.JSX.Element {
         />
         <div
           role="progressbar"
-          aria-label="Opening Kuskus"
+          aria-label="Opening Kusu"
           className="h-1 w-40 overflow-hidden rounded-full bg-muted"
         >
           <div className="h-full w-1/2 animate-pulse rounded-full bg-primary motion-reduce:animate-none" />

@@ -120,7 +120,7 @@ test('keeps pasted images inline once the composer is a note', () => {
 })
 
 test('persists revisioned capture text and rejects stale or inactive writers', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-capture-session-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-capture-session-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const path = join(root, 'sessions.json')
   const service = new CaptureSessionService(path)
@@ -177,7 +177,7 @@ test('keeps first ownership claims silent and waits only for transient work', ()
 })
 
 test('tracks staged-asset changes independently and clears the complete draft revision', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-capture-assets-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-capture-assets-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new CaptureSessionService(join(root, 'sessions.json'))
   service.claim('library-two', 'quick')
@@ -342,7 +342,7 @@ class FakeCaptureLibrary {
 /* eslint-enable @typescript-eslint/explicit-function-return-type, @typescript-eslint/no-empty-function */
 
 test('accepts rapid submissions into a FIFO queue without keeping the shared draft busy', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-capture-queue-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-capture-queue-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const sessions = new CaptureSessionService(join(root, 'sessions.json'))
   await sessions.initialize()
@@ -390,7 +390,7 @@ test('accepts rapid submissions into a FIFO queue without keeping the shared dra
 })
 
 test('keeps failed submissions recoverable through retry, restore, and discard', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-capture-recovery-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-capture-recovery-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const sessions = new CaptureSessionService(join(root, 'sessions.json'))
   await sessions.initialize()
@@ -442,7 +442,7 @@ test('keeps failed submissions recoverable through retry, restore, and discard',
 })
 
 test('isolates and commits rapid mixed note, URL, image, and file submissions', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-capture-mixed-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-capture-mixed-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const library = new LibraryService(join(root, 'settings.json'))
   const state = await library.createIn(root, 'Vault')
@@ -514,7 +514,7 @@ test('isolates and commits rapid mixed note, URL, image, and file submissions', 
 })
 
 test('resumes an interrupted processing submission on launch without duplicating it', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-capture-resume-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-capture-resume-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const sessions = new CaptureSessionService(join(root, 'sessions.json'))
   await sessions.initialize()

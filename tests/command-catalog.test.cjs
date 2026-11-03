@@ -79,7 +79,7 @@ const catalog = (overrides = {}) => {
     itemOperationBusy: false,
     commandModifier: 'Ctrl',
     noteCommandsEnabled: false,
-    colorTheme: 'kuskus',
+    colorTheme: 'kusu',
     colorMode: 'dark',
     actions: {},
     ...overrides
@@ -132,7 +132,7 @@ test('theme commands use the current settings and send the selected values', () 
       colorMode: (mode) => applied.push(['mode', mode])
     }
   })
-  assert.equal(findCommand(commands, 'color-theme:kuskus').checked, true)
+  assert.equal(findCommand(commands, 'color-theme:kusu').checked, true)
   assert.equal(findCommand(commands, 'color-mode:dark').checked, true)
   assert.equal(findCommand(commands, 'color-theme:nord').checked, false)
   findCommand(commands, 'color-theme:nord').run()

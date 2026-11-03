@@ -57,11 +57,11 @@ test('right-clicking inside a selected range preserves that range', () => {
 test('overflow uses an end-aware transparent fade instead of a shadow', () => {
   assert.match(
     presentationStyle,
-    /\.kuskus-markdown-table-scroll\[data-overflow-right\][\s\S]*mask-image:[^;]*transparent/
+    /\.kusu-markdown-table-scroll\[data-overflow-right\][\s\S]*mask-image:[^;]*transparent/
   )
   assert.doesNotMatch(
     presentationStyle,
-    /\.kuskus-markdown-table-scroll\[data-overflow-(?:left|right)\][^{]*\{[^}]*box-shadow/
+    /\.kusu-markdown-table-scroll\[data-overflow-(?:left|right)\][^{]*\{[^}]*box-shadow/
   )
 })
 
@@ -83,17 +83,17 @@ test('Read tables track overflow on mount, resize, and scroll', () => {
 test('scrollable tables expose their scrollbar without requiring hover', () => {
   assert.match(
     presentationStyle,
-    /\.kuskus-markdown-table-scroll\s*\{[^}]*scrollbar-color: var\(--typeset-table-scroll-thumb\)/
+    /\.kusu-markdown-table-scroll\s*\{[^}]*scrollbar-color: var\(--typeset-table-scroll-thumb\)/
   )
   assert.doesNotMatch(
     presentationStyle,
-    /\.kuskus-markdown-table-scroll:hover::?-webkit-scrollbar-thumb/
+    /\.kusu-markdown-table-scroll:hover::?-webkit-scrollbar-thumb/
   )
 })
 
 test('Read and Live table cells both wrap long content before scrolling', () => {
   const sharedCells = presentationStyle.match(
-    /\.kuskus-markdown-table :is\(th, td\)\s*\{([^}]+)\}/
+    /\.kusu-markdown-table :is\(th, td\)\s*\{([^}]+)\}/
   )?.[1]
   const readHeaders = typesetStyle.match(/&:where\(thead th\)\s*\{([^}]+)\}/)?.[1]
   const readTable = typesetStyle.match(/&:where\(\.typeset-scroll table\)\s*\{([^}]+)\}/)?.[1]
@@ -114,7 +114,7 @@ test('Read and Live tables honor each column alignment', () => {
     assert.match(
       presentationStyle,
       new RegExp(
-        `\\.kuskus-markdown-table :is\\(th, td\\)\\[align='${align}'\\]\\s*\\{\\s*text-align: ${align};`
+        `\\.kusu-markdown-table :is\\(th, td\\)\\[align='${align}'\\]\\s*\\{\\s*text-align: ${align};`
       )
     )
   }
@@ -124,7 +124,7 @@ test('tables and their outer cells share the add buttons slight corner radius', 
   assert.match(presentationStyle, /--typeset-table-radius: 0\.25rem/)
   assert.match(
     presentationStyle,
-    /\.kuskus-markdown-table\s*\{[^}]*border-radius: var\(--typeset-table-radius\)/
+    /\.kusu-markdown-table\s*\{[^}]*border-radius: var\(--typeset-table-radius\)/
   )
   assert.match(presentationStyle, /thead th:first-child\s*\{[^}]*border-start-start-radius/)
   assert.match(
@@ -165,7 +165,7 @@ test('selection and drop-target fills round inside their outlines', () => {
 test('the focused editing cell uses a rounded ring instead of a square outline', () => {
   assert.match(
     presentationStyle,
-    /\.kuskus-markdown-table :is\(th, td\):focus-within\s*\{[^}]*border-radius: 0\.375rem;[^}]*box-shadow: inset 0 0 0 2px var\(--primary\);[^}]*outline: none/
+    /\.kusu-markdown-table :is\(th, td\):focus-within\s*\{[^}]*border-radius: 0\.375rem;[^}]*box-shadow: inset 0 0 0 2px var\(--primary\);[^}]*outline: none/
   )
 })
 

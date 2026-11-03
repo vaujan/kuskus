@@ -211,7 +211,7 @@ html[data-embedded-scene] .workflow-scene {
   transform-origin: top left;
 }
 /* The app's menus portal to body, outside the scaled scene. */
-html[data-embedded-scene] .cm-kuskus-slash-menu {
+html[data-embedded-scene] .cm-kusu-slash-menu {
   transform: scale(var(--scene-scale));
   transform-origin: top left;
 }

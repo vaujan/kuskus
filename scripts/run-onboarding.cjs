@@ -51,7 +51,7 @@ async function run() {
   await writeFile(runnerPath, String(process.pid))
 
   try {
-    console.log(`Starting Kuskus with a fresh onboarding workspace: ${onboardingRoot}`)
+    console.log(`Starting Kusu with a fresh onboarding workspace: ${onboardingRoot}`)
     const executable = join(
       projectRoot,
       'node_modules',
@@ -62,8 +62,8 @@ async function run() {
       cwd: projectRoot,
       env: {
         ...process.env,
-        KUSKUS_ONBOARDING_USER_DATA: userDataPath,
-        KUSKUS_ONBOARDING_LIBRARIES_PATH: librariesPath
+        KUSU_ONBOARDING_USER_DATA: userDataPath,
+        KUSU_ONBOARDING_LIBRARIES_PATH: librariesPath
       },
       shell: process.platform === 'win32',
       stdio: 'inherit'

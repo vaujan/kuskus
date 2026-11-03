@@ -1,4 +1,4 @@
-export const KUSKUS_ITEM_DRAG_TYPE = 'application/x-kuskus-item-ids'
+export const KUSU_ITEM_DRAG_TYPE = 'application/x-kusu-item-ids'
 
 const DRAG_PREVIEW_MAX_WIDTH = 304
 const DRAG_PREVIEW_MAX_HEIGHT = 360
@@ -8,7 +8,7 @@ function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, value))
 }
 
-export function setKuskusItemDragPreview({
+export function setKusuItemDragPreview({
   dataTransfer,
   source,
   clientX,
@@ -136,14 +136,14 @@ export function setKuskusItemDragPreview({
   window.requestAnimationFrame(() => preview.remove())
 }
 
-export function hasKuskusItemDrag(dataTransfer: DataTransfer): boolean {
-  return Array.from(dataTransfer.types).includes(KUSKUS_ITEM_DRAG_TYPE)
+export function hasKusuItemDrag(dataTransfer: DataTransfer): boolean {
+  return Array.from(dataTransfer.types).includes(KUSU_ITEM_DRAG_TYPE)
 }
 
-export function readKuskusItemDrag(dataTransfer: DataTransfer): string[] {
-  if (!hasKuskusItemDrag(dataTransfer)) return []
+export function readKusuItemDrag(dataTransfer: DataTransfer): string[] {
+  if (!hasKusuItemDrag(dataTransfer)) return []
   try {
-    const value: unknown = JSON.parse(dataTransfer.getData(KUSKUS_ITEM_DRAG_TYPE))
+    const value: unknown = JSON.parse(dataTransfer.getData(KUSU_ITEM_DRAG_TYPE))
     return Array.isArray(value) && value.every((itemId) => typeof itemId === 'string')
       ? [...new Set(value)]
       : []

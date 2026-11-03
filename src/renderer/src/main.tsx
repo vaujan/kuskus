@@ -24,46 +24,43 @@ import { resolveBackgroundOpacity } from './settings/settings-schema'
 
 document.documentElement.style.setProperty(
   '--window-background-opacity',
-  `${resolveBackgroundOpacity(localStorage.getItem('kuskus-background-opacity'))}%`
+  `${resolveBackgroundOpacity(localStorage.getItem('kusu-background-opacity'))}%`
 )
 
 document.documentElement.dataset.platform = window.electron.window.platform
 
-performance.mark('kuskus:renderer-entry')
+performance.mark('kusu:renderer-entry')
 window.electron.window.onTextContextMenu((details) => {
   void import('./features/shell/text-context-menu').then(({ openTextContextMenu }) => {
     openTextContextMenu(details)
   })
 })
 
-const initialColorMode = resolveColorMode(localStorage.getItem('kuskus-color-mode'))
-applyControlStyle(resolveControlStyle(localStorage.getItem('kuskus-control-style')))
+const initialColorMode = resolveColorMode(localStorage.getItem('kusu-color-mode'))
+applyControlStyle(resolveControlStyle(localStorage.getItem('kusu-control-style')))
 window.electron.window.setNativeThemeSource(initialColorMode)
 applyTheme(
   resolveAppliedTheme(initialColorMode),
-  resolveColorTheme(localStorage.getItem('kuskus-color-theme')),
+  resolveColorTheme(localStorage.getItem('kusu-color-theme')),
   {
-    uiFont: resolveFontPreference(
-      localStorage.getItem('kuskus-ui-font'),
-      DEFAULT_TYPOGRAPHY.uiFont
-    ),
+    uiFont: resolveFontPreference(localStorage.getItem('kusu-ui-font'), DEFAULT_TYPOGRAPHY.uiFont),
     uiFontFallback: DEFAULT_TYPOGRAPHY.uiFontFallback,
     contentFont: resolveFontPreference(
-      localStorage.getItem('kuskus-content-font'),
+      localStorage.getItem('kusu-content-font'),
       DEFAULT_TYPOGRAPHY.contentFont
     ),
     contentFontFallback: DEFAULT_TYPOGRAPHY.contentFontFallback,
     codeFont: resolveFontPreference(
-      localStorage.getItem('kuskus-code-font'),
+      localStorage.getItem('kusu-code-font'),
       DEFAULT_TYPOGRAPHY.codeFont
     ),
     codeFontFallback: DEFAULT_TYPOGRAPHY.codeFontFallback,
     sourceFontSize: resolveBaseFontSize(
-      localStorage.getItem('kuskus-markdown-source-font-size'),
+      localStorage.getItem('kusu-markdown-source-font-size'),
       DEFAULT_TYPOGRAPHY.sourceFontSize
     ),
     contentFontSize: resolveBaseFontSize(
-      localStorage.getItem('kuskus-markdown-content-font-size'),
+      localStorage.getItem('kusu-markdown-content-font-size'),
       DEFAULT_TYPOGRAPHY.contentFontSize
     )
   }
@@ -102,7 +99,7 @@ if (isQuickCapture) {
 const root = createRoot(document.getElementById('root')!)
 if (isQuickCapture) {
   void import('./features/capture/quick-capture-app').then(({ QuickCaptureApp }) => {
-    performance.mark('kuskus:surface-module-loaded')
+    performance.mark('kusu:surface-module-loaded')
     root.render(
       <StrictMode>
         <SettingsProvider>
@@ -113,7 +110,7 @@ if (isQuickCapture) {
   })
 } else if (isNoteWindow) {
   void import('./features/items/note-window-app').then(({ NoteWindowApp }) => {
-    performance.mark('kuskus:surface-module-loaded')
+    performance.mark('kusu:surface-module-loaded')
     root.render(
       <StrictMode>
         <SettingsProvider>
@@ -124,7 +121,7 @@ if (isQuickCapture) {
   })
 } else if (isSettingsWindow) {
   void import('./features/settings/settings-window-app').then(({ SettingsWindowApp }) => {
-    performance.mark('kuskus:surface-module-loaded')
+    performance.mark('kusu:surface-module-loaded')
     root.render(
       <StrictMode>
         <SettingsProvider>
@@ -135,7 +132,7 @@ if (isQuickCapture) {
   })
 } else {
   void import('./App').then(({ default: App }) => {
-    performance.mark('kuskus:surface-module-loaded')
+    performance.mark('kusu:surface-module-loaded')
     root.render(
       <StrictMode>
         <SettingsProvider>

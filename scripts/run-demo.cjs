@@ -6,7 +6,7 @@ const { seedDemoEnvironment } = require('./create-demo-library.cjs')
 
 async function run() {
   const { userDataPath, libraryPath } = await seedDemoEnvironment()
-  console.log(`Starting Kuskus with isolated demo data from ${libraryPath}`)
+  console.log(`Starting Kusu with isolated demo data from ${libraryPath}`)
 
   const executable = join(
     process.cwd(),
@@ -16,7 +16,7 @@ async function run() {
   )
   const child = spawn(executable, ['dev'], {
     cwd: process.cwd(),
-    env: { ...process.env, KUSKUS_DEMO_USER_DATA: userDataPath },
+    env: { ...process.env, KUSU_DEMO_USER_DATA: userDataPath },
     shell: process.platform === 'win32',
     stdio: 'inherit'
   })

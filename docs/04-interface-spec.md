@@ -5,7 +5,7 @@ Last updated: 2026-07-14
 
 ## Design intent
 
-Kuskus is a visual layer over a user-controlled local library. It should feel calmer and more visual than a file manager while retaining familiar desktop behaviors.
+Kusu is a visual layer over a user-controlled local library. It should feel calmer and more visual than a file manager while retaining familiar desktop behaviors.
 
 Visual references:
 
@@ -13,7 +13,7 @@ Visual references:
 - Are.na for content density, limited chrome, and mixed content presented without heavy containers.
 - The project wireframes for the combined toolbar/title bar and expandable folder sidebar.
 
-Kuskus should borrow interaction ideas, not reproduce another product's branding or social features.
+Kusu should borrow interaction ideas, not reproduce another product's branding or social features.
 
 ## Application shell
 
@@ -61,7 +61,7 @@ Sidebar visibility and the most recently selected width should persist between l
   appearance changes can be judged against real content. The panel presents Appearance, Editing,
   and Capture groups in one scrollable column, remains open during workspace interaction, and
   closes from its close action or `Escape`.
-- Appearance separates a curated color theme (**Kuskus**, **Graphite**, **GitHub**, **Ayu**,
+- Appearance separates a curated color theme (**Kusu**, **Graphite**, **GitHub**, **Ayu**,
   **Material**, **Moss**, **Clay**, **Solarized**, **Catppuccin**, **Tokyo Storm**, **Monokai**,
   **One Dark**, **Dracula**, **Gruvbox**, or **Nord**) from color mode (**Light**,
   **Dark**, or **System**). The themes appear in a compact dropdown. Solarized and Gruvbox use
@@ -77,7 +77,7 @@ Sidebar visibility and the most recently selected width should persist between l
   A live UI-and-code sample makes both changes observable even when the workspace has no code in
   view. Changes apply and persist immediately across the main workspace, detached note windows, and
   quick capture. Appearance also exposes interface scale, supported native window
-  material, and a reset to the default Kuskus dark appearance with Inter.
+  material, and a reset to the default Kusu dark appearance with Inter.
 - On Windows, Appearance includes **Translucent background**. It is enabled by default on Windows
   11 22H2 or newer, applies native Acrylic behind a visibly translucent, continuous toolbar/content
   material and a slightly heavier sidebar, and persists as app-local presentation state. Borders,
@@ -159,7 +159,7 @@ users can enable it from the note View menu, and the preference persists per dev
 notes do not duplicate the visual canvas. The preference persists per device, contributes to the
 active-filter badge, applies in Masonry, Grid, and Focus, and resets with **Clear filters**.
 An uninitialized vault uses a preview screen listing detected notes, images, files, folders, and the
-exact Kuskus metadata changes. Schema-v1 libraries use a migration screen that explains the retained
+exact Kusu metadata changes. Schema-v1 libraries use a migration screen that explains the retained
 sibling backup and reports completion or a recoverable failure.
 
 If automatic legacy bookmark cleanup cannot safely distinguish generated metadata from user-authored
@@ -188,7 +188,7 @@ Rules:
 
 - A single application-menu button follows Show or Hide Sidebar in Overview and list-first Focus.
   In a Focus detail pane it occupies the former Zen control position. Activating it reveals the
-  horizontal Kuskus, File, Edit, and View menubar in place, replacing the hamburger; it does not
+  horizontal Kusu, File, Edit, and View menubar in place, replacing the hamburger; it does not
   open a dropdown directly.
 - The application menu groups File, Edit, and View commands, displays known shortcuts, disables
   unavailable note commands in place, and routes actions through the same guarded workflows as
@@ -381,7 +381,7 @@ of the active view.
 ### Direct capture
 
 - Pasting while the content canvas has focus invokes the same detection and saving pipeline without requiring a preliminary click.
-- On Windows, pressing `Ctrl+Shift+Space` while Kuskus is running opens or focuses the shared composer in a
+- On Windows, pressing `Ctrl+Shift+Space` while Kusu is running opens or focuses the shared composer in a
   singleton bottom-right Inbox popup without reading the clipboard. The main window retains its
   visibility, destination, retrieval, selection, detail, and dialog state unless the user explicitly
   chooses **Continue in editor**.
@@ -610,7 +610,7 @@ The detail dialog exposes:
   pane. The option is disabled when the note has no attachments.
 - The dialog lists a compact preview, filename, and either the relative path or an exceptional
   plain-language state for each image. Shared and missing images show their relevant state. Each
-  image row has a More button that opens a dropdown with Open in Kuskus, Open in default app, Edit
+  image row has a More button that opens a dropdown with Open in Kusu, Open in default app, Edit
   alt text, Rename file, Copy file path, and Show in Explorer. Actions that need a missing file are
   disabled.
 - Edit alt text reveals an inline field in the selected image row, updates every Markdown reference

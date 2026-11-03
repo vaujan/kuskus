@@ -1,5 +1,5 @@
 name: Feature request
-description: Tell us what you want to accomplish with Kuskus.
+description: Tell us what you want to accomplish with Kusu.
 title: 'Feature: '
 body:
   - type: markdown
@@ -9,7 +9,7 @@ body:
     id: goal
     attributes:
       label: What are you trying to accomplish?
-      description: Describe a real task and where Kuskus gets in your way.
+      description: Describe a real task and where Kusu gets in your way.
     validations:
       required: true
   - type: textarea

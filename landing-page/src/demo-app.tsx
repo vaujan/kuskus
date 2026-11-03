@@ -23,7 +23,7 @@ import { personaLibrary } from './persona-libraries'
 function installLibrary(id: DemoPersonaId): ReturnType<typeof personaLibrary> {
   localStorage.setItem(NOTE_INLINE_TITLE_STORAGE_KEY, 'false')
   const library = personaLibrary(id)
-  const sessionKey = `kuskus-session:v1:${library.path}`
+  const sessionKey = `kusu-session:v1:${library.path}`
   const previousSession = localStorage.getItem(sessionKey)
   installPreview(
     library,
@@ -43,13 +43,13 @@ applyTheme(firstPersona.mode, firstPersona.theme, {
   contentFont: firstPersona.font
 })
 applyControlStyle('skeuomorphic')
-localStorage.setItem('kuskus-color-mode', firstPersona.mode)
-localStorage.setItem('kuskus-color-theme', firstPersona.theme)
-localStorage.setItem('kuskus-ui-font', firstPersona.font)
-localStorage.setItem('kuskus-content-font', firstPersona.font)
-localStorage.setItem('kuskus-app-zoom', '0.9')
-localStorage.setItem('kuskus-sidebar-width', '208')
-localStorage.setItem('kuskus-focus-list-width', '320')
+localStorage.setItem('kusu-color-mode', firstPersona.mode)
+localStorage.setItem('kusu-color-theme', firstPersona.theme)
+localStorage.setItem('kusu-ui-font', firstPersona.font)
+localStorage.setItem('kusu-content-font', firstPersona.font)
+localStorage.setItem('kusu-app-zoom', '0.9')
+localStorage.setItem('kusu-sidebar-width', '208')
+localStorage.setItem('kusu-focus-list-width', '320')
 
 export default function Demo(): React.JSX.Element {
   const [library, setLibrary] = useState(initialLibrary)

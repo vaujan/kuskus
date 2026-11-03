@@ -13,7 +13,7 @@
 
 ## Left alone
 
-- Dropdown Menu has no current Kuskus consumer, so no application call sites were changed.
+- Dropdown Menu has no current Kusu consumer, so no application call sites were changed.
 - The Vega translucent menu surface, Lucide icons, variants, inset spacing, shortcut styling, and public exports were preserved.
 
 ## Behavior changes

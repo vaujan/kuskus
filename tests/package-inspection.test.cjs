@@ -16,7 +16,7 @@ async function inspect(
   version = manifest.version,
   target = process.platform
 ) {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-package-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-package-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const input = join(root, 'input')
   const platform = target === 'win32' ? 'win-unpacked' : 'linux-unpacked'
@@ -26,7 +26,7 @@ async function inspect(
           root,
           'dist',
           process.arch === 'arm64' ? 'mac-arm64' : 'mac',
-          'Kuskus.app',
+          'Kusu.app',
           'Contents',
           'Resources'
         )
@@ -38,7 +38,7 @@ async function inspect(
     'out/preload/index.js': '',
     'out/renderer/index.html': '',
     'package.json': JSON.stringify({ name: manifest.name, version }),
-    LICENSE: 'Kuskus license',
+    LICENSE: 'Kusu license',
     'THIRD_PARTY_NOTICES.txt': atomicNotice ? 'Kenny Bergquist' : 'missing notice',
     ...(extraFile ? { [extraFile]: 'unexpected data' } : {})
   }

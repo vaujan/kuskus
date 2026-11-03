@@ -78,7 +78,7 @@ export const NoteFind = forwardRef<
       const eventTarget = event.target as Node | null
       if (
         eventTarget instanceof Element &&
-        eventTarget.closest('input:not([data-kuskus-find-input]), textarea, select')
+        eventTarget.closest('input:not([data-kusu-find-input]), textarea, select')
       ) {
         return
       }
@@ -170,7 +170,7 @@ export const NoteFind = forwardRef<
         )}
         <input
           ref={inputRef}
-          data-kuskus-find-input
+          data-kusu-find-input
           type="search"
           value={query}
           onChange={(event) => {
@@ -254,7 +254,7 @@ export const NoteFind = forwardRef<
           </span>
           <input
             ref={replaceInputRef}
-            data-kuskus-find-input
+            data-kusu-find-input
             value={replacement}
             onChange={(event) => setReplacement(event.target.value)}
             onKeyDown={(event) => {

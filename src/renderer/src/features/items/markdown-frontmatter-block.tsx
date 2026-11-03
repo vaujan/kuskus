@@ -29,7 +29,7 @@ export function MarkdownFrontmatterBlock({
   const yaml = source.yaml.replace(/\n$/, '')
 
   return (
-    <div className={cn('typeset kuskus-typeset', className)} data-typeset-presentation="detail">
+    <div className={cn('typeset kusu-typeset', className)} data-typeset-presentation="detail">
       <MarkdownCodeBlock code={yaml} language="yaml" onOpenLink={onOpenLink} />
     </div>
   )

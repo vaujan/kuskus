@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import type { UpdateStatus } from '../../../shared/update-contract'
 
 export function useAppUpdates(): {
@@ -36,14 +37,14 @@ export function useAppUpdates(): {
     status.message ??
     {
       unavailable: 'In-app updates are available in installed Windows builds.',
-      idle: 'Kuskus checks for updates automatically. Downloads start when you choose.',
+      idle: 'Kusu checks for updates automatically. Downloads start when you choose.',
       checking: 'Checking for updates…',
-      current: 'You’re using the latest version of Kuskus.',
+      current: '',
       available: `Version ${status.version} is available.`,
       downloading: `Downloading version ${status.version}… ${Math.floor(status.percent ?? 0)}%`,
       ready: `Version ${status.version} is ready. Restart to finish updating.`,
       installing: 'Saving notes and restarting…',
-      error: 'Could not update Kuskus. Try again.'
+      error: 'Could not update Kusu. Try again.'
     }[status.phase]
   const label =
     status.phase === 'available'
@@ -62,9 +63,14 @@ export function useAppUpdates(): {
       const api = window.electron.updates
       if (status.phase === 'available') await api.download()
       else if (status.phase === 'ready') await api.install()
-      else await api.check()
+      else {
+        await api.check()
+        if ((await api.getStatus()).phase === 'current') {
+          toast.info('No update available', { id: 'app-update-current' })
+        }
+      }
     } catch {
-      setStatus({ phase: 'error', message: 'Could not update Kuskus. Please try again.' })
+      setStatus({ phase: 'error', message: 'Could not update Kusu. Please try again.' })
     }
   }
 

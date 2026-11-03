@@ -20,13 +20,13 @@ function App(): React.JSX.Element {
 
   useEffect(() => {
     let mounted = true
-    void window.kuskus.getOverview().then((result) => {
+    void window.kusu.getOverview().then((result) => {
       if (mounted) {
-        performance.mark('kuskus:library-state-received')
+        performance.mark('kusu:library-state-received')
         performance.measure(
-          'kuskus:renderer-entry-to-library-state',
-          'kuskus:renderer-entry',
-          'kuskus:library-state-received'
+          'kusu:renderer-entry-to-library-state',
+          'kusu:renderer-entry',
+          'kusu:library-state-received'
         )
         setState(
           result.ok

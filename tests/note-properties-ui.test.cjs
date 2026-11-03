@@ -31,15 +31,15 @@ test('frontmatter renders as a code block in read mode (no properties form)', ()
   // The typed properties form is gone; read mode shows the YAML card.
   assert.doesNotMatch(detailSource, /<NoteProperties/)
   assert.match(detailSource, /<MarkdownFrontmatterBlock/)
-  assert.match(frontmatterSource, /typeset kuskus-typeset/)
+  assert.match(frontmatterSource, /typeset kusu-typeset/)
   assert.match(frontmatterSource, /data-typeset-presentation="detail"/)
 })
 
 test('block math uses the shared code card in read and live modes', () => {
   assert.match(previewSource, /<MarkdownCodeCardHeader code=\{source\} label="Math" \/>/)
-  assert.match(previewSource, /className="kuskus-code-block not-typeset"/)
+  assert.match(previewSource, /className="kusu-code-block not-typeset"/)
   assert.match(liveSource, /createCodeBlockHeader\(this\.tex, 'math'\)/)
-  assert.match(liveSource, /'kuskus-code-block cm-kuskus-math-block'/)
+  assert.match(liveSource, /'kusu-code-block cm-kusu-math-block'/)
 })
 
 test('frontmatter reveals as editable source in live mode (no hiddenRange overlay)', () => {

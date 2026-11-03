@@ -23,7 +23,7 @@ export function useLibrarySearch(
     const currentRequest = requestId.current + 1
     requestId.current = currentRequest
     const timer = window.setTimeout(() => {
-      void window.kuskus.queryItems({ query: normalizedQuery }).then((result) => {
+      void window.kusu.queryItems({ query: normalizedQuery }).then((result) => {
         if (currentRequest !== requestId.current) return
         startTransition(() => {
           setResolvedQuery(normalizedQuery)

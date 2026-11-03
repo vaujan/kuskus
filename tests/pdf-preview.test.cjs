@@ -7,7 +7,7 @@ require('./helpers/install-ts-require.cjs')()
 const { LibraryService } = require('../src/main/library/library-service.ts')
 
 test('PDF preview returns exact imported bytes and resolves files by library identity', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-pdf-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-pdf-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const settings = join(root, 'settings.json')
   const service = new LibraryService(settings)
@@ -28,7 +28,7 @@ test('PDF preview returns exact imported bytes and resolves files by library ide
 })
 
 test('PDF preview rejects other library item types', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-pdf-type-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-pdf-type-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   await service.createIn(root, 'Vault')

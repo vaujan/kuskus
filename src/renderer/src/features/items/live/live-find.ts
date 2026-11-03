@@ -31,8 +31,8 @@ const setFind = StateEffect.define<FindMeta>()
 // are editable DOM owned by the table widget, so use the CSS Highlight API to
 // paint their text without changing that DOM or disturbing its selection.
 const widgetHighlights = new Map<EditorView, { matches: Range[]; current: Range[] }>()
-const MATCH_HIGHLIGHT = 'kuskus-live-find-widget-match'
-const CURRENT_HIGHLIGHT = 'kuskus-live-find-widget-current'
+const MATCH_HIGHLIGHT = 'kusu-live-find-widget-match'
+const CURRENT_HIGHLIGHT = 'kusu-live-find-widget-current'
 
 function paintWidgetHighlights(): void {
   const matches = new Highlight()
@@ -205,8 +205,7 @@ function findDecorations(find: LiveFindState): DecorationSet {
   return Decoration.set(
     visibleMatches.map((match) =>
       Decoration.mark({
-        class:
-          match === find.matches[find.current] ? 'cm-kuskus-find-current' : 'cm-kuskus-find-match'
+        class: match === find.matches[find.current] ? 'cm-kusu-find-current' : 'cm-kusu-find-match'
       }).range(match.from, match.to)
     ),
     true

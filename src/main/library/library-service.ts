@@ -644,7 +644,7 @@ export class LibraryService {
     this.validateItemId(input.itemId, 'item')
     const bytes = validateImageInput(input)
     const detected = detectImage(bytes)
-    if (!detected) throw new Error('Kuskus supports PNG, JPEG, GIF, WebP, and BMP images.')
+    if (!detected) throw new Error('Kusu supports PNG, JPEG, GIF, WebP, and BMP images.')
     if (input.origin !== undefined && input.origin !== 'clipboard' && input.origin !== 'file') {
       throw new Error('The image source is invalid.')
     }
@@ -686,7 +686,7 @@ export class LibraryService {
     const libraryPath = this.requireCurrentLibrary()
     const bytes = validateImageInput(input)
     const detected = detectImage(bytes)
-    if (!detected) throw new Error('Kuskus supports PNG, JPEG, GIF, WebP, and BMP images.')
+    if (!detected) throw new Error('Kusu supports PNG, JPEG, GIF, WebP, and BMP images.')
     if (input.origin !== undefined && input.origin !== 'clipboard' && input.origin !== 'file') {
       throw new Error('The image source is invalid.')
     }
@@ -849,7 +849,7 @@ export class LibraryService {
     await this.store.readPersistedLibrary(libraryPath)
 
     const detected = detectImage(bytes)
-    if (!detected) throw new Error('Kuskus supports PNG, JPEG, GIF, WebP, and BMP images.')
+    if (!detected) throw new Error('Kusu supports PNG, JPEG, GIF, WebP, and BMP images.')
 
     const metadata = createImageMetadata(
       randomUUID(),

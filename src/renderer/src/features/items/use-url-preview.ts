@@ -28,7 +28,7 @@ export function useUrlPreview(
     let active = true
     let release: (() => void) | null = null
     void acquirePreview(`url:${key}`, async () => {
-      const result = await window.kuskus.getUrlPreview(itemId, kind)
+      const result = await window.kusu.getUrlPreview(itemId, kind)
       if (!result.ok) throw new Error(result.error)
       return result.data
     }).then(

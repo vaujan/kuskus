@@ -9,9 +9,11 @@ export function AppUpdates(): React.JSX.Element {
     <Field orientation="horizontal">
       <FieldContent>
         <FieldLabel>App updates</FieldLabel>
-        <FieldDescription role="status" className="tabular-nums">
-          {message}
-        </FieldDescription>
+        {message && (
+          <FieldDescription role="status" className="tabular-nums">
+            {message}
+          </FieldDescription>
+        )}
       </FieldContent>
       <Button
         variant="outline"

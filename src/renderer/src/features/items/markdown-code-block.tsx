@@ -20,11 +20,11 @@ export function MarkdownCodeCardHeader({
   const [copied, setCopied] = useState(false)
 
   return (
-    <div className="kuskus-code-block-header">
+    <div className="kusu-code-block-header">
       <span>{label}</span>
       <button
         type="button"
-        className="kuskus-code-copy"
+        className="kusu-code-copy"
         aria-label={`Copy ${label}`}
         onClick={async () => {
           if (await copyMarkdownCode(code)) {
@@ -86,7 +86,7 @@ export function MarkdownCodeBlock({
         <a
           key={`${from}-${to}`}
           href={link.url}
-          className="kuskus-code-link"
+          className="kusu-code-link"
           onClick={(event) => {
             event.preventDefault()
             event.stopPropagation()
@@ -104,7 +104,7 @@ export function MarkdownCodeBlock({
   if (diagrams && isMermaidLanguage(language)) return <MarkdownMermaid code={code} />
 
   return (
-    <div className="kuskus-code-block not-typeset" data-not-typeset>
+    <div className="kusu-code-block not-typeset" data-not-typeset>
       <MarkdownCodeCardHeader code={code} label={codeLanguageLabel(language)} />
       <pre>
         <code>{highlighted}</code>

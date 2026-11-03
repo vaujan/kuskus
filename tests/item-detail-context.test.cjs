@@ -79,7 +79,7 @@ test('formats the localized updated timestamp and preserves invalid input', () =
 })
 
 test('reading width defaults safely and toggles between comfortable and wide', () => {
-  assert.equal(NOTE_READING_WIDTH_STORAGE_KEY, 'kuskus-note-reading-width')
+  assert.equal(NOTE_READING_WIDTH_STORAGE_KEY, 'kusu-note-reading-width')
   assert.equal(parseNoteReadingWidth(null), 'comfortable')
   assert.equal(parseNoteReadingWidth('comfortable'), 'comfortable')
   assert.equal(parseNoteReadingWidth('invalid'), 'comfortable')
@@ -286,7 +286,7 @@ test('detail modes share the compact toolbar and inline document flow', () => {
     detailSource,
     /window\.removeEventListener\('keydown', handleNoteModeShortcut, true\)/
   )
-  assert.doesNotMatch(detailSource, /<header className="kuskus-detail-document-frame/)
+  assert.doesNotMatch(detailSource, /<header className="kusu-detail-document-frame/)
   assert.doesNotMatch(detailSource, /NoteMetadataControls|NoteIdentityControls/)
   assert.match(detailSource, /function NoteDocumentBlocks/)
   assert.match(detailSource, /showInlineTitle/)
@@ -313,7 +313,7 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.doesNotMatch(detailSource, /rounded-tl-2xl|border-t border-l border-border/)
   assert.match(detailSource, /function DetailInspector/)
   assert.match(detailSource, /function FileCanvas/)
-  assert.match(detailSource, /<article className="kuskus-detail-document-frame/)
+  assert.match(detailSource, /<article className="kusu-detail-document-frame/)
   assert.match(actionMenuSource, /<DropdownMenuLabel>View<\/DropdownMenuLabel>/)
   assert.match(actionMenuSource, /Readable line length/)
   assert.match(actionMenuSource, /Inline title/)
@@ -325,7 +325,7 @@ test('detail modes share the compact toolbar and inline document flow', () => {
   assert.match(markdownStyles, /max-width: var\(--detail-document-max-width\)/)
   assert.doesNotMatch(markdownStyles, /scrollbar-gutter/)
   assert.match(markdownStyles, /translate: calc\(var\(--detail-editor-scrollbar-size\) \/ 2\) 0/)
-  assert.match(markdownStyles, /\[data-reading-width='wide'\] \.kuskus-detail-document-frame/)
+  assert.match(markdownStyles, /\[data-reading-width='wide'\] \.kusu-detail-document-frame/)
   assert.match(markdownStyles, /--detail-document-max-width: none/)
   assert.match(
     editorSource,

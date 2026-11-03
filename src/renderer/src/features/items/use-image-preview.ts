@@ -21,8 +21,8 @@ export function useImagePreview(
     let release: (() => void) | null = null
     void acquirePreview(`image:${thumbnail ? 'card' : 'full'}:${itemId}`, async () => {
       const result = thumbnail
-        ? await window.kuskus.getImageThumbnail(itemId)
-        : await window.kuskus.getImagePreview(itemId)
+        ? await window.kusu.getImageThumbnail(itemId)
+        : await window.kusu.getImagePreview(itemId)
       if (!result.ok) throw new Error(result.error)
       return result.data
     }).then(

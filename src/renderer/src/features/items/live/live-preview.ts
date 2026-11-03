@@ -78,10 +78,10 @@ class WikilinkImageWidget extends WidgetType {
 
   toDOM(): HTMLElement {
     const wrapper = document.createElement('span')
-    wrapper.className = 'kuskus-markdown-image-wrap cm-kuskus-image-wrap'
+    wrapper.className = 'kusu-markdown-image-wrap cm-kusu-image-wrap'
     if (this.resolution?.src) {
       const image = document.createElement('img')
-      image.className = 'kuskus-markdown-image cm-kuskus-image'
+      image.className = 'kusu-markdown-image cm-kusu-image'
       image.src = this.resolution.src
       image.alt = this.alt || this.resolution.label
       image.loading = 'lazy'
@@ -91,7 +91,7 @@ class WikilinkImageWidget extends WidgetType {
       return wrapper
     }
     const chip = document.createElement('span')
-    chip.className = 'kuskus-rich-image-state cm-kuskus-chip'
+    chip.className = 'kusu-rich-image-state cm-kusu-chip'
     if (this.resolution?.missing) {
       chip.textContent = `Image missing: ${this.alt || this.resolution.label}`
     } else if (this.resolution) {
@@ -109,22 +109,22 @@ class WikilinkImageWidget extends WidgetType {
  * decoration can keep the raw source hidden on inactive lines without
  * any range conflict — we never replace the `Image` node range. */
 /** Header widget for inactive fenced-code blocks: language label + copy
- * button, mirroring read mode's .kuskus-code-block-header. The fence's
+ * button, mirroring read mode's .kusu-code-block-header. The fence's
  * first line is decorated with an empty replace carrying this widget so
  * the source ```` ```lang ```` is hidden and the header occupies that
  * line's box. Skipped entirely on active lines (cursor inside the block)
  * so the user can edit the fence marks. */
 function createCodeBlockHeader(code: string, language: string): HTMLElement {
   const header = document.createElement('div')
-  header.className = 'kuskus-code-block-header cm-kuskus-code-block-header'
+  header.className = 'kusu-code-block-header cm-kusu-code-block-header'
 
   const label = document.createElement('span')
-  label.className = 'cm-kuskus-code-block-label'
+  label.className = 'cm-kusu-code-block-label'
   label.textContent = codeLanguageLabel(language)
 
   const copy = document.createElement('button')
   copy.type = 'button'
-  copy.className = 'kuskus-code-copy cm-kuskus-code-copy'
+  copy.className = 'kusu-code-copy cm-kusu-code-copy'
   copy.textContent = 'Copy'
   copy.setAttribute('aria-label', `Copy code${language ? `: ${language}` : ''}`)
   // Keep widget controls from moving the editor caret or stealing focus.
@@ -189,12 +189,12 @@ class MarkdownImageBlockWidget extends WidgetType {
 
   toDOM(): HTMLElement {
     const wrapper = document.createElement('div')
-    wrapper.className = 'cm-kuskus-image-block'
+    wrapper.className = 'cm-kusu-image-block'
     const remote = /^https?:\/\//i.test(this.target)
     const src = this.resolution?.src ?? (remote ? this.target : null)
     if (src) {
       const image = document.createElement('img')
-      image.className = 'kuskus-markdown-image cm-kuskus-image'
+      image.className = 'kusu-markdown-image cm-kusu-image'
       image.src = src
       image.alt = this.alt || this.resolution?.label || ''
       image.loading = 'lazy'
@@ -207,7 +207,7 @@ class MarkdownImageBlockWidget extends WidgetType {
       return wrapper
     }
     const chip = document.createElement('span')
-    chip.className = 'kuskus-rich-image-state cm-kuskus-chip'
+    chip.className = 'kusu-rich-image-state cm-kusu-chip'
     if (this.resolution?.missing) {
       chip.textContent = `Image missing: ${this.alt || this.resolution.label}`
     } else if (/^https?:\/\//i.test(this.target)) {
@@ -234,22 +234,22 @@ class MermaidWidget extends WidgetType {
 
   toDOM(): HTMLElement {
     const wrapper = document.createElement('div')
-    wrapper.className = 'kuskus-code-block kuskus-mermaid not-typeset'
+    wrapper.className = 'kusu-code-block kusu-mermaid not-typeset'
     wrapper.dataset.notTypeset = ''
     const body = document.createElement('div')
-    body.className = 'kuskus-mermaid-loading'
+    body.className = 'kusu-mermaid-loading'
     body.setAttribute('role', 'status')
     wrapper.append(createCodeBlockHeader(this.code, 'mermaid'), body)
 
     const render = (): void => {
       const renderId = ++this.renderId
       const dark = document.documentElement.classList.contains('dark')
-      body.className = 'kuskus-mermaid-loading'
+      body.className = 'kusu-mermaid-loading'
       body.textContent = 'Rendering diagram…'
-      void renderMermaid(`kuskus-live-mermaid-${++liveMermaidSequence}`, this.code, dark).then(
+      void renderMermaid(`kusu-live-mermaid-${++liveMermaidSequence}`, this.code, dark).then(
         (svg) => {
           if (renderId !== this.renderId) return
-          body.className = 'kuskus-mermaid-diagram'
+          body.className = 'kusu-mermaid-diagram'
           body.setAttribute('role', 'img')
           body.setAttribute('aria-label', 'Mermaid diagram')
           body.innerHTML = svg
@@ -299,9 +299,9 @@ class MathWidget extends WidgetType {
 
   toDOM(): HTMLElement {
     const element = document.createElement(this.display ? 'div' : 'span')
-    element.className = this.display ? 'kuskus-code-block cm-kuskus-math-block' : 'kuskus-math'
+    element.className = this.display ? 'kusu-code-block cm-kusu-math-block' : 'kusu-math'
     const content = this.display ? document.createElement('div') : element
-    if (this.display) content.className = 'kuskus-math-block-body'
+    if (this.display) content.className = 'kusu-math-block-body'
     try {
       content.innerHTML = katex.renderToString(this.tex, {
         displayMode: this.display,
@@ -348,7 +348,7 @@ function activeLineNumbers(state: EditorState): Set<number> {
   return result
 }
 
-class KuskusLiveDecorationBuilder {
+class KusuLiveDecorationBuilder {
   private readonly replaces: ReplaceEntry[] = []
   private readonly marks: MarkEntry[] = []
   private readonly lines: LineEntry[] = []
@@ -413,7 +413,7 @@ class KuskusLiveDecorationBuilder {
       if (this.consumedLines.has(line)) continue
       const from = doc.line(line).from
       if (isCodePosition(this.state, from)) continue
-      this.addLine(from, Decoration.line({ class: 'cm-kuskus-blank' }))
+      this.addLine(from, Decoration.line({ class: 'cm-kusu-blank' }))
     }
   }
 
@@ -448,7 +448,7 @@ class KuskusLiveDecorationBuilder {
           openerEnd + link.from,
           openerEnd + link.to,
           Decoration.mark({
-            class: 'cm-kuskus-yaml-link',
+            class: 'cm-kusu-yaml-link',
             attributes: { 'data-url': link.url }
           })
         )
@@ -456,9 +456,9 @@ class KuskusLiveDecorationBuilder {
       this.addReplace(closerStart, node.to, Decoration.replace({}))
       this.addLine(
         firstLine.from,
-        Decoration.line({ class: 'cm-atomic-fenced-code cm-kuskus-code-first' })
+        Decoration.line({ class: 'cm-atomic-fenced-code cm-kusu-code-first' })
       )
-      this.addLine(lastLine.from, Decoration.line({ class: 'cm-kuskus-code-closer' }))
+      this.addLine(lastLine.from, Decoration.line({ class: 'cm-kusu-code-closer' }))
       const bodyStart = firstLine.number + 1
       const bodyEnd = lastLine.number - 1
       for (let n = bodyStart; n <= bodyEnd; n += 1) {
@@ -470,10 +470,10 @@ class KuskusLiveDecorationBuilder {
       if (bodyStart <= bodyEnd) {
         this.addLine(
           this.state.doc.line(bodyEnd).from,
-          Decoration.line({ class: 'cm-kuskus-code-last' })
+          Decoration.line({ class: 'cm-kusu-code-last' })
         )
       } else {
-        this.addLine(firstLine.from, Decoration.line({ class: 'cm-kuskus-code-last' }))
+        this.addLine(firstLine.from, Decoration.line({ class: 'cm-kusu-code-last' }))
       }
       this.addReplace(
         firstLine.from,
@@ -490,7 +490,7 @@ class KuskusLiveDecorationBuilder {
     // fenced code, tasks, horizontal rules, and tables. This layer
     // only extends it: first/last fenced-code lines get corner classes
     // so the block reads as one rounded container like read mode's
-    // .kuskus-code-block (per-line radius made it look like stacked
+    // .kusu-code-block (per-line radius made it look like stacked
     // pills).
     if (node.name === 'FencedCode') {
       const marks = node.getChildren('CodeMark')
@@ -513,23 +513,23 @@ class KuskusLiveDecorationBuilder {
             }
           }
         }
-        this.addLine(openLine.from, Decoration.line({ class: 'cm-kuskus-code-first' }))
+        this.addLine(openLine.from, Decoration.line({ class: 'cm-kusu-code-first' }))
         if (anyLineActive) {
           if (closeLine.number !== openLine.number) {
-            this.addLine(closeLine.from, Decoration.line({ class: 'cm-kuskus-code-last' }))
+            this.addLine(closeLine.from, Decoration.line({ class: 'cm-kusu-code-last' }))
           }
         } else if (closeLine.number === openLine.number + 1) {
           // Empty fences have no content line, so their header owns both
           // rounded ends while the hidden closer collapses.
-          this.addLine(openLine.from, Decoration.line({ class: 'cm-kuskus-code-last' }))
-          this.addLine(closeLine.from, Decoration.line({ class: 'cm-kuskus-code-closer' }))
+          this.addLine(openLine.from, Decoration.line({ class: 'cm-kusu-code-last' }))
+          this.addLine(closeLine.from, Decoration.line({ class: 'cm-kusu-code-closer' }))
         } else {
           // Atomic hides the inactive closing fence text, but CM6 still
           // reserves the line box. Put the card bottom on the final code
           // line and collapse only that hidden closing-fence line.
           const lastCodeLine = this.state.doc.line(closeLine.number - 1)
-          this.addLine(lastCodeLine.from, Decoration.line({ class: 'cm-kuskus-code-last' }))
-          this.addLine(closeLine.from, Decoration.line({ class: 'cm-kuskus-code-closer' }))
+          this.addLine(lastCodeLine.from, Decoration.line({ class: 'cm-kusu-code-last' }))
+          this.addLine(closeLine.from, Decoration.line({ class: 'cm-kusu-code-closer' }))
         }
         if (!anyLineActive) {
           const info = node.getChildren('CodeInfo')[0]
@@ -660,7 +660,7 @@ class KuskusLiveDecorationBuilder {
       }
 
       const linkMark = Decoration.mark({
-        class: 'cm-kuskus-wikilink',
+        class: 'cm-kusu-wikilink',
         attributes: { 'data-target': target }
       })
       if (aliasRaw !== undefined) {
@@ -685,19 +685,19 @@ export const liveOptionsFacet = Facet.define<LiveEditorOptions, LiveEditorOption
 })
 
 /** Pure builder exported for headless tests (mirrors the legacy test seam). */
-export function buildKuskusLiveDecorations(
+export function buildKusuLiveDecorations(
   state: EditorState,
   options: LiveEditorOptions
 ): DecorationSet {
-  return new KuskusLiveDecorationBuilder(state, options, activeLineNumbers(state)).build()
+  return new KusuLiveDecorationBuilder(state, options, activeLineNumbers(state)).build()
 }
 
 function treeGrew(transaction: Transaction): boolean {
   return transaction.effects.some((effect) => effect.is(treeGrowthEffect))
 }
 
-const kuskusLiveField = StateField.define<DecorationSet>({
-  create: (state) => buildKuskusLiveDecorations(state, state.facet(liveOptionsFacet)),
+const kusuLiveField = StateField.define<DecorationSet>({
+  create: (state) => buildKusuLiveDecorations(state, state.facet(liveOptionsFacet)),
   update: (value, transaction) => {
     if (
       transaction.docChanged ||
@@ -705,10 +705,7 @@ const kuskusLiveField = StateField.define<DecorationSet>({
       treeGrew(transaction) ||
       transaction.reconfigured
     ) {
-      return buildKuskusLiveDecorations(
-        transaction.state,
-        transaction.state.facet(liveOptionsFacet)
-      )
+      return buildKusuLiveDecorations(transaction.state, transaction.state.facet(liveOptionsFacet))
     }
     return value
   },
@@ -722,7 +719,7 @@ function isInsideTable(node: MarkdownSyntaxNode): boolean {
   return false
 }
 
-export function buildKuskusImageBlocks(
+export function buildKusuImageBlocks(
   state: EditorState,
   options: LiveEditorOptions
 ): DecorationSet {
@@ -752,11 +749,11 @@ export function buildKuskusImageBlocks(
   return Decoration.set(ranges, true)
 }
 
-const kuskusImageBlockField = StateField.define<DecorationSet>({
-  create: (state) => buildKuskusImageBlocks(state, state.facet(liveOptionsFacet)),
+const kusuImageBlockField = StateField.define<DecorationSet>({
+  create: (state) => buildKusuImageBlocks(state, state.facet(liveOptionsFacet)),
   update: (value, transaction) => {
     if (treeGrew(transaction) || transaction.reconfigured) {
-      return buildKuskusImageBlocks(transaction.state, transaction.state.facet(liveOptionsFacet))
+      return buildKusuImageBlocks(transaction.state, transaction.state.facet(liveOptionsFacet))
     }
     if (!transaction.docChanged) return value
     const mapped = value.map(transaction.changes)
@@ -774,14 +771,14 @@ const kuskusImageBlockField = StateField.define<DecorationSet>({
       }
     })
     return affected
-      ? buildKuskusImageBlocks(transaction.state, transaction.state.facet(liveOptionsFacet))
+      ? buildKusuImageBlocks(transaction.state, transaction.state.facet(liveOptionsFacet))
       : mapped
   },
   provide: (field) => EditorView.decorations.from(field)
 })
 
 /**
- * Kuskus-specific layers for the live surface. Atomic's inline preview
+ * Kusu-specific layers for the live surface. Atomic's inline preview
  * owns headings, lists, links, emphasis, inline code, fenced code,
  * tasks, horizontal rules, and WYSIWYG tables. This adds the syntax
  * atomic does not know: KaTeX math, `[[wikilinks]]`, and `![[embeds]]`
@@ -790,7 +787,7 @@ const kuskusImageBlockField = StateField.define<DecorationSet>({
  * The returned extensions expect `readOnlyFacet` to be supplied by the
  * editor surface (defaults to false in atomic's own composition).
  */
-export function kuskusLiveExtensions(getOptions: () => LiveEditorOptions): Extension {
+export function kusuLiveExtensions(getOptions: () => LiveEditorOptions): Extension {
   return [
     liveOptionsFacet.of(getOptions()),
     inlinePreview({
@@ -800,8 +797,8 @@ export function kuskusLiveExtensions(getOptions: () => LiveEditorOptions): Exten
       onLinkClick: (url) => getOptions().onOpenLink?.(url)
     }),
     autoCloseCodeFence,
-    kuskusLiveField,
-    kuskusImageBlockField,
+    kusuLiveField,
+    kusuImageBlockField,
     wikilinkInteraction(getOptions),
     yamlLinkInteraction(getOptions)
   ]
@@ -813,9 +810,7 @@ function yamlLinkInteraction(getOptions: () => LiveEditorOptions): Extension {
       if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
         return false
       }
-      const link = (event.target as HTMLElement | null)?.closest<HTMLElement>(
-        '.cm-kuskus-yaml-link'
-      )
+      const link = (event.target as HTMLElement | null)?.closest<HTMLElement>('.cm-kusu-yaml-link')
       const url = link?.dataset.url
       if (!url) return false
       event.preventDefault()
@@ -831,7 +826,7 @@ function wikilinkInteraction(getOptions: () => LiveEditorOptions): Extension {
     click: (event) => {
       if (!(event.ctrlKey || event.metaKey)) return false
       const target = event.target as HTMLElement | null
-      const wiki = target?.closest<HTMLElement>('.cm-kuskus-wikilink')
+      const wiki = target?.closest<HTMLElement>('.cm-kusu-wikilink')
       if (!wiki) return false
       const destination = wiki.getAttribute('data-target')
       if (!destination) return false

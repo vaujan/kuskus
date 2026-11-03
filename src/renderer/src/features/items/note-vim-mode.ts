@@ -1,6 +1,6 @@
 export type NoteVimMode = 'normal' | 'insert' | 'replace' | 'visual' | 'visual-line'
 
-export const NOTE_VIM_MODE_STORAGE_KEY = 'kuskus-note-vim'
+export const NOTE_VIM_MODE_STORAGE_KEY = 'kusu-note-vim'
 
 export function parseNoteVimEnabled(value: string | null): boolean {
   return value === 'true'

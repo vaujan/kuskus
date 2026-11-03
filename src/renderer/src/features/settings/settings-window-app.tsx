@@ -1,3 +1,4 @@
+import { Toaster } from '@/features/shell/app-toaster'
 import {
   COMMAND_PALETTE_LABEL,
   COMMAND_PALETTE_SHORTCUT
@@ -170,7 +171,7 @@ export function SettingsWindowApp(): React.JSX.Element {
   ]
 
   const resetAppearance = (): void => {
-    setColorTheme('kuskus')
+    setColorTheme('kusu')
     setColorMode('dark')
     setControlStyle('skeuomorphic')
     setUiFont(DEFAULT_TYPOGRAPHY.uiFont)
@@ -241,7 +242,7 @@ export function SettingsWindowApp(): React.JSX.Element {
                       onClick={() => setSection('support')}
                     >
                       <IconHeart aria-hidden="true" />
-                      <span>Support Kuskus</span>
+                      <span>Support Kusu</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
@@ -251,7 +252,7 @@ export function SettingsWindowApp(): React.JSX.Element {
                       onClick={() => setSection('about')}
                     >
                       <IconInfoCircle aria-hidden="true" />
-                      <span>About Kuskus</span>
+                      <span>About Kusu</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 </SidebarMenu>
@@ -266,7 +267,7 @@ export function SettingsWindowApp(): React.JSX.Element {
             {section === 'support' ? (
               <div className="mx-auto flex w-full max-w-3xl flex-col gap-7 px-8 pt-12 pb-8">
                 <div className="flex flex-col gap-1">
-                  <h1 className="text-balance text-xl font-semibold">Support Kuskus</h1>
+                  <h1 className="text-balance text-xl font-semibold">Support Kusu</h1>
                   <p className="text-pretty text-sm text-muted-foreground">
                     Help an independent, free and open-source app keep growing.
                   </p>
@@ -275,14 +276,14 @@ export function SettingsWindowApp(): React.JSX.Element {
                   <Badge variant="secondary">Coming soon</Badge>
                   <h2 className="text-base font-medium">Optional financial support</h2>
                   <p className="text-pretty text-sm text-muted-foreground">
-                    A way to support Kuskus financially is being set up. Payments are not available
-                    yet. Kuskus remains free to use, with no account required.
+                    A way to support Kusu financially is being set up. Payments are not available
+                    yet. Kusu remains free to use, with no account required.
                   </p>
                 </div>
                 <div className="flex flex-col gap-3">
                   <h2 className="text-base font-medium">Other ways to help</h2>
                   <p className="text-pretty text-sm text-muted-foreground">
-                    Report a bug, share Kuskus with a friend, or contribute to the project. Every
+                    Report a bug, share Kusu with a friend, or contribute to the project. Every
                     contribution helps improve the app.
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -290,7 +291,7 @@ export function SettingsWindowApp(): React.JSX.Element {
                       variant="outline"
                       onClick={() =>
                         void openExternalUrlWithFeedback(
-                          'https://github.com/vaujan/kuskus/blob/main/CONTRIBUTING.md'
+                          'https://github.com/vaujan/kusu/blob/main/CONTRIBUTING.md'
                         )
                       }
                     >
@@ -299,7 +300,7 @@ export function SettingsWindowApp(): React.JSX.Element {
                     <Button
                       variant="ghost"
                       onClick={() =>
-                        void openExternalUrlWithFeedback('https://github.com/vaujan/kuskus/issues')
+                        void openExternalUrlWithFeedback('https://github.com/vaujan/kusu/issues')
                       }
                     >
                       Report a bug
@@ -310,7 +311,7 @@ export function SettingsWindowApp(): React.JSX.Element {
             ) : section === 'about' ? (
               <div className="mx-auto flex w-full max-w-3xl flex-col gap-7 px-8 pt-12 pb-8">
                 <div className="flex flex-col gap-1">
-                  <h1 className="text-balance text-xl font-semibold">About Kuskus</h1>
+                  <h1 className="text-balance text-xl font-semibold">About Kusu</h1>
                   <p className="text-sm text-muted-foreground tabular-nums select-text">
                     Version {version}
                   </p>
@@ -320,9 +321,9 @@ export function SettingsWindowApp(): React.JSX.Element {
                 </div>
                 <AppUpdates />
                 <div className="flex flex-col gap-3">
-                  <h2 className="text-base font-medium">Help Kuskus keep growing</h2>
+                  <h2 className="text-base font-medium">Help Kusu keep growing</h2>
                   <p className="text-pretty text-sm text-muted-foreground">
-                    Kuskus is free and open source, built independently by Fauzan in Indonesia.
+                    Kusu is free and open source, built independently by Fauzan in Indonesia.
                     Support helps me spend more time improving the app and maintaining releases. You
                     can also help by reporting bugs, sharing your workflow, or contributing code.
                   </p>
@@ -330,7 +331,7 @@ export function SettingsWindowApp(): React.JSX.Element {
                     <Button
                       variant="outline"
                       onClick={() =>
-                        void openExternalUrlWithFeedback('https://github.com/vaujan/kuskus')
+                        void openExternalUrlWithFeedback('https://github.com/vaujan/kusu')
                       }
                     >
                       Source on GitHub
@@ -339,7 +340,7 @@ export function SettingsWindowApp(): React.JSX.Element {
                       variant="outline"
                       onClick={() =>
                         void openExternalUrlWithFeedback(
-                          'https://github.com/vaujan/kuskus/issues/new?template=feature-request.yml'
+                          'https://github.com/vaujan/kusu/issues/new?template=feature-request.yml'
                         )
                       }
                     >
@@ -348,7 +349,7 @@ export function SettingsWindowApp(): React.JSX.Element {
                     <Button
                       variant="ghost"
                       onClick={() =>
-                        void openExternalUrlWithFeedback('https://github.com/vaujan/kuskus/issues')
+                        void openExternalUrlWithFeedback('https://github.com/vaujan/kusu/issues')
                       }
                     >
                       Report a bug
@@ -356,7 +357,7 @@ export function SettingsWindowApp(): React.JSX.Element {
                   </div>
                 </div>
                 <p className="text-pretty text-sm text-muted-foreground">
-                  Licensed under GPL-3.0-only. No account is required to use Kuskus.
+                  Licensed under GPL-3.0-only. No account is required to use Kusu.
                 </p>
               </div>
             ) : section === 'appearance' ? (
@@ -364,7 +365,7 @@ export function SettingsWindowApp(): React.JSX.Element {
                 <div className="flex flex-col gap-1">
                   <h1 className="text-balance text-xl font-semibold">Appearance</h1>
                   <p className="text-pretty text-sm text-muted-foreground">
-                    Change how Kuskus looks across every window.
+                    Change how Kusu looks across every window.
                   </p>
                 </div>
 
@@ -737,7 +738,7 @@ export function SettingsWindowApp(): React.JSX.Element {
                 <div className="flex flex-col gap-1">
                   <h1 className="text-balance text-xl font-semibold">Keyboard shortcuts</h1>
                   <p className="text-pretty text-sm text-muted-foreground">
-                    View the shortcuts available in Kuskus. Custom shortcuts are coming later.
+                    View the shortcuts available in Kusu. Custom shortcuts are coming later.
                   </p>
                 </div>
                 <FieldGroup className="gap-6">
@@ -767,6 +768,7 @@ export function SettingsWindowApp(): React.JSX.Element {
           </ScrollArea>
         </SidebarInset>
       </SidebarProvider>
+      <Toaster position="bottom-right" />
     </main>
   )
 }

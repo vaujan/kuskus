@@ -91,7 +91,7 @@ export default function PdfReader({
       if (error && !abort.signal.aborted) setError('This PDF page could not be rendered.')
     })
     void (async () => {
-      const result = await window.kuskus.getPdfPreview(itemId)
+      const result = await window.kusu.getPdfPreview(itemId)
       if (abort.signal.aborted) return
       if (!result.ok) throw new Error(result.error)
       const assets = new URL(`${import.meta.env.BASE_URL}pdfjs/`, window.location.href).href

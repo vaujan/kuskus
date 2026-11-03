@@ -4,7 +4,7 @@ Status: Implemented; packaged before/after benchmark pending
 
 ## Goal
 
-Reduce Kuskus's steady-state memory and first-use work without changing the Electron foundation,
+Reduce Kusu's steady-state memory and first-use work without changing the Electron foundation,
 vault format, renderer sandbox, or visible image quality in item detail.
 
 The current development run uses approximately **581 MB working set** across Electron's main,

@@ -7,7 +7,7 @@ import type {
   FileItemDto,
   ImageItemDto,
   ImagePreviewDto,
-  KuskusLibraryApi,
+  KusuLibraryApi,
   LibraryDto,
   LibraryItemDto,
   LibraryOverviewDto,
@@ -171,11 +171,11 @@ export function installPreview(
       : item
   )
   document.documentElement.dataset.platform = platform
-  performance.mark('kuskus:renderer-entry')
-  localStorage.setItem('kuskus-sidebar-hidden', 'false')
-  localStorage.setItem('kuskus-library-view', 'visual')
+  performance.mark('kusu:renderer-entry')
+  localStorage.setItem('kusu-sidebar-hidden', 'false')
+  localStorage.setItem('kusu-library-view', 'visual')
   localStorage.setItem(
-    `kuskus-session:v1:${value.path}`,
+    `kusu-session:v1:${value.path}`,
     JSON.stringify({ destination, typeFilters: [] })
   )
 
@@ -238,11 +238,11 @@ export function installPreview(
     },
     onVaultChanged: () => unsubscribe
   }
-  window.kuskus = new Proxy(readApi, {
+  window.kusu = new Proxy(readApi, {
     get(target, property, receiver) {
       return Reflect.get(target, property, receiver) ?? (async () => unavailable())
     }
-  }) as unknown as KuskusLibraryApi
+  }) as unknown as KusuLibraryApi
 
   const windowApi: ElectronWindowApi = {
     platform,

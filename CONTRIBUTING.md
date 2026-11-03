@@ -1,10 +1,10 @@
-# Contributing to Kuskus
+# Contributing to Kusu
 
-Thanks for taking a look. Kuskus is still an early desktop app, so reports of broken workflows are as useful as code. Windows is the first release target; macOS and Linux builds are experimental.
+Thanks for taking a look. Kusu is still an early desktop app, so reports of broken workflows are as useful as code. Windows is the first release target; macOS and Linux builds are experimental.
 
 ## Before you start
 
-Search the [existing issues](https://github.com/vaujan/kuskus/issues) first. For a large feature or architectural change, open an issue to discuss the problem before spending time on an implementation. A small, focused fix can go straight to a pull request.
+Search the [existing issues](https://github.com/vaujan/kusu/issues) first. For a large feature or architectural change, open an issue to discuss the problem before spending time on an implementation. A small, focused fix can go straight to a pull request.
 
 Read [AGENTS.md](AGENTS.md) for implementation rules and the [architecture guide](docs/10-current-architecture.md) for the code layout. Use existing dependencies where they fit, keep responsibilities separate, and remove obsolete paths instead of adding compatibility layers.
 
@@ -53,7 +53,7 @@ For user-facing changes, add an entry under `unreleased` in `releases/notes.json
 
 For bugs, include the version or commit, operating system, steps to reproduce, and expected and actual results. Mention whether it happens with the demo library. Remove personal paths, note contents, URLs, and credentials from logs and screenshots.
 
-For ideas, use the [feature request form](https://github.com/vaujan/kuskus/issues/new?template=feature-request.yml). Describe your goal, how you handle it today, and how often it comes up. Requests help guide development; they aren’t delivery commitments.
+For ideas, use the [feature request form](https://github.com/vaujan/kusu/issues/new?template=feature-request.yml). Describe your goal, how you handle it today, and how often it comes up. Requests help guide development; they aren’t delivery commitments.
 
 Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 
