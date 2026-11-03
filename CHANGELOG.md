@@ -6,6 +6,8 @@ All notable changes to Kusu are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [0.0.10] - 2026-11-03
+
 ### Changed
 
 - Rename the app to Kusu. Existing vaults can be reopened from setup. App preferences and capture drafts use a new profile.
