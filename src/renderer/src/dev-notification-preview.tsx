@@ -5,12 +5,12 @@ import { notifyActionError, notifyTrashed } from '@/lib/notify'
 
 type NotificationPreviewScenario = 'standard' | 'undo' | 'error' | 'loading'
 
-interface KuskusDevTools {
+interface KusuDevTools {
   notification?: (scenario?: NotificationPreviewScenario) => void
 }
 
 type DevWindow = Window & {
-  kuskusDev?: KuskusDevTools
+  kusuDev?: KusuDevTools
 }
 
 const scenarios: NotificationPreviewScenario[] = ['standard', 'undo', 'error', 'loading']
@@ -50,8 +50,8 @@ export function previewNotification(scenario: NotificationPreviewScenario = 'sta
 }
 
 const devWindow = window as DevWindow
-devWindow.kuskusDev = {
-  ...devWindow.kuskusDev,
+devWindow.kusuDev = {
+  ...devWindow.kusuDev,
   notification: previewNotification
 }
 

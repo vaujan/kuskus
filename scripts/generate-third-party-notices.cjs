@@ -45,7 +45,7 @@ for (const tree of trees) {
 }
 const packages = [...installedPackages.values()]
 const sections = [
-  'Kuskus third-party notices',
+  'Kusu third-party notices',
   'Generated from installed production dependencies. Electron also distributes LICENSE.electron.txt and LICENSES.chromium.html alongside the packaged executable.',
   'Vendored atomic editor\n' +
     readFileSync('src/renderer/src/features/items/live/atomic/LICENSE', 'utf8'),

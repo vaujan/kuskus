@@ -121,7 +121,7 @@ export function QuickCaptureApp(): React.JSX.Element | null {
 
   useEffect(() => {
     let active = true
-    void window.kuskus.getState().then((result) => {
+    void window.kusu.getState().then((result) => {
       if (!active) return
       if (!result.ok || result.data.status !== 'ready') {
         window.capture.openMainCapture()

@@ -97,14 +97,14 @@ A portable, reliable library cannot depend on external files remaining at their 
 
 ### Decision
 
-For the MVP, copy imported images, PDFs, and general files into the selected Kuskus library. Preserve the external original and remember its original filename as metadata.
+For the MVP, copy imported images, PDFs, and general files into the selected Kusu library. Preserve the external original and remember its original filename as metadata.
 
 ### Consequences
 
 - The library is self-contained and can be backed up as one folder.
 - Imports consume additional disk space.
 - Duplicate detection may become valuable later.
-- Kuskus deletion affects only the library copy.
+- Kusu deletion affects only the library copy.
 
 ### Revisit when
 
@@ -121,7 +121,7 @@ Local storage does not provide meaningful ownership if the only readable represe
 
 ### Decision
 
-Use ordinary content files and documented JSON/Markdown metadata as the source of truth. A local database may support search and fast queries, but Kuskus must be able to rebuild it from the library.
+Use ordinary content files and documented JSON/Markdown metadata as the source of truth. A local database may support search and fast queries, but Kusu must be able to rebuild it from the library.
 
 ### Consequences
 
@@ -144,7 +144,7 @@ Full webpage preservation introduces complex rendering, storage, authentication,
 
 ### Decision
 
-The MVP stores the original URL and available metadata. Metadata failure does not invalidate the item. Kuskus does not promise that the remote page will remain available.
+The MVP stores the original URL and available metadata. Metadata failure does not invalidate the item. Kusu does not promise that the remote page will remain available.
 
 ### Consequences
 
@@ -261,7 +261,7 @@ Store one quick-note draft per library path in renderer-local storage. Close and
 
 ### Revisit when
 
-Kuskus adds multiple simultaneous destinations, draft synchronization, or a requirement to recover binary import attempts after restart.
+Kusu adds multiple simultaneous destinations, draft synchronization, or a requirement to recover binary import attempts after restart.
 
 ## DEC-010: Use a feature-oriented modular monolith
 
@@ -277,7 +277,7 @@ would make those files harder to change and verify safely.
 
 ### Decision
 
-Keep Kuskus as one Electron application while organizing each process by responsibility. Shared
+Keep Kusu as one Electron application while organizing each process by responsibility. Shared
 modules own typed IPC contracts; the preload remains a thin adapter; main-process IPC, window,
 library orchestration, storage, and item parsing are separate modules; and renderer code is grouped
 by application, capture, item, library, and shell features. UI primitives remain separate from
@@ -331,7 +331,7 @@ Remove Explorer reveal and native local-file opening APIs from the product UI. C
 
 ### Consequences
 
-- Library files remain user-readable and accessible outside Kuskus, but the renderer no longer requests native filesystem actions.
+- Library files remain user-readable and accessible outside Kusu, but the renderer no longer requests native filesystem actions.
 - URL metadata is saved in `item.json`; failed enrichment remains a valid bookmark.
 - URL metadata fetching is bounded and rejects local/private network destinations before loading page metadata.
 
@@ -365,7 +365,7 @@ Status: Accepted
 
 ### Context
 
-DEC-012 removed Explorer actions to keep card browsing focused, but Kuskus's local-first promise
+DEC-012 removed Explorer actions to keep card browsing focused, but Kusu's local-first promise
 requires users to reach each item's authoritative library files. The detail viewer provides a
 contained place for this secondary native action without adding file-manager chrome to cards.
 
@@ -444,7 +444,7 @@ Status: Accepted
 ### Context
 
 Saved notes were rendered by a small line-based preview and could only be changed by editing
-`note.md` outside Kuskus. Adding in-app editing must preserve user-readable files, existing note
+`note.md` outside Kusu. Adding in-app editing must preserve user-readable files, existing note
 assets, renderer sandboxing, and external edits made after the detail view opened.
 
 ### Decision
@@ -506,12 +506,12 @@ Status: Accepted
 
 Crepe's bundled slash menu and selection toolbar are Vue-rendered implementation details. They do
 not compose with the application's React shadcn primitives, and their icon-only controls do not
-provide the accessible names, focus treatment, or compact grouped presentation required by Kuskus.
+provide the accessible names, focus treatment, or compact grouped presentation required by Kusu.
 
 ### Decision
 
 Milkdown remains responsible for Markdown state, selection anchoring, commands, and undo history.
-Kuskus supplies React plugin views for the selection toolbar and slash menu, composed from local
+Kusu supplies React plugin views for the selection toolbar and slash menu, composed from local
 shadcn Command, Toggle, Tooltip, Separator, and keyboard primitives. Plugin-scoped handlers operate
 only while their overlay is active, and semantic editor color tokens provide a caret and focus ring
 with at least 3:1 adjacent contrast in both themes.
@@ -599,7 +599,7 @@ Status: Accepted
 
 ### Context
 
-Kuskus keeps renderer-owned window controls so the item-detail autosave guard can intercept Close,
+Kusu keeps renderer-owned window controls so the item-detail autosave guard can intercept Close,
 but generic application icons made those controls look unlike the Windows caption buttons they
 replace.
 
@@ -904,7 +904,7 @@ visible filenames as titles, ordinary nested folders as collections, and Markdow
 as authoritative content. Stable item and collection identities, timestamps, fingerprints, icons,
 and recovery state live in human-readable records under `.kuskus/`.
 
-Kuskus and Obsidian may co-own the same folder. Kuskus preserves existing YAML with a
+Kusu and Obsidian may co-own the same folder. Kusu preserves existing YAML with a
 comment-preserving parser, adds only its namespaced properties, ignores `.obsidian`, uses companion
 assets for new attachments, safely resolves core Obsidian links, and reconciles external edits from
 the main process. Initialization is explicit. Schema-v1 migration builds and verifies a sibling
@@ -912,15 +912,15 @@ vault before swapping paths and permanently retaining the original as a timestam
 
 ### Consequences
 
-- Explorer and Obsidian edits immediately change Kuskus titles and organization after reconciliation.
+- Explorer and Obsidian edits immediately change Kusu titles and organization after reconciliation.
 - Renames and moves are validated filesystem operations; renderer contracts remain ID based.
-- Binary identity is inherently ambiguous after an offline rename plus content edit, so Kuskus does
+- Binary identity is inherently ambiguous after an offline rename plus content edit, so Kusu does
   not guess when fingerprints are duplicated.
 - Hidden records and previews are rebuildable support data, never the sole readable representation.
 - Older libraries require the guided migration; unsupported newer schemas and repair conflicts do
   not receive automatic destructive rewrites.
 
-## DEC-032: Keep Kuskus identity out of visible files
+## DEC-032: Keep Kusu identity out of visible files
 
 Date: 2026-07-29
 Status: Accepted
@@ -928,17 +928,17 @@ Status: Accepted
 ### Context
 
 DEC-031 initially placed a stable UUID in every Markdown file. That made offline rename recovery
-stronger but made an otherwise ordinary vault visibly dependent on Kuskus and rewrote notes merely
+stronger but made an otherwise ordinary vault visibly dependent on Kusu and rewrote notes merely
 to index them.
 
 ### Decision
 
-Supersede DEC-031 wherever it adds Kuskus-owned YAML. Normal Markdown remains byte-for-byte user
+Supersede DEC-031 wherever it adds Kusu-owned YAML. Normal Markdown remains byte-for-byte user
 content. Web bookmarks use Windows `.url` Internet Shortcuts, while stable identity and enrichment
 metadata remain under `.kuskus/records/`. Reconciliation uses exact relative path, unique filesystem
 identity, then unique content fingerprint; ambiguity creates a new identity rather than guessing.
 
-On the first compatible launch, automatically remove legacy Kuskus YAML only after creating a
+On the first compatible launch, automatically remove legacy Kusu YAML only after creating a
 checksummed recovery copy. Convert blank generated bookmarks to `.url`; leave bookmarks with
 user-authored properties or body content unchanged and report them for repair.
 
@@ -947,7 +947,7 @@ user-authored properties or body content unchanged and report them for repair.
 - Opening or initializing a vault does not modify ordinary Markdown.
 - Explorer can open bookmark files directly in the default browser.
 - `.url` bookmarks are visible in the vault but do not behave as Obsidian Markdown notes.
-- An offline copy-delete move combined with a content edit can receive a new Kuskus identity.
+- An offline copy-delete move combined with a content edit can receive a new Kusu identity.
 - Cleanup recovery copies are retained and never removed automatically.
 
 ## DEC-033: Keep folder navigation text-first without deleting icon metadata
@@ -985,7 +985,7 @@ boundaries.
 
 ### Decision
 
-Register fixed `Ctrl+Shift+Space` ownership in the Electron main process while Kuskus is running.
+Register fixed `Ctrl+Shift+Space` ownership in the Electron main process while Kusu is running.
 The shortcut restores and focuses the single main window, then sends one typed preload event that
 selects Inbox and summons the existing New Item composer. Preload queues an early request until the
 renderer subscribes. Clipboard reads and authoritative writes remain explicit renderer actions.
@@ -997,7 +997,7 @@ shown in Settings; collisions remain recoverable and do not prevent app startup.
 ### Consequences
 
 - Global capture inherits the existing recoverable draft and confirmation behavior.
-- Closing Kuskus unregisters the shortcut; tray residency, launch-at-login, customization, and a
+- Closing Kusu unregisters the shortcut; tray residency, launch-at-login, customization, and a
   separate quick-capture window remain out of scope.
 - Foreground details and dialogs retain ownership when capture is summoned; the composer is prepared
   behind them without forcing a close or save.
@@ -1040,7 +1040,7 @@ Status: Superseded by DEC-037
 
 ### Context
 
-Kuskus benefits from calmer separation between its navigation chrome and visual library, but a
+Kusu benefits from calmer separation between its navigation chrome and visual library, but a
 fully transparent Electron window weakens standard resizing and maximizing behavior. The appearance
 must remain optional, readable, and independent from authoritative vault content.
 
@@ -1236,8 +1236,8 @@ resets with **Clear filters**.
 
 ### Consequences
 
-- New Kuskus notes use an ordinary layout that Obsidian can open without a generated attachment
-  directory or Kuskus-specific link syntax.
+- New Kusu notes use an ordinary layout that Obsidian can open without a generated attachment
+  directory or Kusu-specific link syntax.
 - Attachment paths, preview lookup, scanning, reference rewriting, and deletion inspection cannot
   assume siblings or `.assets`.
 - One balanced Markdown-image parser owns extraction and rewriting. Legacy unencoded destinations
@@ -1519,7 +1519,7 @@ was capped to a centered 768px column that did not use the available detail widt
   a matching 13px compact Markdown typeset preset. The Focus rail opts in so its content reads
   smaller than Masonry, matching the narrower pane. Masonry and Grid keep their existing sizes.
 - Remove the note reading width cap: drop the `max-w-3xl`/`mx-auto` note article in the detail
-  surface and the `.kuskus-typeset` `max-width` so the note reads edge-to-edge with the existing
+  surface and the `.kusu-typeset` `max-width` so the note reads edge-to-edge with the existing
   responsive gutters. Masonry note cards are narrower than the old cap, so they are unchanged.
 
 ### Consequences
@@ -1598,7 +1598,7 @@ Status: Accepted
 
 ### Context
 
-The natural-height Visual rail preserves Kuskus's format-aware browsing, but it shows few items while
+The natural-height Visual rail preserves Kusu's format-aware browsing, but it shows few items while
 the adjacent detail pane already carries the complete preview. Sequential triage benefits from a
 denser master list without removing the existing visual option or weakening mixed-format identity.
 
@@ -1641,7 +1641,7 @@ Markdown-it peer stacks. Adopting a second UI system and document dialect to reu
 more coupling than implementing the application boundary with the underlying established engines.
 
 A Milkdown 7.22.0 GFM round-trip against Markdown Lab confirmed the expected rich-editor trade-off:
-lists and tables receive canonical formatting, reference links expand, and Kuskus wikilinks and math
+lists and tables receive canonical formatting, reference links expand, and Kusu wikilinks and math
 need explicit schema support. Those transformations are acceptable only after a real rich edit;
 unsupported syntax must never be silently serialized.
 
@@ -1654,7 +1654,7 @@ unsupported syntax must never be silently serialized.
   save. A user-authored rich transaction may canonically format the editable Markdown body.
 - Keep valid frontmatter byte-for-byte outside the rich document. Malformed frontmatter refuses rich
   editing and remains available in Markdown source.
-- Add explicit Kuskus schema support for wikilinks, embeds, attachment targets, and math before those
+- Add explicit Kusu schema support for wikilinks, embeds, attachment targets, and math before those
   fixtures can enter rich editing.
 - Retain `react-markdown` for note cards until measurements justify changing that lazy preview path.
 - Remove the custom CodeMirror live decorations and their CSS after saved notes and capture complete

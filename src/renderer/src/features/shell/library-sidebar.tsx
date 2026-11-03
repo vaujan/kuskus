@@ -79,9 +79,9 @@ import { FolderIconPickerDialog } from '@/features/collections/folder-icon-picke
 import { FolderMoveDialog } from '@/features/collections/folder-move-dialog'
 import { FolderNameDialog } from '@/features/collections/folder-name-dialog'
 import {
-  hasKuskusFolderDrag,
-  KUSKUS_FOLDER_DRAG_TYPE,
-  readKuskusFolderDrag
+  hasKusuFolderDrag,
+  KUSU_FOLDER_DRAG_TYPE,
+  readKusuFolderDrag
 } from '@/features/collections/folder-drag'
 import {
   buildFolderSubtreeCounts,
@@ -90,7 +90,7 @@ import {
   sanitizeCollapsedFolderIds,
   type FolderTreeNode
 } from '@/features/collections/folder-tree'
-import { hasKuskusItemDrag, readKuskusItemDrag } from '@/features/items/item-drag'
+import { hasKusuItemDrag, readKusuItemDrag } from '@/features/items/item-drag'
 
 import type {
   CollectionDto,
@@ -115,7 +115,7 @@ export type LibraryDestination =
 const FOLDER_TREE_STORAGE_VERSION = 'v1'
 
 function folderTreeStorageKey(libraryId: string): string {
-  return `kuskus-folder-tree:${FOLDER_TREE_STORAGE_VERSION}:${libraryId}`
+  return `kusu-folder-tree:${FOLDER_TREE_STORAGE_VERSION}:${libraryId}`
 }
 
 function loadCollapsedFolderIds(library: LibraryDto): Set<string> {
@@ -357,7 +357,7 @@ function FolderTreeItem({
               )}
               onDragStart={(event) => {
                 event.dataTransfer.effectAllowed = 'move'
-                event.dataTransfer.setData(KUSKUS_FOLDER_DRAG_TYPE, folder.id)
+                event.dataTransfer.setData(KUSU_FOLDER_DRAG_TYPE, folder.id)
                 event.dataTransfer.setData('text/plain', folder.name)
               }}
               onDragEnd={() => {
@@ -365,10 +365,7 @@ function FolderTreeItem({
                 onDropTargetChange(null)
               }}
               onDragEnter={(event) => {
-                if (
-                  !hasKuskusItemDrag(event.dataTransfer) &&
-                  !hasKuskusFolderDrag(event.dataTransfer)
-                )
+                if (!hasKusuItemDrag(event.dataTransfer) && !hasKusuFolderDrag(event.dataTransfer))
                   return
                 event.preventDefault()
                 event.stopPropagation()
@@ -381,10 +378,7 @@ function FolderTreeItem({
                 }
               }}
               onDragOver={(event) => {
-                if (
-                  !hasKuskusItemDrag(event.dataTransfer) &&
-                  !hasKuskusFolderDrag(event.dataTransfer)
-                )
+                if (!hasKusuItemDrag(event.dataTransfer) && !hasKusuFolderDrag(event.dataTransfer))
                   return
                 event.preventDefault()
                 event.stopPropagation()
@@ -395,21 +389,18 @@ function FolderTreeItem({
                 clearDragState()
               }}
               onDrop={(event) => {
-                if (
-                  !hasKuskusItemDrag(event.dataTransfer) &&
-                  !hasKuskusFolderDrag(event.dataTransfer)
-                )
+                if (!hasKusuItemDrag(event.dataTransfer) && !hasKusuFolderDrag(event.dataTransfer))
                   return
                 event.preventDefault()
                 event.stopPropagation()
-                const itemIds = readKuskusItemDrag(event.dataTransfer)
+                const itemIds = readKusuItemDrag(event.dataTransfer)
                 clearDragState()
                 onDropTargetChange(null)
                 if (itemIds.length > 0) {
                   onMoveItems(itemIds, { type: 'collection', collectionId: folder.id })
                   return
                 }
-                const sourceFolderId = readKuskusFolderDrag(event.dataTransfer)
+                const sourceFolderId = readKusuFolderDrag(event.dataTransfer)
                 if (sourceFolderId && sourceFolderId !== folder.id) {
                   onMoveFolder(sourceFolderId, folder.id)
                 }
@@ -657,7 +648,7 @@ export function LibrarySidebar({
     parentId: string | null,
     icon: CollectionIconKey
   ): Promise<void> => {
-    const result = await window.kuskus.createCollection({
+    const result = await window.kusu.createCollection({
       name,
       icon,
       parentId
@@ -669,7 +660,7 @@ export function LibrarySidebar({
     setFolderDialog(null)
   }
   const renameFolder = async (id: string, name: string): Promise<void> => {
-    const result = await window.kuskus.renameCollection(id, name)
+    const result = await window.kusu.renameCollection(id, name)
     if (!result.ok) return onError(result.error)
     onLibraryChange({
       ...library,
@@ -703,7 +694,7 @@ export function LibrarySidebar({
     if (folderOperationBusy) return
     setFolderOperationBusy(true)
     try {
-      const result = await window.kuskus.setCollectionIcon(id, icon)
+      const result = await window.kusu.setCollectionIcon(id, icon)
       if (!result.ok) return onError(result.error)
       onLibraryChange({
         ...library,
@@ -718,7 +709,7 @@ export function LibrarySidebar({
     if (folderOperationBusy) return
     setFolderOperationBusy(true)
     try {
-      const result = await window.kuskus.moveCollection({ collectionId: id, parentId })
+      const result = await window.kusu.moveCollection({ collectionId: id, parentId })
       if (!result.ok) return onError(result.error)
       onLibraryChange(result.data)
       if (parentId !== null) setFolderCollapsed(parentId, false)
@@ -732,7 +723,7 @@ export function LibrarySidebar({
     const { id, name } = folderToDelete
     setFolderOperationBusy(true)
     try {
-      const result = await window.kuskus.deleteCollection(id)
+      const result = await window.kusu.deleteCollection(id)
       if (!result.ok) return onError(result.error)
       onLibraryChange(result.data)
       if (
@@ -752,7 +743,7 @@ export function LibrarySidebar({
     if (librarySwitchBlocked || libraryOperationBusy) return
     setLibraryOperationBusy(true)
     try {
-      const result = await window.kuskus.open()
+      const result = await window.kusu.open()
       if (!result.ok) {
         if (result.code !== 'cancelled') onError(result.error)
         return
@@ -767,7 +758,7 @@ export function LibrarySidebar({
     if (!newLibraryName.trim() || librarySwitchBlocked || libraryOperationBusy) return
     setLibraryOperationBusy(true)
     try {
-      const result = await window.kuskus.create(newLibraryName)
+      const result = await window.kusu.create(newLibraryName)
       if (!result.ok) {
         if (result.code !== 'cancelled') onError(result.error)
         return
@@ -778,7 +769,7 @@ export function LibrarySidebar({
     }
   }
   const copyLibraryPath = async (): Promise<void> => {
-    const result = await window.kuskus.copyLibraryPath()
+    const result = await window.kusu.copyLibraryPath()
     if (!result.ok) return onError(result.error)
     onStatus('Library path copied.')
   }
@@ -860,12 +851,12 @@ export function LibrarySidebar({
                     )}
                     onClick={() => selectDestination({ type: 'inbox' })}
                     onDragEnter={(event) => {
-                      if (!hasKuskusItemDrag(event.dataTransfer)) return
+                      if (!hasKusuItemDrag(event.dataTransfer)) return
                       event.preventDefault()
                       setInboxDropActive(true)
                     }}
                     onDragOver={(event) => {
-                      if (!hasKuskusItemDrag(event.dataTransfer)) return
+                      if (!hasKusuItemDrag(event.dataTransfer)) return
                       event.preventDefault()
                       event.dataTransfer.dropEffect = 'move'
                     }}
@@ -874,9 +865,9 @@ export function LibrarySidebar({
                       setInboxDropActive(false)
                     }}
                     onDrop={(event) => {
-                      if (!hasKuskusItemDrag(event.dataTransfer)) return
+                      if (!hasKusuItemDrag(event.dataTransfer)) return
                       event.preventDefault()
-                      const itemIds = readKuskusItemDrag(event.dataTransfer)
+                      const itemIds = readKusuItemDrag(event.dataTransfer)
                       setInboxDropActive(false)
                       if (itemIds.length > 0) onMoveItems(itemIds, { type: 'inbox' })
                     }}
@@ -925,12 +916,12 @@ export function LibrarySidebar({
                   'bg-sidebar-accent/60 text-sidebar-accent-foreground ring-2 ring-sidebar-ring'
               )}
               onDragEnter={(event) => {
-                if (!hasKuskusFolderDrag(event.dataTransfer)) return
+                if (!hasKusuFolderDrag(event.dataTransfer)) return
                 event.preventDefault()
                 setActiveFolderDropTarget({ type: 'root' })
               }}
               onDragOver={(event) => {
-                if (!hasKuskusFolderDrag(event.dataTransfer)) return
+                if (!hasKusuFolderDrag(event.dataTransfer)) return
                 event.preventDefault()
                 event.dataTransfer.dropEffect = 'move'
               }}
@@ -939,10 +930,10 @@ export function LibrarySidebar({
                 leaveFolderDropTarget({ type: 'root' })
               }}
               onDrop={(event) => {
-                if (!hasKuskusFolderDrag(event.dataTransfer)) return
+                if (!hasKusuFolderDrag(event.dataTransfer)) return
                 event.preventDefault()
                 event.stopPropagation()
-                const folderId = readKuskusFolderDrag(event.dataTransfer)
+                const folderId = readKusuFolderDrag(event.dataTransfer)
                 setActiveFolderDropTarget(null)
                 if (folderId) void moveFolder(folderId, null)
               }}
@@ -1187,7 +1178,7 @@ export function LibrarySidebar({
             <DialogHeader>
               <DialogTitle>Create New Library</DialogTitle>
               <DialogDescription>
-                Choose a name, then select where Kuskus should create its local folder.
+                Choose a name, then select where Kusu should create its local folder.
               </DialogDescription>
             </DialogHeader>
             <Input
@@ -1196,7 +1187,7 @@ export function LibrarySidebar({
               autoComplete="off"
               name="libraryName"
               maxLength={80}
-              placeholder="My Kuskus Library"
+              placeholder="My Kusu Library"
               value={newLibraryName}
               disabled={libraryOperationBusy}
               onChange={(event) => setNewLibraryName(event.target.value)}

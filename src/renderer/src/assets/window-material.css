@@ -24,7 +24,7 @@
   --window-rail: color-mix(in srgb, var(--window-sidebar) 72%, var(--window-canvas));
 }
 
-:root[data-color-theme='kuskus'] {
+:root[data-color-theme='kusu'] {
   --window-rail: var(--window-canvas);
 }
 

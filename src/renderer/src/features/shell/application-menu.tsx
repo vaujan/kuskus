@@ -138,7 +138,7 @@ export function ApplicationMenu({
       ) : (
         <Menubar id="application-menubar" className="h-8 border-0 bg-transparent p-0">
           <MenubarMenu>
-            <MenubarTrigger className="mx-1 px-3">Kuskus</MenubarTrigger>
+            <MenubarTrigger className="mx-1 px-3">Kusu</MenubarTrigger>
             <MenubarContent align="start" className="w-max min-w-56 whitespace-nowrap">
               <MenubarGroup>
                 <MenubarItem onClick={() => run(() => onCommandPalette())}>

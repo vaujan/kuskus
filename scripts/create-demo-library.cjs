@@ -10,7 +10,7 @@ const ASSET_ROOT = join(__dirname, 'demo-assets')
 
 const ids = {
   library: '10000000-0000-4000-8000-000000000001',
-  kuskus: '20000000-0000-4000-8000-000000000001',
+  kusu: '20000000-0000-4000-8000-000000000001',
   interfaceReferences: '20000000-0000-4000-8000-000000000002',
   research: '20000000-0000-4000-8000-000000000003',
   writing: '20000000-0000-4000-8000-000000000004',
@@ -177,7 +177,7 @@ function markdownLabGuide() {
     '',
     '# Markdown Lab',
     '',
-    'This collection is the canonical manual fixture for Kuskus Markdown rendering. The YAML above must remain in source mode but stay hidden in preview mode.',
+    'This collection is the canonical manual fixture for Kusu Markdown rendering. The YAML above must remain in source mode but stay hidden in preview mode.',
     '',
     '## Coverage map',
     '',
@@ -210,7 +210,7 @@ function markdownLabTypography() {
     '## Heading level two',
     '',
     'A soft source break appears here',
-    'and should render as a visible line break because Kuskus enables remark-breaks.',
+    'and should render as a visible line break because Kusu enables remark-breaks.',
     '',
     'A Markdown hard break appears here.  ',
     'This line follows two trailing spaces.',
@@ -299,10 +299,10 @@ function markdownLabLinks(spacedFilename) {
     '',
     '- Inline: [Example domain](https://example.com/path?query=markdown#fragment)',
     '- Autolink: <https://example.com/autolink>',
-    '- Reference: [Kuskus reference][kuskus-docs]',
+    '- Reference: [Kusu reference][kusu-docs]',
     '- Bare text is intentionally not linked: https://example.com/bare',
     '',
-    '[kuskus-docs]: https://example.com/reference "Reference title"',
+    '[kusu-docs]: https://example.com/reference "Reference title"',
     '',
     '## Vault navigation',
     '',
@@ -478,7 +478,7 @@ function markdownLabStress() {
     ...Array.from({ length: 16 }, (_, index) => stressSection(index + 1)),
     '## End-of-document checkpoint',
     '',
-    '- [ ] Edit this final line, wait for autosave, restart Kuskus, and confirm the change returns.',
+    '- [ ] Edit this final line, wait for autosave, restart Kusu, and confirm the change returns.',
     '- [ ] Run `pnpm demo:reset` when the experiment is complete.'
   ])
 }
@@ -711,7 +711,7 @@ async function inboxItems() {
       '30000000-0000-4000-8000-000000000010',
       'Questions for the next dogfood session',
       11,
-      '# Questions for the next dogfood session\n\n- When does Inbox start feeling crowded?\n- Do folders need counts, or does that become pressure?\n- Is Table actually useful for retrieval, or only reassuring?\n- Which details belong in Kuskus and which belong in Explorer?\n\nTry to answer from use, not from preference.'
+      '# Questions for the next dogfood session\n\n- When does Inbox start feeling crowded?\n- Do folders need counts, or does that become pressure?\n- Is Table actually useful for retrieval, or only reassuring?\n- Which details belong in Kusu and which belong in Explorer?\n\nTry to answer from use, not from preference.'
     ),
     await image(
       '30000000-0000-4000-8000-000000000011',
@@ -732,7 +732,7 @@ async function inboxItems() {
 function collectionItems() {
   return new Map([
     [
-      ids.kuskus,
+      ids.kusu,
       [
         note(
           '40000000-0000-4000-8000-000000000001',
@@ -808,7 +808,7 @@ async function seedDemoEnvironment({ root = DEFAULT_DEMO_ROOT, reset = false } =
     })
 
     const collections = [
-      [ids.kuskus, 'Kuskus', 'rocket', 92],
+      [ids.kusu, 'Kusu', 'rocket', 92],
       [ids.interfaceReferences, 'Interface references', 'palette', 71],
       [ids.research, 'Research', 'flask', 58],
       [ids.writing, 'Writing', 'notes', 43],
@@ -849,7 +849,7 @@ async function seedDemoEnvironment({ root = DEFAULT_DEMO_ROOT, reset = false } =
     await mkdir(userDataPath, { recursive: true })
   }
 
-  await writeJson(join(userDataPath, 'kuskus-settings.json'), {
+  await writeJson(join(userDataPath, 'kusu-settings.json'), {
     schemaVersion: 1,
     lastLibraryPath: libraryPath
   })

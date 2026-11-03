@@ -22,7 +22,7 @@ const release = JSON.parse(
 if (!release.isDraft || !release.isPrerelease || !/^[a-f0-9]{40}$/.test(release.targetCommitish)) {
   throw new Error('Create a draft prerelease targeting the exact build source commit first.')
 }
-const directory = mkdtempSync(join(tmpdir(), 'kuskus-preview-'))
+const directory = mkdtempSync(join(tmpdir(), 'kusu-preview-'))
 try {
   gh('run', 'download', runId, '--dir', directory)
   const files = []
@@ -30,7 +30,7 @@ try {
   const names = new Set()
   let buildInfo
   for (const artifact of readdirSync(directory)) {
-    if (!/^kuskus-(windows-x64|linux-x64|macos-arm64|macos-x64)-unsigned-test$/.test(artifact)) {
+    if (!/^kusu-(windows-x64|linux-x64|macos-arm64|macos-x64)-unsigned-test$/.test(artifact)) {
       throw new Error(`Unexpected artifact: ${artifact}`)
     }
     const root = join(directory, artifact)
@@ -46,7 +46,7 @@ try {
     buildInfo = info
     const checksum = readFileSync(join(root, 'SHA256SUMS.txt'), 'utf8').trim()
     const match = checksum.match(
-      /^([a-f0-9]{64}) {2}(kuskus-\d+\.\d+\.\d+-(?:x64-setup\.exe|(?:x64|arm64)\.dmg|x86_64\.AppImage))$/
+      /^([a-f0-9]{64}) {2}(kusu-\d+\.\d+\.\d+-(?:x64-setup\.exe|(?:x64|arm64)\.dmg|x86_64\.AppImage))$/
     )
     if (!match || names.has(match[2]))
       throw new Error(`Invalid installer checksum manifest: ${artifact}`)
@@ -56,7 +56,7 @@ try {
       throw new Error(`Installer checksum mismatch: ${artifact}`)
     }
     const version = tag.match(/^v(\d+\.\d+\.\d+)-/)[1]
-    if (!match[2].startsWith(`kuskus-${version}-`))
+    if (!match[2].startsWith(`kusu-${version}-`))
       throw new Error('Installer version differs from release tag.')
     files.push(file)
     checksums.push(checksum)

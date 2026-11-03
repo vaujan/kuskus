@@ -31,7 +31,7 @@ const preview: Preview = {
   initialGlobals: { colorMode: 'light', controlStyle: 'skeuomorphic' },
   globalTypes: {
     colorMode: {
-      description: 'Kuskus color mode',
+      description: 'Kusu color mode',
       toolbar: {
         dynamicTitle: true,
         icon: 'circlehollow',

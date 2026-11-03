@@ -6,7 +6,7 @@ import {
   type CaptureQueueDto,
   type CaptureSessionDto
 } from '../shared/capture-contract'
-import { KUSKUS_CHANNELS, type KuskusLibraryApi } from '../shared/library-contract'
+import { KUSU_CHANNELS, type KusuLibraryApi } from '../shared/library-contract'
 import {
   WINDOW_CHANNELS,
   type AppZoomShortcut,
@@ -138,73 +138,71 @@ const windowApi: ElectronWindowApi = {
     ipcRenderer.send(WINDOW_CHANNELS.resolveNoteWindowClose, approved)
 }
 
-const libraryApi: KuskusLibraryApi = {
-  getState: () => ipcRenderer.invoke(KUSKUS_CHANNELS.getLibraryState),
-  getOverview: () => ipcRenderer.invoke(KUSKUS_CHANNELS.getLibraryOverview),
-  getItemDetail: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.getItemDetail, itemId),
-  queryItems: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.queryItems, input),
-  reconcile: () => ipcRenderer.invoke(KUSKUS_CHANNELS.reconcileLibrary),
-  reconcileOverview: () => ipcRenderer.invoke(KUSKUS_CHANNELS.reconcileLibraryOverview),
-  create: (name) => ipcRenderer.invoke(KUSKUS_CHANNELS.createLibrary, name),
-  open: () => ipcRenderer.invoke(KUSKUS_CHANNELS.openLibrary),
-  initializeVault: () => ipcRenderer.invoke(KUSKUS_CHANNELS.initializeVault),
-  createNote: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.createNote, input),
-  duplicateNote: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.duplicateNote, itemId),
-  updateNote: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.updateNote, input),
-  importNoteImage: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.importNoteImage, input),
-  listCaptureDraftImages: () => ipcRenderer.invoke(KUSKUS_CHANNELS.listCaptureDraftImages),
+const libraryApi: KusuLibraryApi = {
+  getState: () => ipcRenderer.invoke(KUSU_CHANNELS.getLibraryState),
+  getOverview: () => ipcRenderer.invoke(KUSU_CHANNELS.getLibraryOverview),
+  getItemDetail: (itemId) => ipcRenderer.invoke(KUSU_CHANNELS.getItemDetail, itemId),
+  queryItems: (input) => ipcRenderer.invoke(KUSU_CHANNELS.queryItems, input),
+  reconcile: () => ipcRenderer.invoke(KUSU_CHANNELS.reconcileLibrary),
+  reconcileOverview: () => ipcRenderer.invoke(KUSU_CHANNELS.reconcileLibraryOverview),
+  create: (name) => ipcRenderer.invoke(KUSU_CHANNELS.createLibrary, name),
+  open: () => ipcRenderer.invoke(KUSU_CHANNELS.openLibrary),
+  initializeVault: () => ipcRenderer.invoke(KUSU_CHANNELS.initializeVault),
+  createNote: (input) => ipcRenderer.invoke(KUSU_CHANNELS.createNote, input),
+  duplicateNote: (itemId) => ipcRenderer.invoke(KUSU_CHANNELS.duplicateNote, itemId),
+  updateNote: (input) => ipcRenderer.invoke(KUSU_CHANNELS.updateNote, input),
+  importNoteImage: (input) => ipcRenderer.invoke(KUSU_CHANNELS.importNoteImage, input),
+  listCaptureDraftImages: () => ipcRenderer.invoke(KUSU_CHANNELS.listCaptureDraftImages),
   stageCaptureDraftImage: (input) =>
-    ipcRenderer.invoke(KUSKUS_CHANNELS.stageCaptureDraftImage, input),
+    ipcRenderer.invoke(KUSU_CHANNELS.stageCaptureDraftImage, input),
   renameCaptureDraftImage: (input) =>
-    ipcRenderer.invoke(KUSKUS_CHANNELS.renameCaptureDraftImage, input),
+    ipcRenderer.invoke(KUSU_CHANNELS.renameCaptureDraftImage, input),
   removeCaptureDraftImage: (attachmentId) =>
-    ipcRenderer.invoke(KUSKUS_CHANNELS.removeCaptureDraftImage, attachmentId),
-  discardCaptureDraft: () => ipcRenderer.invoke(KUSKUS_CHANNELS.discardCaptureDraft),
+    ipcRenderer.invoke(KUSU_CHANNELS.removeCaptureDraftImage, attachmentId),
+  discardCaptureDraft: () => ipcRenderer.invoke(KUSU_CHANNELS.discardCaptureDraft),
   getCaptureDraftImagePreview: (attachmentId) =>
-    ipcRenderer.invoke(KUSKUS_CHANNELS.getCaptureDraftImagePreview, attachmentId),
+    ipcRenderer.invoke(KUSU_CHANNELS.getCaptureDraftImagePreview, attachmentId),
   commitCaptureDraftImage: (attachmentId) =>
-    ipcRenderer.invoke(KUSKUS_CHANNELS.commitCaptureDraftImage, attachmentId),
-  getCaptureDraftFile: () => ipcRenderer.invoke(KUSKUS_CHANNELS.getCaptureDraftFile),
-  stageCaptureDraftFile: (input) =>
-    ipcRenderer.invoke(KUSKUS_CHANNELS.stageCaptureDraftFile, input),
-  removeCaptureDraftFile: () => ipcRenderer.invoke(KUSKUS_CHANNELS.removeCaptureDraftFile),
+    ipcRenderer.invoke(KUSU_CHANNELS.commitCaptureDraftImage, attachmentId),
+  getCaptureDraftFile: () => ipcRenderer.invoke(KUSU_CHANNELS.getCaptureDraftFile),
+  stageCaptureDraftFile: (input) => ipcRenderer.invoke(KUSU_CHANNELS.stageCaptureDraftFile, input),
+  removeCaptureDraftFile: () => ipcRenderer.invoke(KUSU_CHANNELS.removeCaptureDraftFile),
   commitCaptureDraftFile: (fileId) =>
-    ipcRenderer.invoke(KUSKUS_CHANNELS.commitCaptureDraftFile, fileId),
+    ipcRenderer.invoke(KUSU_CHANNELS.commitCaptureDraftFile, fileId),
   getNoteAttachmentPreview: (itemId, attachmentId) =>
-    ipcRenderer.invoke(KUSKUS_CHANNELS.getNoteAttachmentPreview, itemId, attachmentId),
-  createUrl: (url) => ipcRenderer.invoke(KUSKUS_CHANNELS.createUrl, url),
-  enrichUrl: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.enrichUrl, itemId),
-  getUrlPreview: (itemId, kind) => ipcRenderer.invoke(KUSKUS_CHANNELS.getUrlPreview, itemId, kind),
-  createCollection: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.createCollection, input),
-  renameCollection: (id, name) => ipcRenderer.invoke(KUSKUS_CHANNELS.renameCollection, id, name),
-  moveCollection: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.moveCollection, input),
-  setCollectionIcon: (id, icon) => ipcRenderer.invoke(KUSKUS_CHANNELS.setCollectionIcon, id, icon),
-  deleteCollection: (id) => ipcRenderer.invoke(KUSKUS_CHANNELS.deleteCollection, id),
-  renameItem: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.renameItem, input),
-  moveItems: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.moveItems, input),
-  setItemsPinned: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.setItemsPinned, input),
-  archiveItems: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.archiveItems, input),
-  unarchiveItems: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.unarchiveItems, input),
-  trashItems: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.trashItems, input),
-  restoreItems: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.restoreItems, input),
+    ipcRenderer.invoke(KUSU_CHANNELS.getNoteAttachmentPreview, itemId, attachmentId),
+  createUrl: (url) => ipcRenderer.invoke(KUSU_CHANNELS.createUrl, url),
+  enrichUrl: (itemId) => ipcRenderer.invoke(KUSU_CHANNELS.enrichUrl, itemId),
+  getUrlPreview: (itemId, kind) => ipcRenderer.invoke(KUSU_CHANNELS.getUrlPreview, itemId, kind),
+  createCollection: (input) => ipcRenderer.invoke(KUSU_CHANNELS.createCollection, input),
+  renameCollection: (id, name) => ipcRenderer.invoke(KUSU_CHANNELS.renameCollection, id, name),
+  moveCollection: (input) => ipcRenderer.invoke(KUSU_CHANNELS.moveCollection, input),
+  setCollectionIcon: (id, icon) => ipcRenderer.invoke(KUSU_CHANNELS.setCollectionIcon, id, icon),
+  deleteCollection: (id) => ipcRenderer.invoke(KUSU_CHANNELS.deleteCollection, id),
+  renameItem: (input) => ipcRenderer.invoke(KUSU_CHANNELS.renameItem, input),
+  moveItems: (input) => ipcRenderer.invoke(KUSU_CHANNELS.moveItems, input),
+  setItemsPinned: (input) => ipcRenderer.invoke(KUSU_CHANNELS.setItemsPinned, input),
+  archiveItems: (input) => ipcRenderer.invoke(KUSU_CHANNELS.archiveItems, input),
+  unarchiveItems: (input) => ipcRenderer.invoke(KUSU_CHANNELS.unarchiveItems, input),
+  trashItems: (input) => ipcRenderer.invoke(KUSU_CHANNELS.trashItems, input),
+  restoreItems: (input) => ipcRenderer.invoke(KUSU_CHANNELS.restoreItems, input),
   permanentlyDeleteItems: (input) =>
-    ipcRenderer.invoke(KUSKUS_CHANNELS.permanentlyDeleteItems, input),
-  inspectItemDeletion: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.inspectItemDeletion, input),
-  getImageThumbnail: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.getImageThumbnail, itemId),
-  getImagePreview: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.getImagePreview, itemId),
-  getPdfPreview: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.getPdfPreview, itemId),
-  copyImage: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.copyImage, itemId),
-  importFile: (input) => ipcRenderer.invoke(KUSKUS_CHANNELS.importFile, input),
-  copyLibraryPath: () => ipcRenderer.invoke(KUSKUS_CHANNELS.copyLibraryPath),
-  copyItemPath: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.copyItemPath, itemId),
-  openItemInDefaultApp: (itemId) =>
-    ipcRenderer.invoke(KUSKUS_CHANNELS.openItemInDefaultApp, itemId),
-  showItemInExplorer: (itemId) => ipcRenderer.invoke(KUSKUS_CHANNELS.showItemInExplorer, itemId),
-  openExternalUrl: (url) => ipcRenderer.invoke(KUSKUS_CHANNELS.openExternalUrl, url),
+    ipcRenderer.invoke(KUSU_CHANNELS.permanentlyDeleteItems, input),
+  inspectItemDeletion: (input) => ipcRenderer.invoke(KUSU_CHANNELS.inspectItemDeletion, input),
+  getImageThumbnail: (itemId) => ipcRenderer.invoke(KUSU_CHANNELS.getImageThumbnail, itemId),
+  getImagePreview: (itemId) => ipcRenderer.invoke(KUSU_CHANNELS.getImagePreview, itemId),
+  getPdfPreview: (itemId) => ipcRenderer.invoke(KUSU_CHANNELS.getPdfPreview, itemId),
+  copyImage: (itemId) => ipcRenderer.invoke(KUSU_CHANNELS.copyImage, itemId),
+  importFile: (input) => ipcRenderer.invoke(KUSU_CHANNELS.importFile, input),
+  copyLibraryPath: () => ipcRenderer.invoke(KUSU_CHANNELS.copyLibraryPath),
+  copyItemPath: (itemId) => ipcRenderer.invoke(KUSU_CHANNELS.copyItemPath, itemId),
+  openItemInDefaultApp: (itemId) => ipcRenderer.invoke(KUSU_CHANNELS.openItemInDefaultApp, itemId),
+  showItemInExplorer: (itemId) => ipcRenderer.invoke(KUSU_CHANNELS.showItemInExplorer, itemId),
+  openExternalUrl: (url) => ipcRenderer.invoke(KUSU_CHANNELS.openExternalUrl, url),
   onVaultChanged: (callback) => {
     const listener = (): void => callback()
-    ipcRenderer.on(KUSKUS_CHANNELS.vaultChanged, listener)
-    return () => ipcRenderer.removeListener(KUSKUS_CHANNELS.vaultChanged, listener)
+    ipcRenderer.on(KUSU_CHANNELS.vaultChanged, listener)
+    return () => ipcRenderer.removeListener(KUSU_CHANNELS.vaultChanged, listener)
   }
 }
 
@@ -293,5 +291,5 @@ const updateApi: UpdateApi = {
   }
 }
 contextBridge.exposeInMainWorld('electron', { window: windowApi, updates: updateApi })
-contextBridge.exposeInMainWorld('kuskus', libraryApi)
+contextBridge.exposeInMainWorld('kusu', libraryApi)
 contextBridge.exposeInMainWorld('capture', captureApi)

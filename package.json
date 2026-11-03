@@ -1,6 +1,6 @@
 {
-  "name": "kuskus",
-  "version": "0.0.9",
+  "name": "kusu",
+  "version": "0.0.10",
   "license": "GPL-3.0-only",
   "description": "A private visual library for project references, stored on your computer",
   "main": "./out/main/index.js",
@@ -122,13 +122,13 @@
     "vite": "^7.3.7",
     "vite-plugin-static-copy": "^4.1.1"
   },
-  "author": "Kuskus contributors",
-  "homepage": "https://github.com/vaujan/kuskus",
+  "author": "Kusu contributors",
+  "homepage": "https://github.com/vaujan/kusu",
   "repository": {
     "type": "git",
-    "url": "https://github.com/vaujan/kuskus.git"
+    "url": "https://github.com/vaujan/kusu.git"
   },
   "bugs": {
-    "url": "https://github.com/vaujan/kuskus/issues"
+    "url": "https://github.com/vaujan/kusu/issues"
   }
 }

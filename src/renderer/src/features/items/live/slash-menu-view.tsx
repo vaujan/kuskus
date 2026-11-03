@@ -39,9 +39,9 @@ export function SlashMenuView({
   onRun: (command: SlashCommand) => void
 }): ReactElement {
   return (
-    <ScrollArea className="cm-kuskus-slash-scroll">
+    <ScrollArea className="cm-kusu-slash-scroll">
       {commands.length === 0 ? (
-        <p className="cm-kuskus-slash-empty">No formatting commands found.</p>
+        <p className="cm-kusu-slash-empty">No formatting commands found.</p>
       ) : (
         commands.map((command, index) => {
           const Icon = icons[command.id]
@@ -49,14 +49,14 @@ export function SlashMenuView({
             <button
               key={command.id}
               type="button"
-              className="cm-kuskus-slash-item"
+              className="cm-kusu-slash-item"
               role="option"
               aria-selected={index === selected}
               tabIndex={-1}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => onRun(command)}
             >
-              <span className="cm-kuskus-slash-item-label">
+              <span className="cm-kusu-slash-item-label">
                 <Icon aria-hidden="true" />
                 <span>{command.label}</span>
               </span>

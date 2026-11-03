@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-import kuskusIcon from '../../../../../resources/icon.png'
+import kusuIcon from '../../../../../resources/icon.png'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -41,7 +41,7 @@ export function SetupScreen({
   initialState: LibraryState
   onLibraryChange: (state: LibraryState) => void
 }): React.JSX.Element {
-  const [name, setName] = useState('My Kuskus Library')
+  const [name, setName] = useState('My Kusu Library')
   const [step, setStep] = useState<'welcome' | 'create'>('welcome')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -53,7 +53,7 @@ export function SetupScreen({
     setBusy(true)
     setError('')
     try {
-      const result = await window.kuskus.create(name)
+      const result = await window.kusu.create(name)
       if (!result.ok) {
         if (result.code !== 'cancelled') setError(result.error)
         return
@@ -71,7 +71,7 @@ export function SetupScreen({
     setBusy(true)
     setError('')
     try {
-      const result = await window.kuskus.open()
+      const result = await window.kusu.open()
       if (!result.ok && result.code !== 'cancelled') setError(result.error)
       if (result.ok) onLibraryChange(result.data)
     } finally {
@@ -87,7 +87,7 @@ export function SetupScreen({
     setError('')
     try {
       notifyVaultIndexingStarted()
-      const result = await window.kuskus.initializeVault()
+      const result = await window.kusu.initializeVault()
       if (!result.ok) {
         dismissVaultIndexing()
         setError(result.error)
@@ -103,12 +103,12 @@ export function SetupScreen({
   const title = needsPreparation
     ? 'Make this folder a library'
     : step === 'welcome'
-      ? 'Kuskus'
+      ? 'Kusu'
       : 'Create a library'
   const description = needsPreparation
     ? initialState.status === 'needs-initialization'
-      ? 'Kuskus will index the files in this folder and keep them where they are.'
-      : 'Kuskus will build a readable library and keep a backup of the current one.'
+      ? 'Kusu will index the files in this folder and keep them where they are.'
+      : 'Kusu will build a readable library and keep a backup of the current one.'
     : step === 'welcome'
       ? 'A home for everything worth keeping.'
       : 'Choose a name and a location on your computer.'
@@ -123,7 +123,7 @@ export function SetupScreen({
           <div className="setup-content my-auto flex w-full max-w-[34rem] flex-col gap-7">
             <div className="setup-intro flex flex-col items-center gap-3 text-center">
               <img
-                src={kuskusIcon}
+                src={kusuIcon}
                 alt=""
                 draggable={false}
                 className="setup-logo pointer-events-none mb-2 size-24 select-none object-contain"
@@ -236,7 +236,7 @@ export function SetupScreen({
                   <CardHeader>
                     <CardTitle>New library</CardTitle>
                     <CardDescription>
-                      Kuskus will create a folder in the location you select.
+                      Kusu will create a folder in the location you select.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>

@@ -1,5 +1,5 @@
-appId: app.kuskus.desktop
-productName: Kuskus
+appId: app.kusu.desktop
+productName: Kusu
 directories:
   buildResources: build
 files:
@@ -11,7 +11,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: kuskus
+  executableName: kusu
   icon: build/icon.ico
   target:
     - target: nsis
@@ -45,5 +45,5 @@ npmRebuild: false
 publish:
   provider: github
   owner: vaujan
-  repo: kuskus
+  repo: kusu
   releaseType: release

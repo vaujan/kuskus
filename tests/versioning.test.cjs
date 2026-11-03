@@ -103,7 +103,7 @@ test('renders deterministic Markdown for humans from the same notes a future pag
 })
 
 test('CLI prepares consistent files, rejects reused tags and requires committed release contents', (context) => {
-  const root = mkdtempSync(join(tmpdir(), 'kuskus-versioning-'))
+  const root = mkdtempSync(join(tmpdir(), 'kusu-versioning-'))
   context.after(() => rmSync(root, { recursive: true, force: true }))
   mkdirSync(join(root, 'scripts'))
   mkdirSync(join(root, 'releases'))

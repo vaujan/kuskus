@@ -32,7 +32,7 @@ export class SettingsWindowController {
   private createWindow(): BrowserWindow {
     const isMac = process.platform === 'darwin'
     const window = new BrowserWindow({
-      title: 'Settings — Kuskus',
+      title: 'Settings — Kusu',
       width: 840,
       height: 640,
       minWidth: 680,

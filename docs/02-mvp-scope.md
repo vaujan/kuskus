@@ -18,7 +18,7 @@ The MVP is complete when all golden workflows work against a real local library 
 ### Library
 
 - Create a library in a user-selected local folder.
-- Open an existing Kuskus library.
+- Open an existing Kusu library.
 - Reopen the last valid library.
 - Detect a missing or invalid library and offer recovery.
 - Keep user-readable content authoritative.
@@ -40,7 +40,7 @@ The MVP is complete when all golden workflows work against a real local library 
   one inline draft at the beginning of the active view.
 - A primary New Note action and in-app `Ctrl+N` shortcut that open an ephemeral full-detail note,
   create it on the first meaningful edit, and then use normal autosave.
-- On Windows, a fixed `Ctrl+Shift+Space` system-wide shortcut that, while Kuskus is running, opens the same
+- On Windows, a fixed `Ctrl+Shift+Space` system-wide shortcut that, while Kusu is running, opens the same
   recoverable Inbox composer in a singleton bottom-right quick-capture window without reading the
   clipboard or changing the main window.
 - No permanent capture tile or modal capture dialog; the non-modal quick-capture window is the
@@ -56,7 +56,7 @@ The MVP is complete when all golden workflows work against a real local library 
   Read/Live/Markdown/Split switching, exact-source access, guarded autosave, keyboard emphasis
   shortcuts, and reviewable conflict detection.
 - Local images embedded in notes as independently indexed sibling files with portable relative
-  Markdown links. Existing Obsidian attachment layouts and legacy Kuskus `.assets` notes remain
+  Markdown links. Existing Obsidian attachment layouts and legacy Kusu `.assets` notes remain
   supported without migration.
 - Clipboard images receive editable timestamp-based names before commit. Exclusive indexed sibling
   images follow moved notes; shared or separately organized images remain stable and use rewritten
@@ -91,7 +91,7 @@ The MVP is complete when all golden workflows work against a real local library 
 - Sort by date added, title, or item type.
 - Open an item using its primary action.
 - Open a URL in the default browser.
-- Open saved links in the default browser and show item details in Kuskus.
+- Open saved links in the default browser and show item details in Kusu.
 - Copy a file path or source URL where applicable.
 
 ### Reliability
@@ -137,10 +137,10 @@ The MVP is complete when all golden workflows work against a real local library 
 - Render core Obsidian links and embeds safely; expose unresolved or ambiguous targets visibly.
 - Watch and reconcile external edits, while refusing destructive repair of malformed or conflicting data.
 - Migrate schema-v1 libraries through a verified sibling conversion and permanent user-owned backup.
-- Keep normal Markdown free of Kuskus properties; save web bookmarks as Windows `.url` Internet
+- Keep normal Markdown free of Kusu properties; save web bookmarks as Windows `.url` Internet
   Shortcuts and reconcile identity through hidden paths, filesystem identities, and fingerprints.
 - Preserve `.obsidian` byte-for-byte and support root, sibling, shared, and nested Obsidian attachment
-  paths without using `.obsidian` as Kuskus configuration.
+  paths without using `.obsidian` as Kusu configuration.
 - Public publishing.
 - Plugin marketplace.
 

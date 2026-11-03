@@ -16,7 +16,7 @@
 
 ## Behavior changes
 
-The wrapper's polymorphic API is now `render` instead of `asChild`. Existing Kuskus badge call sites are unaffected.
+The wrapper's polymorphic API is now `render` instead of `asChild`. Existing Kusu badge call sites are unaffected.
 
 ## Verify by hand
 

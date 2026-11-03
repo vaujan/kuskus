@@ -67,7 +67,7 @@ jobs:
         run: node scripts/collect-installers.cjs
       - uses: actions/upload-artifact@v4
         with:
-          name: kuskus-${{ matrix.platform }}-${{ matrix.arch }}-unsigned-test
+          name: kusu-${{ matrix.platform }}-${{ matrix.arch }}-unsigned-test
           path: release-artifacts/
           if-no-files-found: error
           retention-days: 14

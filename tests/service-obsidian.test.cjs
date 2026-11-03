@@ -25,7 +25,7 @@ const onePixelPng = Buffer.from(
 )
 
 test('initializes an existing Obsidian vault without changing its organization or settings', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-obsidian-init-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-obsidian-init-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const vault = join(root, 'Shared vault')
   await mkdir(join(vault, '.obsidian'), { recursive: true })
@@ -71,7 +71,7 @@ test('initializes an existing Obsidian vault without changing its organization o
 })
 
 test('renders a legacy assets embed with spaces and parentheses without rewriting its Markdown', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-legacy-assets-reference-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-legacy-assets-reference-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const vault = join(root, 'Legacy assets vault')
   const source = '# Hello world\n\nTesting\n![image](./Hello world (2).assets/image.png)\n'
@@ -105,7 +105,7 @@ test('renders a legacy assets embed with spaces and parentheses without rewritin
 })
 
 test('resolves Obsidian sibling, vault-root, and shared-folder image embeds', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-obsidian-attachments-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-obsidian-attachments-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const vault = join(root, 'Attachment vault')
   await mkdir(join(vault, '.obsidian'), { recursive: true })
@@ -169,7 +169,7 @@ test('resolves Obsidian sibling, vault-root, and shared-folder image embeds', as
 })
 
 test('indexes malformed user YAML as untouched Markdown instead of rewriting it', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-malformed-yaml-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-malformed-yaml-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const vault = join(root, 'Malformed vault')
   const source = '---\ntags: [unfinished\n---\n# Still readable\n'
@@ -185,30 +185,30 @@ test('indexes malformed user YAML as untouched Markdown instead of rewriting it'
 })
 
 test('keeps note identity across an external filesystem rename without visible metadata', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-note-identity-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-note-identity-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const settingsPath = join(root, 'settings.json')
   const service = new LibraryService(settingsPath)
   const created = await service.createIn(root, 'Identity vault')
   const note = await service.createNote({ markdown: '# Stable note\n\nBody', attachmentIds: [] })
   const original = join(created.library.path, 'Stable note.md')
-  const moved = join(created.library.path, 'Renamed outside Kuskus.md')
+  const moved = join(created.library.path, 'Renamed outside Kusu.md')
   await rename(original, moved)
-  await writeFile(moved, '# Stable note\n\nEdited outside Kuskus', 'utf8')
+  await writeFile(moved, '# Stable note\n\nEdited outside Kusu', 'utf8')
 
   const reopened = new LibraryService(settingsPath)
   await reopened.initialize()
   const state = await reopened.getState()
   assert.equal(state.status, 'ready')
   const resolved = state.library.items.find(
-    (item) => item.relativePath === 'Renamed outside Kuskus.md'
+    (item) => item.relativePath === 'Renamed outside Kusu.md'
   )
   assert.equal(resolved.id, note.id)
-  assert.equal(resolved.body, '# Stable note\n\nEdited outside Kuskus')
+  assert.equal(resolved.body, '# Stable note\n\nEdited outside Kusu')
 })
 
 test('keeps an existing path identity when a new file shares its file identity', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-shared-file-identity-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-shared-file-identity-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   const created = await service.createIn(root, 'Vault')
@@ -227,7 +227,7 @@ test('keeps an existing path identity when a new file shares its file identity',
 })
 
 test('does not guess identity when duplicate fingerprints make an external move ambiguous', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-note-duplicate-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-note-duplicate-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   const created = await service.createIn(root, 'Duplicate vault')
@@ -248,7 +248,7 @@ test('does not guess identity when duplicate fingerprints make an external move 
 })
 
 test('indexes an externally created Windows Internet Shortcut', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-external-shortcut-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-external-shortcut-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const vault = join(root, 'Shortcut vault')
   await mkdir(vault)

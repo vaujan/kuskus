@@ -40,7 +40,7 @@ Baseline: `24d0e2f` (`main`)
 
 ## Goal
 
-Improve maintainability, correctness, and startup cost without changing Kuskus's product behavior,
+Improve maintainability, correctness, and startup cost without changing Kusu's product behavior,
 storage contract, or Electron security boundaries. Refactor in small, independently verified slices;
 do not rewrite the application or introduce a new state-management, persistence, validation, or test
 framework unless an existing approach is demonstrably insufficient.
@@ -232,7 +232,7 @@ Make one small correctness pass before structural refactoring:
    `markdown-editor.tsx` into `useLayoutEffect`; keep initial document/config refs unchanged.
 2. Make the note mode state updater pure in `item-detail-dialog.tsx`.
 3. Put busy-state resets in `finally` blocks in `setup-screen.tsx` and `library-sidebar.tsx`.
-4. Safely decode malformed `kuskus-note:` targets in `markdown-preview.tsx`.
+4. Safely decode malformed `kusu-note:` targets in `markdown-preview.tsx`.
 5. Remove `@electron-toolkit/preload`; retain the CSS-imported Inter package.
 6. Add pnpm `minimumReleaseAge` and `trustPolicy` only after confirming a frozen install accepts the
    settings and documenting the intentional seven-day update delay.
@@ -476,7 +476,7 @@ Suggested file:
 
 - `src/renderer/src/features/library/use-item-mutations.ts`
 
-The hook may call `window.kuskus` directly because it is renderer application code. Keep dialogs as
+The hook may call `window.kusu` directly because it is renderer application code. Keep dialogs as
 normal components receiving explicit state and callbacks.
 
 ### 3.4 Capture coordination

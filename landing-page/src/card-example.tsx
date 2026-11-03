@@ -9,7 +9,7 @@ import {
 import './preview.css'
 import './card-example.css'
 
-applyTheme('light', 'kuskus', DEFAULT_TYPOGRAPHY)
+applyTheme('light', 'kusu', DEFAULT_TYPOGRAPHY)
 applyControlStyle('skeuomorphic')
 
 const markdown = `# Make room for ideas\n\nKeep **ideas and sources** together.\n\n- [x] Collect the references\n- [ ] Try a smaller first version`
@@ -39,8 +39,8 @@ createRoot(document.getElementById('root')!).render(
       </div>
     </article>
     <p className="example-provenance">
-      Rendered with Kuskus’s LiveMarkdownEditor, ItemCardSurface, app theme, and typography. Only
-      the surrounding marketing card is styled here.
+      Rendered with Kusu’s LiveMarkdownEditor, ItemCardSurface, app theme, and typography. Only the
+      surrounding marketing card is styled here.
     </p>
   </main>
 )

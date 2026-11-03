@@ -4,7 +4,7 @@ Updated 2026-10-26 (Asia/Jayapura). Source publication and stable desktop distri
 
 ## Repository and security settings
 
-The last verified committed source is `19e3a1793aeb85635a586cfd5d1a2b9d3b3dc740`. Its [Verify run](https://github.com/vaujan/kuskus/actions/runs/40266293523) passed Linux, Windows, and full-history Gitleaks. Changes after that commit need their own green run; local results do not replace it.
+The last verified committed source is `19e3a1793aeb85635a586cfd5d1a2b9d3b3dc740`. Its [Verify run](https://github.com/vaujan/kusu/actions/runs/40266293523) passed Linux, Windows, and full-history Gitleaks. Changes after that commit need their own green run; local results do not replace it.
 
 The repository has a GPL-3.0-only license, contributor and AI-disclosure guidance, bug/feature forms, generated dependency notices, and an enabled private vulnerability-reporting route. Secret scanning, secret push protection, and automated dependency security updates were enabled during this integration. The repository description and website are configured.
 
@@ -27,7 +27,7 @@ A public history rewrite changes commit/tag identities and needs coordination wi
 
 ## Desktop distribution
 
-The [v0.0.3-preview.1 prerelease](https://github.com/vaujan/kuskus/releases/tag/v0.0.3-preview.1) contains Windows x64, Linux x64, and macOS ARM64/x64 installers, checksums, and build metadata. Its source predates this integration. Those assets do not contain the new recovery fixes merely because `main` has changed.
+The [v0.0.3-preview.1 prerelease](https://github.com/vaujan/kusu/releases/tag/v0.0.3-preview.1) contains Windows x64, Linux x64, and macOS ARM64/x64 installers, checksums, and build metadata. Its source predates this integration. Those assets do not contain the new recovery fixes merely because `main` has changed.
 
 The release explicitly records unsigned Windows installers, ad-hoc-signed/not-notarized macOS builds, and incomplete clean-machine installation/runtime testing. Do not describe them as signed stable builds. Produce a new versioned candidate only after reviewing the source and completing the [beta gates](18-beta-release-plan.md).
 

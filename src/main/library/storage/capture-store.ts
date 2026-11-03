@@ -19,7 +19,7 @@ import {
 } from '../constants'
 import { isPersistedNoteAttachment, type PersistedNoteAttachment } from '../schemas'
 import { readJson, writeJsonAtomic } from './json-file'
-import { kuskusPath } from './vault-paths'
+import { kusuPath } from './vault-paths'
 
 const CAPTURE_QUEUE_DIRECTORY = 'capture-queue'
 const CAPTURE_SUBMISSION_MANIFEST = 'submission.json'
@@ -89,15 +89,15 @@ async function pathExists(path: string): Promise<boolean> {
 }
 
 function captureDraftDirectory(libraryPath: string): string {
-  return kuskusPath(libraryPath, 'temp', NOTE_DRAFT_DIRECTORY)
+  return kusuPath(libraryPath, 'temp', NOTE_DRAFT_DIRECTORY)
 }
 
 function captureDraftFileDirectory(libraryPath: string): string {
-  return kuskusPath(libraryPath, 'temp', FILE_DRAFT_DIRECTORY)
+  return kusuPath(libraryPath, 'temp', FILE_DRAFT_DIRECTORY)
 }
 
 function captureQueueDirectory(libraryPath: string): string {
-  return kuskusPath(libraryPath, 'temp', CAPTURE_QUEUE_DIRECTORY)
+  return kusuPath(libraryPath, 'temp', CAPTURE_QUEUE_DIRECTORY)
 }
 
 function captureSubmissionDirectory(libraryPath: string, submissionId: string): string {

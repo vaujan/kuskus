@@ -20,7 +20,7 @@ function arrayBuffer(buffer) {
 }
 
 test('imports, persists, previews, and detects a missing clipboard image', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-image-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-image-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const settingsPath = join(root, 'settings.json')
   const service = new LibraryService(settingsPath)
@@ -54,7 +54,7 @@ test('imports, persists, previews, and detects a missing clipboard image', async
 })
 
 test('stages a recoverable image without creating an item and commits it explicitly', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-capture-draft-image-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-capture-draft-image-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const settingsPath = join(root, 'settings.json')
   const service = new LibraryService(settingsPath)
@@ -92,7 +92,7 @@ test('stages a recoverable image without creating an item and commits it explici
 })
 
 test('rejects invalid or missing capture draft images without discarding recovery data', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-capture-draft-failure-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-capture-draft-failure-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   const created = await service.createIn(root, 'Failed Image Capture')
@@ -114,7 +114,7 @@ test('rejects invalid or missing capture draft images without discarding recover
 })
 
 test('stages a general file across restart and commits it without touching the source', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-capture-draft-file-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-capture-draft-file-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const settingsPath = join(root, 'settings.json')
   const service = new LibraryService(settingsPath)
@@ -139,7 +139,7 @@ test('stages a general file across restart and commits it without touching the s
 })
 
 test('recovers staged images and atomically commits independent sibling attachments', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-note-assets-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-note-assets-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const settingsPath = join(root, 'settings.json')
   const service = new LibraryService(settingsPath)
@@ -223,7 +223,7 @@ test('recovers staged images and atomically commits independent sibling attachme
 })
 
 test('gives clipboard images timestamp names and safely renames staged files', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-clipboard-image-name-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-clipboard-image-name-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   const created = await service.createIn(root, 'Clipboard image names')
@@ -252,7 +252,7 @@ test('gives clipboard images timestamp names and safely renames staged files', a
 })
 
 test('normalizes a schema-v1 quick-composer image manifest without losing staged bytes', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-stale-image-draft-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-stale-image-draft-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const settingsPath = join(root, 'settings.json')
   const service = new LibraryService(settingsPath)
@@ -292,7 +292,7 @@ test('normalizes a schema-v1 quick-composer image manifest without losing staged
 })
 
 test('retains a queued note destination and attachment IDs across restart', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-capture-destination-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-capture-destination-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const settingsPath = join(root, 'settings.json')
   const service = new LibraryService(settingsPath)
@@ -357,7 +357,7 @@ test('retains a queued note destination and attachment IDs across restart', asyn
 })
 
 test('keeps staged images recoverable when note commit validation fails', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-note-draft-failure-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-note-draft-failure-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   await service.createIn(root, 'Recoverable Draft')

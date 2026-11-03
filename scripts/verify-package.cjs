@@ -11,7 +11,7 @@ const root =
     ? join(
         'dist',
         process.arch === 'arm64' ? 'mac-arm64' : 'mac',
-        'Kuskus.app',
+        'Kusu.app',
         'Contents',
         'Resources'
       )

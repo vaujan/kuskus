@@ -46,9 +46,9 @@ function publish(options = {}) {
               ]
               for (const [index, [platform, suffix]] of platforms.entries()) {
                 if (options.missing && index === 3) continue
-                const directory = join(root, `kuskus-${platform}-unsigned-test`)
+                const directory = join(root, `kusu-${platform}-unsigned-test`)
                 fs.mkdirSync(directory)
-                const filename = `kuskus-0.0.3-${suffix}`
+                const filename = `kusu-0.0.3-${suffix}`
                 fs.writeFileSync(join(directory, filename), platform)
                 const checksum = createHash('sha256')
                   .update(options.corrupt && index === 0 ? 'corrupt' : platform)

@@ -73,7 +73,7 @@ class CheckboxWidget extends WidgetType {
     const element = document.createElement('input')
     element.type = 'checkbox'
     element.checked = this.checked
-    element.className = 'kuskus-task-checkbox cm-kuskus-checkbox'
+    element.className = 'kusu-task-checkbox cm-kusu-checkbox'
     element.setAttribute('aria-label', this.checked ? 'Completed task' : 'Open task')
     element.dataset.position = String(this.position)
     return element
@@ -91,7 +91,7 @@ class BulletWidget extends WidgetType {
 
   toDOM(): HTMLElement {
     const element = document.createElement('span')
-    element.className = 'cm-kuskus-bullet'
+    element.className = 'cm-kusu-bullet'
     element.setAttribute('aria-hidden', 'true')
     element.textContent = this.label
     return element
@@ -105,7 +105,7 @@ class HorizontalRuleWidget extends WidgetType {
 
   toDOM(): HTMLElement {
     const element = document.createElement('div')
-    element.className = 'cm-kuskus-hr'
+    element.className = 'cm-kusu-hr'
     element.setAttribute('aria-hidden', 'true')
     return element
   }
@@ -130,16 +130,16 @@ class CodeBlockWidget extends WidgetType {
 
   toDOM(): HTMLElement {
     const wrapper = document.createElement('div')
-    wrapper.className = 'cm-kuskus-code-block'
+    wrapper.className = 'cm-kusu-code-block'
     wrapper.dataset.position = String(this.position)
 
     const header = document.createElement('div')
-    header.className = 'cm-kuskus-code-header'
+    header.className = 'cm-kusu-code-header'
     const label = document.createElement('span')
     label.textContent = codeLanguageLabel(this.language)
     const copy = document.createElement('button')
     copy.type = 'button'
-    copy.className = 'cm-kuskus-code-copy'
+    copy.className = 'cm-kusu-code-copy'
     copy.textContent = 'Copy'
     copy.setAttribute('aria-label', 'Copy code')
     copy.addEventListener('click', async (event) => {
@@ -184,17 +184,17 @@ class ImageWidget extends WidgetType {
 
   toDOM(): HTMLElement {
     const wrapper = document.createElement('span')
-    wrapper.className = 'cm-kuskus-image-wrap'
+    wrapper.className = 'cm-kusu-image-wrap'
     if (this.resolution?.src) {
       const image = document.createElement('img')
-      image.className = 'cm-kuskus-image'
+      image.className = 'cm-kusu-image'
       image.src = this.resolution.src
       image.alt = this.alt || this.resolution.label
       wrapper.appendChild(image)
       return wrapper
     }
     const chip = document.createElement('span')
-    chip.className = 'cm-kuskus-chip'
+    chip.className = 'cm-kusu-chip'
     if (this.resolution?.missing) {
       chip.textContent = `Image missing: ${this.alt || this.resolution.label}`
     } else if (this.resolution) {
@@ -223,7 +223,7 @@ class MathWidget extends WidgetType {
 
   toDOM(): HTMLElement {
     const element = document.createElement(this.display ? 'div' : 'span')
-    element.className = this.display ? 'cm-kuskus-math is-block' : 'cm-kuskus-math'
+    element.className = this.display ? 'cm-kusu-math is-block' : 'cm-kusu-math'
     try {
       element.innerHTML = katex.renderToString(this.tex, {
         displayMode: this.display,
@@ -358,7 +358,7 @@ class LiveDecorationBuilder {
     const level = node.name.slice(-1)
     this.addLine(
       this.state.doc.lineAt(node.from).from,
-      Decoration.line({ class: `cm-kuskus-heading cm-kuskus-h${level}` })
+      Decoration.line({ class: `cm-kusu-heading cm-kusu-h${level}` })
     )
     if (this.isActiveLine(node.from)) return
     const mark = node.getChild('HeaderMark')
@@ -373,7 +373,7 @@ class LiveDecorationBuilder {
     for (let cursor: MarkdownSyntaxNode | null = node; cursor; cursor = cursor.parent) {
       if (cursor.name === 'Blockquote') depth += 1
     }
-    const lineClass = `cm-kuskus-quote cm-kuskus-quote-depth-${Math.min(depth, 3)}`
+    const lineClass = `cm-kusu-quote cm-kusu-quote-depth-${Math.min(depth, 3)}`
     const startLine = this.state.doc.lineAt(node.from).number
     const endLine = this.state.doc.lineAt(Math.min(node.to, this.state.doc.length)).number
     for (let line = startLine; line <= endLine; line += 1) {
@@ -432,7 +432,7 @@ class LiveDecorationBuilder {
     const label = ordered ? this.state.sliceDoc(node.from, node.to) : '•'
     let end = node.to
     if (this.state.sliceDoc(end, end + 1) === ' ') end += 1
-    this.addMark(node.from, end, Decoration.mark({ class: 'cm-kuskus-list-marker' }))
+    this.addMark(node.from, end, Decoration.mark({ class: 'cm-kusu-list-marker' }))
     if (this.isActiveLine(node.from)) return
     this.addReplace(node.from, end, Decoration.replace({ widget: new BulletWidget(label) }))
   }
@@ -451,14 +451,14 @@ class LiveDecorationBuilder {
     const startLine = this.state.doc.lineAt(node.from).number
     const endLine = this.state.doc.lineAt(Math.max(node.from, node.to - 1)).number
     for (let line = startLine; line <= endLine; line += 1) {
-      const classes = [`cm-kuskus-list-item`, `cm-kuskus-list-depth-${Math.min(depth, 4)}`]
-      if (line === startLine) classes.push('cm-kuskus-list-item-line-start')
-      if (line === startLine && !isFirst) classes.push('cm-kuskus-list-item-start')
+      const classes = [`cm-kusu-list-item`, `cm-kusu-list-depth-${Math.min(depth, 4)}`]
+      if (line === startLine) classes.push('cm-kusu-list-item-line-start')
+      if (line === startLine && !isFirst) classes.push('cm-kusu-list-item-start')
       if (line === startLine && isFirst && hasEarlierTopLevelContent) {
-        classes.push('cm-kuskus-list-first')
+        classes.push('cm-kusu-list-first')
       }
       if (line === startLine && isFirst && !isTopLevel) {
-        classes.push('cm-kuskus-list-nested-first')
+        classes.push('cm-kusu-list-nested-first')
       }
       const documentLine = this.state.doc.line(line)
       this.addLine(documentLine.from, Decoration.line({ class: classes.join(' ') }))
@@ -468,7 +468,7 @@ class LiveDecorationBuilder {
           this.addMark(
             documentLine.from,
             documentLine.from + indent,
-            Decoration.mark({ class: 'cm-kuskus-list-source-indent' })
+            Decoration.mark({ class: 'cm-kusu-list-source-indent' })
           )
           this.hiddenListIndentLines.add(line)
         }
@@ -488,11 +488,11 @@ class LiveDecorationBuilder {
     if (marks.length >= 2) {
       const contentClass =
         markerName === 'CodeMark'
-          ? 'cm-kuskus-inline-code'
+          ? 'cm-kusu-inline-code'
           : node.name === 'StrongEmphasis'
-            ? 'cm-kuskus-strong'
+            ? 'cm-kusu-strong'
             : node.name === 'Strikethrough'
-              ? 'cm-kuskus-strikethrough'
+              ? 'cm-kusu-strikethrough'
               : null
       if (contentClass) {
         this.addMark(
@@ -515,7 +515,7 @@ class LiveDecorationBuilder {
     const [open, close] = marks
     this.addReplace(open.from, open.to, Decoration.replace({}))
     this.addReplace(close.from, node.to, Decoration.replace({}))
-    this.addMark(open.to, close.from, Decoration.mark({ class: 'cm-kuskus-link' }))
+    this.addMark(open.to, close.from, Decoration.mark({ class: 'cm-kusu-link' }))
   }
 
   private handleImage(node: MarkdownSyntaxNode): void {
@@ -660,7 +660,7 @@ class LiveDecorationBuilder {
       }
 
       const linkMark = Decoration.mark({
-        class: 'cm-kuskus-wikilink',
+        class: 'cm-kusu-wikilink',
         attributes: { 'data-target': target }
       })
       if (aliasRaw !== undefined) {
@@ -703,37 +703,37 @@ export function buildLivePreviewDecorations(
 }
 
 const livePreviewTheme = EditorView.theme({
-  '&.cm-kuskus-live': {
+  '&.cm-kusu-live': {
     color: 'var(--typeset-body-color)',
     fontFamily: 'var(--typeset-font-body)',
     fontSize: 'var(--typeset-size)',
     lineHeight: 'var(--typeset-leading)'
   },
-  '&.cm-kuskus-live .cm-scroller': {
+  '&.cm-kusu-live .cm-scroller': {
     fontFamily: 'var(--typeset-font-body)',
     fontSize: 'var(--typeset-size)',
     lineHeight: 'var(--typeset-leading)'
   },
-  '&.cm-kuskus-live .cm-activeLine': {
+  '&.cm-kusu-live .cm-activeLine': {
     backgroundColor: 'transparent'
   },
-  '.cm-kuskus-heading': {
+  '.cm-kusu-heading': {
     color: 'var(--foreground)',
     fontFamily: 'var(--typeset-font-heading)',
     fontWeight: '400',
     textWrap: 'balance'
   },
-  '.cm-kuskus-h1': { fontSize: '1.75em', lineHeight: '1.3' },
-  '.cm-kuskus-h2': { fontSize: '1.25em', lineHeight: '1.4' },
-  '.cm-kuskus-h3': { fontSize: '1.125em', lineHeight: '1.45' },
-  '.cm-kuskus-h4': { fontSize: '1em', lineHeight: '1.5' },
-  '.cm-kuskus-h5': {
+  '.cm-kusu-h1': { fontSize: '1.75em', lineHeight: '1.3' },
+  '.cm-kusu-h2': { fontSize: '1.25em', lineHeight: '1.4' },
+  '.cm-kusu-h3': { fontSize: '1.125em', lineHeight: '1.45' },
+  '.cm-kusu-h4': { fontSize: '1em', lineHeight: '1.5' },
+  '.cm-kusu-h5': {
     color: 'var(--typeset-muted)',
     fontSize: '0.875em',
     fontWeight: '500',
     lineHeight: '1.5'
   },
-  '.cm-kuskus-h6': {
+  '.cm-kusu-h6': {
     color: 'var(--typeset-muted)',
     fontSize: '0.8125em',
     fontWeight: '500',
@@ -741,14 +741,14 @@ const livePreviewTheme = EditorView.theme({
     lineHeight: '1.5',
     textTransform: 'uppercase'
   },
-  '.cm-kuskus-link, .cm-kuskus-wikilink': {
+  '.cm-kusu-link, .cm-kusu-wikilink': {
     color: 'inherit',
     fontWeight: '500',
     textDecoration: 'underline',
     textDecorationColor: 'color-mix(in oklab, currentColor 30%, transparent)',
     textUnderlineOffset: '0.1875rem'
   },
-  '.cm-kuskus-inline-code': {
+  '.cm-kusu-inline-code': {
     backgroundColor: 'var(--typeset-code-background)',
     borderRadius: 'min(calc(var(--radius) * 0.6), 0.35em)',
     fontFamily: 'var(--typeset-font-mono)',
@@ -756,83 +756,83 @@ const livePreviewTheme = EditorView.theme({
     lineHeight: 'inherit',
     padding: '0.125em 0.3em'
   },
-  '.cm-kuskus-heading .cm-kuskus-inline-code': { fontSize: '0.9em' },
-  '.cm-kuskus-strong': { color: 'var(--foreground)', fontWeight: '600' },
-  '.cm-kuskus-heading .cm-kuskus-strong': { fontWeight: '700' },
-  '.cm-kuskus-strikethrough': {
+  '.cm-kusu-heading .cm-kusu-inline-code': { fontSize: '0.9em' },
+  '.cm-kusu-strong': { color: 'var(--foreground)', fontWeight: '600' },
+  '.cm-kusu-heading .cm-kusu-strong': { fontWeight: '700' },
+  '.cm-kusu-strikethrough': {
     color: 'var(--typeset-muted)',
     textDecoration: 'line-through'
   },
-  '.cm-kuskus-quote': {
+  '.cm-kusu-quote': {
     borderLeft: '2px solid var(--typeset-rule)',
     paddingLeft: '1em'
   },
-  '.cm-kuskus-quote-depth-2': {
+  '.cm-kusu-quote-depth-2': {
     borderLeftColor: 'transparent',
     boxShadow: 'inset 2px 0 var(--typeset-rule), inset 1.25em 0 var(--typeset-rule)',
     paddingLeft: '2.25em'
   },
-  '.cm-kuskus-quote-depth-3': {
+  '.cm-kusu-quote-depth-3': {
     borderLeftColor: 'transparent',
     boxShadow:
       'inset 2px 0 var(--typeset-rule), inset 1.25em 0 var(--typeset-rule), inset 2.5em 0 var(--typeset-rule)',
     paddingLeft: '3.5em'
   },
-  '.cm-kuskus-hr': {
+  '.cm-kusu-hr': {
     borderTop: '1px solid var(--typeset-rule)',
     margin: 'calc(var(--typeset-flow) * 2.4) 0 0',
     width: '100%'
   },
-  '.cm-kuskus-list-item': {
-    '--cm-kuskus-list-indent': 'var(--typeset-list-indent)',
-    paddingInlineStart: 'var(--cm-kuskus-list-indent)',
+  '.cm-kusu-list-item': {
+    '--cm-kusu-list-indent': 'var(--typeset-list-indent)',
+    paddingInlineStart: 'var(--cm-kusu-list-indent)',
     position: 'relative'
   },
-  '.cm-kuskus-list-depth-2': {
-    '--cm-kuskus-list-indent': 'calc(var(--typeset-list-indent) + var(--typeset-list-indent))'
+  '.cm-kusu-list-depth-2': {
+    '--cm-kusu-list-indent': 'calc(var(--typeset-list-indent) + var(--typeset-list-indent))'
   },
-  '.cm-kuskus-list-depth-3': {
-    '--cm-kuskus-list-indent':
+  '.cm-kusu-list-depth-3': {
+    '--cm-kusu-list-indent':
       'calc(var(--typeset-list-indent) + var(--typeset-list-indent) + var(--typeset-list-indent))'
   },
-  '.cm-kuskus-list-depth-4': {
-    '--cm-kuskus-list-indent':
+  '.cm-kusu-list-depth-4': {
+    '--cm-kusu-list-indent':
       'calc(var(--typeset-list-indent) + var(--typeset-list-indent) + var(--typeset-list-indent) + var(--typeset-list-indent))'
   },
-  '.cm-kuskus-list-item-line-start.cm-activeLine': {
-    paddingInlineStart: 'calc(var(--cm-kuskus-list-indent) - var(--typeset-list-indent))'
+  '.cm-kusu-list-item-line-start.cm-activeLine': {
+    paddingInlineStart: 'calc(var(--cm-kusu-list-indent) - var(--typeset-list-indent))'
   },
-  '.cm-kuskus-bullet': {
+  '.cm-kusu-bullet': {
     color: 'var(--typeset-muted)',
-    insetInlineStart: 'calc(var(--cm-kuskus-list-indent) - var(--typeset-list-indent))',
+    insetInlineStart: 'calc(var(--cm-kusu-list-indent) - var(--typeset-list-indent))',
     position: 'absolute',
     textAlign: 'right',
     width: '1em'
   },
-  '.cm-kuskus-list-marker': {
+  '.cm-kusu-list-marker': {
     color: 'var(--typeset-muted)'
   },
-  '.cm-kuskus-list-source-indent': {
+  '.cm-kusu-list-source-indent': {
     fontSize: '0'
   },
-  '.cm-kuskus-checkbox': {
-    insetInlineStart: 'calc(var(--cm-kuskus-list-indent) - var(--typeset-list-indent) + 0.25em)',
+  '.cm-kusu-checkbox': {
+    insetInlineStart: 'calc(var(--cm-kusu-list-indent) - var(--typeset-list-indent) + 0.25em)',
     margin: '0',
     position: 'absolute'
   },
-  '.cm-kuskus-list-item-start': {
+  '.cm-kusu-list-item-start': {
     paddingTop: '0.5em'
   },
-  '.cm-kuskus-list-first': {
+  '.cm-kusu-list-first': {
     paddingTop: 'calc(var(--typeset-flow) + 0.5em)'
   },
-  '.cm-kuskus-list-nested-first': {
+  '.cm-kusu-list-nested-first': {
     paddingTop: '1em'
   },
-  '.cm-kuskus-image-wrap': {
+  '.cm-kusu-image-wrap': {
     display: 'block'
   },
-  '.cm-kuskus-image': {
+  '.cm-kusu-image': {
     borderRadius: 'var(--radius-lg)',
     display: 'block',
     margin: 'var(--typeset-flow) 0 0',
@@ -841,7 +841,7 @@ const livePreviewTheme = EditorView.theme({
     outline: '1px solid var(--typeset-image-outline)',
     outlineOffset: '-1px'
   },
-  '.cm-kuskus-chip': {
+  '.cm-kusu-chip': {
     alignItems: 'center',
     backgroundColor: 'var(--muted)',
     borderRadius: '0.5rem',
@@ -853,7 +853,7 @@ const livePreviewTheme = EditorView.theme({
     maxWidth: '100%',
     padding: '0.5rem 0.75rem'
   },
-  '.cm-kuskus-math.is-block': {
+  '.cm-kusu-math.is-block': {
     display: 'block',
     overflowX: 'auto',
     padding: '0.375rem 0'
@@ -902,7 +902,7 @@ function followClickHandler(getOptions: () => LivePreviewOptions): Extension {
   return EditorView.domEventHandlers({
     click(event, view) {
       const target = event.target as HTMLElement | null
-      const checkbox = target?.closest<HTMLElement>('.cm-kuskus-checkbox')
+      const checkbox = target?.closest<HTMLElement>('.cm-kusu-checkbox')
       if (checkbox) {
         const position = Number(checkbox.dataset.position)
         if (Number.isInteger(position)) {
@@ -915,7 +915,7 @@ function followClickHandler(getOptions: () => LivePreviewOptions): Extension {
           return true
         }
       }
-      const codeBlock = target?.closest<HTMLElement>('.cm-kuskus-code-block')
+      const codeBlock = target?.closest<HTMLElement>('.cm-kusu-code-block')
       if (codeBlock) {
         const position = Number(codeBlock.dataset.position)
         if (Number.isInteger(position)) {
@@ -926,7 +926,7 @@ function followClickHandler(getOptions: () => LivePreviewOptions): Extension {
         }
       }
       if (!(event.ctrlKey || event.metaKey)) return false
-      const wiki = target?.closest('.cm-kuskus-wikilink')
+      const wiki = target?.closest('.cm-kusu-wikilink')
       if (wiki) {
         const destination = wiki.getAttribute('data-target')
         if (destination) {
@@ -974,7 +974,7 @@ export function liveMarkdownPreview(
   })
   return [
     EditorView.editorAttributes.of({
-      class: 'cm-kuskus-live',
+      class: 'cm-kusu-live',
       'data-typeset-presentation': presentation
     }),
     decorations,

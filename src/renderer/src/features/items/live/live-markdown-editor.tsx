@@ -51,7 +51,7 @@ import { liveFindExtensions, wireLiveFind, unwireLiveFind } from '@/features/ite
 import { contentFolding } from '@/features/items/live/content-folding'
 import { slashMenu } from '@/features/items/live/slash-menu-plugin'
 import {
-  kuskusLiveExtensions,
+  kusuLiveExtensions,
   readOnlyFacet,
   type LiveEditorOptions
 } from '@/features/items/live/live-preview'
@@ -131,15 +131,15 @@ const editorTheme = EditorView.theme({
   '&::selection, & ::selection': {
     backgroundColor: 'color-mix(in oklch, var(--primary) 25%, transparent)'
   },
-  '.cm-kuskus-live.cm-focused .cm-activeLine': {
+  '.cm-kusu-live.cm-focused .cm-activeLine': {
     backgroundColor: 'color-mix(in oklab, var(--foreground) 7%, transparent)',
     borderRadius: '0.25rem'
   },
-  '.cm-kuskus-find-match': {
+  '.cm-kusu-find-match': {
     borderRadius: '0.125rem',
     backgroundColor: 'color-mix(in oklch, var(--primary) 28%, transparent)'
   },
-  '.cm-kuskus-find-current': {
+  '.cm-kusu-find-current': {
     boxShadow: 'inset 0 0 0 1px var(--primary)',
     backgroundColor: 'color-mix(in oklch, var(--primary) 45%, transparent)'
   }
@@ -161,25 +161,25 @@ const cardScrollerTheme = EditorView.theme({
 })
 
 const liveEditorTheme = EditorView.theme({
-  '&.cm-kuskus-live': {
+  '&.cm-kusu-live': {
     color: 'var(--typeset-body-color)',
     fontFamily: 'var(--typeset-font-body)',
     fontSize: 'var(--typeset-size)',
     lineHeight: 'var(--typeset-leading)'
   },
-  '&.cm-kuskus-live .cm-scroller': {
+  '&.cm-kusu-live .cm-scroller': {
     fontFamily: 'var(--typeset-font-body)',
     fontSize: 'var(--typeset-size)',
     lineHeight: 'var(--typeset-leading)'
   },
-  '&.cm-kuskus-live .cm-activeLine': {
+  '&.cm-kusu-live .cm-activeLine': {
     backgroundColor: 'transparent'
   }
 })
 
 const vimModeTheme = Prec.highest(
   EditorView.theme({
-    '&.cm-kuskus-live .cm-vimMode .cm-line::selection, &.cm-kuskus-live .cm-vimMode .cm-line ::selection':
+    '&.cm-kusu-live .cm-vimMode .cm-line::selection, &.cm-kusu-live .cm-vimMode .cm-line ::selection':
       {
         backgroundColor: 'color-mix(in oklch, var(--primary) 25%, transparent) !important'
       },
@@ -327,8 +327,8 @@ export const LiveMarkdownEditor = forwardRef<SourceNoteHandle, LiveMarkdownEdito
         highlightSelectionMatches(),
         EditorView.editorAttributes.of({
           class: cn(
-            'cm-kuskus-live kuskus-typeset',
-            presentation === 'detail' && 'cm-kuskus-detail-editor'
+            'cm-kusu-live kusu-typeset',
+            presentation === 'detail' && 'cm-kusu-detail-editor'
           ),
           'data-typeset-presentation': presentation
         }),
@@ -386,7 +386,7 @@ export const LiveMarkdownEditor = forwardRef<SourceNoteHandle, LiveMarkdownEdito
             return false
           }
         }),
-        liveCompartmentRef.current.of(kuskusLiveExtensions(() => liveOptionsRef.current)),
+        liveCompartmentRef.current.of(kusuLiveExtensions(() => liveOptionsRef.current)),
         blocksCompartmentRef.current.of(markdownEditorBlocks(() => blocksOptionsRef.current)),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
@@ -511,7 +511,7 @@ export const LiveMarkdownEditor = forwardRef<SourceNoteHandle, LiveMarkdownEdito
       view.dispatch({
         effects: liveCompartmentRef.current.reconfigure([
           readOnlyFacet.of(!editable),
-          kuskusLiveExtensions(() => liveOptionsRef.current)
+          kusuLiveExtensions(() => liveOptionsRef.current)
         ])
       })
     }, [editable, liveOptions])

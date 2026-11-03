@@ -23,7 +23,7 @@ export function useNoteAttachmentPreviews(
     void Promise.all(
       available.map(async (attachment) => {
         const lease = await acquirePreview(`attachment:${itemId}:${attachment.id}`, async () => {
-          const result = await window.kuskus.getNoteAttachmentPreview(itemId, attachment.id)
+          const result = await window.kusu.getNoteAttachmentPreview(itemId, attachment.id)
           if (!result.ok) throw new Error(result.error)
           return result.data
         })

@@ -48,73 +48,73 @@ export function resolveBackgroundOpacity(stored: string | null): string {
 export const SETTINGS_SCHEMA: readonly SettingDefinition[] = [
   {
     key: 'backgroundOpacity',
-    storageKey: 'kuskus-background-opacity',
+    storageKey: 'kusu-background-opacity',
     default: '85',
     parse: resolveBackgroundOpacity
   },
   {
     key: 'colorMode',
-    storageKey: 'kuskus-color-mode',
+    storageKey: 'kusu-color-mode',
     default: 'dark',
     parse: resolveColorMode
   },
   {
     key: 'colorTheme',
-    storageKey: 'kuskus-color-theme',
+    storageKey: 'kusu-color-theme',
     default: 'one',
     parse: resolveColorTheme
   },
   {
     key: 'controlStyle',
-    storageKey: 'kuskus-control-style',
+    storageKey: 'kusu-control-style',
     default: 'skeuomorphic',
     parse: resolveControlStyle
   },
   {
     key: 'uiFont',
-    storageKey: 'kuskus-ui-font',
+    storageKey: 'kusu-ui-font',
     default: DEFAULT_TYPOGRAPHY.uiFont,
     parse: (value) => resolveFontPreference(value, DEFAULT_TYPOGRAPHY.uiFont)
   },
   {
     key: 'contentFont',
-    storageKey: 'kuskus-content-font',
+    storageKey: 'kusu-content-font',
     default: DEFAULT_TYPOGRAPHY.contentFont,
     parse: (value) => resolveFontPreference(value, DEFAULT_TYPOGRAPHY.contentFont)
   },
   {
     key: 'codeFont',
-    storageKey: 'kuskus-code-font',
+    storageKey: 'kusu-code-font',
     default: DEFAULT_TYPOGRAPHY.codeFont,
     parse: (value) => resolveFontPreference(value, DEFAULT_TYPOGRAPHY.codeFont)
   },
   {
     key: 'sourceFontSize',
-    storageKey: 'kuskus-markdown-source-font-size',
+    storageKey: 'kusu-markdown-source-font-size',
     default: DEFAULT_TYPOGRAPHY.sourceFontSize,
     parse: (value) => resolveBaseFontSize(value, DEFAULT_TYPOGRAPHY.sourceFontSize)
   },
   {
     key: 'contentFontSize',
-    storageKey: 'kuskus-markdown-content-font-size',
+    storageKey: 'kusu-markdown-content-font-size',
     default: DEFAULT_TYPOGRAPHY.contentFontSize,
     parse: (value) => resolveBaseFontSize(value, DEFAULT_TYPOGRAPHY.contentFontSize)
   },
   {
     key: 'sourceLineNumbers',
-    storageKey: 'kuskus-source-line-numbers',
+    storageKey: 'kusu-source-line-numbers',
     default: true,
     parse: (value) => value !== 'false'
   },
   {
     key: 'contentFolding',
-    storageKey: 'kuskus-content-folding',
+    storageKey: 'kusu-content-folding',
     default: true,
     parse: (value) => value !== 'false'
   },
   {
     key: 'libraryView',
-    storageKey: 'kuskus-library-view',
+    storageKey: 'kusu-library-view',
     default: 'visual',
     parse: parseLibraryView
   },

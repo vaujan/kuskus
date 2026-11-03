@@ -56,7 +56,7 @@ test('packaged performance summary includes CPU and process counts', () => {
 })
 
 test('counts shared JavaScript chunks once across multiple entries', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-performance-budget-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-performance-budget-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const shared = join(root, 'shared.js')
   const entry = join(root, 'entry.js')

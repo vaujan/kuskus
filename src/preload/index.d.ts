@@ -1,4 +1,4 @@
-import type { KuskusLibraryApi } from '../shared/library-contract'
+import type { KusuLibraryApi } from '../shared/library-contract'
 import type { CaptureApi } from '../shared/capture-contract'
 import type { UpdateApi } from '../shared/update-contract'
 import type { ElectronWindowApi } from '../shared/window-contract'
@@ -9,7 +9,7 @@ declare global {
       window: ElectronWindowApi
       updates: UpdateApi
     }
-    kuskus: KuskusLibraryApi
+    kusu: KusuLibraryApi
     capture: CaptureApi
   }
 }

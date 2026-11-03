@@ -1,10 +1,10 @@
 export const STARTER_TUTORIAL = `# Start here
 
-Welcome to your Kuskus library. Everything you save here lives in the folder you chose. You can edit or delete this guide at any time.
+Welcome to your Kusu library. Everything you save here lives in the folder you chose. You can edit or delete this guide at any time.
 
 ## 1. Save something
 
-Use **New note** to start writing. Use **Add item** to collect an image, file, or link, or drag a file into Kuskus. New items appear in **Inbox** until you move them into a folder.
+Use **New note** to start writing. Use **Add item** to collect an image, file, or link, or drag a file into Kusu. New items appear in **Inbox** until you move them into a folder.
 
 ## 2. Write and read
 

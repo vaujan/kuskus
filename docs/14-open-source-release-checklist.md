@@ -12,7 +12,7 @@ Updated 2026-10-22 (Asia/Jayapura). The first launch milestone is the public sou
 - [x] Reject symbolic links and Windows junctions in resolved vault paths, including dangling links and `.kuskus` metadata paths. Archive destinations and referenced note images use the same guard. This is a filesystem guard, not a guarantee against a concurrent process replacing path components between validation and IO.
 - [x] Record the maintainer's artwork ownership/redistribution confirmation and retain upstream MIT notices for all five bundled-skill sources.
 - [x] Re-run Gitleaks 8.30.1 locally: 243 reachable commits, approximately 8.39 MB scanned, no findings. A directory scan also reported no findings; files over 5 MB were excluded. No scan guarantees the absence of secrets.
-- [x] Verify the existing remote default-branch CI at [`12c2cb2`](https://github.com/vaujan/kuskus/actions/runs/39409885178): Linux, Windows, and full-history Gitleaks jobs all passed. New changes require their own green CI run before merging.
+- [x] Verify the existing remote default-branch CI at [`12c2cb2`](https://github.com/vaujan/kusu/actions/runs/39409885178): Linux, Windows, and full-history Gitleaks jobs all passed. New changes require their own green CI run before merging.
 - [x] Add visible source, license, and third-party notice links to the landing page. Publish the repository before announcing the site so the source link resolves publicly.
 
 ## Completed fixes
@@ -67,7 +67,7 @@ Use disposable copies of representative vaults. Record OS, architecture, install
 
 - [ ] Create/open/reopen libraries with Unicode names, spaces, missing folders, and permission failures.
 - [ ] Edit rapidly, switch notes/libraries, close immediately, reopen, and compare saved text.
-- [ ] Edit the same note in two Kuskus windows and an external editor; verify visible conflicts and preserved content.
+- [ ] Edit the same note in two Kusu windows and an external editor; verify visible conflicts and preserved content.
 - [ ] Import supported media/files, then restart, rename/move items and folders, and relocate the entire vault. Inspect relative attachments.
 - [ ] Trash/restore items and folders; verify reference-aware cleanup and confirmation for permanent deletion.
 - [ ] Interrupt saves and batch moves, simulate disk-full/write failures, restart, and compare against a backup.

@@ -95,8 +95,8 @@ test('exposes native file and image copying from detail context menus', () => {
     'utf8'
   )
   assert.match(detailSource, /<NoteReadContextMenu itemId=\{item\.id\} onError=\{onError\}>/)
-  assert.match(detailSource, /window\.kuskus\.copyItemPath\(itemId\)/)
-  assert.match(detailSource, /window\.kuskus\.copyImage\(itemId\)/)
+  assert.match(detailSource, /window\.kusu\.copyItemPath\(itemId\)/)
+  assert.match(detailSource, /window\.kusu\.copyImage\(itemId\)/)
   assert.match(
     detailSource,
     /<ItemClipboardContextMenu[\s\S]{0,160}image=\{item\.type === 'image'\}/

@@ -84,21 +84,21 @@ test('uses one list marker column and hides source indentation on inactive lines
   })
 
   assert.equal(
-    decorations.some((entry) => entry.className?.includes('cm-kuskus-list-depth-2')),
+    decorations.some((entry) => entry.className?.includes('cm-kusu-list-depth-2')),
     true
   )
   assert.deepEqual(
-    decorations.filter((entry) => entry.className === 'cm-kuskus-list-source-indent'),
+    decorations.filter((entry) => entry.className === 'cm-kusu-list-source-indent'),
     [
       {
         from: state.doc.line(3).from,
         to: state.doc.line(3).from + 2,
-        className: 'cm-kuskus-list-source-indent'
+        className: 'cm-kusu-list-source-indent'
       },
       {
         from: state.doc.line(4).from,
         to: state.doc.line(4).from + 2,
-        className: 'cm-kuskus-list-source-indent'
+        className: 'cm-kusu-list-source-indent'
       }
     ]
   )

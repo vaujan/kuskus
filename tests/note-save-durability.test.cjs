@@ -36,7 +36,7 @@ replaceNoteContent(destination, temporaryDirectory, markdown).catch((error) => {
 
 for (const stage of ['writing', 'staged', 'replaced']) {
   test(`reopens a complete note after the save process exits during ${stage}`, async (context) => {
-    const root = await filesystem.mkdtemp(join(tmpdir(), 'kuskus-note-interruption-'))
+    const root = await filesystem.mkdtemp(join(tmpdir(), 'kusu-note-interruption-'))
     context.after(() => filesystem.rm(root, { recursive: true, force: true }))
     const settingsPath = join(root, 'settings.json')
     const service = new LibraryService(settingsPath)
@@ -75,7 +75,7 @@ for (const stage of ['writing', 'staged', 'replaced']) {
 
 for (const operation of ['writeFile', 'rename']) {
   test(`preserves the original note and cleans staging after ${operation} fails`, async (context) => {
-    const root = await filesystem.mkdtemp(join(tmpdir(), 'kuskus-note-io-failure-'))
+    const root = await filesystem.mkdtemp(join(tmpdir(), 'kusu-note-io-failure-'))
     context.after(() => filesystem.rm(root, { recursive: true, force: true }))
     const destination = join(root, 'note.md')
     const temporaryDirectory = join(root, 'temp')
@@ -97,7 +97,7 @@ for (const operation of ['writeFile', 'rename']) {
 }
 
 test('replaces a note and removes its staged file after a successful save', async (context) => {
-  const root = await filesystem.mkdtemp(join(tmpdir(), 'kuskus-note-save-'))
+  const root = await filesystem.mkdtemp(join(tmpdir(), 'kusu-note-save-'))
   context.after(() => filesystem.rm(root, { recursive: true, force: true }))
   const destination = join(root, 'note.md')
   const temporaryDirectory = join(root, 'temp')

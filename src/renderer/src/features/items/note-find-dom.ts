@@ -2,7 +2,7 @@ import type { RefObject } from 'react'
 
 import type { NoteFindResult, NoteFindTarget } from '@/features/items/note-editor'
 
-const MARK_ATTRIBUTE = 'data-kuskus-find-result'
+const MARK_ATTRIBUTE = 'data-kusu-find-result'
 
 function unwrapMarks(scope: HTMLElement): void {
   const parents = new Set<Node>()

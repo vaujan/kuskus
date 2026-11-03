@@ -10,7 +10,7 @@ const { LibraryService } = require('../src/main/library/library-service.ts')
 const { LIBRARY_NAME, seedDemoEnvironment } = require('../scripts/create-demo-library.cjs')
 
 test('serves a rebuildable cached snapshot and reconciles an edit made while closed', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-index-cache-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-index-cache-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const settingsPath = join(root, 'settings.json')
   const service = new LibraryService(settingsPath)
@@ -29,7 +29,7 @@ test('serves a rebuildable cached snapshot and reconciles an edit made while clo
   await reopened.initialize()
   await writeFile(
     join(created.library.path, note.relativePath),
-    '# Cached note\n\nChanged outside Kuskus.'
+    '# Cached note\n\nChanged outside Kusu.'
   )
 
   const cached = await reopened.getState(true)
@@ -48,14 +48,14 @@ test('serves a rebuildable cached snapshot and reconciles an edit made while clo
 })
 
 test('reconciles a dirty vault before applying a cached mutation', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-dirty-mutation-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-dirty-mutation-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   const created = await service.createIn(root, 'Vault')
   const note = await service.createNote({ markdown: '# Existing note', attachmentIds: [] })
   await service.getState()
 
-  await writeFile(join(created.library.path, 'External note.md'), '# Added outside Kuskus')
+  await writeFile(join(created.library.path, 'External note.md'), '# Added outside Kusu')
   service.vaultDirty = true
   const library = await service.renameItem({ itemId: note.id, title: 'Renamed note' })
 
@@ -67,7 +67,7 @@ test('reconciles a dirty vault before applying a cached mutation', async (contex
 })
 
 test('ignores and repairs a corrupt rebuildable library snapshot', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-index-repair-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-index-repair-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const settingsPath = join(root, 'settings.json')
   const service = new LibraryService(settingsPath)
@@ -90,7 +90,7 @@ test('ignores and repairs a corrupt rebuildable library snapshot', async (contex
 })
 
 test('keeps overview payloads bounded while querying and loading exact note detail', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-overview-query-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-overview-query-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   await service.createIn(root, 'Vault')
@@ -110,11 +110,11 @@ test('keeps overview payloads bounded while querying and loading exact note deta
 })
 
 test('seeds and resets a cultivated isolated demo profile', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-demo-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-demo-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
 
   const { libraryPath, userDataPath } = await seedDemoEnvironment({ root })
-  const service = new LibraryService(join(userDataPath, 'kuskus-settings.json'))
+  const service = new LibraryService(join(userDataPath, 'kusu-settings.json'))
   await service.initialize()
   const state = await service.getState()
 
@@ -125,7 +125,7 @@ test('seeds and resets a cultivated isolated demo profile', async (context) => {
   assert.equal(state.library.collections.length, 5)
   assert.deepEqual(
     state.library.collections.map((collection) => collection.name),
-    ['Kuskus', 'Interface references', 'Research', 'Writing', 'Markdown Lab']
+    ['Kusu', 'Interface references', 'Research', 'Writing', 'Markdown Lab']
   )
   assert.deepEqual(
     new Set(state.library.items.map((item) => item.type)),
@@ -150,7 +150,7 @@ test('seeds and resets a cultivated isolated demo profile', async (context) => {
   assert.equal(attachedNote.attachments[0].missingContent, false)
   assert.equal(existsSync(join(libraryPath, attachedNote.attachments[0].filename)), true)
   assert.equal(
-    existsSync(join(libraryPath, 'Kuskus', 'Product direction that still feels true.md')),
+    existsSync(join(libraryPath, 'Kusu', 'Product direction that still feels true.md')),
     true
   )
   assert.equal(
@@ -253,7 +253,7 @@ test('seeds and resets a cultivated isolated demo profile', async (context) => {
 })
 
 test('note autosave does not expose its backup or trigger a full watched-vault rebuild', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-watched-autosave-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-watched-autosave-'))
   let unsubscribe
   context.after(async () => {
     unsubscribe?.()

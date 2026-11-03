@@ -46,7 +46,7 @@ test('resolves color modes and rejects stale values', () => {
 })
 
 test('resolves curated color themes and rejects stale values', () => {
-  assert.equal(resolveColorTheme('kuskus'), 'kuskus')
+  assert.equal(resolveColorTheme('kusu'), 'kusu')
   assert.equal(resolveColorTheme('graphite'), 'graphite')
   assert.equal(resolveColorTheme('obsidian'), 'obsidian')
   assert.equal(resolveColorTheme('github'), 'github')
@@ -236,7 +236,7 @@ test('settings keeps contextual view controls on the surfaces they affect', () =
   assert.match(panel, /<ScrollArea/)
   assert.match(panel, /COLOR_THEMES\.map/)
   assert.match(panel, /COLOR_MODES\.map/)
-  assert.match(theme, /Kuskus/)
+  assert.match(theme, /Kusu/)
   assert.match(theme, /Graphite/)
   assert.match(theme, /label: 'Obsidian'/)
   assert.match(theme, /GitHub/)

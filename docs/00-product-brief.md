@@ -1,13 +1,13 @@
-# Kuskus Product Brief
+# Kusu Product Brief
 
 Status: Draft v0.1  
 Last updated: 2026-07-14
 
 ## Product definition
 
-Kuskus is a desktop application for collecting links, images, screenshots, PDFs, files, and short notes into visual project collections. Content is stored locally in a user-controlled library and remains accessible outside Kuskus.
+Kusu is a desktop application for collecting links, images, screenshots, PDFs, files, and short notes into visual project collections. Content is stored locally in a user-controlled library and remains accessible outside Kusu.
 
-Kuskus is initially being built for its creator's personal use. Broader market validation, collaboration, and growth features are not current requirements.
+Kusu is initially being built for its creator's personal use. Broader market validation, collaboration, and growth features are not current requirements.
 
 ## Problem
 
@@ -30,11 +30,11 @@ When I encounter something useful, let me capture it without interrupting my flo
 
 ## Initial user
 
-The initial user is the creator of Kuskus: a Windows desktop user who collects mixed-format references while researching, designing, writing, and building projects.
+The initial user is the creator of Kusu: a Windows desktop user who collects mixed-format references while researching, designing, writing, and building projects.
 
 ## Product principles
 
-1. **Local by default.** A Kuskus library lives in a folder selected by the user.
+1. **Local by default.** A Kusu library lives in a folder selected by the user.
 2. **Files over application lock-in.** User-readable content and metadata are authoritative; generated indexes must be rebuildable.
 3. **Capture now, organize later.** New items can go directly to Inbox without mandatory classification.
 4. **Fast capture.** The ordinary capture path should take less than five seconds after content is copied or dropped.
@@ -46,24 +46,24 @@ The initial user is the creator of Kuskus: a Windows desktop user who collects m
 
 ## Experience direction
 
-The content area combines MyMind-style format-aware cards with Are.na-style simplicity and density. Kuskus is not a social platform: the visual canvas exists to make a personal local library easy to scan.
+The content area combines MyMind-style format-aware cards with Are.na-style simplicity and density. Kusu is not a social platform: the visual canvas exists to make a personal local library easy to scan.
 
 ## Success for the first usable version
 
-Kuskus is successful when it can replace the creator's scattered reference workflow for one real project for seven consecutive days without manual data repair.
+Kusu is successful when it can replace the creator's scattered reference workflow for one real project for seven consecutive days without manual data repair.
 
 During that period, the user must be able to:
 
 - Capture real links, images, notes, PDFs, and files.
 - On Windows, summon Inbox capture from another application with a system-wide keyboard shortcut
-  while Kuskus is running.
+  while Kusu is running.
 - Organize them into collections or leave them in Inbox.
 - Browse different formats together.
 - Search for and reopen previously saved items.
 - Edit saved notes as highlighted plain Markdown, alone or beside a rendered reading mode, with
   guarded local autosave while keeping the library files authoritative.
-- Reopen saved links and inspect saved content without leaving Kuskus.
-- Close and reopen Kuskus without losing or corrupting content.
+- Reopen saved links and inspect saved content without leaving Kusu.
+- Close and reopen Kusu without losing or corrupting content.
 - Back up the library by copying its folder.
 
 ## Non-goals for the first usable version
@@ -85,12 +85,12 @@ During that period, the user must be able to:
 
 ## Vault-native storage amendment (2026-07-29)
 
-Kuskus is a visual client for an ordinary user-owned vault, not a package database. The same folder
-may be used live from Kuskus, Obsidian, and Explorer. Readable filenames define titles, ordinary
-nested folders define collections, and hidden Kuskus records exist only to preserve stable identity,
-presentation metadata, recovery data, and disposable derivatives. Kuskus never modifies `.obsidian`.
+Kusu is a visual client for an ordinary user-owned vault, not a package database. The same folder
+may be used live from Kusu, Obsidian, and Explorer. Readable filenames define titles, ordinary
+nested folders define collections, and hidden Kusu records exist only to preserve stable identity,
+presentation metadata, recovery data, and disposable derivatives. Kusu never modifies `.obsidian`.
 
-- Visible notes contain no Kuskus-owned properties. Windows Internet Shortcut files are the
+- Visible notes contain no Kusu-owned properties. Windows Internet Shortcut files are the
   authoritative portable-on-Windows representation for saved web links and open directly from
   Explorer.
 - Whether offline webpage snapshots are worth their complexity.

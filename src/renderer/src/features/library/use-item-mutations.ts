@@ -161,7 +161,7 @@ export function useItemMutations(deps: ItemMutationDependencies): ItemMutations 
       )
       setItemOperationBusy(true)
       try {
-        const result = await window.kuskus.moveItems({ itemIds, destination: nextDestination })
+        const result = await window.kusu.moveItems({ itemIds, destination: nextDestination })
         const nextLibrary = applyLibraryResult(result)
         if (!nextLibrary) return
         const changes = countReferencedImageChanges(requested, library.items, nextLibrary.items)
@@ -199,7 +199,7 @@ export function useItemMutations(deps: ItemMutationDependencies): ItemMutations 
       )
       setItemOperationBusy(true)
       try {
-        const result = await window.kuskus.archiveItems({ itemIds })
+        const result = await window.kusu.archiveItems({ itemIds })
         const nextLibrary = applyLibraryResult(result)
         if (!nextLibrary) return
         const changes = countReferencedImageChanges(requested, library.items, nextLibrary.items)
@@ -212,7 +212,7 @@ export function useItemMutations(deps: ItemMutationDependencies): ItemMutations 
           notifyArchived(
             itemIds.length,
             () => {
-              void window.kuskus
+              void window.kusu
                 .unarchiveItems({ itemIds })
                 .then((undoResult) => applyLibraryResult(undoResult))
             },
@@ -248,7 +248,7 @@ export function useItemMutations(deps: ItemMutationDependencies): ItemMutations 
       })
       setItemOperationBusy(true)
       try {
-        const result = await window.kuskus.unarchiveItems({ itemIds })
+        const result = await window.kusu.unarchiveItems({ itemIds })
         const nextLibrary = applyLibraryResult(result)
         if (!nextLibrary) return
         const requested = new Set(itemIds)
@@ -279,7 +279,7 @@ export function useItemMutations(deps: ItemMutationDependencies): ItemMutations 
     async (itemIds: string[], pinned: boolean): Promise<void> => {
       setItemOperationBusy(true)
       try {
-        const result = await window.kuskus.setItemsPinned({ itemIds, pinned })
+        const result = await window.kusu.setItemsPinned({ itemIds, pinned })
         if (!result.ok) {
           notifyActionError(result.error)
           return
@@ -302,7 +302,7 @@ export function useItemMutations(deps: ItemMutationDependencies): ItemMutations 
       if (item.type !== 'note') return
       setItemOperationBusy(true)
       try {
-        const result = await window.kuskus.duplicateNote(item.id)
+        const result = await window.kusu.duplicateNote(item.id)
         if (!applyLibraryResult(result)) return
         announceStatus('Note duplicated.')
       } finally {
@@ -316,7 +316,7 @@ export function useItemMutations(deps: ItemMutationDependencies): ItemMutations 
     async (itemIds: string[], showUndo = true): Promise<boolean> => {
       setItemOperationBusy(true)
       try {
-        const inspected = await window.kuskus.inspectItemDeletion({ itemIds, mode: 'trash' })
+        const inspected = await window.kusu.inspectItemDeletion({ itemIds, mode: 'trash' })
         if (!inspected.ok) {
           notifyActionError(inspected.error)
           return false
@@ -325,14 +325,14 @@ export function useItemMutations(deps: ItemMutationDependencies): ItemMutations 
           setTrashReview({ itemIds, inspection: inspected.data })
           return false
         }
-        const result = await window.kuskus.trashItems({
+        const result = await window.kusu.trashItems({
           itemIds,
           referenceRevision: inspected.data.revision
         })
         if (!applyLibraryResult(result)) return false
         if (showUndo) {
           notifyTrashed(itemIds.length, () => {
-            void window.kuskus
+            void window.kusu
               .restoreItems({ itemIds })
               .then((undoResult) => applyLibraryResult(undoResult))
           })
@@ -350,7 +350,7 @@ export function useItemMutations(deps: ItemMutationDependencies): ItemMutations 
       const trashed = await trashItemIds([itemId], false)
       if (!trashed) return false
       notifyEmptyNoteTrashed(() => {
-        void window.kuskus
+        void window.kusu
           .restoreItems({ itemIds: [itemId] })
           .then((result) => applyLibraryResult(result))
       })
@@ -363,7 +363,7 @@ export function useItemMutations(deps: ItemMutationDependencies): ItemMutations 
     if (!trashReview || itemOperationBusy) return
     setItemOperationBusy(true)
     try {
-      const result = await window.kuskus.trashItems({
+      const result = await window.kusu.trashItems({
         itemIds: trashReview.itemIds,
         referenceRevision: trashReview.inspection.revision,
         confirmedReferencedItemIds: trashReview.inspection.referencedItems.map(
@@ -374,7 +374,7 @@ export function useItemMutations(deps: ItemMutationDependencies): ItemMutations 
       const count = trashReview.itemIds.length
       setTrashReview(null)
       notifyTrashed(count, () => {
-        void window.kuskus
+        void window.kusu
           .restoreItems({ itemIds: trashReview.itemIds })
           .then((undoResult) => applyLibraryResult(undoResult))
       })
@@ -398,7 +398,7 @@ export function useItemMutations(deps: ItemMutationDependencies): ItemMutations 
       })
       setItemOperationBusy(true)
       try {
-        const result = await window.kuskus.restoreItems({ itemIds })
+        const result = await window.kusu.restoreItems({ itemIds })
         if (!applyLibraryResult(result)) return
         if (notify) {
           notifyRestored(
@@ -430,7 +430,7 @@ export function useItemMutations(deps: ItemMutationDependencies): ItemMutations 
           : 0
       setItemOperationBusy(true)
       try {
-        const result = await window.kuskus.renameItem({ itemId: item.id, title })
+        const result = await window.kusu.renameItem({ itemId: item.id, title })
         if (!result.ok) {
           applyLibraryResult(result)
           return { ok: false, error: result.error }
@@ -462,7 +462,7 @@ export function useItemMutations(deps: ItemMutationDependencies): ItemMutations 
     if (deleteTargets.length === 0 || !deleteInspection || itemOperationBusy) return
     setItemOperationBusy(true)
     try {
-      const result = await window.kuskus.permanentlyDeleteItems({
+      const result = await window.kusu.permanentlyDeleteItems({
         itemIds: deleteTargets,
         referenceRevision: deleteInspection.revision,
         confirmedReferencedItemIds: deleteInspection.referencedItems.map((item) => item.itemId),
@@ -482,7 +482,7 @@ export function useItemMutations(deps: ItemMutationDependencies): ItemMutations 
   useEffect(() => {
     if (deleteTargets.length === 0) return
     let active = true
-    void window.kuskus
+    void window.kusu
       .inspectItemDeletion({ itemIds: deleteTargets, mode: 'permanent' })
       .then((result) => {
         if (!active) return
@@ -542,14 +542,14 @@ export function useItemMutations(deps: ItemMutationDependencies): ItemMutations 
       onMove: (nextDestination) =>
         guardFocusTargets(targetIds, () => void moveItemIds(targetIds, nextDestination)),
       onCopyPath: () => {
-        void window.kuskus.copyItemPath(item.id).then((result) => {
+        void window.kusu.copyItemPath(item.id).then((result) => {
           if (result.ok) announceStatus('File path copied.')
           else notifyActionError(result.error)
         })
       },
       onCopyImage: () => {
         if (item.type !== 'image') return
-        void window.kuskus.copyImage(item.id).then((result) => {
+        void window.kusu.copyImage(item.id).then((result) => {
           if (result.ok) announceStatus('Image copied.')
           else notifyActionError(result.error)
         })

@@ -36,7 +36,7 @@ export function assertTrustedSender(event: IpcMainEvent | IpcMainInvokeEvent): v
     event.senderFrame !== event.sender.mainFrame ||
     !isTrustedRendererUrl(event.senderFrame.url)
   ) {
-    throw new Error('The request did not come from a trusted Kuskus window.')
+    throw new Error('The request did not come from a trusted Kusu window.')
   }
 }
 

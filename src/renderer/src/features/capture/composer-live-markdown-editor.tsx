@@ -61,7 +61,7 @@ export const ComposerLiveMarkdownEditor = forwardRef<
     >
       {!value ? (
         <span
-          className="typeset kuskus-typeset pointer-events-none absolute inset-0 text-muted-foreground/70"
+          className="typeset kusu-typeset pointer-events-none absolute inset-0 text-muted-foreground/70"
           data-typeset-presentation="card"
           aria-hidden="true"
         >

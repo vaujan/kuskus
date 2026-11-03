@@ -1359,7 +1359,7 @@
   --sidebar-ring: var(--ring);
 }
 
-[data-theme-choice='kuskus'] {
+[data-theme-choice='kusu'] {
   --theme-preview-canvas: #1b2529;
   --theme-preview-sidebar: #1b2529;
   --theme-preview-accent: #e4a4c8;
@@ -1666,9 +1666,9 @@
   }
 
   :is(
-    .kuskus-code-block pre,
-    .kuskus-rich-document pre,
-    .kuskus-typeset .typeset-scroll:not(.kuskus-markdown-table-scroll),
+    .kusu-code-block pre,
+    .kusu-rich-document pre,
+    .kusu-typeset .typeset-scroll:not(.kusu-markdown-table-scroll),
     [data-slot='dropdown-menu-content'],
     [data-slot='context-menu-content']
   ) {
@@ -1677,9 +1677,9 @@
   }
 
   :is(
-    .kuskus-code-block pre,
-    .kuskus-rich-document pre,
-    .kuskus-typeset .typeset-scroll:not(.kuskus-markdown-table-scroll),
+    .kusu-code-block pre,
+    .kusu-rich-document pre,
+    .kusu-typeset .typeset-scroll:not(.kusu-markdown-table-scroll),
     [data-slot='dropdown-menu-content'],
     [data-slot='context-menu-content']
   )::-webkit-scrollbar {
@@ -1688,9 +1688,9 @@
   }
 
   :is(
-    .kuskus-code-block pre,
-    .kuskus-rich-document pre,
-    .kuskus-typeset .typeset-scroll:not(.kuskus-markdown-table-scroll),
+    .kusu-code-block pre,
+    .kusu-rich-document pre,
+    .kusu-typeset .typeset-scroll:not(.kusu-markdown-table-scroll),
     [data-slot='dropdown-menu-content'],
     [data-slot='context-menu-content']
   )::-webkit-scrollbar-track {
@@ -1698,9 +1698,9 @@
   }
 
   :is(
-    .kuskus-code-block pre,
-    .kuskus-rich-document pre,
-    .kuskus-typeset .typeset-scroll:not(.kuskus-markdown-table-scroll),
+    .kusu-code-block pre,
+    .kusu-rich-document pre,
+    .kusu-typeset .typeset-scroll:not(.kusu-markdown-table-scroll),
     [data-slot='dropdown-menu-content'],
     [data-slot='context-menu-content']
   )::-webkit-scrollbar-thumb {
@@ -1710,9 +1710,9 @@
   }
 
   :is(
-    .kuskus-code-block pre,
-    .kuskus-rich-document pre,
-    .kuskus-typeset .typeset-scroll:not(.kuskus-markdown-table-scroll),
+    .kusu-code-block pre,
+    .kusu-rich-document pre,
+    .kusu-typeset .typeset-scroll:not(.kusu-markdown-table-scroll),
     [data-slot='dropdown-menu-content'],
     [data-slot='context-menu-content']
   )::-webkit-scrollbar-button {
@@ -1720,24 +1720,24 @@
   }
 
   .rich-find-match,
-  mark[data-kuskus-find-result] {
+  mark[data-kusu-find-result] {
     border-radius: 0.125rem;
     background: color-mix(in oklch, var(--primary) 28%, transparent);
     color: var(--foreground);
   }
 
   .rich-find-match-current,
-  mark[data-kuskus-find-result][data-current] {
+  mark[data-kusu-find-result][data-current] {
     box-shadow: inset 0 0 0 1px var(--primary);
     background: color-mix(in oklch, var(--primary) 45%, transparent);
   }
 
-  ::highlight(kuskus-live-find-widget-match) {
+  ::highlight(kusu-live-find-widget-match) {
     background: color-mix(in oklch, var(--primary) 28%, transparent);
     color: var(--foreground);
   }
 
-  ::highlight(kuskus-live-find-widget-current) {
+  ::highlight(kusu-live-find-widget-current) {
     background: color-mix(in oklch, var(--primary) 45%, transparent);
     color: var(--foreground);
     text-decoration: underline var(--primary);

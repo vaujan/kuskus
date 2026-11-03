@@ -20,7 +20,7 @@ class ReactBlockWidget extends WidgetType {
 
   toDOM(): HTMLElement {
     const host = document.createElement('div')
-    host.className = 'cm-kuskus-document-blocks'
+    host.className = 'cm-kusu-document-blocks'
     const root = createRoot(host)
     reactBlockRoots.set(host, root)
     root.render(this.content)

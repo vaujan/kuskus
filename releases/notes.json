@@ -4,6 +4,18 @@
   },
   "releases": [
     {
+      "version": "0.0.10",
+      "date": "2026-11-03",
+      "notes": {
+        "changes": {
+          "Changed": [
+            "Rename the app to Kusu. Existing vaults can be reopened from setup. App preferences and capture drafts use a new profile.",
+            "Show a toast when a manual update check finds no update."
+          ]
+        }
+      }
+    },
+    {
       "version": "0.0.9",
       "date": "2026-11-02",
       "notes": {

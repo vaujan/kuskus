@@ -18,7 +18,7 @@
 
 ## Behavior changes
 
-The wrapper now follows Base UI's `render` composition API. Existing Kuskus button call sites use native buttons and retain their behavior.
+The wrapper now follows Base UI's `render` composition API. Existing Kusu button call sites use native buttons and retain their behavior.
 
 ## Verify by hand
 

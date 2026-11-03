@@ -16,7 +16,7 @@ const { name, version } = require('../package.json')
 const script = resolve('scripts/collect-installers.cjs')
 
 test('installer collection includes only current artifacts and produces verifiable checksums', () => {
-  const cwd = mkdtempSync(join(tmpdir(), 'kuskus-installers-'))
+  const cwd = mkdtempSync(join(tmpdir(), 'kusu-installers-'))
   try {
     mkdirSync(join(cwd, 'dist'))
     const installers = [
@@ -50,7 +50,7 @@ test('installer collection includes only current artifacts and produces verifiab
 })
 
 test('installer collection fails when packaging produced no matching installers', () => {
-  const cwd = mkdtempSync(join(tmpdir(), 'kuskus-installers-empty-'))
+  const cwd = mkdtempSync(join(tmpdir(), 'kusu-installers-empty-'))
   try {
     mkdirSync(join(cwd, 'dist'))
     writeFileSync(join(cwd, 'dist', `${name}-0.0.0-x64-setup.exe`), 'stale')

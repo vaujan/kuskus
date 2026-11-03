@@ -19,7 +19,7 @@ function arrayBuffer(buffer) {
 }
 
 test('creates a durable URL item before metadata enrichment', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-url-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-url-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   await service.createIn(root, 'Link Library')
@@ -49,7 +49,7 @@ test('creates a durable URL item before metadata enrichment', async (context) =>
 })
 
 test('enriches, caches, reopens, and serves URL previews without renderer hotlinks', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-url-preview-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-url-preview-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const settingsPath = join(root, 'settings.json')
   const requests = []
@@ -94,7 +94,7 @@ test('enriches, caches, reopens, and serves URL previews without renderer hotlin
 })
 
 test('rejects invalid image content and unsafe preview identifiers', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-invalid-image-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-invalid-image-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   await service.createIn(root, 'Safe Images')
@@ -111,7 +111,7 @@ test('rejects invalid image content and unsafe preview identifiers', async (cont
 })
 
 test('uses readable text after a captured image for the new note filename', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-image-first-note-title-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-image-first-note-title-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   await service.createIn(root, 'Image first title')

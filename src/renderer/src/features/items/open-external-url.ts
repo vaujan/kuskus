@@ -9,7 +9,7 @@ function describeDestination(url: string): string | undefined {
 }
 
 export async function openExternalUrlWithFeedback(url: string): Promise<void> {
-  const result = await window.kuskus.openExternalUrl(url)
+  const result = await window.kusu.openExternalUrl(url)
 
   if (result.ok) {
     notifyLinkOpened(describeDestination(url))

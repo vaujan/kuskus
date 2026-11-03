@@ -39,7 +39,7 @@ try {
 } finally {
   Module._load = loadModule
 }
-const { buildKuskusLiveDecorations, buildKuskusImageBlocks } = livePreview
+const { buildKusuLiveDecorations, buildKusuImageBlocks } = livePreview
 const {
   markdownFrontmatter
 } = require('../src/renderer/src/features/items/markdown-frontmatter.ts')
@@ -47,7 +47,7 @@ const {
 test('renders standard markdown images as block widgets below the source line', () => {
   const state = createState(['Cursor', '', '![photo](./assets/photo.png)'].join('\n'))
   const decorations = []
-  buildKuskusImageBlocks(state, {
+  buildKusuImageBlocks(state, {
     resolveImage: () => ({
       src: 'file:///photo.png',
       missing: false,
@@ -78,7 +78,7 @@ test('loads remote markdown images directly in Live mode', () => {
 test('renders inactive Mermaid fences as diagrams in Live mode', () => {
   const state = createState(['Cursor', '', '```mermaid', 'graph TD; A-->B', '```'].join('\n'))
   const widgets = []
-  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (_from, _to, value) => {
+  buildKusuLiveDecorations(state, {}).between(0, state.doc.length, (_from, _to, value) => {
     if (value.spec.widget) widgets.push(value.spec.widget.constructor.name)
   })
   assert.deepEqual(widgets, ['MermaidWidget'])
@@ -89,7 +89,7 @@ test('skips table images that atomic renders in-cell', () => {
     ['Cursor', '', '| A | B |', '| --- | --- |', '| ![x](./x.png) | y |'].join('\n')
   )
   const decorations = []
-  buildKuskusImageBlocks(state, {}).between(0, state.doc.length, (from, to, value) => {
+  buildKusuImageBlocks(state, {}).between(0, state.doc.length, (from, to, value) => {
     if (value.spec.widget)
       decorations.push({ from, to, widget: value.spec.widget.constructor.name })
   })
@@ -107,7 +107,7 @@ test('renders inactive math with KaTeX and reveals active block source', () => {
     ['Cursor', '', 'Intro $x^2$ text', '', '$$', '\\int_0^1 x \\, dx', '$$'].join('\n')
   )
   const widgets = []
-  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
+  buildKusuLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
     if (value.spec.widget) widgets.push(value.spec.widget.constructor.name)
     void from
     void to
@@ -121,7 +121,7 @@ test('renders inactive math with KaTeX and reveals active block source', () => {
     extensions: [markdown({ extensions: GFM })]
   })
   let activeMathWidgets = 0
-  buildKuskusLiveDecorations(active, {}).between(0, active.doc.length, (_from, _to, value) => {
+  buildKusuLiveDecorations(active, {}).between(0, active.doc.length, (_from, _to, value) => {
     if (value.spec.widget?.constructor.name === 'MathWidget') activeMathWidgets += 1
   })
   assert.equal(activeMathWidgets, 0)
@@ -130,7 +130,7 @@ test('renders inactive math with KaTeX and reveals active block source', () => {
 test('renders wikilinks with a linked mark and hides brackets', () => {
   const state = createState('Cursor\n\nSee [[Target note]] and [[Other|Alias]]')
   const decorations = []
-  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
+  buildKusuLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
     if (value.spec.class || value.spec.widget) {
       decorations.push({
         from,
@@ -141,11 +141,11 @@ test('renders wikilinks with a linked mark and hides brackets', () => {
     }
   })
   assert.equal(
-    decorations.some((entry) => entry.className === 'cm-kuskus-wikilink'),
+    decorations.some((entry) => entry.className === 'cm-kusu-wikilink'),
     true
   )
   const aliasMark = decorations.find(
-    (entry) => entry.className === 'cm-kuskus-wikilink' && entry.from > 30
+    (entry) => entry.className === 'cm-kusu-wikilink' && entry.from > 30
   )
   assert.equal(aliasMark.from, state.doc.toString().indexOf('Alias'))
 })
@@ -153,7 +153,7 @@ test('renders wikilinks with a linked mark and hides brackets', () => {
 test('embeds resolved images as widgets through options', () => {
   const state = createState('Cursor\n\n![[image file.png]]')
   const decorations = []
-  buildKuskusLiveDecorations(state, {
+  buildKusuLiveDecorations(state, {
     resolveImage: () => ({
       src: 'file:///image.png',
       missing: false,
@@ -172,23 +172,22 @@ test('embeds resolved images as widgets through options', () => {
 test('moves an inactive code block bottom edge onto its final code line', () => {
   const state = createState(['Cursor', '', '```ts', 'const a = 1', '```'].join('\n'))
   const decorations = []
-  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
+  buildKusuLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
     if (value.spec.class) decorations.push({ from, className: value.spec.class })
   })
   assert.equal(
-    decorations.some((entry) => entry.className === 'cm-kuskus-code-first'),
+    decorations.some((entry) => entry.className === 'cm-kusu-code-first'),
     true
   )
   assert.equal(
     decorations.some(
-      (entry) => entry.className === 'cm-kuskus-code-last' && entry.from === state.doc.line(4).from
+      (entry) => entry.className === 'cm-kusu-code-last' && entry.from === state.doc.line(4).from
     ),
     true
   )
   assert.equal(
     decorations.some(
-      (entry) =>
-        entry.className === 'cm-kuskus-code-closer' && entry.from === state.doc.line(5).from
+      (entry) => entry.className === 'cm-kusu-code-closer' && entry.from === state.doc.line(5).from
     ),
     true
   )
@@ -202,7 +201,7 @@ test('marks web links in inactive frontmatter as clickable live-mode targets', (
     selection: { anchor: doc.indexOf('Body') }
   })
   const links = []
-  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
+  buildKusuLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
     if (value.spec.attributes?.['data-url']) {
       links.push({ from, to, url: value.spec.attributes['data-url'] })
     }
@@ -219,7 +218,7 @@ test('marks web links in inactive frontmatter as clickable live-mode targets', (
 test('renders an inactive fence header widget (language + copy) replacing the first line', () => {
   const state = createState(['Cursor', '', '```ts', 'const a = 1', '```'].join('\n'))
   const decorations = []
-  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
+  buildKusuLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
     if (value.spec.widget) decorations.push({ from, to, widget: value.spec.widget })
   })
   // No selection → no active lines → the header widget replaces the first
@@ -238,7 +237,7 @@ test('keeps the fence header off active lines so the user can edit fence marks',
     selection: { anchor: doc.indexOf('const a = 1') + 5 }
   })
   const decorations = []
-  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
+  buildKusuLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
     if (value.spec.widget) decorations.push({ from, to, widget: value.spec.widget })
   })
   // Cursor inside the block → active → no header (raw fence stays editable).
@@ -253,17 +252,17 @@ test('keeps the closing fence at normal height while the code block is active', 
     selection: { anchor: doc.indexOf('const a = 1') + 5 }
   })
   const decorations = []
-  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
+  buildKusuLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
     if (value.spec.class) decorations.push({ from, className: value.spec.class })
   })
   assert.equal(
     decorations.some(
-      (entry) => entry.className === 'cm-kuskus-code-last' && entry.from === state.doc.line(5).from
+      (entry) => entry.className === 'cm-kusu-code-last' && entry.from === state.doc.line(5).from
     ),
     true
   )
   assert.equal(
-    decorations.some((entry) => entry.className === 'cm-kuskus-code-closer'),
+    decorations.some((entry) => entry.className === 'cm-kusu-code-closer'),
     false
   )
 })
@@ -271,19 +270,19 @@ test('keeps the closing fence at normal height while the code block is active', 
 test('marks blank lines so live rhythm matches the read typeset flow', () => {
   const state = createState(['Cursor', '', 'Para one', '', 'Para two'].join('\n'))
   const decorations = []
-  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
+  buildKusuLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
     if (value.spec.class) decorations.push({ from, className: value.spec.class })
   })
-  assert.equal(decorations.filter((entry) => entry.className === 'cm-kuskus-blank').length, 2)
+  assert.equal(decorations.filter((entry) => entry.className === 'cm-kusu-blank').length, 2)
 })
 
 test('does not duplicate replacement ranges owned by atomic preview', () => {
-  // Horizontal rules, headings, lists, tasks are atomic's; the Kuskus
+  // Horizontal rules, headings, lists, tasks are atomic's; the Kusu
   // layer only adds math, wikilinks, and embed images. Replacing the
   // same ranges twice would make CM6 throw.
   const state = createState(['Cursor', '', '---', '', '## Heading', '', '- [ ] Task'].join('\n'))
   const decorations = []
-  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
+  buildKusuLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
     if (value.spec.replace) decorations.push({ from, to })
   })
   assert.deepEqual(decorations, [])
@@ -298,7 +297,7 @@ test('renders inactive frontmatter with the same header and line shell as a code
     selection: { anchor: doc.indexOf('Body') + 2 }
   })
   const decorations = []
-  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
+  buildKusuLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
     if (value.spec.widget) decorations.push({ from, to, widget: value.spec.widget })
   })
   const header = decorations.find(
@@ -309,7 +308,7 @@ test('renders inactive frontmatter with the same header and line shell as a code
   assert.equal(header.to, state.doc.toString().indexOf('\n'))
 
   const lineClasses = []
-  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, _to, value) => {
+  buildKusuLiveDecorations(state, {}).between(0, state.doc.length, (from, _to, value) => {
     if (value.spec.class) lineClasses.push({ from, className: value.spec.class })
   })
   assert.equal(
@@ -321,7 +320,7 @@ test('renders inactive frontmatter with the same header and line shell as a code
   )
   assert.equal(
     lineClasses.some(
-      (entry) => entry.from === state.doc.line(4).from && entry.className === 'cm-kuskus-code-last'
+      (entry) => entry.from === state.doc.line(4).from && entry.className === 'cm-kusu-code-last'
     ),
     true
   )
@@ -335,7 +334,7 @@ test('keeps the frontmatter raw when the cursor is inside the block', () => {
     selection: { anchor: doc.indexOf('title: hi') + 2 }
   })
   const decorations = []
-  buildKuskusLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
+  buildKusuLiveDecorations(state, {}).between(0, state.doc.length, (from, to, value) => {
     if (value.spec.widget || value.spec.replace) decorations.push({ from, to })
   })
   // Active → no header widget, no delimiter hides → no replaces at all.

@@ -17,13 +17,13 @@ inspection pass. The unsigned package produced here is for verification only.
 
 Run `pnpm release` on Windows with the signing credentials supplied through the signing provider or electron-builder's documented environment variables. Never put credentials in the repository or command arguments. This command checks version/notes consistency, empty unreleased notes, and a clean committed tree, runs the complete verification suite and dependency audit, then builds with `forceCodeSigning=true` and `--publish never`. It fails if signing is unavailable. Local `build:win` and CI packaging may be unsigned and must not be mistaken for approved public releases.
 
-Run `pnpm package:verify` after packaging. Generated THIRD_PARTY_NOTICES.txt, Kuskus LICENSE, and Electron's LICENSE.electron.txt and LICENSES.chromium.html must be present. Confirm the installer signature and publisher using Windows signature inspection. Generate SHA-256 checksums with `Get-FileHash` for every released installer.
+Run `pnpm package:verify` after packaging. Generated THIRD_PARTY_NOTICES.txt, Kusu LICENSE, and Electron's LICENSE.electron.txt and LICENSES.chromium.html must be present. Confirm the installer signature and publisher using Windows signature inspection. Generate SHA-256 checksums with `Get-FileHash` for every released installer.
 
 Test the x64 and ARM64 installers on matching clean Windows systems before advertising each architecture. Check installation, offline launch, upgrade, uninstallation, retained library files, shortcut conflicts, quick capture, note saves, and conflict/recovery behavior. Record the results in the release checklist. Do not publish an architecture solely because cross-compilation succeeded.
 
 ## Publish after verification
 
-Tag the exact verified source commit, attach the signed installers and checksums to its GitHub release, and provide corresponding source access. Include installation instructions, supported OS/architectures, known limitations, and backup/recovery advice. Kuskus currently has no automatic updater; users install new releases manually.
+Tag the exact verified source commit, attach the signed installers and checksums to its GitHub release, and provide corresponding source access. Include installation instructions, supported OS/architectures, known limitations, and backup/recovery advice. Kusu currently has no automatic updater; users install new releases manually.
 
 Update the landing page to link to the real release and public source when available. Until then its browser-demo language is intentional. Download and install the public artifact once more before announcing it.
 
@@ -31,7 +31,7 @@ No command in this process publishes automatically. Signing, native installer ch
 
 ## Back up and recover
 
-Close Kuskus and copy the entire library folder, including hidden `.kuskus` metadata and attachments, to a separate location. Keep ordinary Markdown/files together with their relative attachment paths. Back up the user profile separately if draft capture sessions and preferences matter. Do not rely on Trash as a backup.
+Close Kusu and copy the entire library folder, including hidden `.kuskus` metadata and attachments, to a separate location. Keep ordinary Markdown/files together with their relative attachment paths. Back up the user profile separately if draft capture sessions and preferences matter. Do not rely on Trash as a backup.
 
 After a crash or conflict, preserve a copy of the vault and profile before attempting recovery. Reopen the affected vault, inspect conflicting text and missing-file notices, and compare files with the backup. Reproduce bugs on a disposable copy. Never delete `.kuskus` or overwrite a conflicting note as an automatic recovery step.
 
@@ -67,7 +67,7 @@ keep `mac.notarize` enabled. See [electron-builder signing](https://www.electron
 and [macOS options](https://www.electron.build/v26/docs/api/app-builder-lib.interface.macconfiguration/).
 Linux AppImages do not use Windows or Apple signing credentials.
 
-The website currently reads `vaujan/kuskus` public GitHub releases. That repository
+The website currently reads `vaujan/kusu` public GitHub releases. That repository
 was made public on 2026-10-25 with owner approval. Public experimental previews
 are labeled as unsigned test builds, with checksums and corresponding tagged source.
 They do not establish native installation verification or signing readiness. Never embed GitHub access tokens in the website.

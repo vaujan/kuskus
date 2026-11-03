@@ -40,7 +40,7 @@ const input = JSON.parse(process.argv[3])
 for (const operation of ['items', 'folder', 'rename', 'rename-folder']) {
   for (const stage of ['journal', 1, 2]) {
     test(`recovers ${operation} after process termination at ${stage}`, async (context) => {
-      const root = await fs.mkdtemp(join(tmpdir(), 'kuskus-transaction-'))
+      const root = await fs.mkdtemp(join(tmpdir(), 'kusu-transaction-'))
       context.after(() => fs.rm(root, { recursive: true, force: true }))
       const settings = join(root, 'settings.json')
       const service = new LibraryService(settings)
@@ -110,7 +110,7 @@ for (const operation of ['items', 'folder', 'rename', 'rename-folder']) {
 }
 
 test('keeps a committed transaction and rolls back failed writes without overwriting a conflicting move', async (context) => {
-  const root = await fs.mkdtemp(join(tmpdir(), 'kuskus-journal-'))
+  const root = await fs.mkdtemp(join(tmpdir(), 'kusu-journal-'))
   context.after(() => fs.rm(root, { recursive: true, force: true }))
   const original = join(root, 'original.md')
   const moved = join(root, 'moved.md')
@@ -144,7 +144,7 @@ test('keeps a committed transaction and rolls back failed writes without overwri
 })
 
 test('rejects a recovery journal that escapes the vault', async (context) => {
-  const root = await fs.mkdtemp(join(tmpdir(), 'kuskus-journal-path-'))
+  const root = await fs.mkdtemp(join(tmpdir(), 'kusu-journal-path-'))
   context.after(() => fs.rm(root, { recursive: true, force: true }))
   const vault = join(root, 'vault')
   const journals = join(vault, '.kuskus', 'transactions')
@@ -164,7 +164,7 @@ test('rejects a recovery journal that escapes the vault', async (context) => {
 
 for (const operation of ['image-move', 'image-rename']) {
   test(`restores image references after interruption during ${operation}`, async (context) => {
-    const root = await fs.mkdtemp(join(tmpdir(), 'kuskus-image-transaction-'))
+    const root = await fs.mkdtemp(join(tmpdir(), 'kusu-image-transaction-'))
     context.after(() => fs.rm(root, { recursive: true, force: true }))
     const settings = join(root, 'settings.json')
     const service = new LibraryService(settings)
@@ -249,7 +249,7 @@ for (const committed of [false, true]) {
       ? 'preserves a committed operation after termination before journal cleanup'
       : 'resumes recovery after termination during rollback',
     async (context) => {
-      const root = await fs.mkdtemp(join(tmpdir(), 'kuskus-journal-repeat-'))
+      const root = await fs.mkdtemp(join(tmpdir(), 'kusu-journal-repeat-'))
       context.after(() => fs.rm(root, { recursive: true, force: true }))
       await fs.writeFile(join(root, 'original.md'), 'Original')
       // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
@@ -284,7 +284,7 @@ for (const committed of [false, true]) {
 }
 
 test('restores original content when a staged transaction write cannot replace its destination', async (context) => {
-  const root = await fs.mkdtemp(join(tmpdir(), 'kuskus-journal-write-failure-'))
+  const root = await fs.mkdtemp(join(tmpdir(), 'kusu-journal-write-failure-'))
   context.after(() => fs.rm(root, { recursive: true, force: true }))
   const path = join(root, 'note.md')
   await fs.writeFile(path, 'Original')

@@ -3,7 +3,7 @@
 Status: Draft v0.1  
 Last updated: 2026-07-14
 
-These workflows define the behavior Kuskus must preserve as its implementation evolves. They describe user outcomes rather than internal architecture.
+These workflows define the behavior Kusu must preserve as its implementation evolves. They describe user outcomes rather than internal architecture.
 
 ## Shared rules
 
@@ -11,9 +11,9 @@ These workflows define the behavior Kuskus must preserve as its implementation e
 - Inbox is the default destination when no collection is selected.
 - Optional metadata must never block saving.
 - A saved item must survive an application restart.
-- Failures must be visible and recoverable; Kuskus must not silently discard content.
-- Files controlled by Kuskus remain ordinary, user-readable files in the selected library.
-- A valid rebuildable library snapshot may paint immediately while Kuskus reconciles external edits
+- Failures must be visible and recoverable; Kusu must not silently discard content.
+- Files controlled by Kusu remain ordinary, user-readable files in the selected library.
+- A valid rebuildable library snapshot may paint immediately while Kusu reconciles external edits
   in the background. Cached state must never suppress a later watcher, focus, or startup repair.
 - At the 5,000-item performance fixture, cached state is returned within 500 ms, an unchanged focused
   vault reconciles within 300 ms, search computation stays within 50 ms, and durable capture
@@ -45,21 +45,21 @@ These workflows define the behavior Kuskus must preserve as its implementation e
 
 ### Scenario
 
-The user launches Kuskus for the first time.
+The user launches Kusu for the first time.
 
 ### Flow
 
-1. Kuskus explains that a library is a local folder containing the user's content.
+1. Kusu explains that a library is a local folder containing the user's content.
 2. The user chooses **Create library** or **Open existing library**.
 3. For a new library, the user chooses a parent folder and library name.
-4. Kuskus creates and validates the library structure.
-5. Kuskus opens Inbox.
-6. On later launches, Kuskus reopens the most recently used library when it is available.
+4. Kusu creates and validates the library structure.
+5. Kusu opens Inbox.
+6. On later launches, Kusu reopens the most recently used library when it is available.
 
 ### Acceptance criteria
 
 - The selected location is shown before creation.
-- Kuskus never overwrites a non-Kuskus folder without explicit confirmation.
+- Kusu never overwrites a non-Kusu folder without explicit confirmation.
 - A missing, moved, or unreadable library produces a recovery screen rather than an empty library.
 - The library can be copied as one folder for backup.
 - Opening an ordinary folder shows an initialization preview before adding `.kuskus/`; Markdown
@@ -87,7 +87,7 @@ The user wants one obvious place to add any supported kind of content without ch
 ### Flow
 
 1. The user clicks **Add item**. On Windows, the user may press `Ctrl+Shift+Space`
-   from another application while Kuskus is running.
+   from another application while Kusu is running.
 2. In-app capture appears as a normal-width draft card at the beginning of the active content view.
    Global capture appears as the same composer in a focused bottom-right Inbox popup without
    restoring or changing the main window.
@@ -97,7 +97,7 @@ The user wants one obvious place to add any supported kind of content without ch
    - Pastes an image from the clipboard.
    - Pastes or drops one or more files.
    - Types or pastes plain text or Markdown.
-5. Kuskus detects the input type using the rules below and stages it for confirmation.
+5. Kusu detects the input type using the rules below and stages it for confirmation.
 6. The draft card shows saving, staging, retry, or recovery state in place.
 7. When the save succeeds, the draft card morphs into the saved format-aware card.
 8. Existing items reflow around the new card without navigating away or opening a separate result screen.
@@ -167,8 +167,8 @@ The user wants one obvious place to add any supported kind of content without ch
   details, and dialogs are not discarded, closed, or force-saved by the shortcut. Escape and
   ordinary popup focus loss hide and retain the draft.
 - A shortcut registration conflict is visible in the Settings dialog and through one non-blocking
-  notice per app run. The shortcut is unavailable after Kuskus exits.
-- A second Kuskus launch focuses the existing process so only one process owns the shortcut and
+  notice per app run. The shortcut is unavailable after Kusu exits.
+- A second Kusu launch focuses the existing process so only one process owns the shortcut and
   active library.
 - When no ready library exists, the shortcut reveals the main setup, migration, or recovery flow
   instead of accepting temporary capture content.
@@ -182,11 +182,11 @@ The user finds a useful webpage and copies its URL.
 ### Flow
 
 1. The user summons New Item and pastes one URL, or pastes directly while the content view has focus.
-2. Kuskus recognizes the clipboard value as a URL and keeps it editable in the draft card.
+2. Kusu recognizes the clipboard value as a URL and keeps it editable in the draft card.
 3. The user confirms with **Save link** or `Ctrl+Enter`.
 4. The draft becomes a non-editable saving card in the same position while the authoritative URL
    record is created.
-5. The saving card changes to **Preparing preview** while Kuskus retrieves the title, domain,
+5. The saving card changes to **Preparing preview** while Kusu retrieves the title, domain,
    favicon, description, and preview image through the main process.
 6. The saving card morphs once into the enriched URL card, a metadata fallback, or a provisional
    card after a bounded wait. Background enrichment may continue without moving the item.
@@ -219,14 +219,14 @@ The user has an image in the clipboard or an image file on the desktop.
 1. The user summons New Item and pastes the clipboard image, or drops an image into the card or content view.
 2. The draft card validates and stages the image, then shows a recoverable preview.
 3. The user confirms with **Save image** or `Ctrl+Enter`.
-4. Kuskus copies the staged image into an authoritative item in the active library.
+4. Kusu copies the staged image into an authoritative item in the active library.
 5. The draft morphs into a visual image card.
 6. The user may add a title, caption, or source URL later.
 
 ### Acceptance criteria
 
 - The stored image is an ordinary file in the library.
-- Kuskus does not modify the original source file.
+- Kusu does not modify the original source file.
 - The card respects the image's natural aspect ratio in Masonry view.
 - Single-clicking the card opens a larger in-app image preview.
 - **Show in Explorer** reveals the imported library copy without exposing an arbitrary renderer path.
@@ -235,13 +235,13 @@ The user has an image in the clipboard or an image file on the desktop.
 
 ### Scenario
 
-The user drags a PDF or another local file into Kuskus.
+The user drags a PDF or another local file into Kusu.
 
 ### Flow
 
 1. The user drops or pastes one or more files into the New Item card or content view.
 2. The card reports the number of detected files and shows import progress.
-3. Kuskus copies each file into the active library.
+3. Kusu copies each file into the active library.
 4. Each file receives a separate item record and newest-first card.
 5. Supported formats receive a preview; other formats receive a file-type card.
 
@@ -263,7 +263,7 @@ The user wants to save a short observation beside other project references.
 1. The user summons the New Item card.
 2. The user types or pastes plain text or Markdown into a live-preview editor that keeps the exact
    Markdown source authoritative.
-3. Kuskus maintains a recoverable draft while the user types.
+3. Kusu maintains a recoverable draft while the user types.
 4. The user commits with **Save** or `Ctrl+Enter`.
 5. The draft card morphs into a readable note card in the current view.
 6. Opening the saved note shows a visible icon control for Read, Live, Markdown, and Split.
@@ -294,7 +294,7 @@ The user wants to save a short observation beside other project references.
   commands, selection toolbars, or a proprietary document model. Live Preview uses decorations only;
   highlighting, widgets, hidden markers, and heading scale never change the saved Markdown bytes.
 - Raw HTML remains editable as source but is not executed by the rendered reading mode.
-- Opening the card shows the full note in Kuskus with headings, lists, tables, code, blockquotes,
+- Opening the card shows the full note in Kusu with headings, lists, tables, code, blockquotes,
   links, local images, and math rendered from Markdown.
 - Saved-note editing preserves existing attachments and writes through a validated item-ID operation.
 - Read renders the current draft; Live edits it with inactive syntax markers hidden; Markdown exposes
@@ -326,7 +326,7 @@ The user wants to save a short observation beside other project references.
   `Ctrl+B` and `Ctrl+I` remain local to the note and wrap or unwrap the current selection without
   opening a toolbar.
 - Closing or navigating away flushes the latest draft first and remains on the note if saving fails.
-- A note changed outside Kuskus is not silently overwritten. The user reviews a side-by-side source
+- A note changed outside Kusu is not silently overwritten. The user reviews a side-by-side source
   diff before explicitly choosing the local draft or disk version.
 
 ## 7. Organize Inbox
@@ -376,7 +376,7 @@ The user returns to a project and wants to rediscover a saved reference.
 ### Flow
 
 1. The user selects a collection in the sidebar.
-2. Kuskus displays mixed-format items together.
+2. Kusu displays mixed-format items together.
 3. The user browses in Masonry, Grid, or Focus view. Table remains unavailable while its product
    direction is reconsidered.
 4. The user optionally types in the inline library search or filters the current context.
@@ -486,4 +486,4 @@ The user hides an inactive item or removes one accidentally or intentionally.
   context menus across Masonry, Grid, and Focus.
 - Item overflow and context menus apply lifecycle actions to the complete selection and preserve the
   same Undo, reference-warning, and permanent-delete confirmation safeguards as the bulk toolbar.
-- Kuskus never deletes the original external file from which an item was imported.
+- Kusu never deletes the original external file from which an item was imported.

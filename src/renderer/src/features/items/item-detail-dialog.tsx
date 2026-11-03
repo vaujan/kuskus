@@ -561,7 +561,7 @@ function DetailToolbar({
         <DetailControl
           label="Show in Explorer"
           onClick={async () => {
-            const result = await window.kuskus.showItemInExplorer(itemId)
+            const result = await window.kusu.showItemInExplorer(itemId)
             if (!result.ok) onError(result.error)
           }}
         >
@@ -832,7 +832,7 @@ function MissingContent({
             : `${type === 'image' ? 'Image' : 'File'} is missing`}
         </p>
         <p className="text-pretty text-xs leading-5 text-muted-foreground">
-          Kuskus kept the item, but its stored content is no longer in the library.
+          Kusu kept the item, but its stored content is no longer in the library.
         </p>
       </div>
       {onMoveToTrash ? (
@@ -869,7 +869,7 @@ function ImageCanvas({
             remote: false
           }}
           interactive
-          className="kuskus-image-detail-preview"
+          className="kusu-image-detail-preview"
         />
       ) : previewError ? (
         <div className="flex max-w-xs flex-col items-center gap-3 px-6 text-center">
@@ -991,7 +991,7 @@ function NoteReadContextMenu({
           </ContextMenuItem>
           <ContextMenuItem
             onSelect={() => {
-              void window.kuskus.copyItemPath(itemId).then((result) => {
+              void window.kusu.copyItemPath(itemId).then((result) => {
                 if (!result.ok) onError(result.error)
               })
             }}
@@ -1026,7 +1026,7 @@ function ItemClipboardContextMenu({
           {image ? (
             <ContextMenuItem
               onSelect={() => {
-                void window.kuskus.copyImage(itemId).then((result) => {
+                void window.kusu.copyImage(itemId).then((result) => {
                   if (!result.ok) onError(result.error)
                 })
               }}
@@ -1037,7 +1037,7 @@ function ItemClipboardContextMenu({
           ) : null}
           <ContextMenuItem
             onSelect={() => {
-              void window.kuskus.copyItemPath(itemId).then((result) => {
+              void window.kusu.copyItemPath(itemId).then((result) => {
                 if (!result.ok) onError(result.error)
               })
             }}
@@ -1195,7 +1195,7 @@ function NoteCanvas({
           await onPasteImage(file, insertAtSelection)
           return
         }
-        const result = await window.kuskus.importNoteImage({
+        const result = await window.kusu.importNoteImage({
           itemId: item.id,
           bytes: await file.arrayBuffer(),
           mediaType: file.type,
@@ -1592,7 +1592,7 @@ function NoteCanvas({
               className={cn('min-h-0 min-w-0', mode === 'read' ? 'flex' : 'hidden')}
             >
               <NoteReadContextMenu itemId={item.id} onError={onError}>
-                <article className="kuskus-detail-document-frame min-h-full w-full py-[var(--typeset-detail-padding-block)]">
+                <article className="kusu-detail-document-frame min-h-full w-full py-[var(--typeset-detail-padding-block)]">
                   {readLiveDocument}
                 </article>
               </NoteReadContextMenu>
@@ -1608,7 +1608,7 @@ function NoteCanvas({
                 mode === 'split' && 'hidden @min-[860px]/detail:flex'
               )}
             >
-              <article className="kuskus-detail-document-frame min-h-full w-full py-[var(--typeset-detail-padding-block)]">
+              <article className="kusu-detail-document-frame min-h-full w-full py-[var(--typeset-detail-padding-block)]">
                 {mode === 'split' ? (
                   <NoteDocumentBlocks
                     item={item}
@@ -1783,13 +1783,13 @@ function NoteAttachmentRow({
             <DropdownMenuGroup>
               <DropdownMenuItem disabled={!item || attachment.missingContent} onClick={onOpenInApp}>
                 <Eye aria-hidden="true" />
-                Open in Kuskus
+                Open in Kusu
               </DropdownMenuItem>
               <DropdownMenuItem
                 disabled={!item || attachment.missingContent}
                 onClick={() => {
                   if (!item) return
-                  void window.kuskus.openItemInDefaultApp(item.id).then((result) => {
+                  void window.kusu.openItemInDefaultApp(item.id).then((result) => {
                     if (!result.ok) onError(result.error)
                   })
                 }}
@@ -1815,7 +1815,7 @@ function NoteAttachmentRow({
                 disabled={!item || attachment.missingContent}
                 onClick={() => {
                   if (!item) return
-                  void window.kuskus.copyItemPath(item.id).then((result) => {
+                  void window.kusu.copyItemPath(item.id).then((result) => {
                     if (!result.ok) onError(result.error)
                   })
                 }}
@@ -1827,7 +1827,7 @@ function NoteAttachmentRow({
                 disabled={!item || attachment.missingContent}
                 onClick={() => {
                   if (!item) return
-                  void window.kuskus.showItemInExplorer(item.id).then((result) => {
+                  void window.kusu.showItemInExplorer(item.id).then((result) => {
                     if (!result.ok) onError(result.error)
                   })
                 }}
@@ -2240,7 +2240,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
               itemId: openedNote.id,
               initialMarkdown: openedNote.body,
               initialUpdatedAt: openedNote.updatedAt,
-              save: noteSave ?? ((input) => window.kuskus.updateNote(input)),
+              save: noteSave ?? ((input) => window.kusu.updateNote(input)),
               onSaved: onItemUpdated,
               onDraftReplaced: () => setNoteHistoryRevision((current) => current + 1),
               onExternalChangesMerged: notifyExternalChangesMerged
@@ -2877,7 +2877,7 @@ export const ItemDetailDialog = forwardRef<ItemDetailHandle, ItemDetailProps>(
               <RenameDialogHeader>
                 <RenameDialogTitle>Rename item</RenameDialogTitle>
                 <RenameDialogDescription>
-                  This renames the visible vault file. Kuskus keeps its stable identity and updates
+                  This renames the visible vault file. Kusu keeps its stable identity and updates
                   inbound references.
                 </RenameDialogDescription>
               </RenameDialogHeader>

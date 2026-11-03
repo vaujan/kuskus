@@ -74,7 +74,7 @@ async function measure(operation) {
 }
 
 async function runFixture(itemCount) {
-  const root = await mkdtemp(join(tmpdir(), `kuskus-performance-${itemCount}-`))
+  const root = await mkdtemp(join(tmpdir(), `kusu-performance-${itemCount}-`))
   const settingsPath = join(root, 'settings.json')
   try {
     const service = new LibraryService(settingsPath)

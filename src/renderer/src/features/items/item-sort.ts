@@ -5,7 +5,7 @@ export type ItemSort = 'added-desc' | 'added-asc' | 'title-asc' | 'title-desc' |
 
 export const DEFAULT_ITEM_SORT: ItemSort = 'added-desc'
 
-export const ITEM_SORT_STORAGE_KEY = 'kuskus-item-sort'
+export const ITEM_SORT_STORAGE_KEY = 'kusu-item-sort'
 
 export const ITEM_SORT_OPTIONS: { value: ItemSort; label: string }[] = [
   { value: 'added-desc', label: 'Newest first' },

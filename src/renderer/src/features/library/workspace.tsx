@@ -59,7 +59,7 @@ import {
   resolveInitialFocusItemId,
   type FocusRailDensity
 } from '@/features/items/focus-view-state'
-import { KUSKUS_ITEM_DRAG_TYPE, setKuskusItemDragPreview } from '@/features/items/item-drag'
+import { KUSU_ITEM_DRAG_TYPE, setKusuItemDragPreview } from '@/features/items/item-drag'
 import type { ItemDetailHandle } from '@/features/items/item-detail-dialog'
 import { openExternalUrlWithFeedback } from '@/features/items/open-external-url'
 import {
@@ -214,10 +214,10 @@ export function Workspace({
   const librarySidebarRef = useRef<LibrarySidebarHandle>(null)
   const [initialSession] = useState(() => readAppSession(initialLibrary))
   const [sidebarHidden, setSidebarHidden] = useState(
-    () => localStorage.getItem('kuskus-sidebar-hidden') === 'true'
+    () => localStorage.getItem('kusu-sidebar-hidden') === 'true'
   )
   const [sidebarWidth, setSidebarWidth] = useState(() => {
-    const storedValue = localStorage.getItem('kuskus-sidebar-width')
+    const storedValue = localStorage.getItem('kusu-sidebar-width')
     if (storedValue === null) return DEFAULT_SIDEBAR_WIDTH
     const storedWidth = Number(storedValue)
     if (!Number.isFinite(storedWidth)) return DEFAULT_SIDEBAR_WIDTH
@@ -258,7 +258,7 @@ export function Workspace({
   const [colorTheme, setColorTheme] = useSetting<ColorTheme>('colorTheme')
   const [view, setView] = useSetting<LibraryView>('libraryView')
   const [focusListWidth, setFocusListWidth] = useState(() =>
-    parseFocusListWidth(localStorage.getItem('kuskus-focus-list-width'))
+    parseFocusListWidth(localStorage.getItem('kusu-focus-list-width'))
   )
   const [focusRailDensity, setFocusRailDensity] = useSetting<FocusRailDensity>('railDensity')
   const [focusWorkspaceOpen, setFocusWorkspaceOpen] = useState(
@@ -278,7 +278,7 @@ export function Workspace({
     () => initialSession?.focusNoteMode ?? null
   )
   const [showReferencedAttachments, setShowReferencedAttachments] = useState(
-    () => localStorage.getItem('kuskus-show-referenced-attachments') === 'true'
+    () => localStorage.getItem('kusu-show-referenced-attachments') === 'true'
   )
   const [statusMessage, setStatusMessage] = useState('')
   const [itemDetails, setItemDetails] = useState<Map<string, LibraryItemDto>>(() => new Map())
@@ -517,19 +517,19 @@ export function Workspace({
   )
 
   useEffect(() => {
-    localStorage.setItem('kuskus-sidebar-hidden', String(sidebarHidden))
+    localStorage.setItem('kusu-sidebar-hidden', String(sidebarHidden))
   }, [sidebarHidden])
 
   useEffect(() => {
-    localStorage.setItem('kuskus-sidebar-width', String(sidebarWidth))
+    localStorage.setItem('kusu-sidebar-width', String(sidebarWidth))
   }, [sidebarWidth])
 
   useEffect(() => {
-    localStorage.setItem('kuskus-focus-list-width', String(Math.round(focusListWidth)))
+    localStorage.setItem('kusu-focus-list-width', String(Math.round(focusListWidth)))
   }, [focusListWidth])
 
   useEffect(() => {
-    localStorage.setItem('kuskus-show-referenced-attachments', String(showReferencedAttachments))
+    localStorage.setItem('kusu-show-referenced-attachments', String(showReferencedAttachments))
   }, [showReferencedAttachments])
 
   useEffect(() => {
@@ -555,8 +555,8 @@ export function Workspace({
 
   const refreshVault = useCallback(async (reconcile = false): Promise<void> => {
     const result = reconcile
-      ? await window.kuskus.reconcileOverview()
-      : await window.kuskus.getOverview()
+      ? await window.kusu.reconcileOverview()
+      : await window.kusu.getOverview()
     if (!result.ok) return
     const state = expandLibraryOverview(result.data)
     if (state.status !== 'ready') return
@@ -565,7 +565,7 @@ export function Workspace({
   }, [])
 
   useEffect(() => {
-    const unsubscribe = window.kuskus.onVaultChanged(() => void refreshVault())
+    const unsubscribe = window.kusu.onVaultChanged(() => void refreshVault())
     const onFocus = (): void => void refreshVault(true)
     window.addEventListener('focus', onFocus)
     return () => {
@@ -612,11 +612,11 @@ export function Workspace({
     if (firstCardPaintMeasured.current || renderedItems.length === 0) return
     const frame = window.requestAnimationFrame(() => {
       firstCardPaintMeasured.current = true
-      performance.mark('kuskus:first-card-paint')
+      performance.mark('kusu:first-card-paint')
       performance.measure(
-        'kuskus:renderer-entry-to-first-card',
-        'kuskus:renderer-entry',
-        'kuskus:first-card-paint'
+        'kusu:renderer-entry-to-first-card',
+        'kusu:renderer-entry',
+        'kusu:first-card-paint'
       )
     })
     return () => window.cancelAnimationFrame(frame)
@@ -696,7 +696,7 @@ export function Workspace({
     let active = true
     void Promise.all(
       summaries.map(async (summary) => {
-        const result = await window.kuskus.getItemDetail(summary.id)
+        const result = await window.kusu.getItemDetail(summary.id)
         return result.ok ? result.data : null
       })
     )
@@ -897,7 +897,7 @@ export function Workspace({
 
   const addCreatedItem = useCallback(
     async (item: LibraryItemDto, openInEditor = false): Promise<boolean> => {
-      const refreshed = await window.kuskus.getState()
+      const refreshed = await window.kusu.getState()
       const nextLibrary =
         refreshed.ok && refreshed.data.status === 'ready' ? refreshed.data.library : null
       const nextItem = nextLibrary?.items.find((entry) => entry.id === item.id) ?? item
@@ -914,7 +914,7 @@ export function Workspace({
   const commitLinkItem = useCallback(
     async (item: UrlItemDto): Promise<{ item: UrlItemDto; remainsVisible: boolean }> => {
       setComposerOwnedItemId(item.id)
-      const refreshed = await window.kuskus.getState()
+      const refreshed = await window.kusu.getState()
       const nextLibrary =
         refreshed.ok && refreshed.data.status === 'ready' ? refreshed.data.library : null
       const candidate = nextLibrary?.items.find((entry) => entry.id === item.id)
@@ -960,7 +960,7 @@ export function Workspace({
     ): Promise<Extract<LibraryItemDto, { type: 'note' }>> => {
       let nextLibrary: LibraryDto | null = null
       if (target.type === 'collection') {
-        const moved = await window.kuskus.moveItems({
+        const moved = await window.kusu.moveItems({
           itemIds: [note.id],
           destination: target
         })
@@ -971,7 +971,7 @@ export function Workspace({
         }
       }
       if (!nextLibrary) {
-        const refreshed = await window.kuskus.getState()
+        const refreshed = await window.kusu.getState()
         if (refreshed.ok && refreshed.data.status === 'ready') nextLibrary = refreshed.data.library
       }
       const nextNote = nextLibrary?.items.find((item) => item.id === note.id) ?? note
@@ -987,7 +987,7 @@ export function Workspace({
   const createNoteFromSearch = useCallback(
     (title: string): void => {
       requestFocusTransition(() => {
-        void window.kuskus.createNote({ markdown: `# ${title}`, attachmentIds: [] }).then(
+        void window.kusu.createNote({ markdown: `# ${title}`, attachmentIds: [] }).then(
           async (result) => {
             if (!result.ok) {
               notifyActionError(result.error)
@@ -1034,7 +1034,7 @@ export function Workspace({
   )
 
   const revealItem = useCallback(async (itemId: string): Promise<void> => {
-    const result = await window.kuskus.showItemInExplorer(itemId)
+    const result = await window.kusu.showItemInExplorer(itemId)
     if (!result.ok) notifyActionError(result.error)
   }, [])
 
@@ -1045,7 +1045,7 @@ export function Workspace({
 
   const useFirstLineAsTitle = useCallback(
     async (item: Extract<LibraryItemDto, { type: 'note' }>): Promise<void> => {
-      const result = await window.kuskus.renameItem({ itemId: item.id, titleSource: 'derived' })
+      const result = await window.kusu.renameItem({ itemId: item.id, titleSource: 'derived' })
       if (!applyLibraryResult(result)) return
       announceStatus('The note title now follows its first line.')
     },
@@ -1057,12 +1057,12 @@ export function Workspace({
       const itemIds = selectedIds.has(itemId) ? [...selectedIds] : [itemId]
       if (!selectedIds.has(itemId)) prepareItemMenu(itemId)
       event.dataTransfer.effectAllowed = 'move'
-      event.dataTransfer.setData(KUSKUS_ITEM_DRAG_TYPE, JSON.stringify(itemIds))
+      event.dataTransfer.setData(KUSU_ITEM_DRAG_TYPE, JSON.stringify(itemIds))
       event.dataTransfer.setData(
         'text/plain',
-        `${itemIds.length} Kuskus ${itemIds.length === 1 ? 'item' : 'items'}`
+        `${itemIds.length} Kusu ${itemIds.length === 1 ? 'item' : 'items'}`
       )
-      setKuskusItemDragPreview({
+      setKusuItemDragPreview({
         dataTransfer: event.dataTransfer,
         source: event.currentTarget,
         clientX: event.clientX,
@@ -1331,7 +1331,7 @@ export function Workspace({
   }, [focusItemId, requestFocusTransition])
 
   const openAnotherLibrary = useCallback(async (): Promise<void> => {
-    const result = await window.kuskus.open()
+    const result = await window.kusu.open()
     if (!result.ok) {
       if (result.code !== 'cancelled') notifyActionError(result.error)
       return
@@ -1412,7 +1412,7 @@ export function Workspace({
   useEffect(
     () =>
       window.capture.onMainItemRequested((itemId) => {
-        void window.kuskus.getState().then((result) => {
+        void window.kusu.getState().then((result) => {
           if (!result.ok || result.data.status !== 'ready') {
             notifyActionError('The saved note could not be opened.')
             return
@@ -1449,7 +1449,7 @@ export function Workspace({
     pending.forEach((item) => {
       if (enrichingUrlIds.current.has(item.id)) return
       enrichingUrlIds.current.add(item.id)
-      void window.kuskus.enrichUrl(item.id).then((result) => {
+      void window.kusu.enrichUrl(item.id).then((result) => {
         enrichingUrlIds.current.delete(item.id)
         if (!result.ok) return
         setLibrary((current) => ({
@@ -2462,7 +2462,7 @@ export function Workspace({
               <DialogHeader>
                 <DialogTitle>Rename item</DialogTitle>
                 <DialogDescription>
-                  This renames the visible vault file. Kuskus keeps its stable identity, updates
+                  This renames the visible vault file. Kusu keeps its stable identity, updates
                   inbound references, and moves a legacy companion assets folder when present.
                 </DialogDescription>
               </DialogHeader>

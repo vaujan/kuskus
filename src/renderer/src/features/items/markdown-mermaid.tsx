@@ -6,7 +6,7 @@ import { renderMermaid } from '@/features/items/mermaid-renderer'
 let renderSequence = 0
 
 export function MarkdownMermaid({ code }: { code: string }): React.JSX.Element {
-  const id = `kuskus-mermaid-${useId().replace(/[^a-z0-9]/gi, '')}`
+  const id = `kusu-mermaid-${useId().replace(/[^a-z0-9]/gi, '')}`
   const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'))
   const renderKey = `${dark}:${code}`
   const [result, setResult] = useState<{ key: string; svg: string; error: boolean } | null>(null)
@@ -36,12 +36,12 @@ export function MarkdownMermaid({ code }: { code: string }): React.JSX.Element {
   }, [code, dark, id, renderKey])
 
   return (
-    <div className="kuskus-code-block kuskus-mermaid not-typeset" data-not-typeset>
-      <div className="kuskus-code-block-header">
+    <div className="kusu-code-block kusu-mermaid not-typeset" data-not-typeset>
+      <div className="kusu-code-block-header">
         <span>{current?.error ? 'Mermaid · Invalid diagram' : 'Mermaid'}</span>
         <button
           type="button"
-          className="kuskus-code-copy"
+          className="kusu-code-copy"
           onClick={async () => {
             if (await copyMarkdownCode(code)) {
               setCopied(true)
@@ -58,13 +58,13 @@ export function MarkdownMermaid({ code }: { code: string }): React.JSX.Element {
         </pre>
       ) : current?.svg ? (
         <div
-          className="kuskus-mermaid-diagram"
+          className="kusu-mermaid-diagram"
           role="img"
           aria-label="Mermaid diagram"
           dangerouslySetInnerHTML={{ __html: current.svg }}
         />
       ) : (
-        <div className="kuskus-mermaid-loading" role="status">
+        <div className="kusu-mermaid-loading" role="status">
           Rendering diagram…
         </div>
       )}

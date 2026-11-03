@@ -33,9 +33,9 @@ function mergeConflictingRegion(
 }
 
 /**
- * Reconciles edits made from Kuskus and another filesystem writer against the
+ * Reconciles edits made from Kusu and another filesystem writer against the
  * last version both writers shared. Non-overlapping edits from both versions
- * are retained. When the same lines changed, the active Kuskus draft wins.
+ * are retained. When the same lines changed, the active Kusu draft wins.
  */
 export function mergeNoteChanges(
   baseMarkdown: string,

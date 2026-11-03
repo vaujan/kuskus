@@ -6,11 +6,11 @@ import {
 } from './performance-log'
 import type { LibraryService } from './library/library-service'
 
-const typingEnabled = process.env.KUSKUS_PERFORMANCE_TYPING === '1'
+const typingEnabled = process.env.KUSU_PERFORMANCE_TYPING === '1'
 
 const TYPING_INSTRUMENTATION = `
   (() => {
-    const state = (window.__kuskusTyping = { keyLatencies: [], droppedFrames: 0, longTasks: [], rafTicks: 0, pendingKeyTimes: [] });
+    const state = (window.__kusuTyping = { keyLatencies: [], droppedFrames: 0, longTasks: [], rafTicks: 0, pendingKeyTimes: [] });
     let lastFrame = performance.now();
     const frame = () => {
       const now = performance.now();
@@ -34,12 +34,12 @@ const TYPING_INSTRUMENTATION = `
       for (const entry of list.getEntries()) state.longTasks.push(entry.duration);
     }).observe({ type: 'longtask', buffered: true });
   })();
-  window.__kuskusLongTasks = window.__kuskusTyping.longTasks;
+  window.__kusuLongTasks = window.__kusuTyping.longTasks;
 `
 
-const TYPING_RESET = `(() => { const s = window.__kuskusTyping; if (s) { s.keyLatencies = []; s.droppedFrames = 0; s.longTasks = []; s.pendingKeyTimes.length = 0; } return !!s })()`
+const TYPING_RESET = `(() => { const s = window.__kusuTyping; if (s) { s.keyLatencies = []; s.droppedFrames = 0; s.longTasks = []; s.pendingKeyTimes.length = 0; } return !!s })()`
 
-const TYPING_READ = `(() => { const s = window.__kuskusTyping; return s ? { keyLatencies: s.keyLatencies, droppedFrames: s.droppedFrames, longTasks: s.longTasks, rafTicks: s.rafTicks } : null })()`
+const TYPING_READ = `(() => { const s = window.__kusuTyping; return s ? { keyLatencies: s.keyLatencies, droppedFrames: s.droppedFrames, longTasks: s.longTasks, rafTicks: s.rafTicks } : null })()`
 
 const FOCUS_SEARCH = `(() => {
   const input = document.querySelector('input[aria-label="Search"]');
@@ -305,9 +305,9 @@ export function startPerformanceReporter(
       typingEnabled
         ? TYPING_INSTRUMENTATION
         : `
-          window.__kuskusLongTasks = [];
+          window.__kusuLongTasks = [];
           new PerformanceObserver((list) => {
-            window.__kuskusLongTasks.push(...list.getEntries().map((entry) => entry.duration));
+            window.__kusuLongTasks.push(...list.getEntries().map((entry) => entry.duration));
           }).observe({ type: 'longtask', buffered: true });
         `
     )
@@ -325,7 +325,7 @@ export function startPerformanceReporter(
       if (window.isDestroyed()) return
       void window.webContents
         .executeJavaScript(
-          `performance.getEntriesByName('kuskus:renderer-entry-to-first-card').at(-1)?.duration ?? null`
+          `performance.getEntriesByName('kusu:renderer-entry-to-first-card').at(-1)?.duration ?? null`
         )
         .then(async (duration: number | null) => {
           if (duration === null || firstCardWritten) return
@@ -339,7 +339,7 @@ export function startPerformanceReporter(
   })
 
   void sampleMemory('ready-memory')
-  const duration = Math.max(1_000, Number(process.env.KUSKUS_PERFORMANCE_DURATION_MS) || 10_000)
+  const duration = Math.max(1_000, Number(process.env.KUSU_PERFORMANCE_DURATION_MS) || 10_000)
   const finish = setTimeout(() => {
     if (window.isDestroyed()) return app.quit()
     void scenarioDone
@@ -349,7 +349,7 @@ export function startPerformanceReporter(
         url: location.href,
         text: document.body.innerText.slice(0, 500),
         measures: performance.getEntriesByType('measure').map(({ name, duration }) => ({ name, duration })),
-        longTasks: window.__kuskusLongTasks ?? []
+        longTasks: window.__kusuLongTasks ?? []
       })`
         )
       )

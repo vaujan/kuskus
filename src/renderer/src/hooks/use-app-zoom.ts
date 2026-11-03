@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { APP_ZOOM_FACTORS } from '../../../shared/window-contract'
 
-const ZOOM_STORAGE_KEY = 'kuskus-app-zoom'
+const ZOOM_STORAGE_KEY = 'kusu-app-zoom'
 const DEFAULT_ZOOM_FACTOR = 1
 
 export function resolveStoredZoomFactor(value: string | null): number {

@@ -40,9 +40,9 @@ function noteDto(body, updatedAt = '2026-07-21T00:00:00.000Z') {
 }
 
 test('creates a new library with a tutorial note in its own folder', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-tutorial-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-tutorial-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
-  const settingsPath = join(root, 'settings', 'kuskus-settings.json')
+  const settingsPath = join(root, 'settings', 'kusu-settings.json')
   const service = new LibraryService(settingsPath)
   const state = await service.createWithTutorialIn(root, 'My library')
 
@@ -68,10 +68,10 @@ test('creates a new library with a tutorial note in its own folder', async (cont
 })
 
 test('creates, persists, reopens, and reveals a Markdown note path', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-library-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-library-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
 
-  const settingsPath = join(root, 'settings', 'kuskus-settings.json')
+  const settingsPath = join(root, 'settings', 'kusu-settings.json')
   const service = new LibraryService(settingsPath)
   const createdState = await service.createIn(root, 'Research Library')
 
@@ -105,7 +105,7 @@ test('creates, persists, reopens, and reveals a Markdown note path', async (cont
 })
 
 test('duplicates a note beside the original with the same Markdown', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-duplicate-note-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-duplicate-note-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
 
   const service = new LibraryService(join(root, 'settings.json'))
@@ -134,7 +134,7 @@ test('duplicates a note beside the original with the same Markdown', async (cont
 })
 
 test('rejects unsafe library names and arbitrary item identifiers', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-safety-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-safety-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
 
   const service = new LibraryService(join(root, 'settings.json'))
@@ -146,7 +146,7 @@ test('rejects unsafe library names and arbitrary item identifiers', async (conte
 })
 
 test('retains metadata when a note file is missing', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-missing-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-missing-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
 
   const service = new LibraryService(join(root, 'settings.json'))
@@ -164,7 +164,7 @@ test('retains metadata when a note file is missing', async (context) => {
 })
 
 test('lets a missing-content item move to Trash and be deleted forever', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-missing-trash-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-missing-trash-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   await service.createIn(root, 'Missing Trash Library')
@@ -201,7 +201,7 @@ test('lets a missing-content item move to Trash and be deleted forever', async (
 })
 
 test('rewrites independent attachment references through note and image lifecycle changes', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-independent-lifecycle-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-independent-lifecycle-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   await service.createIn(root, 'Independent lifecycle vault')
@@ -273,7 +273,7 @@ test('rewrites independent attachment references through note and image lifecycl
 })
 
 test('leaves shared sibling images in place when only one referencing note moves', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-shared-sibling-move-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-shared-sibling-move-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   await service.createIn(root, 'Shared sibling vault')
@@ -305,7 +305,7 @@ test('leaves shared sibling images in place when only one referencing note moves
 })
 
 test('prefers an active attachment over older Trash records sharing its Markdown path', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-active-attachment-identity-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-active-attachment-identity-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   const created = await service.createIn(root, 'Attachment identity vault')
@@ -386,7 +386,7 @@ test('prefers an active attachment over older Trash records sharing its Markdown
 })
 
 test('requires review before trashing or permanently deleting an image referenced by a trashed note', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-trashed-note-reference-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-trashed-note-reference-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   await service.createIn(root, 'Trashed note reference vault')
@@ -439,7 +439,7 @@ test('requires review before trashing or permanently deleting an image reference
 })
 
 test('offers only unshared images for cleanup when deleting a note forever', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-note-cleanup-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-note-cleanup-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   await service.createIn(root, 'Cleanup eligibility vault')
@@ -490,7 +490,7 @@ test('offers only unshared images for cleanup when deleting a note forever', asy
 })
 
 test('updates Markdown notes without changing their identity or attachments', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-note-update-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-note-update-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const settingsPath = join(root, 'settings.json')
   const service = new LibraryService(settingsPath)
@@ -537,7 +537,7 @@ test('updates Markdown notes without changing their identity or attachments', as
 })
 
 test('creating a note consumes only the attachments used by that note', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-note-draft-isolation-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-note-draft-isolation-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   await service.createIn(root, 'Draft Isolation')
@@ -565,7 +565,7 @@ test('creating a note consumes only the attachments used by that note', async (c
 })
 
 test('imports a clipboard image directly into an existing note', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-note-image-paste-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-note-image-paste-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   await service.createIn(root, 'Pasted note images')
@@ -594,7 +594,7 @@ test('imports a clipboard image directly into an existing note', async (context)
 })
 
 test('rejects invalid, missing, non-note, and externally changed note updates', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-note-update-safety-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-note-update-safety-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   await service.createIn(root, 'Safe Updates')
@@ -620,13 +620,13 @@ test('rejects invalid, missing, non-note, and externally changed note updates', 
   )
 
   const notePath = await service.getItemContentPath(note.id)
-  await writeFile(notePath, 'Changed outside Kuskus', 'utf8')
+  await writeFile(notePath, 'Changed outside Kusu', 'utf8')
   await assert.rejects(
     () => service.updateNote({ itemId: note.id, markdown: 'My edit', expectedMarkdown: note.body }),
     (error) => {
       assert.equal(error instanceof NoteUpdateConflictError, true)
       assert.equal(error.current.id, note.id)
-      assert.equal(error.current.body.endsWith('Changed outside Kuskus'), true)
+      assert.equal(error.current.body.endsWith('Changed outside Kusu'), true)
       return true
     }
   )
@@ -636,7 +636,7 @@ test('rejects invalid, missing, non-note, and externally changed note updates', 
       service.updateNote({
         itemId: note.id,
         markdown: 'My edit',
-        expectedMarkdown: 'Changed outside Kuskus'
+        expectedMarkdown: 'Changed outside Kusu'
       }),
     /file is missing/i
   )
@@ -670,7 +670,7 @@ test('debounces note autosave and advances the authoritative baseline', async (c
 })
 
 test('persists an editor draft through autosave and reopens the exact Markdown', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-editor-autosave-test-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-editor-autosave-test-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const settingsPath = join(root, 'settings.json')
   const service = new LibraryService(settingsPath)

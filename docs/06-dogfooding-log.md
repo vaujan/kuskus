@@ -5,23 +5,23 @@ Started: 2026-07-14
 
 ## Purpose
 
-Kuskus is initially being built for its creator. This log replaces speculative feature planning with observations from real use.
+Kusu is initially being built for its creator. This log replaces speculative feature planning with observations from real use.
 
 Record friction quickly. Do not solve every entry immediately. Repeated problems matter more than isolated preferences.
 
 ## Seven-day trial criteria
 
-Choose one real project and use Kuskus as its primary reference library for seven consecutive days.
+Choose one real project and use Kusu as its primary reference library for seven consecutive days.
 
 Track whether the user can:
 
 - Capture at least ten real items across multiple formats.
-- Return to Kuskus on multiple days.
+- Return to Kusu on multiple days.
 - Organize items without interrupting capture.
 - Retrieve an item saved on an earlier day.
 - Open and reveal stored files reliably.
-- Back up or inspect the library outside Kuskus.
-- Avoid returning to another tool because Kuskus cannot represent something essential.
+- Back up or inspect the library outside Kusu.
+- Avoid returning to another tool because Kusu cannot represent something essential.
 
 ## Daily summary template
 
@@ -116,7 +116,7 @@ Use this for a specific problem worth preserving.
 
 - Date: 2026-07-22
 - What I was trying to do: Paste an image, link, or text into the New Item composer and review what
-  Kuskus detected before adding it to the library.
+  Kusu detected before adding it to the library.
 - What I expected: The primary action should identify the detected result as **Save image**,
   **Save link**, or **Save note**, and saving should occur only after activating it.
 - What happened: A standalone pasted image or link was added to the library immediately, while only

@@ -1,4 +1,4 @@
-export const KUSKUS_CHANNELS = {
+export const KUSU_CHANNELS = {
   getLibraryState: 'library:get-state',
   getLibraryOverview: 'library:get-overview',
   getItemDetail: 'library:get-item-detail',
@@ -390,7 +390,7 @@ export interface QueryItemsResult {
   itemIds: string[]
 }
 
-export interface KuskusLibraryApi {
+export interface KusuLibraryApi {
   getState: () => Promise<ApiResult<LibraryState>>
   getOverview: () => Promise<ApiResult<LibraryOverviewState>>
   getItemDetail: (itemId: string) => Promise<ApiResult<LibraryItemDto>>

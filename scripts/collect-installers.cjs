@@ -30,7 +30,7 @@ writeFileSync(join(output, 'SHA256SUMS.txt'), `${checksums.join('\n')}\n`)
 writeFileSync(
   join(output, 'BUILD-INFO.txt'),
   [
-    `Kuskus ${version}`,
+    `Kusu ${version}`,
     `Source commit: ${process.env.GITHUB_SHA || 'local build'}`,
     'Unsigned test build. macOS builds use ad-hoc signing and are not notarized.',
     'Installation and runtime behavior must be tested on the matching OS and architecture.',

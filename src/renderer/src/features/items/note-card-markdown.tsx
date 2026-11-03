@@ -88,9 +88,9 @@ export const NoteCardMarkdown = memo(function NoteCardMarkdown({
       ref={previewRef}
       data-typeset-presentation={compact ? 'snippet-compact' : 'snippet'}
       className={cn(
-        'kuskus-note-card-markdown typeset kuskus-typeset overflow-hidden [--typeset-body-color:var(--muted-foreground)]',
+        'kusu-note-card-markdown typeset kusu-typeset overflow-hidden [--typeset-body-color:var(--muted-foreground)]',
         compact ? 'max-h-[13rem]' : 'max-h-[20rem]',
-        isClipped && 'kuskus-card-content-fade'
+        isClipped && 'kusu-card-content-fade'
       )}
     >
       <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={components}>

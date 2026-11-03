@@ -14,7 +14,7 @@ const {
 } = require('../src/renderer/src/features/search/global-search-state.ts')
 
 test('global search matches every query term and ranks title matches before body matches', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kuskus-global-search-'))
+  const root = await mkdtemp(join(tmpdir(), 'kusu-global-search-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const service = new LibraryService(join(root, 'settings.json'))
   await service.createIn(root, 'Vault')
@@ -119,7 +119,7 @@ test('global search uses inline overview and rail inputs without a dialog', () =
   assert.match(railHeader, /aria-controls="focus-library-search"/)
   assert.match(railHeader, /searchOpen \? \(/)
   assert.match(railHeader, /<LibrarySearchInput/)
-  assert.match(search, /window\.kuskus\.queryItems/)
+  assert.match(search, /window\.kusu\.queryItems/)
   assert.match(search, /currentRequest !== requestId\.current/)
   assert.equal(
     existsSync(join(__dirname, '../src/renderer/src/features/search/global-search-dialog.tsx')),

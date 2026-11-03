@@ -90,7 +90,7 @@ class HeadingFoldButton extends WidgetType {
   toDOM(view: EditorView): HTMLElement {
     const button = document.createElement('button')
     button.type = 'button'
-    button.className = 'kuskus-list-fold-button cm-kuskus-heading-fold-button'
+    button.className = 'kusu-list-fold-button cm-kusu-heading-fold-button'
     button.dataset.headingFoldLine = String(this.target.line)
     setFoldButtonState(button, this.folded, 'heading section')
     button.innerHTML =
@@ -184,7 +184,7 @@ class ListFoldButton extends WidgetType {
   toDOM(view: EditorView): HTMLElement {
     const button = document.createElement('button')
     button.type = 'button'
-    button.className = `kuskus-list-fold-button cm-kuskus-list-fold-button${this.target.task ? ' cm-kuskus-list-fold-button--task' : ''}`
+    button.className = `kusu-list-fold-button cm-kusu-list-fold-button${this.target.task ? ' cm-kusu-list-fold-button--task' : ''}`
     button.style.insetInlineStart = `calc(${this.target.task ? '-1.05em' : '-0.55em'}${' + var(--typeset-list-nesting)'.repeat(this.target.depth)})`
     button.dataset.listFoldLine = String(this.target.line)
     setFoldButtonState(button, this.folded, 'nested list')
@@ -212,7 +212,7 @@ class ListFoldButton extends WidgetType {
   updateDOM(dom: HTMLElement): boolean {
     if (dom.dataset.listFoldLine !== String(this.target.line)) return false
     dom.style.insetInlineStart = `calc(${this.target.task ? '-1.05em' : '-0.55em'}${' + var(--typeset-list-nesting)'.repeat(this.target.depth)})`
-    dom.classList.toggle('cm-kuskus-list-fold-button--task', this.target.task)
+    dom.classList.toggle('cm-kusu-list-fold-button--task', this.target.task)
     setFoldButtonState(dom, this.folded, 'nested list')
     return true
   }
@@ -267,7 +267,7 @@ export function contentFolding(): Extension {
     codeFolding({
       placeholderDOM: () => {
         const placeholder = document.createElement('span')
-        placeholder.className = 'cm-kuskus-list-fold-placeholder'
+        placeholder.className = 'cm-kusu-list-fold-placeholder'
         return placeholder
       }
     }),

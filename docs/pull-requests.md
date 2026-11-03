@@ -12,7 +12,7 @@ For example, a contributor might write:
 
 > I kept losing my place when switching between reference folders. This keeps the selected note open when it still belongs to the new folder. I chose this behavior so browsing doesn’t interrupt reading.
 
-That is an illustration, not a statement about a tested Kuskus fix. Use your own experience and reasoning; don’t invent a story to fill the template.
+That is an illustration, not a statement about a tested Kusu fix. Use your own experience and reasoning; don’t invent a story to fill the template.
 
 ## Explain the implementation and checks
 

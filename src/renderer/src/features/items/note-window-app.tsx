@@ -129,8 +129,8 @@ export function NoteWindowApp({ itemId }: { itemId: string }): React.JSX.Element
 
   const refresh = useCallback(async (): Promise<void> => {
     const [overviewResult, itemResult] = await Promise.all([
-      window.kuskus.getOverview(),
-      window.kuskus.getItemDetail(itemId)
+      window.kusu.getOverview(),
+      window.kusu.getItemDetail(itemId)
     ])
     if (!overviewResult.ok) {
       setError(overviewResult.error)
@@ -152,7 +152,7 @@ export function NoteWindowApp({ itemId }: { itemId: string }): React.JSX.Element
 
   useEffect(() => {
     const initialLoad = window.setTimeout(() => void refresh())
-    const unsubscribe = window.kuskus.onVaultChanged(() => void refresh())
+    const unsubscribe = window.kusu.onVaultChanged(() => void refresh())
     return () => {
       window.clearTimeout(initialLoad)
       unsubscribe()
@@ -160,7 +160,7 @@ export function NoteWindowApp({ itemId }: { itemId: string }): React.JSX.Element
   }, [refresh])
 
   useEffect(() => {
-    document.title = item?.title ?? 'Kuskus note'
+    document.title = item?.title ?? 'Kusu note'
   }, [item?.title])
 
   useEffect(
@@ -194,7 +194,7 @@ export function NoteWindowApp({ itemId }: { itemId: string }): React.JSX.Element
 
   const renameItem = useCallback(
     async (current: LibraryItemDto, title: string): Promise<DetailTitleRenameResult> => {
-      const result = await window.kuskus.renameItem({ itemId: current.id, title })
+      const result = await window.kusu.renameItem({ itemId: current.id, title })
       if (!result.ok) return { ok: false, error: result.error }
       setLibrary(result.data)
       const renamed = result.data.items.find((entry) => entry.id === current.id)
@@ -205,7 +205,7 @@ export function NoteWindowApp({ itemId }: { itemId: string }): React.JSX.Element
   )
 
   const useFirstLineAsTitle = useCallback(async (current: NoteItemDto): Promise<void> => {
-    const result = await window.kuskus.renameItem({ itemId: current.id, titleSource: 'derived' })
+    const result = await window.kusu.renameItem({ itemId: current.id, titleSource: 'derived' })
     if (!result.ok) {
       setError(result.error)
       return
@@ -216,7 +216,7 @@ export function NoteWindowApp({ itemId }: { itemId: string }): React.JSX.Element
   }, [])
 
   const trashNote = useCallback(async (noteId: string): Promise<boolean> => {
-    const inspection = await window.kuskus.inspectItemDeletion({ itemIds: [noteId], mode: 'trash' })
+    const inspection = await window.kusu.inspectItemDeletion({ itemIds: [noteId], mode: 'trash' })
     if (!inspection.ok) {
       setError(inspection.error)
       return false
@@ -225,7 +225,7 @@ export function NoteWindowApp({ itemId }: { itemId: string }): React.JSX.Element
       setError('Review this note in the main window before moving it to Trash.')
       return false
     }
-    const result = await window.kuskus.trashItems({
+    const result = await window.kusu.trashItems({
       itemIds: [noteId],
       referenceRevision: inspection.data.revision
     })
@@ -310,7 +310,7 @@ export function NoteWindowApp({ itemId }: { itemId: string }): React.JSX.Element
                   options={options}
                   onDuplicate={() =>
                     guard(() => {
-                      void window.kuskus.duplicateNote(item.id).then((result) => {
+                      void window.kusu.duplicateNote(item.id).then((result) => {
                         if (result.ok) setLibrary(result.data)
                         else setError(result.error)
                       })
@@ -318,14 +318,14 @@ export function NoteWindowApp({ itemId }: { itemId: string }): React.JSX.Element
                   }
                   onCopyPath={() =>
                     guard(() => {
-                      void window.kuskus.copyItemPath(item.id).then((result) => {
+                      void window.kusu.copyItemPath(item.id).then((result) => {
                         if (!result.ok) setError(result.error)
                       })
                     })
                   }
                   onShowInExplorer={() =>
                     guard(() => {
-                      void window.kuskus.showItemInExplorer(item.id).then((result) => {
+                      void window.kusu.showItemInExplorer(item.id).then((result) => {
                         if (!result.ok) setError(result.error)
                       })
                     })

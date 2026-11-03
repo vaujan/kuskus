@@ -510,7 +510,7 @@ function refreshCellPreview(cell: HTMLElement): void {
     cell.dataset.hasMath = 'true'
     preview.dataset.kind = 'math'
     const renderedMath = document.createElement('span')
-    renderedMath.className = 'kuskus-math cm-atomic-table-cell-math'
+    renderedMath.className = 'kusu-math cm-atomic-table-cell-math'
     try {
       renderedMath.innerHTML = katex.renderToString(math, {
         displayMode: false,
@@ -951,7 +951,7 @@ class TableWidget extends WidgetType {
 
   toDOM(view: EditorView): HTMLElement {
     const wrap = document.createElement('div')
-    wrap.className = `kuskus-markdown-table-scroll cm-atomic-table${this.presentation === 'source' ? ' cm-atomic-table-source' : ''}`
+    wrap.className = `kusu-markdown-table-scroll cm-atomic-table${this.presentation === 'source' ? ' cm-atomic-table-source' : ''}`
     wrap.tabIndex = -1
 
     if (this.presentation === 'source') {
@@ -990,7 +990,7 @@ class TableWidget extends WidgetType {
     }
 
     const table = document.createElement('table')
-    table.className = 'kuskus-markdown-table'
+    table.className = 'kusu-markdown-table'
     table.setAttribute('role', 'grid')
     table.setAttribute('aria-label', 'Markdown table')
     table.setAttribute('aria-multiselectable', 'true')
