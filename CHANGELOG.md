@@ -6,6 +6,8 @@ All notable changes to Kusu are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [0.0.11] - 2026-11-04
+
 ### Added
 
 - Add a changelog page and a dark mode toggle to the Kusu website.
