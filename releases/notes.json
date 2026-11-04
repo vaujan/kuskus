@@ -1,6 +1,8 @@
 {
   "unreleased": {
-    "changes": {}
+    "changes": {
+      "Added": ["Add a changelog page and a dark mode toggle to the Kusu website."]
+    }
   },
   "releases": [
     {
@@ -11,8 +13,7 @@
           "Changed": [
             "Rename the app to Kusu. Existing vaults can be reopened from setup. App preferences and capture drafts use a new profile.",
             "Show a toast when a manual update check finds no update."
-          ],
-          "Added": ["Add a changelog page and a dark mode toggle to the Kusu website."]
+          ]
         }
       }
     },
