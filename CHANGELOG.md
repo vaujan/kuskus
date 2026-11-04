@@ -6,6 +6,12 @@ All notable changes to Kusu are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [0.0.11] - 2026-11-04
+
+### Added
+
+- Add a changelog page and a dark mode toggle to the Kusu website.
+
 ## [0.0.10] - 2026-11-03
 
 ### Changed
@@ -36,8 +42,8 @@ All notable changes to Kusu are documented here. The format follows [Keep a Chan
 ### Added
 
 - Choose a folder icon while creating a folder or subfolder.
-- Add a Support Kuskus settings section and English/Indonesian website sections with payment availability and contribution links.
-- Add Windows in-app update checks, user-controlled downloads, and restart-to-update controls in the sidebar and Settings → About Kuskus.
+- Add a Support Kusu settings section and English/Indonesian website sections with payment availability and contribution links.
+- Add Windows in-app update checks, user-controlled downloads, and restart-to-update controls in the sidebar and Settings → About Kusu.
 
 ### Changed
 
@@ -49,7 +55,7 @@ All notable changes to Kusu are documented here. The format follows [Keep a Chan
 
 ### Added
 
-- Show the installed app version in Settings → About Kuskus.
+- Show the installed app version in Settings → About Kusu.
 
 ### Changed
 
@@ -80,9 +86,9 @@ All notable changes to Kusu are documented here. The format follows [Keep a Chan
 - Use the One theme, system fonts, and 16px source text by default.
 - Show a Create folder prompt when the sidebar has no folders.
 - Add a development-only sidebar menu to reset onboarding without deleting library files, reset UI preferences, reload, and toggle DevTools.
-- Simplified onboarding with a centered Kuskus mascot, compact library actions, and a consistent layout throughout setup.
+- Simplified onboarding with a centered Kusu mascot, compact library actions, and a consistent layout throughout setup.
 - Recolored the curled-tail application logo and matching website favicon with natural brown and cream tones.
-- Keep Download Kuskus and Source on GitHub as the landing page's main actions; the download page tracks installer availability.
+- Keep Download Kusu and Source on GitHub as the landing page's main actions; the download page tracks installer availability.
 - Removed obsolete library and draft migrations; vault opening no longer converts old Markdown metadata.
 - Restricted packaged repository files, generated third-party notices, and added package inspection.
 - Added Windows/Linux CI checks and a Windows release command that validates and requires signing without changing versions or publishing.
@@ -153,7 +159,7 @@ First tracked release of the local-first visual library.
 
 ### Added
 
-- Local Kuskus libraries with readable `note.md` and `item.json` files on disk.
+- Local Kusu libraries with readable `note.md` and `item.json` files on disk.
 - Obsidian-compatible vault storage: schema-v2 scanning, frontmatter, wikilinks, aliases, headings, note embeds, and image embeds.
 - Markdown authoring through the inline New Item composer and a global `Ctrl+Shift+Space` Quick Capture popup.
 - Milkdown-based editor with Read, Live, highlighted Markdown, and linked Split presentations.

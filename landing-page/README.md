@@ -2,6 +2,8 @@
 
 This is a separate website project. Its build bundles the real Kusu renderer with an illustrative local demo library, so the hero remains interactive after deployment. The built site does not need Electron or Storybook at runtime.
 
+The changelog page renders from [the structured release notes](../releases/notes.json) when the site builds. Update that file to change the published history.
+
 ## Run locally
 
 ```bash

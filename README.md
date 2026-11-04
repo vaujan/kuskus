@@ -6,6 +6,8 @@ Kusu is still taking shape, and contributions are welcome.
 
 [![Kusu with Stacks & queues open in one window, split diagonally between light and One Dark themes on a rounded pastel gradient background](docs/images/demo.png)](https://trykusu.vercel.app)
 
+Kusu was previously called Kuskus. To use an existing vault in Kusu, choose its folder during setup. Keep the hidden `.kuskus` folder with the vault. Kusu uses a separate app profile for preferences and capture drafts.
+
 ## Try it
 
 You can explore the [browser demo](https://trykusu.vercel.app). It uses sample content; edits are temporary and don’t write to your computer.
