@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vite'
+import { changelog } from './src/changelog'
 
 const projectRoot = fileURLToPath(new URL('.', import.meta.url))
 
@@ -13,11 +14,12 @@ export default defineConfig({
     alias: { '@': resolve(projectRoot, '../src/renderer/src') },
     dedupe: ['react', 'react-dom']
   },
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), changelog()],
   build: {
     rollupOptions: {
       input: {
         main: resolve(projectRoot, 'index.html'),
+        changelog: resolve(projectRoot, 'changelog.html'),
         download: resolve(projectRoot, 'download.html'),
         indonesian: resolve(projectRoot, 'index-id.html'),
         downloadIndonesian: resolve(projectRoot, 'download-id.html'),

@@ -102,7 +102,7 @@ Do not substitute a new artifact under the old number. Promotion from beta/rc to
 also requires a new build and verification, with a release summary even when there are no code
 changes. Signed packaging is not automatic publication.
 
-## Future updates and changelog page
+## Release notes and update feeds
 
 The future website or app page should consume `releases/notes.json`, rather than parse Markdown
 or maintain another copy of the notes. Each release has `version`, `date`, and `notes`; notes
@@ -110,7 +110,4 @@ contain optional `summary` and categorized `changes`. Use the version to derive 
 link. Confirm publication separately before showing a download, filter prereleases according to
 the selected channel, and exclude `unreleased` from public release lists.
 
-Treat note strings as Markdown with raw HTML disabled. A future update check must compare versions
-with a SemVer library, not string sorting, and use verified platform artifacts. This file is
-release-note content, not an updater manifest or a guarantee that an installer exists. The page
-and automatic updates are intentionally separate future work.
+Treat note strings as Markdown with raw HTML disabled. Installed Windows builds use electron-updater to check the stable release feed and download updates at the user’s request. The updater uses its own release manifest. Structured release notes can be prepared before installers are available.

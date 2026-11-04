@@ -32,6 +32,8 @@ Vault/
     temp/
 ```
 
+Kusu stores vault metadata in `.kuskus`. The directory name is part of the on-disk format.
+
 Loose root files are Inbox. Ordinary folders are nested collections. The configured visible Archive folder is visible to other vault clients. Dot-folders, including `.obsidian` and `.kuskus`, are not indexed as active content.
 
 ## Markdown and bookmarks

@@ -23,7 +23,7 @@ Test the x64 and ARM64 installers on matching clean Windows systems before adver
 
 ## Publish after verification
 
-Tag the exact verified source commit, attach the signed installers and checksums to its GitHub release, and provide corresponding source access. Include installation instructions, supported OS/architectures, known limitations, and backup/recovery advice. Kusu currently has no automatic updater; users install new releases manually.
+Tag the exact verified source commit, attach the signed installers and checksums to its GitHub release, and provide corresponding source access. Include installation instructions, supported OS/architectures, known limitations, and backup/recovery advice. Installed Windows builds can check for stable releases in Settings → About Kusu. Users choose when to download and restart to install. Experimental previews are installed manually from GitHub Releases.
 
 Update the landing page to link to the real release and public source when available. Until then its browser-demo language is intentional. Download and install the public artifact once more before announcing it.
 
