@@ -6,6 +6,8 @@ All notable changes to Kusu are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [0.0.12] - 2026-11-05
+
 ### Changed
 
 - Highlight feature names in website descriptions with colorful inline icon badges.

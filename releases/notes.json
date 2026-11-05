@@ -1,16 +1,23 @@
 {
   "unreleased": {
-    "changes": {
-      "Fixed": ["Explain update feed failures and confirm when Kusu is up to date."],
-      "Changed": [
-        "Highlight feature names in website descriptions with colorful inline icon badges.",
-        "Give website headings IBM Plex Sans typography and add a beta, free-forever, open-source badge to both home pages.",
-        "Add a dithered sunlit canopy behind the website hero and navigation, expand the demo without its gradient frame, and use light mode by default.",
-        "Show the sidebar update action only when a downloaded update is ready to install. Check for and download updates in Settings."
-      ]
-    }
+    "changes": {}
   },
   "releases": [
+    {
+      "version": "0.0.12",
+      "date": "2026-11-05",
+      "notes": {
+        "changes": {
+          "Fixed": ["Explain update feed failures and confirm when Kusu is up to date."],
+          "Changed": [
+            "Highlight feature names in website descriptions with colorful inline icon badges.",
+            "Give website headings IBM Plex Sans typography and add a beta, free-forever, open-source badge to both home pages.",
+            "Add a dithered sunlit canopy behind the website hero and navigation, expand the demo without its gradient frame, and use light mode by default.",
+            "Show the sidebar update action only when a downloaded update is ready to install. Check for and download updates in Settings."
+          ]
+        }
+      }
+    },
     {
       "version": "0.0.11",
       "date": "2026-11-04",
