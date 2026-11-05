@@ -1,13 +1,39 @@
 const assert = require('node:assert/strict')
 const { existsSync } = require('node:fs')
-const { mkdtemp, readFile, rm, stat, writeFile } = require('node:fs/promises')
+const { mkdtemp, readFile, rm, stat, utimes, writeFile } = require('node:fs/promises')
 const { tmpdir } = require('node:os')
-const { join, relative, resolve } = require('node:path')
+const { join, relative, resolve, sep } = require('node:path')
 const test = require('node:test')
 require('./helpers/install-ts-require.cjs')()
 
 const { LibraryService } = require('../src/main/library/library-service.ts')
+const { LibraryStore } = require('../src/main/library/storage/library-store.ts')
 const { LIBRARY_NAME, seedDemoEnvironment } = require('../scripts/create-demo-library.cjs')
+
+test('opening an item before reconciliation reads only its record', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kusu-direct-record-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  const created = await service.createIn(root, 'Vault')
+  const notes = await Promise.all(
+    Array.from({ length: 12 }, (_, index) =>
+      service.createNote({ markdown: `# Note ${index}`, attachmentIds: [] })
+    )
+  )
+  const io = require('node:fs/promises')
+  const original = io.readFile
+  const records = []
+  context.mock.method(io, 'readFile', (...args) => {
+    if (String(args[0]).includes(`${sep}records${sep}`)) records.push(String(args[0]))
+    return original(...args)
+  })
+  const store = new LibraryStore()
+  const target = await store.resolveItem(created.library.path, notes[0].id)
+  assert.equal(target.metadata.id, notes[0].id)
+  assert.deepEqual(records, [
+    join(created.library.path, '.kuskus', 'records', `${notes[0].id}.json`)
+  ])
+})
 
 test('serves a rebuildable cached snapshot and reconciles an edit made while closed', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kusu-index-cache-'))
@@ -45,6 +71,24 @@ test('serves a rebuildable cached snapshot and reconciles an edit made while clo
     reconciled.library.items.find((item) => item.id === note.id).body.includes('Changed outside'),
     true
   )
+})
+
+test('unchanged startup reconciliation does not republish the entire vault', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kusu-unchanged-startup-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const settings = join(root, 'settings.json')
+  const service = new LibraryService(settings)
+  await service.createIn(root, 'Vault')
+  await service.createNote({ markdown: '# Unchanged', attachmentIds: [] })
+  await service.getState()
+  const reopened = new LibraryService(settings)
+  await reopened.initialize()
+  let notifications = 0
+  const unsubscribe = reopened.onVaultChanged(() => notifications++)
+  context.after(unsubscribe)
+  await reopened.getState(true)
+  await reopened.reconcileState()
+  assert.equal(notifications, 0)
 })
 
 test('reconciles a dirty vault before applying a cached mutation', async (context) => {
@@ -281,4 +325,33 @@ test('note autosave does not expose its backup or trigger a full watched-vault r
   assert.equal(state.library.items.length, 1)
   assert.equal(state.library.items[0].body, '# Note\n\nAfter')
   assert.equal(fullRebuilds, 0)
+})
+
+test('reconciliation reads externally edited notes with unchanged size and mtime', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kusu-same-mtime-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const settings = join(root, 'settings.json')
+  const service = new LibraryService(settings)
+  const created = await service.createIn(root, 'Vault')
+  const note = await service.createNote({ markdown: '# Note', attachmentIds: [] })
+  const notePath = join(created.library.path, note.relativePath)
+  const timestamp = new Date('2025-01-01T00:00:00Z')
+  await utimes(notePath, timestamp, timestamp)
+  await service.reconcileState()
+  const before = await stat(notePath)
+
+  const edited = note.body.replace('# Note', '# Edit')
+  assert.notEqual(edited, note.body)
+  await writeFile(notePath, edited)
+  await utimes(notePath, timestamp, timestamp)
+  const after = await stat(notePath)
+  assert.equal(after.mtimeMs, before.mtimeMs)
+  assert.equal(after.size, before.size)
+
+  const reopened = new LibraryService(settings)
+  await reopened.initialize()
+  const cached = await reopened.getState(true)
+  assert.equal(cached.library.items.find((item) => item.id === note.id).body, note.body)
+  const reconciled = await reopened.reconcileState()
+  assert.equal(reconciled.library.items.find((item) => item.id === note.id).body, edited)
 })

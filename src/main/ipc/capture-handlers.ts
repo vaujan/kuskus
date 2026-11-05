@@ -53,8 +53,8 @@ export function registerCaptureIpc(
   )
   const requireReadyLibrary = async (libraryId: unknown): Promise<string> => {
     if (typeof libraryId !== 'string') throw new Error('The capture library is invalid.')
-    const state = await libraryService.getState()
-    if (state.status !== 'ready' || state.library.id !== libraryId) {
+    const context = await libraryService.getCaptureContext()
+    if (context.libraryId !== libraryId) {
       throw new Error('Open the matching library before editing this draft.')
     }
     return libraryId

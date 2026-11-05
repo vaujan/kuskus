@@ -571,7 +571,7 @@ export function registerLibraryIpc(
 
   ipcMain.handle(KUSU_CHANNELS.copyLibraryPath, async () => {
     try {
-      const state = await libraryService.getState()
+      const state = await libraryService.getState(true)
       if (state.status !== 'ready') throw new Error('Open a library before copying its path.')
       await clipboard.writeText(state.library.path)
       return { ok: true, data: null }

@@ -1,56 +1,66 @@
-import { startTransition, useEffect, useMemo, useRef, useState } from 'react'
+import { startTransition, useDeferredValue, useEffect, useMemo, useState } from 'react'
 
 import type { LibraryItemDto } from '../../../../shared/library-contract'
 
-const SEARCH_DEBOUNCE_MS = 150
 const MAX_SEARCH_RESULTS = 50
 
 export function useLibrarySearch(
   items: readonly LibraryItemDto[],
   query: string
-): { items: LibraryItemDto[]; pending: boolean; error: boolean } {
+): { items: LibraryItemDto[]; pending: boolean; error: boolean; hasResolvedQuery: boolean } {
   const normalizedQuery = query.trim().toLocaleLowerCase()
-  const [resolvedQuery, setResolvedQuery] = useState('')
-  const [resultIds, setResultIds] = useState<readonly string[]>([])
-  const [error, setError] = useState(false)
-  const requestId = useRef(0)
+  const searchActive = Boolean(normalizedQuery)
+  const deferredQuery = useDeferredValue(normalizedQuery)
+  const [result, setResult] = useState({ query: '', ids: [] as readonly string[], error: false })
 
   useEffect(() => {
-    if (!normalizedQuery) {
-      requestId.current += 1
-      return
+    if (!deferredQuery) return
+    let cancelled = false
+    void window.kusu.queryItems({ query: deferredQuery }).then(
+      (response) => {
+        if (cancelled) return
+        startTransition(() =>
+          setResult((current) => {
+            const ids = response.ok ? response.data.itemIds : []
+            return {
+              query: deferredQuery,
+              ids:
+                current.ids.length === ids.length &&
+                current.ids.every((id, index) => id === ids[index])
+                  ? current.ids
+                  : ids,
+              error: !response.ok
+            }
+          })
+        )
+      },
+      () => {
+        if (!cancelled)
+          startTransition(() => setResult({ query: deferredQuery, ids: [], error: true }))
+      }
+    )
+    return () => {
+      cancelled = true
     }
-    const currentRequest = requestId.current + 1
-    requestId.current = currentRequest
-    const timer = window.setTimeout(() => {
-      void window.kusu.queryItems({ query: normalizedQuery }).then((result) => {
-        if (currentRequest !== requestId.current) return
-        startTransition(() => {
-          setResolvedQuery(normalizedQuery)
-          setResultIds(result.ok ? result.data.itemIds : [])
-          setError(!result.ok)
-        })
-      })
-    }, SEARCH_DEBOUNCE_MS)
-    return () => window.clearTimeout(timer)
-  }, [normalizedQuery])
+  }, [deferredQuery, items])
 
   const itemsById = useMemo(() => new Map(items.map((item) => [item.id, item])), [items])
   const results = useMemo(() => {
-    if (!normalizedQuery || resolvedQuery !== normalizedQuery) return []
+    if (!searchActive) return []
     const matches: LibraryItemDto[] = []
-    for (const itemId of resultIds) {
+    for (const itemId of result.ids) {
       const item = itemsById.get(itemId)
       if (!item || item.referencedAttachment) continue
       matches.push(item)
       if (matches.length === MAX_SEARCH_RESULTS) break
     }
     return matches
-  }, [itemsById, normalizedQuery, resolvedQuery, resultIds])
+  }, [itemsById, searchActive, result.ids])
 
   return {
     items: results,
-    pending: Boolean(normalizedQuery && resolvedQuery !== normalizedQuery),
-    error: Boolean(normalizedQuery && resolvedQuery === normalizedQuery && error)
+    hasResolvedQuery: Boolean(result.query),
+    pending: Boolean(normalizedQuery && result.query !== normalizedQuery),
+    error: Boolean(normalizedQuery && result.query === normalizedQuery && result.error)
   }
 }

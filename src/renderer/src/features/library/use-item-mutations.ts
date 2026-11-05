@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { countReferencedImageChanges } from '@/features/library/reference-image-move'
 import type { ItemActionHandlers } from '@/features/items/item-action-menu'
@@ -132,6 +132,12 @@ export function useItemMutations(deps: ItemMutationDependencies): ItemMutations 
     itemIds: string[]
     inspection: ItemDeletionInspectionDto
   } | null>(null)
+  const itemsById = useMemo(
+    () => new Map(library.items.map((item) => [item.id, item])),
+    [library.items]
+  )
+  const pinnedIds = useMemo(() => new Set(library.pinnedItemIds), [library.pinnedItemIds])
+
   const [itemOperationBusy, setItemOperationBusy] = useState(false)
 
   const requestPermanentDelete = useCallback((itemIds: string[]): void => {
@@ -592,25 +598,18 @@ export function useItemMutations(deps: ItemMutationDependencies): ItemMutations 
       onMenuOpen?: () => void
     } => {
       const targetIds = resolveItemMenuTargets(selectedIds, item.id, visibleItemIds)
-      const targetIdSet = new Set(targetIds)
       return {
         targetCount: targetIds.length,
-        targetLocations: library.items
-          .filter((candidate) => targetIdSet.has(candidate.id))
-          .map((candidate) => candidate.location),
-        pinned: library.pinnedItemIds.includes(item.id),
+        targetLocations: targetIds.flatMap((id) => {
+          const target = itemsById.get(id)
+          return target ? [target.location] : []
+        }),
+        pinned: pinnedIds.has(item.id),
         onMenuOpen: () => prepareItemMenu(item.id),
         ...itemActions(item, targetIds)
       }
     },
-    [
-      itemActions,
-      library.items,
-      library.pinnedItemIds,
-      prepareItemMenu,
-      selectedIds,
-      visibleItemIds
-    ]
+    [itemActions, itemsById, pinnedIds, prepareItemMenu, selectedIds, visibleItemIds]
   )
 
   const deleteReviewNoteTitles = deleteInspection

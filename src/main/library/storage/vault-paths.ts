@@ -1,4 +1,5 @@
 import { lstatSync } from 'node:fs'
+import { lstat } from 'node:fs/promises'
 import { join, relative, resolve, sep } from 'node:path'
 
 const KUSU_DIRECTORY = '.kuskus'
@@ -22,6 +23,30 @@ export function resolveInsideVault(libraryPath: string, relativePath: string): s
       if (lstatSync(current).isSymbolicLink()) {
         throw new Error('A library path contains a symbolic link or junction.')
       }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') break
+      throw error
+    }
+  }
+  return candidate
+}
+
+// Bulk indexing uses the same checks without blocking Electron's main thread on each stat.
+export async function resolveInsideVaultAsync(
+  libraryPath: string,
+  relativePath: string
+): Promise<string> {
+  const root = resolve(libraryPath)
+  const candidate = resolve(root, relativePath)
+  if (candidate !== root && !candidate.startsWith(`${root}${sep}`)) {
+    throw new Error('A library path points outside the selected vault.')
+  }
+  let current = root
+  for (const part of relative(root, candidate).split(sep).filter(Boolean)) {
+    current = join(current, part)
+    try {
+      if ((await lstat(current)).isSymbolicLink())
+        throw new Error('A library path contains a symbolic link or junction.')
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') break
       throw error

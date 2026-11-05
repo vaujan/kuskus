@@ -70,3 +70,36 @@ export const SavedItemCard = memo(function SavedItemCard({
     />
   )
 })
+
+export const LibraryCardPreview = memo(function LibraryCardPreview({
+  item,
+  view,
+  selected,
+  showSelectionVisual,
+  compact = false,
+  opensDialog = true,
+  onActivateItem,
+  onOpenItem
+}: {
+  item: LibraryItemDto
+  view: LibraryView
+  selected: boolean
+  showSelectionVisual: boolean
+  compact?: boolean
+  opensDialog?: boolean
+  onActivateItem: (id: string, event: React.MouseEvent<HTMLButtonElement>) => void
+  onOpenItem: (id: string) => void
+}): React.JSX.Element {
+  return (
+    <SavedItemCard
+      item={item}
+      view={view}
+      selected={selected}
+      showSelectionVisual={showSelectionVisual}
+      compact={compact}
+      opensDialog={opensDialog}
+      onActivate={(event) => onActivateItem(item.id, event)}
+      onOpen={() => onOpenItem(item.id)}
+    />
+  )
+})

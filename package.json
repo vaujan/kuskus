@@ -1,6 +1,6 @@
 {
   "name": "kusu",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "license": "GPL-3.0-only",
   "description": "A private visual library for project references, stored on your computer",
   "main": "./out/main/index.js",
@@ -50,7 +50,9 @@
     "check": "pnpm version:check && pnpm format:check && pnpm test && pnpm lint && pnpm build && pnpm perf:budget && pnpm --dir landing-page typecheck && pnpm --dir landing-page build",
     "check:release": "pnpm check && pnpm audit && pnpm build:storybook && pnpm exec electron-builder --dir --publish never && pnpm package:verify",
     "licenses:generate": "node scripts/generate-third-party-notices.cjs",
-    "package:verify": "node scripts/verify-package.cjs"
+    "package:verify": "node scripts/verify-package.cjs",
+    "stress": "node scripts/run-stress.cjs",
+    "perf:interactions": "pnpm build:unpack && node scripts/measure-packaged-performance.cjs --browsing --items=6000"
   },
   "dependencies": {
     "@base-ui/react": "1.6.0",

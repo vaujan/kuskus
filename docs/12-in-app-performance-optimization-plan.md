@@ -361,3 +361,105 @@ pnpm perf:benchmark
 - scrolling has no repeated long masonry tasks;
 - process memory remains within the existing preview and hidden-window bounds;
 - every retained optimization has a measured user-facing benefit.
+
+## Large-vault interaction follow-up
+
+The overview and both Focus rail densities now window their content instead of retaining loaded
+pages. Ordered masonry columns are preserved. Measured heights are cached, viewport updates happen
+only when the rendered range changes, and a persistent ResizeObserver measures new or resized rows.
+Focused rows and neighbours, dragged rows, and the last explicitly revealed row remain mounted.
+Home/End navigation mounts and focuses the target directly. Memoized rows keep unchanged previews
+and menus out of ordinary scroll renders; Index no longer adds CSS content-visibility estimates on
+top of the scrolling window.
+
+Search has no fixed debounce. Deferred queries keep typing urgent, and the previous collection or
+search results remain visible until the next response arrives. Cancelled responses cannot replace
+newer results. Searchable text is cached per immutable item in a WeakMap; edits, renames, metadata
+updates, and removals naturally invalidate it.
+
+Background URL enrichment runs four requests at a time and publishes completed metadata in batches.
+Requests and publication pause briefly after input. Closing or switching a vault disposes its queue.
+Enrichment preserves titles changed while a request was running and updates the service's search
+snapshot. Ready metadata does not require another network request.
+
+Cold indexing keeps the existing path-containment and symlink checks but performs bulk checks
+asynchronously. Reference lookups are built only when references need them, and new rebuildable
+record writes use bounded concurrency. Note saves and moves announce their paths before filesystem
+notifications arrive. Capture readiness checks read only vault identity; captures and file imports
+update changed DTOs instead of rescanning the whole vault. External files remain watched and
+reconciled. Transaction journals, note conflict checks, and authoritative file writes are unchanged.
+Before startup reconciliation completes, opening an item reads its individual record instead of
+loading the entire record directory. Background link writes wait for reconciliation so they cannot
+race its snapshot. Media moves rewrite inbound references once for the whole selection, using fresh
+note bytes even when an external edit preserves file size and timestamps.
+
+### Reproducing the measurements
+
+Build and run the packaged interaction fixture:
+
+```sh
+pnpm perf:interactions
+pnpm perf:interactions --mixed
+```
+
+For a faster implementation loop without packaging, use the optimized build in `out/`:
+
+```sh
+pnpm build
+node scripts/measure-packaged-performance.cjs --preview --browsing --items=6000 --runs=3
+```
+
+Add `--screenshots` to save light and dark screenshots alongside the JSONL and verify scrolling with
+reduced motion enabled. These checks change only the isolated fixture profile.
+
+The JSON summary records whether the run was packaged. The mixed fixture contains Markdown, PNG
+images in landscape and portrait proportions, local URL shortcuts, PDFs, and collection folders.
+Sample URLs point at loopback addresses blocked by the network guard, exercising enrichment failure
+states without contacting external sites.
+
+The browsing scenario verifies selection, continuous scrolling, destination and layout changes,
+search, both Focus densities with Home/End, cold and warm note opening, available media details and
+preview readiness, and bulk archive through the UI. Restore, move, and note edit timings are reported
+separately as IPC operations and their saved results are checked. It rejects excess mounted rows and
+unexpected full scans during ordinary interactions. UI actions use synthetic events and frame
+boundaries; they do not include operating-system input delivery. Real keyboard input and autosave
+have a separate scenario:
+
+```sh
+node scripts/measure-packaged-performance.cjs --typing --items=6000 --runs=3
+```
+
+The earlier overview-only baseline was 10–19 mounted wrappers, selection p95 of 71.7 ms, cached first
+cards at 507 and 529.5 ms, and a 9,803 ms cold first card on the reference Windows machine. Its raw
+results are in `.performance/browsing-6000-final.ndjson`. Do not compare Node service rebuild timings
+directly with packaged launch timings.
+
+### Verification on 6 November 2026
+
+The final Windows unpacked build passed `pnpm check` (438 tests), `pnpm audit --prod`, and
+`pnpm package:verify`. Three mixed 6,000-item runs completed navigation, both Focus densities,
+search, images, links, PDFs, note edits, and bulk archive/restore/move checks. Light and dark
+screenshots were inspected; reduced motion and Home/End navigation were checked. All three browsing
+runs and all three typing runs reported zero interaction/autosave vault scans.
+
+| Measurement                              | Final packaged result |
+| ---------------------------------------- | --------------------- |
+| Mounted overview / Focus maximum         | 21 / 18               |
+| First card, cold                         | 5,333 ms              |
+| First card, subsequent launches          | 535 ms and 5,407 ms   |
+| Selection p95                            | 126 ms                |
+| Search results p95, mixed fixture        | 139 ms                |
+| Warm note opening p95                    | 144 ms                |
+| Continuous scroll frame interval p95     | 58.1 ms               |
+| Longest task during continuous scrolling | 88 ms                 |
+| Search / note key-to-frame p95           | 30.4 / 18.1 ms        |
+| Search IPC / note autosave IPC p95       | 34.6 / 191.7 ms       |
+
+Raw results are `.performance/verified-packaged-mixed.ndjson` and
+`.performance/verified-packaged-typing.ndjson`. The mixed runner exited nonzero because selection
+exceeded 100 ms; its cached launch outlier also exceeds the launch budget. The typing runner exited
+nonzero because autosave IPC exceeded 100 ms, despite responsive keystrokes and no autosave scans.
+These are **not passing release performance results**. Scrolling, startup variability, initial detail
+loading, search result settling, and disk-backed mutations remain above some primary targets.
+Further work needs renderer layout/paint and startup traces, plus storage phase measurements;
+reference correctness, conflict detection, and transaction durability must remain intact.

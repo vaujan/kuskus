@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type, @typescript-eslint/no-require-imports */
-const { randomUUID } = require('node:crypto')
 const { existsSync, readFileSync } = require('node:fs')
 const { mkdir, mkdtemp, rm, writeFile } = require('node:fs/promises')
 const { tmpdir } = require('node:os')
 const { dirname, join, resolve } = require('node:path')
 const { spawn } = require('node:child_process')
+const { createFixture } = require('./performance-fixture.cjs')
 
 function option(name, fallback) {
   const prefix = `--${name}=`
@@ -23,35 +23,9 @@ async function executablePath() {
   return match
 }
 
-async function createFixture(root, itemCount) {
-  const userData = join(root, 'user-data')
-  const vault = join(root, 'vault')
-  const records = join(vault, '.kuskus', 'records')
-  await mkdir(records, { recursive: true })
-  const libraryId = randomUUID()
-  await writeFile(
-    join(vault, '.kuskus', 'library.json'),
-    `${JSON.stringify({ schemaVersion: 2, id: libraryId, name: 'Performance Vault', createdAt: new Date().toISOString() }, null, 2)}\n`
-  )
-  const body = 'Local-first searchable content. '.repeat(80)
-  const workers = Array.from({ length: 32 }, async (_, worker) => {
-    for (let index = worker; index < itemCount; index += 32) {
-      const name = `Note ${String(index).padStart(5, '0')}`
-      await writeFile(join(vault, `${name}.md`), `# ${name}\n\n${body}`)
-    }
-  })
-  await Promise.all(workers)
-  await mkdir(userData, { recursive: true })
-  await writeFile(
-    join(userData, 'kusu-settings.json'),
-    `${JSON.stringify({ schemaVersion: 1, lastLibraryPath: vault }, null, 2)}\n`
-  )
-  return userData
-}
-
-function runApp(executable, env, duration) {
+function runApp(executable, env, duration, args) {
   return new Promise((resolveRun, reject) => {
-    const child = spawn(executable, [], { env: { ...process.env, ...env }, stdio: 'inherit' })
+    const child = spawn(executable, args, { env: { ...process.env, ...env }, stdio: 'inherit' })
     const timeout = setTimeout(() => {
       child.kill()
       reject(new Error('Packaged performance run timed out.'))
@@ -84,18 +58,23 @@ function p95(values) {
 async function main() {
   const runs = Math.max(1, Number(option('runs', '3')) || 3)
   const itemCount = Math.max(1, Number(option('items', '5000')) || 5000)
+  const preview = process.argv.includes('--preview')
+  const mixed = process.argv.includes('--mixed')
+  const browsing = process.argv.includes('--browsing')
   const typing = process.argv.includes('--typing')
+  if (browsing && typing) throw new Error('Run browsing and typing scenarios separately.')
+  const defaultDuration = typing || browsing ? '90000' : '30000'
   const duration = Math.max(
     1_000,
-    Number(option('duration-ms', typing ? '90000' : '30000')) || 30_000
+    Number(option('duration-ms', defaultDuration)) || Number(defaultDuration)
   )
   const output = resolve(option('output', '.performance/packaged.ndjson'))
   const root = await mkdtemp(join(tmpdir(), 'kusu-packaged-performance-'))
   await mkdir(dirname(output), { recursive: true })
   await writeFile(output, '')
   try {
-    const executable = await executablePath()
-    const userData = await createFixture(root, itemCount)
+    const executable = preview ? require('electron') : await executablePath()
+    const userData = await createFixture(root, itemCount, mixed)
     for (let run = 1; run <= runs; run += 1) {
       await runApp(
         executable,
@@ -103,10 +82,13 @@ async function main() {
           KUSU_PERFORMANCE_OUTPUT: output,
           KUSU_PERFORMANCE_USER_DATA: userData,
           KUSU_PERFORMANCE_RUN: String(run),
+          KUSU_PERFORMANCE_SCREENSHOTS: process.argv.includes('--screenshots') ? '1' : '0',
+          KUSU_PERFORMANCE_BROWSING: browsing ? '1' : '0',
           KUSU_PERFORMANCE_DURATION_MS: String(duration),
           ...(typing ? { KUSU_PERFORMANCE_TYPING: '1' } : {})
         },
-        duration
+        duration,
+        preview ? [resolve(__dirname, '..')] : []
       )
     }
     const entries = readFileSync(output, 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse)
@@ -129,11 +111,60 @@ async function main() {
     const summary = {
       runs,
       itemCount,
+      mixed,
+      packaged: !preview,
       cachedFirstCardMedianMs: median(cachedFirstCards),
       settledWorkingSetMedianMb: median(settledMemory),
       settledCpuMedianPercent: median(settledCpu),
       settledProcessCountMedian: median(settledProcessCounts),
       output
+    }
+
+    if (browsing) {
+      const scenarios = entries.filter((entry) => entry.event === 'browsing')
+      const errors = entries.filter((entry) => entry.event === 'browsing-error')
+      if (errors.length || scenarios.length !== runs)
+        throw new Error(JSON.stringify(errors.length ? errors : 'Missing browsing results'))
+      summary.browsing = {
+        maximumMountedCards: Math.max(
+          ...scenarios.flatMap((entry) => entry.data.samples.map((sample) => sample.mounted))
+        ),
+        selectionP95Ms: p95(scenarios.flatMap((entry) => entry.data.selectionLatencies)),
+        scrollFrameP95Ms: p95(scenarios.flatMap((entry) => entry.data.scrollFrameIntervals)),
+        scrollMaxLongTaskMs: Math.max(
+          0,
+          ...scenarios.flatMap((entry) => entry.data.scrollLongTasks)
+        )
+      }
+      summary.browsing.focusMaximumMounted = Math.max(
+        ...scenarios.map((entry) => entry.data.interactions.maxFocusMounted)
+      )
+      summary.browsing.interactions = [
+        ...new Set(
+          scenarios.flatMap((entry) => entry.data.interactions.timings.map((timing) => timing.name))
+        )
+      ].map((name) => ({
+        name,
+        p95Ms: p95(
+          scenarios.flatMap((entry) =>
+            entry.data.interactions.timings
+              .filter((timing) => timing.name === name)
+              .map((timing) => timing.milliseconds)
+          )
+        )
+      }))
+      summary.browsing.vaultScansDuringInteraction = Math.max(
+        ...scenarios.map((entry) => entry.data.vaultScansDuringInteraction)
+      )
+      if (summary.browsing.vaultScansDuringInteraction !== 0)
+        throw new Error('Ordinary interactions triggered a full vault scan.')
+      if (summary.browsing.focusMaximumMounted > 150)
+        throw new Error('Focus exceeded 150 mounted items.')
+      if (mixed && scenarios.some((entry) => entry.data.interactions.mediaTypes.length !== 3))
+        throw new Error('Mixed scenario did not open every media type.')
+      if (summary.browsing.maximumMountedCards > 150)
+        throw new Error('Browsing mounted more than 150 cards.')
+      if (summary.browsing.selectionP95Ms > 100) throw new Error('Selection exceeded 100 ms p95.')
     }
 
     if (typing) {
