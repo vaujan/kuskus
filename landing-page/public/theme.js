@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 ;(() => {
   const key = 'kusu-site-theme'
-  const system = window.matchMedia('(prefers-color-scheme: dark)')
   const root = document.documentElement
   let preference = readPreference()
   let button
@@ -15,7 +14,7 @@
   }
 
   function applyTheme() {
-    const dark = preference === 'dark' || (preference !== 'light' && system.matches)
+    const dark = preference === 'dark'
     root.dataset.siteTheme = dark ? 'dark' : 'light'
     button?.setAttribute('aria-pressed', String(dark))
     document
@@ -24,7 +23,6 @@
   }
 
   applyTheme()
-  system.addEventListener('change', applyTheme)
   window.addEventListener('pageshow', () => {
     preference = readPreference() ?? preference
     applyTheme()
