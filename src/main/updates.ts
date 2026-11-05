@@ -43,12 +43,21 @@ export function registerUpdates(
   const failed = (error: unknown): void => {
     const code =
       error !== null && typeof error === 'object' && 'code' in error ? error.code : undefined
-    const message =
+    const missingStableRelease =
       code === 'ERR_UPDATER_LATEST_VERSION_NOT_FOUND' ||
-      code === 'ERR_UPDATER_NO_PUBLISHED_VERSIONS'
-        ? 'Could not check for a stable release. Experimental previews must be installed manually from GitHub Releases.'
-        : code === 'ERR_UPDATER_CHANNEL_FILE_NOT_FOUND'
-          ? 'The release is missing update information. Install it manually from GitHub Releases.'
+      code === 'ERR_UPDATER_NO_PUBLISHED_VERSIONS' ||
+      (code === 'ERR_UPDATER_INVALID_RELEASE_FEED' &&
+        error !== null &&
+        typeof error === 'object' &&
+        'message' in error &&
+        typeof error.message === 'string' &&
+        error.message.includes('Unable to find latest version on GitHub'))
+    const message = missingStableRelease
+      ? 'Could not check for a stable release. Experimental previews must be installed manually from GitHub Releases.'
+      : code === 'ERR_UPDATER_CHANNEL_FILE_NOT_FOUND'
+        ? 'The release is missing update information. Install it manually from GitHub Releases.'
+        : code === 'ERR_UPDATER_INVALID_RELEASE_FEED'
+          ? 'Could not read the update feed. Check GitHub Releases for available installers.'
           : 'Could not update Kusu. Please try again later.'
     publish({
       phase: 'error',

@@ -220,3 +220,29 @@ test('duplicate downloads and premature install requests are ignored', async () 
   await pending
   assert.equal(s.status().phase, 'error')
 })
+
+test('wrapped missing stable releases explain manual installation', async () => {
+  const s = setup()
+  s.updater.checkForUpdates = async () => {
+    throw Object.assign(
+      new Error('Cannot parse releases feed: Error: Unable to find latest version on GitHub'),
+      {
+        code: 'ERR_UPDATER_INVALID_RELEASE_FEED'
+      }
+    )
+  }
+  await s.check()
+  assert.equal(s.status().phase, 'error')
+  assert.match(s.status().message, /stable release/)
+  assert.match(s.status().message, /manually/)
+})
+
+test('invalid feeds do not claim the app is current', async () => {
+  const s = setup()
+  s.updater.checkForUpdates = async () => {
+    throw Object.assign(new Error('invalid XML'), { code: 'ERR_UPDATER_INVALID_RELEASE_FEED' })
+  }
+  await s.check()
+  assert.equal(s.status().phase, 'error')
+  assert.match(s.status().message, /Could not read the update feed/)
+})
