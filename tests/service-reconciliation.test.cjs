@@ -2,12 +2,38 @@ const assert = require('node:assert/strict')
 const { existsSync } = require('node:fs')
 const { mkdtemp, readFile, rm, stat, writeFile } = require('node:fs/promises')
 const { tmpdir } = require('node:os')
-const { join, relative, resolve } = require('node:path')
+const { join, relative, resolve, sep } = require('node:path')
 const test = require('node:test')
 require('./helpers/install-ts-require.cjs')()
 
 const { LibraryService } = require('../src/main/library/library-service.ts')
+const { LibraryStore } = require('../src/main/library/storage/library-store.ts')
 const { LIBRARY_NAME, seedDemoEnvironment } = require('../scripts/create-demo-library.cjs')
+
+test('opening an item before reconciliation reads only its record', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kusu-direct-record-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  const created = await service.createIn(root, 'Vault')
+  const notes = await Promise.all(
+    Array.from({ length: 12 }, (_, index) =>
+      service.createNote({ markdown: `# Note ${index}`, attachmentIds: [] })
+    )
+  )
+  const io = require('node:fs/promises')
+  const original = io.readFile
+  const records = []
+  context.mock.method(io, 'readFile', (...args) => {
+    if (String(args[0]).includes(`${sep}records${sep}`)) records.push(String(args[0]))
+    return original(...args)
+  })
+  const store = new LibraryStore()
+  const target = await store.resolveItem(created.library.path, notes[0].id)
+  assert.equal(target.metadata.id, notes[0].id)
+  assert.deepEqual(records, [
+    join(created.library.path, '.kuskus', 'records', `${notes[0].id}.json`)
+  ])
+})
 
 test('serves a rebuildable cached snapshot and reconciles an edit made while closed', async (context) => {
   const root = await mkdtemp(join(tmpdir(), 'kusu-index-cache-'))
@@ -45,6 +71,24 @@ test('serves a rebuildable cached snapshot and reconciles an edit made while clo
     reconciled.library.items.find((item) => item.id === note.id).body.includes('Changed outside'),
     true
   )
+})
+
+test('unchanged startup reconciliation does not republish the entire vault', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kusu-unchanged-startup-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const settings = join(root, 'settings.json')
+  const service = new LibraryService(settings)
+  await service.createIn(root, 'Vault')
+  await service.createNote({ markdown: '# Unchanged', attachmentIds: [] })
+  await service.getState()
+  const reopened = new LibraryService(settings)
+  await reopened.initialize()
+  let notifications = 0
+  const unsubscribe = reopened.onVaultChanged(() => notifications++)
+  context.after(unsubscribe)
+  await reopened.getState(true)
+  await reopened.reconcileState()
+  assert.equal(notifications, 0)
 })
 
 test('reconciles a dirty vault before applying a cached mutation', async (context) => {
@@ -281,4 +325,42 @@ test('note autosave does not expose its backup or trigger a full watched-vault r
   assert.equal(state.library.items.length, 1)
   assert.equal(state.library.items[0].body, '# Note\n\nAfter')
   assert.equal(fullRebuilds, 0)
+})
+
+test('reconciliation reuses hash-verified cached bodies and rejects stale cached text', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kusu-verified-text-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const settings = join(root, 'settings.json')
+  const service = new LibraryService(settings)
+  await service.createIn(root, 'Vault')
+  const note = await service.createNote({
+    markdown: '# Hash guard\n\nReal content.',
+    attachmentIds: []
+  })
+  const state = await service.getState()
+  const notePath = join(state.library.path, note.relativePath)
+  const io = require('node:fs/promises')
+  const original = io.readFile
+  let noteReads = 0
+  context.mock.method(io, 'readFile', (...args) => {
+    if (String(args[0]) === notePath) noteReads++
+    return original(...args)
+  })
+  const reopened = new LibraryService(settings)
+  await reopened.initialize()
+  await reopened.reconcileState()
+  assert.equal(
+    noteReads,
+    0,
+    'unchanged bytes are verified from the cache without rereading the note'
+  )
+  const indexPath = join(state.library.path, '.kuskus', 'index', 'library-v1.json')
+  const cached = JSON.parse(await readFile(indexPath, 'utf8'))
+  cached.library.items.find((item) => item.id === note.id).body = '# Untrusted cached body'
+  await writeFile(indexPath, JSON.stringify(cached))
+  const tampered = new LibraryService(settings)
+  await tampered.initialize()
+  const reconciled = await tampered.reconcileState()
+  assert.ok(noteReads > 0)
+  assert.equal(reconciled.library.items.find((item) => item.id === note.id).body, note.body)
 })

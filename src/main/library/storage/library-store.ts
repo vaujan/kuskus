@@ -1,3 +1,4 @@
+import { performance } from 'node:perf_hooks'
 import { createHash, randomUUID } from 'node:crypto'
 import { createReadStream, type Stats } from 'node:fs'
 import { access, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
@@ -54,7 +55,7 @@ import {
   runVaultTransaction,
   type VaultTransaction
 } from './vault-transaction'
-import { kusuPath, resolveInsideVault } from './vault-paths'
+import { kusuPath, resolveInsideVault, resolveInsideVaultAsync } from './vault-paths'
 import * as captureStore from './capture-store'
 
 const KUSU_DIRECTORY = '.kuskus'
@@ -177,7 +178,7 @@ interface DtoBuildContext {
   itemRecords: VaultItemRecord[]
   attachmentRecords: AttachmentItemRecord[]
   attachmentRecordIds: Set<string>
-  availablePaths: string[]
+  availablePaths: () => Promise<string[]>
   imageDetection: Map<string, Promise<ReturnType<typeof detectImage>>>
   noteSources: ReadonlyMap<string, string>
 }
@@ -240,6 +241,14 @@ function metadataTimestamp(date: Date): string {
 }
 
 export class LibraryStore {
+  constructor(
+    private readonly onAppOwnedWrite?: (libraryPath: string, relativePath: string) => void
+  ) {}
+
+  private markAppOwnedPath(libraryPath: string, path: string): void {
+    this.onAppOwnedWrite?.(libraryPath, slash(relative(libraryPath, path)))
+  }
+
   private readonly scanPromises = new Map<
     string,
     Promise<{ records: VaultItemRecord[]; collections: VaultCollectionRecord[] }>
@@ -284,6 +293,16 @@ export class LibraryStore {
       ) {
         return null
       }
+      this.scannedNoteSources.set(
+        resolve(libraryPath),
+        new Map(
+          dto.items.flatMap((item) =>
+            item.type === 'note' && typeof item.body === 'string'
+              ? [[item.id, item.body] as const]
+              : []
+          )
+        )
+      )
       return dto
     } catch {
       return null
@@ -321,14 +340,16 @@ export class LibraryStore {
     const updates = (
       await mapWithConcurrency(records, 32, async (record) => {
         if (record.metadata.type !== 'note') return null
-        const path = resolveInsideVault(libraryPath, record.relativePath)
-        if (!(await this.pathExists(path))) return null
+        const path = await resolveInsideVaultAsync(libraryPath, record.relativePath)
+        const fileStats = await stat(path).catch(() => null)
+        if (!fileStats) return null
         const source = await readFile(path, 'utf8')
         const next = rewriteVaultReferences(source, path, path, libraryPath, replacements)
         return next === source ? null : { path, source, next }
       })
     ).filter((update): update is { path: string; source: string; next: string } => update !== null)
     for (const update of updates) {
+      this.markAppOwnedPath(libraryPath, update.path)
       await transaction.writeText(update.path, update.next)
     }
   }
@@ -472,30 +493,34 @@ export class LibraryStore {
     return kusuPath(libraryPath, COLLECTION_RECORDS_DIRECTORY, `${id}.json`)
   }
 
+  private async readItemRecord(path: string, id: string): Promise<VaultItemRecord | null> {
+    if (!ITEM_ID_PATTERN.test(id)) return null
+    try {
+      const value = await readJson<unknown>(path)
+      if (!value || typeof value !== 'object') return null
+      const record = value as VaultItemRecord
+      if (
+        record.schemaVersion === 2 &&
+        record.id === id &&
+        typeof record.relativePath === 'string' &&
+        isPersistedItem(record.metadata, id)
+      )
+        return record
+    } catch {
+      // Invalid records remain on disk for explicit repair.
+    }
+    return null
+  }
+
   private async readItemRecords(libraryPath: string): Promise<VaultItemRecord[]> {
     const directory = kusuPath(libraryPath, RECORDS_DIRECTORY)
     await mkdir(directory, { recursive: true })
     const entries = (await readdir(directory, { withFileTypes: true })).filter(
       (entry) => entry.isFile() && entry.name.endsWith('.json')
     )
-    const values = await mapWithConcurrency(entries, 32, async (entry) => {
-      try {
-        const value = await readJson<unknown>(join(directory, entry.name))
-        if (!value || typeof value !== 'object') return null
-        const record = value as VaultItemRecord
-        if (
-          record.schemaVersion === 2 &&
-          ITEM_ID_PATTERN.test(record.id) &&
-          typeof record.relativePath === 'string' &&
-          isPersistedItem(record.metadata, record.id)
-        ) {
-          return record
-        }
-      } catch {
-        // Invalid records remain on disk for explicit repair and are excluded from ordinary reads.
-      }
-      return null
-    })
+    const values = await mapWithConcurrency(entries, 32, (entry) =>
+      this.readItemRecord(join(directory, entry.name), entry.name.slice(0, -5))
+    )
     return values.filter((record): record is VaultItemRecord => record !== null)
   }
 
@@ -774,11 +799,22 @@ export class LibraryStore {
   private async performScanVault(
     libraryPath: string
   ): Promise<{ records: VaultItemRecord[]; collections: VaultCollectionRecord[] }> {
+    let phaseStart = performance.now()
+    const phase = (name: string): void => {
+      const end = performance.now()
+      if (process.env.KUSU_PERFORMANCE_OUTPUT)
+        performance.measure('kusu:storage:' + name, { start: phaseStart, end })
+      phaseStart = end
+    }
     await recoverVaultTransactions(libraryPath)
     await this.ensureLibraryDirectories(libraryPath)
+    phase('prepare')
     const files = await this.listVisibleFiles(libraryPath)
+    phase('list-files')
     const collections = await this.scanCollections(libraryPath, files)
+    phase('collections')
     const existing = await this.readItemRecords(libraryPath)
+    phase('read-records')
     const byPath = new Map(existing.map((record) => [record.relativePath.toLowerCase(), record]))
     const byFingerprint = new Map<string, VaultItemRecord[]>()
     const byFileIdentity = new Map<string, VaultItemRecord[]>()
@@ -801,6 +837,8 @@ export class LibraryStore {
       ...file,
       stats: await stat(file.path)
     }))
+    phase('file-stats')
+    const cachedSources = this.scannedNoteSources.get(resolve(libraryPath))
     const scanEntries = await mapWithConcurrency(filesWithStats, 8, async (file) => {
       const current = byPath.get(file.relativePath.toLowerCase())
       const fileIdentity = this.fileIdentityFromStats(file.stats)
@@ -815,6 +853,14 @@ export class LibraryStore {
         (extension === MARKDOWN_EXTENSION || extension === INTERNET_SHORTCUT_EXTENSION)
           ? await readFile(file.path)
           : null
+      const cachedSource =
+        unchanged && current?.metadata.type === 'note' ? cachedSources?.get(current.id) : undefined
+      const verifiedSource =
+        cachedSource !== undefined &&
+        current?.fingerprint &&
+        createHash('sha256').update(cachedSource, 'utf8').digest('hex') === current.fingerprint
+          ? cachedSource
+          : undefined
       return {
         file,
         fileIdentity,
@@ -823,10 +869,11 @@ export class LibraryStore {
           : textBytes
             ? createHash('sha256').update(textBytes).digest('hex')
             : await this.fingerprint(file.path),
-        textSource: textBytes?.toString('utf8'),
+        textSource: textBytes?.toString('utf8') ?? verifiedSource,
         unchanged
       }
     })
+    phase('fingerprints')
     const fingerprintCounts = new Map<string, number>()
     for (const entry of scanEntries) {
       if (entry.fingerprint) {
@@ -895,15 +942,19 @@ export class LibraryStore {
         textSource
       }
     })
+    phase('metadata')
     records.push(...builtRecords.map(({ record }) => record))
     await mapWithConcurrency(
       builtRecords.filter(({ changed }) => changed),
-      32,
+      128,
       async ({ record, isNew }) => {
         if (isNew) {
           // ponytail: new scan records are rebuildable, so avoid 5,000 atomic rename transactions.
           await writeFile(
-            this.itemRecordPath(libraryPath, record.id),
+            await resolveInsideVaultAsync(
+              libraryPath,
+              join(KUSU_DIRECTORY, RECORDS_DIRECTORY, `${record.id}.json`)
+            ),
             `${JSON.stringify(record, null, 2)}\n`,
             'utf8'
           )
@@ -913,10 +964,9 @@ export class LibraryStore {
       }
     )
 
+    phase('write-records')
     const references = new Set<string>()
-    const availablePaths = records.map((record) =>
-      resolveInsideVault(libraryPath, record.relativePath)
-    )
+    let availablePaths: Promise<string[]> | undefined
     const noteSources = new Map(
       builtRecords.flatMap(({ record, textSource }) =>
         record.metadata.type === 'note' && textSource !== undefined
@@ -926,11 +976,18 @@ export class LibraryStore {
     )
     const noteRecords = records.filter((record) => record.metadata.type === 'note')
     const noteReferences = await mapWithConcurrency(noteRecords, 32, async (record) => {
-      const notePath = resolveInsideVault(libraryPath, record.relativePath)
-      const source = noteSources.get(record.id) ?? (await readFile(notePath, 'utf8'))
+      const source =
+        noteSources.get(record.id) ??
+        (await readFile(await resolveInsideVaultAsync(libraryPath, record.relativePath), 'utf8'))
       noteSources.set(record.id, source)
-      return extractVaultReferenceTargets(source).map((reference) => {
-        const target = resolveVaultReferencePath(reference, notePath, libraryPath, availablePaths)
+      const references = extractVaultReferenceTargets(source)
+      if (references.length === 0) return []
+      const notePath = await resolveInsideVaultAsync(libraryPath, record.relativePath)
+      const paths = await (availablePaths ??= mapWithConcurrency(records, 32, (entry) =>
+        resolveInsideVaultAsync(libraryPath, entry.relativePath)
+      ))
+      return references.map((reference) => {
+        const target = resolveVaultReferencePath(reference, notePath, libraryPath, paths)
         return slash(relative(libraryPath, target)).toLowerCase()
       })
     })
@@ -941,7 +998,7 @@ export class LibraryStore {
     for (const record of records) {
       if (record.metadata.type !== 'image' && record.metadata.type !== 'file') continue
       const referencedAttachment = references.has(record.relativePath.toLowerCase())
-      if (record.metadata.referencedAttachment !== referencedAttachment) {
+      if ((record.metadata.referencedAttachment ?? false) !== referencedAttachment) {
         record.metadata = { ...record.metadata, referencedAttachment }
         referenceUpdates.push(record)
       }
@@ -949,6 +1006,7 @@ export class LibraryStore {
     await mapWithConcurrency(referenceUpdates, 16, async (record) =>
       this.writeItemRecord(libraryPath, record)
     )
+    phase('references')
     const missingRecords: VaultItemRecord[] = []
     for (const record of existing) {
       if (seenIds.has(record.id)) continue
@@ -965,6 +1023,7 @@ export class LibraryStore {
     await mapWithConcurrency(missingRecords, 16, async (record) =>
       this.writeItemRecord(libraryPath, record)
     )
+    phase('missing-records')
     this.scannedNoteSources.set(resolve(libraryPath), noteSources)
     return { records, collections }
   }
@@ -975,7 +1034,7 @@ export class LibraryStore {
     const key = resolve(libraryPath)
     const active = this.scanPromises.get(key)
     if (active) return active
-    if (process.env.KUSU_PERFORMANCE_TYPING === '1') this.performanceVaultScans += 1
+    if (process.env.KUSU_PERFORMANCE_OUTPUT) this.performanceVaultScans += 1
     const scan = this.performScanVault(libraryPath)
       .then((snapshot) => {
         this.scanSnapshots.set(key, snapshot)
@@ -1165,17 +1224,19 @@ export class LibraryStore {
     itemRecords: VaultItemRecord[],
     noteSources: ReadonlyMap<string, string> = new Map()
   ): DtoBuildContext {
+    let availablePaths: Promise<string[]> | undefined
     const attachmentRecords = itemRecords.filter(isAttachmentItemRecord)
     return {
       itemRecords,
       attachmentRecords,
       attachmentRecordIds: new Set(attachmentRecords.map((item) => item.id)),
-      availablePaths: itemRecords.flatMap((item) => [
-        resolveInsideVault(libraryPath, item.relativePath),
-        ...(item.metadata.trashedFromRelativePath
-          ? [resolveInsideVault(libraryPath, item.metadata.trashedFromRelativePath)]
-          : [])
-      ]),
+      availablePaths: () =>
+        (availablePaths ??= mapWithConcurrency(itemRecords, 32, async (item) => [
+          await resolveInsideVaultAsync(libraryPath, item.relativePath),
+          ...(item.metadata.trashedFromRelativePath
+            ? [await resolveInsideVaultAsync(libraryPath, item.metadata.trashedFromRelativePath)]
+            : [])
+        ]).then((paths) => paths.flat())),
       imageDetection: new Map(),
       noteSources
     }
@@ -1189,7 +1250,7 @@ export class LibraryStore {
   ): Promise<LibraryItemDto> {
     const metadata = { ...record.metadata, relativePath: record.relativePath }
     const location = this.locationForPath(record.relativePath, collections, metadata)
-    const path = resolveInsideVault(libraryPath, record.relativePath)
+    const path = await resolveInsideVaultAsync(libraryPath, record.relativePath)
     if (metadata.type === 'url') return toUrlDto(metadata, location)
     if (metadata.type === 'image') {
       return { ...toImageDto(metadata, location), missingContent: !(await this.pathExists(path)) }
@@ -1221,12 +1282,7 @@ export class LibraryStore {
         missingContent = true
       }
     }
-    const attachments = await this.noteAttachments(
-      libraryPath,
-      record,
-      body,
-      context ?? (await this.createDtoBuildContext(libraryPath))
-    )
+    const attachments = await this.noteAttachments(libraryPath, record, body, context)
     return { ...toNoteDto(metadata, body, attachments, location), missingContent }
   }
 
@@ -1237,25 +1293,23 @@ export class LibraryStore {
     context?: DtoBuildContext
   ): Promise<NoteAttachmentDto[]> {
     if (record.metadata.type !== 'note') return []
+    const references = extractVaultReferenceTargets(source)
+    if (references.length === 0) return []
     const buildContext = context ?? (await this.createDtoBuildContext(libraryPath))
 
-    const notePath = resolveInsideVault(libraryPath, record.relativePath)
+    const notePath = await resolveInsideVaultAsync(libraryPath, record.relativePath)
+    const availablePaths = await buildContext.availablePaths()
     const attachments: NoteAttachmentDto[] = []
     const seenTargets = new Set<string>()
-    for (const reference of extractVaultReferenceTargets(source)) {
-      const target = resolveVaultReferencePath(
-        reference,
-        notePath,
-        libraryPath,
-        buildContext.availablePaths
-      )
+    for (const reference of references) {
+      const target = resolveVaultReferencePath(reference, notePath, libraryPath, availablePaths)
       const targetKey = pathKey(target)
       if (seenTargets.has(targetKey)) continue
       seenTargets.add(targetKey)
       const relativePath = slash(relative(dirname(notePath), target))
       if (!target.startsWith(`${resolve(libraryPath)}${sep}`) || !isImageExtension(extname(target)))
         continue
-      resolveInsideVault(libraryPath, relative(libraryPath, target))
+      await resolveInsideVaultAsync(libraryPath, relative(libraryPath, target))
       const targetExists = await this.pathExists(target)
       const binaryRecord = this.attachmentRecordForTarget(
         libraryPath,
@@ -1857,7 +1911,10 @@ export class LibraryStore {
         await writeFile(stagedContent, markdown, 'utf8')
       }
     }
-    if (!destinationAlreadyFinalized) await rename(stagedContent, destination)
+    if (!destinationAlreadyFinalized) {
+      this.markAppOwnedPath(libraryPath, destination)
+      await rename(stagedContent, destination)
+    }
     await rm(temporary, { recursive: true, force: true })
     const relativePath = slash(relative(libraryPath, destination))
     const nextMetadata = {
@@ -1918,6 +1975,7 @@ export class LibraryStore {
     const temporary = kusuPath(libraryPath, 'temp', `${input.id}.file-import`)
     if (!(await this.pathExists(destination))) {
       await writeFile(temporary, input.bytes)
+      this.markAppOwnedPath(libraryPath, destination)
       await rename(temporary, destination)
     }
     const relativePath = slash(relative(libraryPath, destination))
@@ -1948,17 +2006,26 @@ export class LibraryStore {
       metadata
     })
     await rm(recoveryMarker, { force: true })
-    const saved = (await this.buildLibraryDto(libraryPath)).items.find(
-      (candidate): candidate is FileItemDto =>
-        candidate.id === metadata.id && candidate.type === 'file'
+    const record = (await this.currentItemRecords(libraryPath)).find(
+      (item) => item.id === metadata.id
     )
-    if (!saved) throw new Error('The imported file could not be reopened.')
+    const saved = record
+      ? await this.recordToDto(
+          libraryPath,
+          record,
+          await this.currentCollectionRecords(libraryPath)
+        )
+      : null
+    if (!saved || saved.type !== 'file') throw new Error('The imported file could not be reopened.')
     return saved
   }
 
   async resolveItem(libraryPath: string, itemId: string): Promise<ResolvedLibraryItem> {
     if (!ITEM_ID_PATTERN.test(itemId)) throw new Error('The item identifier is invalid.')
-    const record = (await this.currentItemRecords(libraryPath)).find((entry) => entry.id === itemId)
+    const snapshot = this.scanSnapshots.get(resolve(libraryPath))
+    const record = snapshot
+      ? snapshot.records.find((entry) => entry.id === itemId)
+      : await this.readItemRecord(this.itemRecordPath(libraryPath, itemId), itemId)
     if (!record) throw new Error('The saved item no longer exists.')
     const collections = await this.currentCollectionRecords(libraryPath)
     const path = resolveInsideVault(libraryPath, record.relativePath)
@@ -1999,6 +2066,8 @@ export class LibraryStore {
         dirname(path),
         `${safeStem(item.title)}${extension}`
       )
+      this.markAppOwnedPath(libraryPath, path)
+      this.markAppOwnedPath(libraryPath, destination)
       await transaction.rename(path, destination)
       if (resolved.metadata.type === 'note') {
         const oldAssets = join(dirname(path), `${basename(path, MARKDOWN_EXTENSION)}.assets`)
@@ -2013,13 +2082,15 @@ export class LibraryStore {
         }
         const source = await readFile(destination, 'utf8')
         const replacements = new Map<string, string>()
-        const availablePaths = (await this.currentItemRecords(libraryPath)).flatMap((record) => [
-          resolveInsideVault(libraryPath, record.relativePath),
-          ...(record.metadata.trashedFromRelativePath
-            ? [resolveInsideVault(libraryPath, record.metadata.trashedFromRelativePath)]
-            : [])
-        ])
-        for (const reference of extractVaultReferenceTargets(source)) {
+        const references = extractVaultReferenceTargets(source)
+        const availablePaths =
+          references.length > 0
+            ? await this.dtoBuildContextFromRecords(
+                libraryPath,
+                await this.currentItemRecords(libraryPath)
+              ).availablePaths()
+            : []
+        for (const reference of references) {
           const previousTarget = resolveVaultReferencePath(reference, path, libraryPath, [
             ...availablePaths,
             oldAssets
@@ -2141,6 +2212,7 @@ export class LibraryStore {
   ): Promise<void> {
     const resolved = await this.resolveItem(libraryPath, metadata.id)
     if (resolved.metadata.type !== 'note') throw new Error('The saved item is not a note.')
+    this.markAppOwnedPath(libraryPath, resolved.path)
     await replaceNoteContent(resolved.path, kusuPath(libraryPath, 'temp'), markdown)
     await this.updateItem(libraryPath, { ...metadata, relativePath: resolved.relativePath })
   }
@@ -2326,6 +2398,7 @@ export class LibraryStore {
       let stagedAssets: string | null = null
       let originalAssets: string | null = null
       if (!missingSource) {
+        this.markAppOwnedPath(libraryPath, request.item.path)
         await transaction.rename(request.item.path, stagedFile)
         if (request.item.metadata.type === 'note') {
           originalAssets = join(
@@ -2347,14 +2420,17 @@ export class LibraryStore {
         missingSource
       })
     }
+    const referenceReplacements = new Map<string, string>()
     for (const entry of staged) {
       const directory = await this.destinationDirectory(
         libraryPath,
         entry.request.destination,
         entry.request.item.metadata.id
       )
+      this.markAppOwnedPath(libraryPath, directory)
       await mkdir(directory, { recursive: true })
       const destination = await this.uniquePath(directory, basename(entry.original))
+      this.markAppOwnedPath(libraryPath, destination)
       if (!entry.missingSource) await transaction.rename(entry.file, destination)
       let legacyAssetDestination: string | null = null
       if (entry.assets) {
@@ -2369,13 +2445,15 @@ export class LibraryStore {
       if (!entry.missingSource && entry.request.item.metadata.type === 'note') {
         const source = await readFile(destination, 'utf8')
         const replacements = new Map<string, string>()
-        const availablePaths = (await this.currentItemRecords(libraryPath)).flatMap((record) => [
-          resolveInsideVault(libraryPath, record.relativePath),
-          ...(record.metadata.trashedFromRelativePath
-            ? [resolveInsideVault(libraryPath, record.metadata.trashedFromRelativePath)]
-            : [])
-        ])
-        for (const reference of extractVaultReferenceTargets(source)) {
+        const references = extractVaultReferenceTargets(source)
+        const availablePaths =
+          references.length > 0
+            ? await this.dtoBuildContextFromRecords(
+                libraryPath,
+                await this.currentItemRecords(libraryPath)
+              ).availablePaths()
+            : []
+        for (const reference of references) {
           const previousTarget = resolveVaultReferencePath(reference, entry.original, libraryPath, [
             ...availablePaths,
             entry.originalAssets ?? entry.original
@@ -2418,8 +2496,7 @@ export class LibraryStore {
         const previousPath = entry.request.item.metadata.trashedFromRelativePath
           ? resolveInsideVault(libraryPath, entry.request.item.metadata.trashedFromRelativePath)
           : entry.original
-        const referenceReplacements = new Map([[previousPath, destination]])
-        await this.rewriteInboundReferences(libraryPath, referenceReplacements, transaction)
+        referenceReplacements.set(previousPath, destination)
       }
       const relativePath = slash(relative(libraryPath, destination))
       const record = (await this.currentItemRecords(libraryPath)).find(
@@ -2443,6 +2520,7 @@ export class LibraryStore {
         transaction
       )
     }
+    await this.rewriteInboundReferences(libraryPath, referenceReplacements, transaction)
     await rm(stagingDirectory, { recursive: true, force: true })
   }
 

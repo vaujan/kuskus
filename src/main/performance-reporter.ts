@@ -1,10 +1,14 @@
 import { app, type BrowserWindow } from 'electron'
+import { capturePerformanceScreenshots } from './performance-visual-checks'
+import { EXTENDED_BROWSING_SCENARIO } from './performance-interaction-scenario'
 import {
   flushPerformanceLog,
   performanceLoggingEnabled,
   writePerformanceEvent
 } from './performance-log'
 import type { LibraryService } from './library/library-service'
+
+const browsingEnabled = process.env.KUSU_PERFORMANCE_BROWSING === '1'
 
 const typingEnabled = process.env.KUSU_PERFORMANCE_TYPING === '1'
 
@@ -120,7 +124,7 @@ export function startPerformanceReporter(
   window: BrowserWindow,
   libraryService: LibraryService
 ): void {
-  if (!app.isPackaged || !performanceLoggingEnabled()) return
+  if (!performanceLoggingEnabled()) return
 
   const wait = (milliseconds: number): Promise<void> =>
     new Promise((resolve) => setTimeout(resolve, milliseconds))
@@ -156,6 +160,14 @@ export function startPerformanceReporter(
       peakWorkingSetKb: metric.memory.peakWorkingSetSize
     }))
     writePerformanceEvent(checkpoint, {
+      watcherEvents: performance
+        .getEntriesByType('mark')
+        .filter((entry) => entry.name.startsWith('kusu:watcher:'))
+        .map(({ name, startTime }) => ({ name, startTime })),
+      storageTimings: performance
+        .getEntriesByType('measure')
+        .filter((entry) => entry.name.startsWith('kusu:storage:'))
+        .map(({ name, duration }) => ({ name, duration })),
       processes,
       totalCpuPercent: processes.reduce((total, metric) => total + metric.cpuPercent, 0),
       totalWorkingSetKb: processes.reduce((total, metric) => total + metric.workingSetKb, 0),
@@ -300,6 +312,80 @@ export function startPerformanceReporter(
     }
   }
 
+  const runBrowsingScenario = async (): Promise<void> => {
+    window.webContents.setBackgroundThrottling(false)
+    const ready = await waitFor(
+      () =>
+        window.webContents.executeJavaScript(
+          `!!document.querySelector('[data-card-key]:not([data-card-key="$leading"])')`
+        ),
+      100,
+      60_000
+    )
+    if (!ready) throw new Error('Card view did not become ready.')
+    const scansBefore = libraryService.getPerformanceVaultScanCount()
+    const data: unknown = await window.webContents.executeJavaScript(`
+      (async () => {
+        const root = document.querySelector('[data-card-key]').parentElement;
+        const scroller = root.closest('[data-slot="scroll-area-viewport"]');
+        const frame = () => new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('Renderer did not produce a frame within 1 second')), 1000);
+          requestAnimationFrame(() => { clearTimeout(timeout); resolve(); });
+        });
+        const settle = async () => { for (let i = 0; i < 5; i++) await frame(); };
+        const samples = [];
+        const selectionLatencies = [];
+        const select = async () => {
+          const button = [...root.querySelectorAll('[data-slot="item-card-primary-action"]')]
+            .find(el => { const r = el.getBoundingClientRect(); const v = scroller.getBoundingClientRect(); return r.bottom > v.top && r.top < v.bottom; });
+          if (!button) throw new Error('No visible card to select');
+          const before = button.getAttribute('aria-pressed');
+          const start = performance.now();
+          button.dispatchEvent(new MouseEvent('click', { bubbles: true, ctrlKey: true }));
+          await frame(); await frame();
+          if (button.getAttribute('aria-pressed') === before) throw new Error('Selection did not update');
+          selectionLatencies.push(performance.now() - start);
+        };
+        await settle();
+        await select();
+        for (const ratio of [0, 0.25, 0.5, 0.75, 1]) {
+          scroller.scrollTop = ratio * (scroller.scrollHeight - scroller.clientHeight);
+          await settle();
+          samples.push({ ratio, mounted: root.querySelectorAll('[data-card-key]').length });
+          await select();
+        }
+        scroller.scrollTop = 0;
+        await settle();
+        const scrollFrameIntervals = [];
+        const scrollLongTasks = [];
+        const observer = new PerformanceObserver(list => scrollLongTasks.push(...list.getEntries().map(entry => entry.duration)));
+        observer.observe({ type: 'longtask' });
+        let previousFrame = performance.now();
+        for (let index = 0; index < 120; index++) {
+          scroller.scrollTop += 100;
+          await frame();
+          const now = performance.now();
+          scrollFrameIntervals.push(now - previousFrame);
+          previousFrame = now;
+        }
+        scrollLongTasks.push(...observer.takeRecords().map(entry => entry.duration));
+        observer.disconnect();
+        scroller.scrollTop = 0;
+        await settle();
+        return { samples, selectionLatencies, scrollFrameIntervals, scrollLongTasks };
+      })()
+    `)
+    const interactions: unknown = await window.webContents.executeJavaScript(
+      EXTENDED_BROWSING_SCENARIO
+    )
+    writePerformanceEvent('browsing', {
+      ...(data as object),
+      interactions,
+      vaultScansDuringInteraction: libraryService.getPerformanceVaultScanCount() - scansBefore
+    })
+    await capturePerformanceScreenshots(window)
+  }
+
   window.webContents.once('did-finish-load', () => {
     void window.webContents.executeJavaScript(
       typingEnabled
@@ -312,7 +398,11 @@ export function startPerformanceReporter(
         `
     )
 
-    if (typingEnabled) {
+    if (browsingEnabled) {
+      scenarioDone = runBrowsingScenario().catch((error: unknown) => {
+        writePerformanceEvent('browsing-error', { message: String(error) })
+      })
+    } else if (typingEnabled) {
       scenarioDone = runTypingScenario().catch((error: unknown) => {
         writePerformanceEvent('typing-error', {
           message: error instanceof Error ? error.message : String(error)

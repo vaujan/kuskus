@@ -62,3 +62,36 @@ pnpm demo:reset
 Use `pnpm demo:seed` to create a missing demo library without resetting existing demo changes. The fixture represents a designer-developer actively dogfooding Kusu, with recent working notes, original local visuals in several proportions, healthy URL references, a portable note attachment, partially populated folders, one Trash item, and a dedicated Markdown Lab containing focused feature fixtures plus a long stress document.
 
 If `.demo` already exists, run `pnpm demo:reset` once to add or restore the canonical Markdown Lab. `demo:seed` intentionally preserves an existing profile and will not overwrite local dogfooding changes.
+
+## Manual large-vault stress testing
+
+Build the production app, then open it with an isolated 6,000-note vault:
+
+```bash
+pnpm build
+pnpm stress
+```
+
+The command uses the optimized build in `out/`, without React Scan, React Grab, or the automated
+benchmark's interactions and shutdown timer. Re-run `pnpm build` after changing application code.
+The window stays open for manual testing until you close it.
+
+To use a larger vault:
+
+```bash
+pnpm stress --items=10000
+pnpm stress --mixed --items=6000
+```
+
+Each size has its own vault and profile under `.performance/manual-<count>/`; mixed fixtures use
+`.performance/manual-mixed-<count>/`. Test edits, preferences,
+and the cached index persist, so subsequent launches exercise cached opening. The count is the initial
+seed size; archived, deleted, and newly created notes persist too. Close the test app before reopening
+the same profile. This workspace is separate from your normal vault and demo profile.
+
+Try deep scrolling, selecting ranges, switching visual/grid views, searching, opening notes, and
+moving or archiving selections. Compare interactions near the top and after scrolling far down.
+The default fixture contains Markdown notes. `--mixed` creates 60% Markdown notes, 20% PNG images,
+10% local URL shortcuts, and 10% PDFs, distributed across twelve folders at 6,000 items. The URLs are
+blocked loopback examples, so background enrichment exercises failure states without contacting
+external sites. Use `pnpm stress --seed-only` to prepare the fixture without opening a window.

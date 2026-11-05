@@ -6,6 +6,17 @@ All notable changes to Kusu are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Added
+
+- Add pnpm stress to open an isolated, persistent 6,000-note vault for manual performance testing.
+
+### Fixed
+
+- Soften light-mode skeuomorphic control shadows and remove their inset border.
+- Keep large-vault card browsing responsive by unmounting offscreen cards and avoiding unchanged preview renders.
+- Keep Focus navigation and search responsive, and batch background link metadata updates in large vaults.
+- Reduce cold indexing work and avoid full vault scans when checking Capture drafts, importing files, or saving notes.
+
 ## [0.0.12] - 2026-11-05
 
 ### Changed

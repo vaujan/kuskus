@@ -69,9 +69,11 @@ import {
 } from '@/features/items/item-shortcuts'
 import { BulkActionToolbar } from '@/features/library/bulk-action-toolbar'
 import { FocusWorkspace } from '@/features/library/focus-workspace'
-import { OrderedMasonry } from '@/features/library/ordered-masonry'
+import { LibraryItemCard } from '@/features/library/library-item-card'
+import { VirtualCardList, type VirtualCardListHandle } from '@/features/library/virtual-card-list'
 import { readAppSession, writeAppSession } from '@/features/library/session-restore'
 import { expandLibraryOverview } from '@/features/library/library-overview'
+import { useUrlEnrichment } from '@/features/library/use-url-enrichment'
 import { useLibraryRetrieval } from '@/features/library/use-library-retrieval'
 import { useLibrarySelection } from '@/features/library/use-library-selection'
 import { useItemMutations } from '@/features/library/use-item-mutations'
@@ -146,7 +148,6 @@ const NewNoteEditor = lazy(() =>
 const DEFAULT_SIDEBAR_WIDTH = 256
 const MIN_SIDEBAR_WIDTH = 208
 const MAX_SIDEBAR_WIDTH = 384
-const ITEM_PAGE_SIZE = 50
 
 function createProvisionalNote(location: ActiveItemLocation): NoteItemDto {
   const timestamp = new Date().toISOString()
@@ -288,9 +289,8 @@ export function Workspace({
   const [vimEnabled] = useNoteVim()
   const importRequestId = useRef(0)
   const dragDepth = useRef(0)
-  const enrichingUrlIds = useRef(new Set<string>())
   const pendingRevealItemId = useRef<string | null>(null)
-  const loadMoreItemsRef = useRef<HTMLDivElement>(null)
+  const cardListRef = useRef<VirtualCardListHandle>(null)
   const firstCardPaintMeasured = useRef(false)
   const captureOwner = useRef<CaptureSurface | null>(null)
   const mainComposerOwnershipRequested = useRef(false)
@@ -590,9 +590,11 @@ export function Workspace({
   const {
     items: searchItems,
     pending: searchPending,
+    hasResolvedQuery: searchHasResolvedQuery,
     error: searchError
   } = useLibrarySearch(library.items, searchQuery)
-  const visibleItems = searchActive ? searchItems : retrievedItems
+  const visibleItems =
+    searchActive && (searchHasResolvedQuery || !searchPending) ? searchItems : retrievedItems
   useLayoutEffect(() => {
     if (!searchActive && overviewSearchActiveRef.current && overviewViewportRef.current) {
       overviewViewportRef.current.scrollTop = overviewReturnScrollTopRef.current
@@ -601,15 +603,8 @@ export function Workspace({
   }, [searchActive])
   const visibleItemIds = useMemo(() => new Set(visibleItems.map((item) => item.id)), [visibleItems])
   const visibleItemIdList = useMemo(() => visibleItems.map((item) => item.id), [visibleItems])
-  const retrievalPageKey = `${destination.type}:${destination.type === 'collection' ? destination.collectionId : ''}:${typeFilters.join(',')}:${sort}:${showReferencedAttachments}`
-  const [renderPage, setRenderPage] = useState({ key: retrievalPageKey, limit: ITEM_PAGE_SIZE })
-  const renderLimit = renderPage.key === retrievalPageKey ? renderPage.limit : ITEM_PAGE_SIZE
-  const renderedItems = useMemo(
-    () => visibleItems.slice(0, renderLimit),
-    [renderLimit, visibleItems]
-  )
   useEffect(() => {
-    if (firstCardPaintMeasured.current || renderedItems.length === 0) return
+    if (firstCardPaintMeasured.current || visibleItems.length === 0) return
     const frame = window.requestAnimationFrame(() => {
       firstCardPaintMeasured.current = true
       performance.mark('kusu:first-card-paint')
@@ -620,27 +615,7 @@ export function Workspace({
       )
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [renderedItems.length])
-  useEffect(() => {
-    if (focusItemId || renderedItems.length >= visibleItems.length) return
-    const target = loadMoreItemsRef.current
-    if (!target) return
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!entries.some((entry) => entry.isIntersecting)) return
-        startTransition(() =>
-          setRenderPage((current) => ({
-            key: retrievalPageKey,
-            limit:
-              (current.key === retrievalPageKey ? current.limit : ITEM_PAGE_SIZE) + ITEM_PAGE_SIZE
-          }))
-        )
-      },
-      { rootMargin: '600px 0px' }
-    )
-    observer.observe(target)
-    return () => observer.disconnect()
-  }, [focusItemId, renderedItems.length, retrievalPageKey, visibleItems.length])
+  }, [visibleItems.length])
   const openVaultLink = useCallback(
     (target: string): void => {
       const normalized = target.replace(/\\/g, '/').replace(/\.md$/i, '').toLocaleLowerCase()
@@ -672,6 +647,7 @@ export function Workspace({
       return
     }
     pendingRevealItemId.current = null
+    cardListRef.current?.reveal(itemId)
     const element = document.querySelector(`[data-item-id="${CSS.escape(itemId)}"]`)
     if (element instanceof HTMLElement) {
       const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -1441,24 +1417,7 @@ export function Workspace({
     if (!open && returnFocus) setNewItemFocusRequest((request) => request + 1)
   }, [])
 
-  useEffect(() => {
-    const pending = library.items.filter(
-      (item) =>
-        item.type === 'url' && (item.metadataStatus === 'pending' || item.metadataVersion < 2)
-    )
-    pending.forEach((item) => {
-      if (enrichingUrlIds.current.has(item.id)) return
-      enrichingUrlIds.current.add(item.id)
-      void window.kusu.enrichUrl(item.id).then((result) => {
-        enrichingUrlIds.current.delete(item.id)
-        if (!result.ok) return
-        setLibrary((current) => ({
-          ...current,
-          items: current.items.map((entry) => (entry.id === item.id ? result.data : entry))
-        }))
-      })
-    })
-  }, [library.items])
+  useUrlEnrichment(library, setLibrary)
 
   const requestFileImport = useCallback(
     (file: File, origin: 'clipboard' | 'file' = 'file'): void => {
@@ -1594,66 +1553,42 @@ export function Workspace({
     </div>
   )
 
-  const cardLayoutContent = (
-    <>
-      {searchActive ? null : view === 'visual' ? (
-        <div className={cn('rounded-xl p-1', !composerOpen && !showExternalDropShadow && 'hidden')}>
-          {captureSlot}
-        </div>
-      ) : (
-        captureSlot
-      )}
-      {renderedItems.map((item) => (
-        <ItemContextMenu
-          item={item}
-          collections={library.collections}
-          {...getItemMenuProps(item)}
-          key={item.id}
-        >
-          <div
-            className="min-w-0 transition-opacity [transition-duration:var(--motion-duration-press)] [transition-timing-function:var(--motion-ease-out)] data-[dragging=true]:opacity-40"
-            data-dragging={draggedItemIds.has(item.id)}
-            data-item-id={item.id}
-            draggable
-            onDragStart={(event) => beginItemDrag(item.id, event)}
-            onDragEnd={endItemDrag}
-          >
-            <div
-              className={cn(
-                'group/saved-item relative',
-                view === 'visual' &&
-                  'min-w-0 rounded-xl p-1 transition-[background-color] [transition-duration:var(--motion-duration-ui)] [transition-timing-function:var(--motion-ease-out)] hover:bg-muted/45 data-[selected=true]:bg-primary/10'
-              )}
-              data-selected={selectedIds.has(item.id) || undefined}
-            >
-              <SavedItemCard
-                item={item}
-                view={view === 'visual' ? 'visual' : 'grid'}
-                selected={selectedIds.has(item.id)}
-                showSelectionVisual={view !== 'visual'}
-                onActivate={(event) => activateItem(item.id, event)}
-                onOpen={() => openDetail(item.id)}
-              />
-              <div
-                data-drag-preview-hidden
-                className={cn(
-                  'absolute z-30',
-                  view === 'visual' ? 'top-3 right-3' : 'top-2 right-2'
-                )}
-                onClick={(event) => event.stopPropagation()}
-              >
-                <ItemActionMenu
-                  item={item}
-                  collections={library.collections}
-                  showQuickSourceAction
-                  {...getItemMenuProps(item)}
-                />
-              </div>
-            </div>
-          </div>
-        </ItemContextMenu>
-      ))}
-    </>
+  // Stable preview props let unchanged cards skip selection and menu updates.
+  const previewHandlers = useRef({ activateItem, openDetail })
+  useLayoutEffect(() => {
+    previewHandlers.current = { activateItem, openDetail }
+  }, [activateItem, openDetail])
+  const activatePreview = useCallback((id: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    previewHandlers.current.activateItem(id, event)
+  }, [])
+  const openPreview = useCallback((id: string) => previewHandlers.current.openDetail(id), [])
+
+  const renderLibraryCard = useCallback(
+    (item: LibraryItemDto) => (
+      <LibraryItemCard
+        item={item}
+        collections={library.collections}
+        getMenuProps={getItemMenuProps}
+        dragging={draggedItemIds.has(item.id)}
+        selected={selectedIds.has(item.id)}
+        view={view}
+        onDragStart={beginItemDrag}
+        onDragEnd={endItemDrag}
+        onActivateItem={activatePreview}
+        onOpenItem={openPreview}
+      />
+    ),
+    [
+      activatePreview,
+      beginItemDrag,
+      draggedItemIds,
+      endItemDrag,
+      getItemMenuProps,
+      library.collections,
+      openPreview,
+      selectedIds,
+      view
+    ]
   )
 
   const changeAppLayout = (layout: AppLayout): void => {
@@ -1783,6 +1718,31 @@ export function Workspace({
     />
   )
 
+  const renderFocusActions = useCallback(
+    (item: LibraryItemDto): React.ReactNode => (
+      <ItemActionMenu
+        item={item}
+        collections={library.collections}
+        showQuickSourceAction={focusRailDensity === 'visual'}
+        {...getItemMenuProps(item)}
+      />
+    ),
+    [focusRailDensity, getItemMenuProps, library.collections]
+  )
+  const wrapFocusRow = useCallback(
+    (item: LibraryItemDto, row: React.ReactElement): React.ReactNode => (
+      <ItemContextMenu
+        key={item.id}
+        item={item}
+        collections={library.collections}
+        {...getItemMenuProps(item)}
+      >
+        {row}
+      </ItemContextMenu>
+    ),
+    [getItemMenuProps, library.collections]
+  )
+
   const focusList = (
     <div className="flex size-full min-h-0 flex-col">
       <FocusListHeader
@@ -1814,11 +1774,10 @@ export function Workspace({
       />
       <FocusItemList
         items={visibleItems}
-        pageKey={retrievalPageKey}
         searchActive={searchActive}
         searchQuery={searchQuery}
         emptyMessage={
-          searchPending
+          searchPending && visibleItems.length === 0
             ? 'Searching…'
             : hasActiveRetrieval && visibleItems.length === 0
               ? searchError
@@ -1919,24 +1878,8 @@ export function Workspace({
         onActivate={activateItem}
         onDragStart={beginItemDrag}
         onDragEnd={endItemDrag}
-        renderActions={(item) => (
-          <ItemActionMenu
-            item={item}
-            collections={library.collections}
-            showQuickSourceAction={focusRailDensity === 'visual'}
-            {...getItemMenuProps(item)}
-          />
-        )}
-        wrapRow={(item, row) => (
-          <ItemContextMenu
-            key={item.id}
-            item={item}
-            collections={library.collections}
-            {...getItemMenuProps(item)}
-          >
-            {row}
-          </ItemContextMenu>
-        )}
+        renderActions={renderFocusActions}
+        wrapRow={wrapFocusRow}
       />
     </div>
   )
@@ -2323,23 +2266,14 @@ export function Workspace({
                   hasBulkItemSelection(selectedItemIds.length) && 'pb-24 lg:pb-24'
                 )}
               >
-                {view === 'visual' ? (
-                  <>
-                    <OrderedMasonry>{cardLayoutContent}</OrderedMasonry>
-                    {renderedItems.length < visibleItems.length ? (
-                      <div ref={loadMoreItemsRef} className="h-px" aria-hidden="true" />
-                    ) : null}
-                  </>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(16rem,1fr))] gap-4">
-                      {cardLayoutContent}
-                    </div>
-                    {renderedItems.length < visibleItems.length ? (
-                      <div ref={loadMoreItemsRef} className="h-px" aria-hidden="true" />
-                    ) : null}
-                  </>
-                )}
+                <VirtualCardList
+                  ref={cardListRef}
+                  items={visibleItems}
+                  renderItem={renderLibraryCard}
+                  layout={view === 'visual' ? 'masonry' : 'grid'}
+                  leadingVisible={!searchActive && (composerOpen || showExternalDropShadow)}
+                  leading={searchActive ? null : captureSlot}
+                />
                 {!isDragging && searchPending ? (
                   <Empty className="mt-8 gap-1" aria-live="polite">
                     <EmptyTitle className="text-sm text-muted-foreground">Searching…</EmptyTitle>

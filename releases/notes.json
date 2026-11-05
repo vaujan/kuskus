@@ -1,6 +1,16 @@
 {
   "unreleased": {
-    "changes": {}
+    "changes": {
+      "Fixed": [
+        "Soften light-mode skeuomorphic control shadows and remove their inset border.",
+        "Keep large-vault card browsing responsive by unmounting offscreen cards and avoiding unchanged preview renders.",
+        "Keep Focus navigation and search responsive, and batch background link metadata updates in large vaults.",
+        "Reduce cold indexing work and avoid full vault scans when checking Capture drafts, importing files, or saving notes."
+      ],
+      "Added": [
+        "Add pnpm stress to open an isolated, persistent 6,000-note vault for manual performance testing."
+      ]
+    }
   },
   "releases": [
     {

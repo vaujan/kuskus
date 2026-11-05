@@ -129,3 +129,74 @@ test('uses readable text after a captured image for the new note filename', asyn
   assert.equal(note.relativePath, 'Dialog content is too cramped.md')
   assert.equal(existsSync(join(root, 'Image first title', note.relativePath)), true)
 })
+
+test('enrichment preserves a title changed during loading and refreshes searchable metadata', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kusu-url-inflight-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  let resolveResponse
+  let markStarted
+  const started = new Promise((resolve) => {
+    markStarted = resolve
+  })
+  const response = new Promise((resolve) => {
+    resolveResponse = resolve
+  })
+  let requests = 0
+  const service = new LibraryService(join(root, 'settings.json'), {
+    lookup: async () => [{ address: '93.184.216.34', family: 4 }],
+    fetch: async () => {
+      requests++
+      markStarted()
+      return response
+    }
+  })
+  await service.createIn(root, 'Links')
+  const item = await service.createUrl('https://example.com/article')
+  const loading = service.enrichUrl(item.id)
+  await started
+  await service.renameItem({ itemId: item.id, title: 'Personal title' })
+  resolveResponse(
+    new Response(
+      '<head><title>Remote title</title><meta name="description" content="Fresh searchable description"></head>',
+      { headers: { 'content-type': 'text/html' } }
+    )
+  )
+  const enriched = await loading
+  assert.equal(enriched.title, 'Personal title')
+  assert.equal(
+    (await service.queryItems({ query: 'fresh searchable' })).itemIds.includes(item.id),
+    true
+  )
+  assert.equal((await service.getItemDetail(item.id)).metadataStatus, 'ready')
+  await service.enrichUrl(item.id)
+  assert.equal(requests, 1, 'ready metadata is reused without another network request')
+})
+
+test('failed enrichment does not undo a custom title saved during loading', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kusu-url-failed-inflight-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  let rejectResponse
+  let markStarted
+  const started = new Promise((resolve) => {
+    markStarted = resolve
+  })
+  const response = new Promise((_, reject) => {
+    rejectResponse = reject
+  })
+  const service = new LibraryService(join(root, 'settings.json'), {
+    lookup: async () => [{ address: '93.184.216.34', family: 4 }],
+    fetch: async () => {
+      markStarted()
+      return response
+    }
+  })
+  await service.createIn(root, 'Links')
+  const item = await service.createUrl('https://example.com/article')
+  const loading = service.enrichUrl(item.id)
+  await started
+  await service.renameItem({ itemId: item.id, title: 'Keep my title' })
+  rejectResponse(new Error('offline'))
+  const enriched = await loading
+  assert.equal(enriched.title, 'Keep my title')
+  assert.equal(enriched.metadataStatus, 'unavailable')
+})

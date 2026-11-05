@@ -3,6 +3,7 @@ import { STARTER_TUTORIAL } from '../../shared/starter-tutorial'
 import { randomUUID } from 'node:crypto'
 import { realpathSync, watch, type FSWatcher } from 'node:fs'
 import { basename, dirname, extname, join } from 'node:path'
+import { isDeepStrictEqual } from 'node:util'
 
 import type {
   ActiveItemLocation,
@@ -92,7 +93,9 @@ export class LibraryService {
   private currentLibraryPath: string | null = null
   private pendingLibraryPath: string | null = null
   private unavailableLibrary: { path: string; message: string } | null = null
-  private readonly store = new LibraryStore()
+  private readonly store = new LibraryStore((libraryPath, relativePath) => {
+    if (this.currentLibraryPath === libraryPath) this.markAppOwnedWrite(relativePath)
+  })
 
   getPerformanceVaultScanCount(): number {
     return this.store.getPerformanceVaultScanCount()
@@ -108,6 +111,10 @@ export class LibraryService {
   private vaultDirty = true
   private readonly vaultChangedPaths = new Set<string>()
   private libraryRevision = 0
+  private readonly searchDocuments = new WeakMap<
+    LibraryItemDto,
+    { title: string; supporting: string; searchable: string }
+  >()
   private vaultWatcher: FSWatcher | null = null
   private vaultChangeTimer: NodeJS.Timeout | null = null
   private ignoredAppMoveTimer: NodeJS.Timeout | null = null
@@ -117,7 +124,12 @@ export class LibraryService {
 
   private markAppOwnedWrite(relativePath: string): void {
     if (!relativePath) return
-    this.recentAppWrites.set(relativePath.replace(/\\/g, '/').toLocaleLowerCase(), Date.now())
+    let path = relativePath.replace(/\\/g, '/').toLocaleLowerCase()
+    const now = Date.now()
+    while (path && path !== '.') {
+      this.recentAppWrites.set(path, now)
+      path = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : ''
+    }
   }
 
   private isAppOwnedWrite(relativePath: string): boolean {
@@ -183,6 +195,7 @@ export class LibraryService {
 
   async commitCaptureSubmission(record: CaptureSubmissionRecord): Promise<LibraryItemDto> {
     const libraryPath = this.requireCurrentLibrary()
+    await this.currentLibraryDto(libraryPath)
     let existing: PersistedItem | null = null
     try {
       existing = await this.store.readPersistedItem(libraryPath, record.id)
@@ -190,9 +203,7 @@ export class LibraryService {
       // No authoritative item exists yet.
     }
     if (existing) {
-      const item = (await this.buildLibraryDto(libraryPath)).items.find(
-        (candidate) => candidate.id === existing.id
-      )
+      const item = await this.refreshChangedItem(libraryPath, existing.id)
       if (item) return item
       throw new Error('The saved capture could not be reopened.')
     }
@@ -201,9 +212,7 @@ export class LibraryService {
       validateWebUrl(record.markdown)
       const metadata = createUrlMetadata(record.id, record.markdown, record.submittedAt)
       await this.store.finalizeInboxItem(libraryPath, metadata, [], record.destination)
-      const saved = (await this.buildLibraryDto(libraryPath)).items.find(
-        (candidate) => candidate.id === record.id
-      )
+      const saved = await this.refreshChangedItem(libraryPath, record.id)
       if (!saved || saved.type !== 'url') throw new Error('The saved link could not be reopened.')
       return saved
     }
@@ -215,7 +224,7 @@ export class LibraryService {
         record.id,
         record.fileId
       )
-      return this.store.importVaultFile(
+      const imported = await this.store.importVaultFile(
         libraryPath,
         {
           id: record.id,
@@ -226,6 +235,9 @@ export class LibraryService {
         },
         record.destination
       )
+      const saved = await this.refreshChangedItem(libraryPath, imported.id)
+      if (saved.type !== 'file') throw new Error('The imported file could not be reopened.')
+      return saved
     }
 
     const staged = await Promise.all(
@@ -408,17 +420,22 @@ export class LibraryService {
     const queryTerms = query.split(/\s+/)
     const itemIds = library.items
       .map((item, index) => {
-        const title = item.title.toLocaleLowerCase()
-        const supporting = (
-          item.type === 'note'
-            ? item.body
-            : item.type === 'image'
-              ? (item.sourceFilename ?? item.contentFilename)
-              : item.type === 'file'
-                ? `${item.sourceFilename} ${item.contentFilename}`
-                : `${item.domain} ${item.sourceUrl} ${item.description ?? ''}`
-        ).toLocaleLowerCase()
-        const searchable = `${title} ${supporting}`
+        let document = this.searchDocuments.get(item)
+        if (!document) {
+          const title = item.title.toLocaleLowerCase()
+          const supporting = (
+            item.type === 'note'
+              ? item.body
+              : item.type === 'image'
+                ? (item.sourceFilename ?? item.contentFilename)
+                : item.type === 'file'
+                  ? `${item.sourceFilename} ${item.contentFilename}`
+                  : `${item.domain} ${item.sourceUrl} ${item.description ?? ''}`
+          ).toLocaleLowerCase()
+          document = { title, supporting, searchable: `${title} ${supporting}` }
+          this.searchDocuments.set(item, document)
+        }
+        const { title, supporting, searchable } = document
         if (!queryTerms.every((term) => searchable.includes(term))) return null
 
         const score =
@@ -623,7 +640,6 @@ export class LibraryService {
 
     const updated = updateNoteMetadata(metadata, markdown, new Date().toISOString())
     await this.store.updateNote(libraryPath, updated, markdown)
-    this.markAppOwnedWrite(metadata.relativePath ?? '')
     const item = await this.refreshChangedItem(libraryPath, itemId)
     if (item.type !== 'note') throw new Error('The saved note could not be reopened.')
     return item
@@ -633,7 +649,10 @@ export class LibraryService {
     const next = this.librarySnapshot
       ? await this.store.updateLibraryDto(libraryPath, this.librarySnapshot, [itemId])
       : null
-    if (next) this.librarySnapshot = next
+    if (next) {
+      this.librarySnapshot = next
+      this.libraryRevision++
+    }
     const item = next?.items.find((entry) => entry.id === itemId)
     if (!item) throw new Error('The saved item could not be reopened.')
     return item
@@ -867,13 +886,18 @@ export class LibraryService {
 
   async importFile(input: FileImportInput): Promise<FileItemDto> {
     const { bytes, filename, mediaType } = this.validateFileImport(input)
-    return this.store.importVaultFile(this.requireCurrentLibrary(), {
+    const libraryPath = this.requireCurrentLibrary()
+    await this.currentLibraryDto(libraryPath)
+    const imported = await this.store.importVaultFile(libraryPath, {
       id: randomUUID(),
       filename,
       mediaType,
       bytes,
       timestamp: new Date().toISOString()
     })
+    const saved = await this.refreshChangedItem(libraryPath, imported.id)
+    if (saved.type !== 'file') throw new Error('The imported file could not be reopened.')
+    return saved
   }
 
   private validateFileImport(input: FileImportInput): {
@@ -914,19 +938,35 @@ export class LibraryService {
 
   async enrichUrl(itemId: string): Promise<UrlItemDto> {
     this.validateItemId(itemId, 'item')
-    const existing = this.enrichmentRequests.get(itemId)
+    const libraryPath = this.requireCurrentLibrary()
+    const key = `${libraryPath}:${itemId}`
+    const existing = this.enrichmentRequests.get(key)
     if (existing) return existing
-    const request = this.performUrlEnrichment(itemId).finally(() => {
-      this.enrichmentRequests.delete(itemId)
-    })
-    this.enrichmentRequests.set(itemId, request)
+    const request = this.performUrlEnrichment(itemId)
+      .then((item) => {
+        if (this.currentLibraryPath === libraryPath && this.librarySnapshot) {
+          this.librarySnapshot = {
+            ...this.librarySnapshot,
+            items: this.librarySnapshot.items.map((current) =>
+              current.id === item.id ? item : current
+            )
+          }
+          this.libraryRevision++
+        }
+        return item
+      })
+      .finally(() => this.enrichmentRequests.delete(key))
+    this.enrichmentRequests.set(key, request)
     return request
   }
 
   private async performUrlEnrichment(itemId: string): Promise<UrlItemDto> {
     const libraryPath = this.requireCurrentLibrary()
+    await this.currentLibraryDto(libraryPath)
     const item = await this.store.readPersistedItem(libraryPath, itemId)
     if (item.type !== 'url') throw new Error('The saved link metadata is invalid.')
+    if (item.metadataStatus === 'ready' && (item.metadataVersion ?? 1) >= 2)
+      return toUrlDto(item, (await this.store.resolveItem(libraryPath, itemId)).location)
     try {
       const pageUrl = validateWebUrl(item.sourceUrl)
       const response = await fetchPublicResource(
@@ -941,10 +981,13 @@ export class LibraryService {
       const html = await readHtmlHead(response)
       const finalUrl = response.url ? new URL(response.url) : pageUrl
       const extracted = extractUrlMetadata(html, finalUrl)
+      const current = await this.store.readPersistedItem(libraryPath, itemId)
+      if (current.type !== 'url' || current.sourceUrl !== item.sourceUrl)
+        throw new Error('The link changed during metadata loading.')
       const updated: PersistedUrlItem = {
-        ...item,
+        ...current,
         ...extracted,
-        title: item.titleSource === 'custom' ? item.title : extracted.title,
+        title: current.titleSource === 'custom' ? current.title : extracted.title,
         metadataStatus: 'ready',
         metadataError: null,
         updatedAt: new Date().toISOString()
@@ -952,8 +995,11 @@ export class LibraryService {
       await this.store.updateItem(libraryPath, updated)
       return toUrlDto(updated, (await this.store.resolveItem(libraryPath, itemId)).location)
     } catch (error) {
+      const current = await this.store.readPersistedItem(libraryPath, itemId)
+      if (current.type !== 'url' || current.sourceUrl !== item.sourceUrl)
+        throw new Error('The link changed during metadata loading.')
       const updated: PersistedUrlItem = {
-        ...item,
+        ...current,
         metadataVersion: 2,
         metadataStatus: 'unavailable',
         metadataError: this.toMessage(error, 'Metadata is unavailable.'),
@@ -1602,6 +1648,8 @@ export class LibraryService {
           const relativePath = typeof filename === 'string' ? filename.replace(/\\/g, '/') : ''
           if (
             !relativePath ||
+            relativePath === '.kuskus' ||
+            relativePath === '.obsidian' ||
             relativePath.startsWith('.kuskus/') ||
             relativePath.startsWith('.obsidian/')
           ) {
@@ -1609,6 +1657,7 @@ export class LibraryService {
           }
           if (this.ignoredAppMovePaths.has(relativePath.toLocaleLowerCase())) return
           if (this.isAppOwnedWrite(relativePath)) return
+          if (process.env.KUSU_PERFORMANCE_OUTPUT) performance.mark('kusu:watcher:' + relativePath)
           this.vaultDirty = true
           this.vaultChangedPaths.add(relativePath)
           if (this.vaultChangeTimer) clearTimeout(this.vaultChangeTimer)
@@ -1711,10 +1760,12 @@ export class LibraryService {
     changedPaths: readonly string[] = []
   ): Promise<LibraryDto> {
     const libraryPath = this.requireCurrentLibrary()
+    const previous = this.librarySnapshot
     const active = this.reconciliation
     if (active) {
       const library = await active
-      if (notify) for (const listener of this.vaultChangeListeners) listener()
+      if (notify && !isDeepStrictEqual(previous, library))
+        for (const listener of this.vaultChangeListeners) listener()
       return library
     }
     const reconciliation = (async () => {
@@ -1730,7 +1781,8 @@ export class LibraryService {
     this.reconciliation = reconciliation
     try {
       const library = await reconciliation
-      if (notify) for (const listener of this.vaultChangeListeners) listener()
+      if (notify && !isDeepStrictEqual(previous, library))
+        for (const listener of this.vaultChangeListeners) listener()
       return library
     } finally {
       if (this.reconciliation === reconciliation) this.reconciliation = null

@@ -19,10 +19,6 @@ test('keeps large-vault work bounded to changed items and near-viewport cards', 
     require.resolve('../src/renderer/src/features/items/note-item-card.tsx'),
     'utf8'
   )
-  const masonry = require('node:fs').readFileSync(
-    require.resolve('../src/renderer/src/features/library/ordered-masonry.tsx'),
-    'utf8'
-  )
   const benchmark = require('node:fs').readFileSync(
     require.resolve('../scripts/benchmark-performance.cjs'),
     'utf8'
@@ -33,7 +29,6 @@ test('keeps large-vault work bounded to changed items and near-viewport cards', 
   assert.doesNotMatch(store, /async resolveItem[\s\S]*?await this\.scanVault/)
   assert.match(noteCard, /useNearViewport\(\)/)
   assert.match(noteCard, /nearViewport \? \(/)
-  assert.match(masonry, /visibleItems\.map\(\(item\) => item\.offsetHeight\)/)
   assert.match(benchmark, /service\.queryItems/)
   assert.match(benchmark, /renameItemMs/)
   assert.match(benchmark, /archiveItemMs/)

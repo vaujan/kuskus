@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { memo, startTransition, useCallback, useLayoutEffect, useMemo, useRef } from 'react'
 import {
   Empty,
   EmptyContent,
@@ -7,27 +7,23 @@ import {
   EmptyTitle
 } from '@/components/ui/empty'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { FocusIndexRow } from '@/features/items/focus-index-row'
+import { FocusRailItem } from '@/features/items/focus-rail-item'
 import {
   resolveFocusNavigationItemId,
   type FocusRailDensity
 } from '@/features/items/focus-view-state'
-import { SavedItemCard } from '@/features/items/saved-item-card'
-import { OrderedMasonry } from '@/features/library/ordered-masonry'
-import { cn } from '@/lib/utils'
+import { VirtualCardList, type VirtualCardListHandle } from '@/features/library/virtual-card-list'
 import type { LibraryItemDto } from '../../../../shared/library-contract'
 
 const PLAIN_ACTIVATION = { shiftKey: false, ctrlKey: false, metaKey: false } as const
-const FOCUS_PAGE_SIZE = 50
 
-export function FocusItemList({
+export const FocusItemList = memo(function FocusItemList({
   items,
   density,
   activeItemId,
   selectedIds,
   draggedIds,
   composer,
-  pageKey,
   searchActive,
   searchQuery,
   emptyMessage,
@@ -45,7 +41,6 @@ export function FocusItemList({
   selectedIds: ReadonlySet<string>
   draggedIds: ReadonlySet<string>
   composer: React.ReactNode
-  pageKey: string
   searchActive: boolean
   searchQuery: string
   emptyMessage: string | null
@@ -63,67 +58,39 @@ export function FocusItemList({
   const itemIds = useMemo(() => items.map((item) => item.id), [items])
   const viewportRef = useRef<HTMLElement | null>(null)
   const revealedItemRef = useRef<string | null>(null)
-  const pendingFocusRef = useRef<string | null>(null)
+  const listRef = useRef<VirtualCardListHandle>(null)
   const returnScrollTopRef = useRef(0)
   const previousSearchActiveRef = useRef(searchActive)
-  const sentinelRef = useRef<HTMLDivElement | null>(null)
-  const [page, setPage] = useState({ key: pageKey, limit: FOCUS_PAGE_SIZE })
-  const pageLimit = page.key === pageKey ? page.limit : FOCUS_PAGE_SIZE
-  const activeItemIndex = activeItemId ? items.findIndex((item) => item.id === activeItemId) : -1
-  const renderLimit = Math.max(pageLimit, activeItemIndex + 1)
-  const mountedItems = items.slice(0, renderLimit)
 
-  const navigate = (itemId: string, key: 'ArrowUp' | 'ArrowDown' | 'Home' | 'End'): void => {
-    const nextId = resolveFocusNavigationItemId(itemIds, itemId, key)
-    pendingFocusRef.current = nextId
-    // Mount the destination before attempting to focus it, including End beyond page 1.
-    setPage({ key: pageKey, limit: Math.max(renderLimit, itemIds.indexOf(nextId) + 1) })
-    onActivate(nextId, PLAIN_ACTIVATION)
-  }
+  const activation = useRef(onActivate)
+  useLayoutEffect(() => {
+    activation.current = onActivate
+  }, [onActivate])
+  const activatePreview = useCallback(
+    (id: string, event: React.MouseEvent<HTMLButtonElement>) => activation.current(id, event),
+    []
+  )
+  const openPreview = useCallback((id: string) => activation.current(id, PLAIN_ACTIVATION), [])
+
+  const navigate = useCallback(
+    (itemId: string, key: 'ArrowUp' | 'ArrowDown' | 'Home' | 'End'): void => {
+      const nextId = resolveFocusNavigationItemId(itemIds, itemId, key)
+      revealedItemRef.current = nextId
+      listRef.current?.reveal(nextId, true)
+      startTransition(() => onActivate(nextId, PLAIN_ACTIVATION))
+    },
+    [itemIds, onActivate]
+  )
 
   useLayoutEffect(() => {
-    const id = pendingFocusRef.current
-    if (!id) return
-    pendingFocusRef.current = null
-    const next = viewportRef.current?.querySelector<HTMLElement>(
-      `[data-item-id="${CSS.escape(id)}"] [data-slot="item-card-primary-action"]`
-    )
-    next?.focus({ preventScroll: true })
-    next?.scrollIntoView({ block: 'nearest' })
-  })
-
-  useEffect(() => {
-    if (renderLimit >= items.length) return
-    const target = sentinelRef.current
-    if (!target) return
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!entries.some((entry) => entry.isIntersecting)) return
-        startTransition(() =>
-          setPage((current) => ({
-            key: pageKey,
-            limit: (current.key === pageKey ? current.limit : FOCUS_PAGE_SIZE) + FOCUS_PAGE_SIZE
-          }))
-        )
-      },
-      { rootMargin: '600px 0px' }
-    )
-    observer.observe(target)
-    return () => observer.disconnect()
-  }, [items.length, pageKey, renderLimit])
-
-  useEffect(() => {
-    const viewport = viewportRef.current
     if (!activeItemId) {
       revealedItemRef.current = null
       return
     }
-    if (!viewport || revealedItemRef.current === activeItemId) return
-    const row = viewport.querySelector<HTMLElement>(`[data-item-id="${CSS.escape(activeItemId)}"]`)
-    if (!row) return
+    if (revealedItemRef.current === activeItemId) return
     revealedItemRef.current = activeItemId
-    row.scrollIntoView({ behavior: 'auto', block: 'nearest' })
-  }, [activeItemId, renderLimit])
+    listRef.current?.reveal(activeItemId)
+  }, [activeItemId, items])
 
   useLayoutEffect(() => {
     if (!searchActive && previousSearchActiveRef.current && viewportRef.current) {
@@ -153,97 +120,46 @@ export function FocusItemList({
           </EmptyHeader>
           {emptyAction ? <EmptyContent className="gap-2">{emptyAction}</EmptyContent> : null}
         </Empty>
-      ) : density === 'index' ? (
-        <div className="min-h-full" role="group" aria-label="Items">
-          {composer}
-
-          {mountedItems.map((item) => {
-            const active = item.id === activeItemId
-            const selected = selectedIds.has(item.id)
-            const row = (
-              <FocusIndexRow
-                key={item.id}
-                item={item}
-                searchQuery={searchQuery}
-                active={active}
-                selected={selected}
-                dragging={draggedIds.has(item.id)}
-                onActivate={(event) => onActivate(item.id, event)}
-                onDragStart={(event) => onDragStart(item.id, event)}
-                onDragEnd={onDragEnd}
-                onNavigate={(key) => navigate(item.id, key)}
-                actions={renderActions(item)}
-              />
-            )
-            return wrapRow(item, row)
-          })}
-          {mountedItems.length < items.length ? (
-            <div ref={sentinelRef} className="h-px" aria-hidden="true" />
-          ) : null}
-        </div>
       ) : (
-        <div className="min-h-full py-2 pr-3 pl-2" role="group" aria-label="Items">
-          <OrderedMasonry gap={8}>
-            {composer ? <div className="rounded-xl p-1">{composer}</div> : null}
-
-            {mountedItems.map((item) => {
-              const active = item.id === activeItemId
-              const selected = selectedIds.has(item.id)
-              const row = (
-                <div
-                  key={item.id}
-                  className={cn(
-                    'group/focus-card group/saved-item relative min-w-0 rounded-xl p-1 outline-none',
-                    'transition-opacity [transition-duration:var(--motion-duration-ui)]',
-                    'data-[active=true]:bg-primary/10 data-[selected=true]:bg-primary/10 data-[dragging=true]:opacity-40'
-                  )}
-                  data-item-id={item.id}
-                  data-active={active || undefined}
-                  data-selected={selected || undefined}
-                  data-dragging={draggedIds.has(item.id) || undefined}
-                  aria-current={active ? 'true' : undefined}
-                  draggable
-                  onDragStart={(event) => onDragStart(item.id, event)}
-                  onDragEnd={onDragEnd}
-                  onKeyDownCapture={(event) => {
-                    if (
-                      event.target instanceof Element &&
-                      !event.target.matches('[data-slot="item-card-primary-action"]')
-                    )
-                      return
-                    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
-                    if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return
-                    event.preventDefault()
-                    navigate(item.id, event.key as 'ArrowUp' | 'ArrowDown' | 'Home' | 'End')
-                  }}
-                >
-                  <SavedItemCard
-                    item={item}
-                    view="visual"
-                    compact
-                    selected={selected}
-                    showSelectionVisual={false}
-                    opensDialog={false}
-                    onActivate={(event) => onActivate(item.id, event)}
-                    onOpen={() => onActivate(item.id, PLAIN_ACTIVATION)}
-                  />
-                  <div
-                    data-drag-preview-hidden
-                    className="absolute top-3 right-3 z-30 group-data-[active=true]/focus-card:[&_[data-slot=button]]:opacity-100"
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    {renderActions(item)}
-                  </div>
-                </div>
-              )
-              return wrapRow(item, row)
-            })}
-          </OrderedMasonry>
-          {mountedItems.length < items.length ? (
-            <div ref={sentinelRef} className="h-px" aria-hidden="true" />
-          ) : null}
+        <div
+          className={density === 'index' ? 'min-h-full' : 'min-h-full py-2 pr-3 pl-2'}
+          role="group"
+          aria-label="Items"
+        >
+          <VirtualCardList
+            ref={listRef}
+            items={items}
+            layout={density === 'index' ? 'list' : 'masonry'}
+            gap={density === 'index' ? 0 : 8}
+            estimatedHeight={density === 'index' ? 96 : 260}
+            leading={
+              density === 'index' ? (
+                composer
+              ) : composer ? (
+                <div className="rounded-xl p-1">{composer}</div>
+              ) : null
+            }
+            leadingVisible={Boolean(composer)}
+            renderItem={(item) => (
+              <FocusRailItem
+                item={item}
+                density={density}
+                active={item.id === activeItemId}
+                selected={selectedIds.has(item.id)}
+                dragging={draggedIds.has(item.id)}
+                searchQuery={searchQuery}
+                onActivateItem={activatePreview}
+                onOpenItem={openPreview}
+                onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
+                onNavigate={navigate}
+                renderActions={renderActions}
+                wrapRow={wrapRow}
+              />
+            )}
+          />
         </div>
       )}
     </ScrollArea>
   )
-}
+})

@@ -1505,8 +1505,7 @@
 /* Raised controls: a fine top edge and a short shadow below. */
 :root[data-control-style='skeuomorphic'] {
   --control-raised-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 12%), inset 0 0 0 1px rgb(0 0 0 / 8%),
-    0 1px 2px rgb(0 0 0 / 18%), 0 2px 3px rgb(0 0 0 / 6%);
+    inset 0 1px 0 rgb(255 255 255 / 12%), 0 1px 2px rgb(0 0 0 / 14%), 0 2px 3px rgb(0 0 0 / 4%);
 }
 
 :root.dark[data-control-style='skeuomorphic'] {

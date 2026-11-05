@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { focusIndexSupportingText, searchPreview } from '@/features/items/focus-index-row-text'
 import { SearchHighlight } from '@/features/items/search-highlight'
@@ -75,13 +75,11 @@ export function FocusIndexRow({
   const addedTime = relativeAddedTime(item.createdAt)
   const typeLabel = itemTypeLabel(item)
   const detail = itemDetail(item)
-  const supportingText = useMemo(() => focusIndexSupportingText(item), [item])
-  const preview = searchQuery ? searchPreview(supportingText, searchQuery) : supportingText
 
   return (
     <div
       {...rest}
-      className="group/focus-index-row group/saved-item relative min-h-[88px] min-w-0 overflow-hidden border-b border-border/20 bg-transparent outline-none [content-visibility:auto] [contain-intrinsic-size:auto_96px] transition-opacity [transition-duration:var(--motion-duration-ui)] [transition-timing-function:var(--motion-ease-out)] before:pointer-events-none before:absolute before:inset-y-2.5 before:left-0 before:z-10 before:w-[3px] before:rounded-r-full before:bg-primary before:opacity-0 hover:bg-muted/40 data-[active=true]:bg-primary/12 data-[active=true]:before:opacity-100 data-[dragging=true]:opacity-40 data-[selected=true]:bg-primary/12"
+      className="group/focus-index-row group/saved-item relative min-h-[88px] min-w-0 overflow-hidden border-b border-border/20 bg-transparent outline-none transition-opacity [transition-duration:var(--motion-duration-ui)] [transition-timing-function:var(--motion-ease-out)] before:pointer-events-none before:absolute before:inset-y-2.5 before:left-0 before:z-10 before:w-[3px] before:rounded-r-full before:bg-primary before:opacity-0 hover:bg-muted/40 data-[active=true]:bg-primary/12 data-[active=true]:before:opacity-100 data-[dragging=true]:opacity-40 data-[selected=true]:bg-primary/12"
       data-item-id={item.id}
       data-active={active || undefined}
       data-selected={selected || undefined}
@@ -105,23 +103,13 @@ export function FocusIndexRow({
         }}
       />
 
-      <div className="pointer-events-none flex min-w-0 flex-col py-2.5 pr-14 pl-4">
-        <span className="line-clamp-2 text-sm leading-5 font-medium text-pretty text-foreground">
-          <SearchHighlight text={item.title} query={searchQuery} />
-        </span>
-        <span className="mt-1 flex min-w-0 items-center gap-2.5 text-[0.6875rem] leading-4 text-muted-foreground">
-          <time className="shrink-0 tabular-nums" dateTime={item.createdAt}>
-            {addedTime}
-          </time>
-          <Badge size="sm" variant={itemTypeBadgeVariant(item)}>
-            {typeLabel}
-          </Badge>
-          {detail ? <span className="max-w-20 shrink-0 truncate">{detail}</span> : null}
-        </span>
-        <span className="mt-0.5 truncate text-[0.8125rem] leading-[1.125rem] text-foreground/65">
-          <SearchHighlight text={preview || 'No preview available'} query={searchQuery} />
-        </span>
-      </div>
+      <FocusIndexContent
+        item={item}
+        searchQuery={searchQuery}
+        addedTime={addedTime}
+        detail={detail}
+        typeLabel={typeLabel}
+      />
 
       <div
         data-drag-preview-hidden
@@ -133,3 +121,39 @@ export function FocusIndexRow({
     </div>
   )
 }
+
+const FocusIndexContent = memo(function FocusIndexContent({
+  item,
+  searchQuery,
+  addedTime,
+  detail,
+  typeLabel
+}: {
+  item: LibraryItemDto
+  searchQuery: string
+  addedTime: string
+  detail: string | null
+  typeLabel: string
+}): React.JSX.Element {
+  const supportingText = useMemo(() => focusIndexSupportingText(item), [item])
+  const preview = searchQuery ? searchPreview(supportingText, searchQuery) : supportingText
+  return (
+    <div className="pointer-events-none flex min-w-0 flex-col py-2.5 pr-14 pl-4">
+      <span className="line-clamp-2 text-sm leading-5 font-medium text-pretty text-foreground">
+        <SearchHighlight text={item.title} query={searchQuery} />
+      </span>
+      <span className="mt-1 flex min-w-0 items-center gap-2.5 text-[0.6875rem] leading-4 text-muted-foreground">
+        <time className="shrink-0 tabular-nums" dateTime={item.createdAt}>
+          {addedTime}
+        </time>
+        <Badge size="sm" variant={itemTypeBadgeVariant(item)}>
+          {typeLabel}
+        </Badge>
+        {detail ? <span className="max-w-20 shrink-0 truncate">{detail}</span> : null}
+      </span>
+      <span className="mt-0.5 truncate text-[0.8125rem] leading-[1.125rem] text-foreground/65">
+        <SearchHighlight text={preview || 'No preview available'} query={searchQuery} />
+      </span>
+    </div>
+  )
+})
