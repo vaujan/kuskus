@@ -6,6 +6,19 @@ All notable changes to Kusu are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [0.0.12] - 2026-11-05
+
+### Changed
+
+- Highlight feature names in website descriptions with colorful inline icon badges.
+- Give website headings IBM Plex Sans typography and add a beta, free-forever, open-source badge to both home pages.
+- Add a dithered sunlit canopy behind the website hero and navigation, expand the demo without its gradient frame, and use light mode by default.
+- Show the sidebar update action only when a downloaded update is ready to install. Check for and download updates in Settings.
+
+### Fixed
+
+- Explain update feed failures and confirm when Kusu is up to date.
+
 ## [0.0.11] - 2026-11-04
 
 ### Added
