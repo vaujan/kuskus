@@ -6,6 +6,8 @@ All notable changes to Kusu are documented here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [0.0.13] - 2026-11-06
+
 ### Added
 
 - Add pnpm stress to open an isolated, persistent 6,000-note vault for manual performance testing.
