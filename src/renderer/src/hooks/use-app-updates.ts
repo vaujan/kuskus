@@ -39,7 +39,7 @@ export function useAppUpdates(): {
       unavailable: 'In-app updates are available in installed Windows builds.',
       idle: 'Kusu checks for updates automatically. Downloads start when you choose.',
       checking: 'Checking for updates…',
-      current: '',
+      current: 'Kusu is up to date.',
       available: `Version ${status.version} is available.`,
       downloading: `Downloading version ${status.version}… ${Math.floor(status.percent ?? 0)}%`,
       ready: `Version ${status.version} is ready. Restart to finish updating.`,
@@ -66,7 +66,7 @@ export function useAppUpdates(): {
       else {
         await api.check()
         if ((await api.getStatus()).phase === 'current') {
-          toast.info('No update available', { id: 'app-update-current' })
+          toast.info('Kusu is up to date', { id: 'app-update-current' })
         }
       }
     } catch {

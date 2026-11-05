@@ -35,7 +35,6 @@ function selectPersona(index: number, focus = false): void {
     tab.tabIndex = tabIndex === index ? 0 : -1
   }
   panel.setAttribute('aria-labelledby', `persona-tab-${persona.id}`)
-  panel.dataset.persona = persona.id
   updatePreview()
   if (focus) tabs[index].focus()
 }

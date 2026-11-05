@@ -56,13 +56,19 @@ Website publication does not publish desktop installers or make the GitHub repos
 
 ## Edit the interactive demo
 
-Learn, Build, Research, and Create sit above the mockup. Each tab has an icon and a short description. `src/demo-personas.ts` defines their content and appearance presets; `src/demo-tabs.ts` handles keyboard navigation and sends the selected preset to the preview.
+Learn, Build, Research, and Create sit above the mockup, which matches the width of the page's content container. Each tab has an icon and a short description. `src/demo-personas.ts` defines their content and appearance presets; `src/demo-tabs.ts` handles keyboard navigation and sends the selected preset to the preview. The mockup has no padded gradient frame; the navigation shares the hero artwork.
 
 The student library contains 55 items from `../src/renderer/src/demo/student-library-fixtures.ts`. The developer, researcher, and creative libraries each contain 18 original notes and real bookmarks in `src/persona-libraries.ts`. The creative library is an editorial newsletter project; no generated photographs or fictitious participant records are included.
 
 `src/preview.tsx` mounts one React root in one persistent iframe. `src/demo-app.tsx` installs the demo API and handles content and appearance changes. Same-origin messages switch its library and update the existing settings provider; the iframe does not navigate. Only the active workspace renders, with library-specific state initialized when switching collections of demo content. Each persona has its own session key, so returning to a tab restores its folder and open item. The demo uses 90% zoom, a 208px sidebar, and a 320px item rail. Note editing and creation work temporarily in memory, with no disk writes or browser persistence. Other write actions remain unavailable.
 
 Bookmark cards use bundled copies of the actual social preview images and icons advertised by their linked pages. Source pages, image URLs, and capture dates are recorded in `../src/renderer/src/demo/assets/bookmarks/sources.json`. Links without a usable image show the no-preview state. Visitors make no requests to publishers for these images. Run `node scripts/cache-demo-previews.cjs` from the repository root to refresh the snapshots, then review the assets and manifest before committing. Normal builds use the checked-in files without fetching remote pages.
+
+## Hero artwork
+
+`assets/hero-canopy.png` is original AI-generated artwork created with OpenAI Image Generation for Kusu. It depicts a sunlit canopy with ordered dithering and a limited natural palette. The shared landing-page stylesheet confines it to `.hero-shell` on the English and Indonesian home pages. Theme-aware overlays keep the copy readable and fade into the next section.
+
+The website defaults to light mode. An explicit theme selection is saved in browser storage.
 
 ## Platform logos
 
