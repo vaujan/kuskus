@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict')
 const { existsSync } = require('node:fs')
-const { mkdtemp, readFile, rm, stat, writeFile } = require('node:fs/promises')
+const { mkdtemp, readFile, rm, stat, utimes, writeFile } = require('node:fs/promises')
 const { tmpdir } = require('node:os')
 const { join, relative, resolve, sep } = require('node:path')
 const test = require('node:test')
@@ -327,40 +327,31 @@ test('note autosave does not expose its backup or trigger a full watched-vault r
   assert.equal(fullRebuilds, 0)
 })
 
-test('reconciliation reuses hash-verified cached bodies and rejects stale cached text', async (context) => {
-  const root = await mkdtemp(join(tmpdir(), 'kusu-verified-text-'))
+test('reconciliation reads externally edited notes with unchanged size and mtime', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kusu-same-mtime-'))
   context.after(() => rm(root, { recursive: true, force: true }))
   const settings = join(root, 'settings.json')
   const service = new LibraryService(settings)
-  await service.createIn(root, 'Vault')
-  const note = await service.createNote({
-    markdown: '# Hash guard\n\nReal content.',
-    attachmentIds: []
-  })
-  const state = await service.getState()
-  const notePath = join(state.library.path, note.relativePath)
-  const io = require('node:fs/promises')
-  const original = io.readFile
-  let noteReads = 0
-  context.mock.method(io, 'readFile', (...args) => {
-    if (String(args[0]) === notePath) noteReads++
-    return original(...args)
-  })
+  const created = await service.createIn(root, 'Vault')
+  const note = await service.createNote({ markdown: '# Note', attachmentIds: [] })
+  const notePath = join(created.library.path, note.relativePath)
+  const timestamp = new Date('2025-01-01T00:00:00Z')
+  await utimes(notePath, timestamp, timestamp)
+  await service.reconcileState()
+  const before = await stat(notePath)
+
+  const edited = note.body.replace('# Note', '# Edit')
+  assert.notEqual(edited, note.body)
+  await writeFile(notePath, edited)
+  await utimes(notePath, timestamp, timestamp)
+  const after = await stat(notePath)
+  assert.equal(after.mtimeMs, before.mtimeMs)
+  assert.equal(after.size, before.size)
+
   const reopened = new LibraryService(settings)
   await reopened.initialize()
-  await reopened.reconcileState()
-  assert.equal(
-    noteReads,
-    0,
-    'unchanged bytes are verified from the cache without rereading the note'
-  )
-  const indexPath = join(state.library.path, '.kuskus', 'index', 'library-v1.json')
-  const cached = JSON.parse(await readFile(indexPath, 'utf8'))
-  cached.library.items.find((item) => item.id === note.id).body = '# Untrusted cached body'
-  await writeFile(indexPath, JSON.stringify(cached))
-  const tampered = new LibraryService(settings)
-  await tampered.initialize()
-  const reconciled = await tampered.reconcileState()
-  assert.ok(noteReads > 0)
-  assert.equal(reconciled.library.items.find((item) => item.id === note.id).body, note.body)
+  const cached = await reopened.getState(true)
+  assert.equal(cached.library.items.find((item) => item.id === note.id).body, note.body)
+  const reconciled = await reopened.reconcileState()
+  assert.equal(reconciled.library.items.find((item) => item.id === note.id).body, edited)
 })

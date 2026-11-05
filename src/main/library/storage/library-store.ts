@@ -293,16 +293,6 @@ export class LibraryStore {
       ) {
         return null
       }
-      this.scannedNoteSources.set(
-        resolve(libraryPath),
-        new Map(
-          dto.items.flatMap((item) =>
-            item.type === 'note' && typeof item.body === 'string'
-              ? [[item.id, item.body] as const]
-              : []
-          )
-        )
-      )
       return dto
     } catch {
       return null
@@ -838,39 +828,31 @@ export class LibraryStore {
       stats: await stat(file.path)
     }))
     phase('file-stats')
-    const cachedSources = this.scannedNoteSources.get(resolve(libraryPath))
     const scanEntries = await mapWithConcurrency(filesWithStats, 8, async (file) => {
       const current = byPath.get(file.relativePath.toLowerCase())
       const fileIdentity = this.fileIdentityFromStats(file.stats)
-      const unchanged =
+      const sameStats =
         current !== undefined &&
         current.fileSize === file.stats.size &&
         current.modifiedAtMs === file.stats.mtimeMs &&
         current.fileIdentity === fileIdentity
       const extension = extname(file.path).toLowerCase()
       const textBytes =
-        !unchanged &&
-        (extension === MARKDOWN_EXTENSION || extension === INTERNET_SHORTCUT_EXTENSION)
+        extension === MARKDOWN_EXTENSION ||
+        (!sameStats && extension === INTERNET_SHORTCUT_EXTENSION)
           ? await readFile(file.path)
           : null
-      const cachedSource =
-        unchanged && current?.metadata.type === 'note' ? cachedSources?.get(current.id) : undefined
-      const verifiedSource =
-        cachedSource !== undefined &&
-        current?.fingerprint &&
-        createHash('sha256').update(cachedSource, 'utf8').digest('hex') === current.fingerprint
-          ? cachedSource
-          : undefined
+      const fingerprint = textBytes
+        ? createHash('sha256').update(textBytes).digest('hex')
+        : sameStats
+          ? current.fingerprint
+          : await this.fingerprint(file.path)
       return {
         file,
         fileIdentity,
-        fingerprint: unchanged
-          ? current.fingerprint
-          : textBytes
-            ? createHash('sha256').update(textBytes).digest('hex')
-            : await this.fingerprint(file.path),
-        textSource: textBytes?.toString('utf8') ?? verifiedSource,
-        unchanged
+        fingerprint,
+        textSource: textBytes?.toString('utf8'),
+        unchanged: sameStats && current.fingerprint === fingerprint
       }
     })
     phase('fingerprints')
