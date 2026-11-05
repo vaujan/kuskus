@@ -57,7 +57,17 @@ export function ImageItemCard({
         }}
       />
       <ItemCardSelectionIndicator />
-      <ItemCardSurface className={view === 'grid' ? 'h-64 bg-muted/30' : 'bg-muted/30'}>
+      <ItemCardSurface
+        className={view === 'grid' ? 'h-64 bg-muted/30' : 'bg-muted/30'}
+        style={
+          view === 'visual'
+            ? {
+                aspectRatio: `${item.width} / ${item.height}`,
+                maxHeight: compact ? '16rem' : '24rem'
+              }
+            : undefined
+        }
+      >
         {item.missingContent ||
         previewError ||
         (failedPreview !== null && failedPreview === preview) ? (

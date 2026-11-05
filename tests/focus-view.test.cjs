@@ -109,10 +109,7 @@ test('Focus Index drafts align flush with saved rows', () => {
     require.resolve('../src/renderer/src/features/items/focus-item-list.tsx'),
     'utf8'
   )
-  const indexBranch = source.slice(source.indexOf("density === 'index'"), source.indexOf(') : ('))
-
-  assert.match(indexBranch, /\{composer\}/)
-  assert.doesNotMatch(indexBranch, /p-\d[^\n]*\{composer\}/)
+  assert.match(source, /density === 'index'\s*\?\s*\(\s*composer\s*\)/)
 })
 
 test('Focus Index uses text-first rows with previews and distinct active and selected states', () => {
@@ -121,11 +118,9 @@ test('Focus Index uses text-first rows with previews and distinct active and sel
     'utf8'
   )
   assert.match(source, /min-h-\[88px\]/)
-  assert.match(source, /contain-intrinsic-size:auto_96px/)
   assert.doesNotMatch(source, /useImagePreview|useUrlPreview|IntersectionObserver/)
   assert.doesNotMatch(source, /<img|Thumbnail/)
   assert.match(source, /<Badge size="sm" variant=\{itemTypeBadgeVariant\(item\)\}>/)
-  assert.match(source, /content-visibility:auto/)
   assert.match(source, /line-clamp-2/)
   assert.match(source, /focusIndexSupportingText\(item\)/)
   assert.match(source, /pr-14 pl-4/)
@@ -218,10 +213,9 @@ test('New notes use the detail editor while mixed capture stays in the rail', ()
   assert.match(composerEditorSource, /event\.shiftKey && onContinueInEditor/)
   assert.match(composerEditorSource, /event\.key === 'Enter'/)
   assert.match(listSource, /min-h-full py-2/)
-  assert.match(listSource, /<OrderedMasonry gap=\{8\}>/)
 })
 
-test('paging the focus rail does not reveal the same active item again', () => {
+test('scrolling the virtual focus rail does not reveal the same active item again', () => {
   const source = readFileSync(
     require.resolve('../src/renderer/src/features/items/focus-item-list.tsx'),
     'utf8'

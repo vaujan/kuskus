@@ -10,7 +10,7 @@ export function performanceLoggingEnabled(): boolean {
 }
 
 export function trackPerformanceIpcTimings(): void {
-  if (process.env.KUSU_PERFORMANCE_TYPING !== '1' || !performanceLoggingEnabled()) return
+  if (!performanceLoggingEnabled()) return
   const originalHandle = ipcMain.handle.bind(ipcMain)
   ipcMain.handle = ((
     channel: string,

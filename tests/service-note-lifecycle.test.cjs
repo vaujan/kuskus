@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict')
 const { existsSync } = require('node:fs')
-const { mkdtemp, readFile, rm, unlink, writeFile } = require('node:fs/promises')
+const { mkdtemp, readFile, rm, unlink, writeFile, utimes } = require('node:fs/promises')
 const { tmpdir } = require('node:os')
 const { dirname, join } = require('node:path')
 const test = require('node:test')
@@ -819,4 +819,103 @@ test('rejects unsafe persisted note attachment metadata', () => {
   metadata.attachments[0].filename = 'unsafe:stream.png'
   metadata.attachments[0].relativePath = './assets/unsafe:stream.png'
   assert.equal(isPersistedItem(metadata, id), false)
+})
+
+test('app-owned moves do not reconcile the vault, while new external files still do', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kusu-watcher-move-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  await service.createIn(root, 'Watcher')
+  const note = await service.createNote({
+    markdown: '# Move me\n\nKeep this body.',
+    attachmentIds: []
+  })
+  let scans = 0
+  const original = service.store.performScanVault.bind(service.store)
+  service.store.performScanVault = (...args) => {
+    scans++
+    return original(...args)
+  }
+  let notifyExternal
+  const external = new Promise((resolve) => {
+    notifyExternal = resolve
+  })
+  const stop = service.onVaultChanged(() => notifyExternal())
+  context.after(stop)
+  await service.archiveItems({ itemIds: [note.id] })
+  await new Promise((resolve) => setTimeout(resolve, 650))
+  await service.unarchiveItems({ itemIds: [note.id] })
+  await new Promise((resolve) => setTimeout(resolve, 650))
+  assert.equal(scans, 0, 'app-owned lifecycle operations do not schedule a full scan')
+  await writeFile(join(root, 'Watcher', 'External.md'), '# External\n\nNew file outside the app.')
+  const timeout = setTimeout(() => notifyExternal(), 5000)
+  await external
+  clearTimeout(timeout)
+  const state = await service.getState(true)
+  assert.ok(
+    state.library.items.some((item) => item.title === 'External'),
+    'external writes in the same parent directory are still reconciled'
+  )
+  assert.ok(scans > 0)
+})
+
+test('reference rewrites preserve external edits even when size and timestamps are unchanged', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kusu-reference-text-cache-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  await service.createIn(root, 'References')
+  const notePath = join(root, 'References', 'reference.md')
+  await writeFile(notePath, '# Reference\n\nNo embedded image yet.'.padEnd(128, ' '))
+  const fixedTime = new Date('2020-01-01T00:00:00Z')
+  await utimes(notePath, fixedTime, fixedTime)
+  await writeFile(join(root, 'References', 'original.png'), onePixelPng)
+  const state = await service.getState()
+  const image = state.library.items.find((item) => item.type === 'image')
+  const io = require('node:fs/promises')
+  const original = io.readFile
+  let noteReads = 0
+  context.mock.method(io, 'readFile', (...args) => {
+    if (String(args[0]) === notePath) noteReads++
+    return original(...args)
+  })
+  await service.renameItem({ itemId: image.id, title: 'First move' })
+  await writeFile(notePath, '# Reference\n\n![[First move.png]]'.padEnd(128, ' '))
+  await utimes(notePath, fixedTime, fixedTime)
+  await service.renameItem({ itemId: image.id, title: 'Second move' })
+  assert.ok(noteReads > 0, 'changed files are read before references are rewritten')
+  assert.match(await readFile(notePath, 'utf8'), /Second move\.png/)
+})
+
+test('bulk media moves rewrite a shared note once and preserve both references', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kusu-batch-references-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  await service.createIn(root, 'Vault')
+  const notePath = join(root, 'Vault', 'references.md')
+  await writeFile(notePath, '# References\n\n![[one.png]]\n\n![[two.png]]')
+  await writeFile(join(root, 'Vault', 'one.png'), onePixelPng)
+  await writeFile(join(root, 'Vault', 'two.png'), onePixelPng)
+  const folder = await service.createCollection({ name: 'Media' })
+  const state = await service.getState()
+  const imageIds = state.library.items
+    .filter((item) => item.type === 'image')
+    .map((item) => item.id)
+  const io = require('node:fs/promises')
+  const original = io.readFile
+  let noteReads = 0
+  context.mock.method(io, 'readFile', (...args) => {
+    if (String(args[0]) === notePath) noteReads++
+    return original(...args)
+  })
+  await service.moveItems({
+    itemIds: imageIds,
+    destination: { type: 'collection', collectionId: folder.id }
+  })
+  const saved = await readFile(notePath, 'utf8')
+  assert.match(saved, /Media\/one\.png/)
+  assert.match(saved, /Media\/two\.png/)
+  assert.ok(
+    noteReads <= 3,
+    'one source read, one undo read and one DTO read are sufficient for the shared note'
+  )
 })

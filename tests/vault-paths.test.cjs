@@ -32,3 +32,21 @@ test('rejects linked files, directories, dangling links, and metadata junctions'
   assert.throws(() => kusuPath(vault, 'library.json'), /symbolic link or junction/)
   assert.equal(resolveInsideVault(vault, 'new/note.md'), resolve(vault, 'new/note.md'))
 })
+
+test('async indexing paths retain containment and junction protections', async (context) => {
+  const { resolveInsideVaultAsync } = require('../src/main/library/storage/vault-paths.ts')
+  const root = mkdtempSync(resolve(tmpdir(), 'kusu-async-path-security-'))
+  context.after(() => rmSync(root, { recursive: true, force: true }))
+  const vault = resolve(root, 'vault')
+  const outside = resolve(root, 'outside')
+  mkdirSync(vault)
+  mkdirSync(outside)
+  symlinkSync(outside, resolve(vault, 'linked'), 'junction')
+  symlinkSync(resolve(outside, 'missing'), resolve(vault, 'dangling'), 'junction')
+  symlinkSync(outside, resolve(vault, '.kuskus'), 'junction')
+  for (const target of ['linked/note.md', 'dangling/new.md', '.kuskus/records/item.json']) {
+    await assert.rejects(() => resolveInsideVaultAsync(vault, target), /symbolic link or junction/)
+  }
+  await assert.rejects(() => resolveInsideVaultAsync(vault, '../outside/note.md'), /outside/)
+  assert.equal(await resolveInsideVaultAsync(vault, 'new/note.md'), resolve(vault, 'new/note.md'))
+})

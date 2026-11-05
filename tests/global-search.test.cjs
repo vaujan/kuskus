@@ -120,7 +120,7 @@ test('global search uses inline overview and rail inputs without a dialog', () =
   assert.match(railHeader, /searchOpen \? \(/)
   assert.match(railHeader, /<LibrarySearchInput/)
   assert.match(search, /window\.kusu\.queryItems/)
-  assert.match(search, /currentRequest !== requestId\.current/)
+  assert.match(search, /if \(cancelled\) return/)
   assert.equal(
     existsSync(join(__dirname, '../src/renderer/src/features/search/global-search-dialog.tsx')),
     false
@@ -175,4 +175,28 @@ test('dialog surfaces open without animation and dim without backdrop blur', () 
 
   assert.doesNotMatch(dialog, /backdrop-blur|data-open:animate-in|zoom-in/)
   assert.doesNotMatch(alertDialog, /backdrop-blur/)
+})
+
+test('cached search documents follow note edits, renames and removals', async (context) => {
+  const root = await mkdtemp(join(tmpdir(), 'kusu-search-update-'))
+  context.after(() => rm(root, { recursive: true, force: true }))
+  const service = new LibraryService(join(root, 'settings.json'))
+  await service.createIn(root, 'Vault')
+  const note = await service.createNote({
+    markdown: '# Before\n\nOriginal needle.',
+    attachmentIds: []
+  })
+  assert.deepEqual((await service.queryItems({ query: 'original needle' })).itemIds, [note.id])
+  await service.updateNote({
+    itemId: note.id,
+    markdown: '# After\n\nReplacement haystack.',
+    expectedMarkdown: note.body
+  })
+  assert.deepEqual((await service.queryItems({ query: 'original needle' })).itemIds, [])
+  assert.deepEqual((await service.queryItems({ query: 'replacement haystack' })).itemIds, [note.id])
+  await service.renameItem({ itemId: note.id, title: 'Renamed title' })
+  assert.deepEqual((await service.queryItems({ query: 'renamed title' })).itemIds, [note.id])
+  await service.trashItems({ itemIds: [note.id] })
+  await service.permanentlyDeleteItems({ itemIds: [note.id] })
+  assert.deepEqual((await service.queryItems({ query: 'renamed title' })).itemIds, [])
 })
